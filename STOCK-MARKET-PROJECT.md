@@ -12,6 +12,7 @@
 4. JWT 기반 인증 (카카오톡, 구글 OAuth)
 5. 주식/뉴스 관심/즐겨찾기 등록
 6. 여러 API 활용 및 폴백(Fallback) 처리
+7. 주식 거래 내역 관리 (매수/매도 기록, 포트폴리오 조회, 수익률 계산)
 
 ---
 
@@ -44,6 +45,15 @@
 - 뉴스 즐겨찾기 등록/해제
 - 관심 주식 목록 조회
 - 즐겨찾기 뉴스 목록 조회
+
+### 2.6 주식 거래 내역 관리
+- 매수 기록 등록 (주식 코드, 매수가, 수량, 매수일)
+- 매도 기록 등록 (주식 코드, 매도가, 수량, 매도일)
+- 사용자별 거래 내역 조회
+- 주식별 거래 내역 조회
+- 포트폴리오 현황 조회 (보유 주식, 평균 매수가, 보유 수량)
+- 수익률 계산 (현재가 기준 실현/미실현 손익)
+- 거래 내역 수정/삭제
 
 ---
 
@@ -131,34 +141,40 @@
 
 각 Phase별 상세 구현 계획은 아래 문서를 참고하세요:
 
-- **[Phase 1: 기반 설정 및 인증 (Week 1-2)](.claude/plans/phase1-기반설정및인증.md)**
+- **[기반 설정 및 인증](.claude/plans/phase-auth-setup.md)**
   - 프로젝트 초기 설정
   - JWT 인증 구현
   - OAuth 통합 (카카오, 구글)
 
-- **[Phase 2: 주식 정보 조회 (Week 3-4)](.claude/plans/phase2-주식정보조회.md)**
+- **[주식 정보 조회](.claude/plans/phase-stock-info.md)**
   - 주식 도메인 모델
   - 주식 API 클라이언트 (Alpha Vantage, Finnhub, 금융위원회)
   - API 폴백 전략
   - 주식 조회 유스케이스
 
-- **[Phase 3: 뉴스 조회 (Week 5-6)](.claude/plans/phase3-뉴스조회.md)**
+- **[뉴스 조회](.claude/plans/phase-news.md)**
   - 뉴스 도메인 모델
   - 뉴스 API 클라이언트 (딥서치, NewsAPI.org, 국제방송교류재단)
   - API 폴백 전략
   - 뉴스 조회 유스케이스
 
-- **[Phase 4: 커뮤니티 기능 (Week 7-8)](.claude/plans/phase4-커뮤니티기능.md)**
+- **[커뮤니티 기능](.claude/plans/phase-community.md)**
   - 게시글 도메인 모델
   - 게시글 저장소 구현
   - 게시글 관리 유스케이스 (작성, 수정, 삭제, 조회)
 
-- **[Phase 5: 관심/즐겨찾기 (Week 9)](.claude/plans/phase5-관심즐겨찾기.md)**
+- **[관심/즐겨찾기](.claude/plans/phase-favorites.md)**
   - 관심/즐겨찾기 도메인 모델
   - 저장소 구현
   - 관심/즐겨찾기 유스케이스 (등록, 해제, 조회)
 
-- **[Phase 6: 통합 및 최적화 (Week 10)](.claude/plans/phase6-통합및최적화.md)**
+- **[주식 거래 내역 관리](.claude/plans/phase-trade-history.md)**
+  - 거래 내역 도메인 모델
+  - 매수/매도 기록 저장소 구현
+  - 포트폴리오 조회 유스케이스
+  - 수익률 계산 유스케이스
+
+- **[통합 및 최적화](.claude/plans/phase-integration.md)**
   - 통합 테스트
   - 성능 최적화 (캐싱, 페이징, 비동기)
   - 문서화 (API 문서, README, 배포 가이드)
@@ -189,80 +205,11 @@
 ### 6.4 Entity 작성 제약
 - **Entity 작성 전 사전 승인 필요**
 - **연관관계 매핑 금지**
-- **예시:**
-  ```java
-  // ❌ 금지
-  @Entity
-  public class PostEntity {
-      @ManyToOne
-      private UserEntity user;
-  }
-
-  // ✅ 허용
-  @Entity
-  public class PostEntity {
-      private Long userId;  // ID 기반 참조
-  }
-  ```
 
 ### 6.5 코드 작성 제약
 - **요청받지 않은 대규모 리팩토링 금지**
 - **구조 변경 시 사전 허락 필수**
 - **공개 API 변경 최소화**
-
----
-
-## 🗂️ 7. 데이터베이스 스키마 (초안)
-
-### User (사용자)
-```sql
-CREATE TABLE users (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    username VARCHAR(100) NOT NULL,
-    oauth_provider VARCHAR(50) NOT NULL,  -- KAKAO, GOOGLE
-    oauth_id VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
-);
-```
-
-### Post (게시글)
-```sql
-CREATE TABLE posts (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id BIGINT NOT NULL,  -- ID 기반 참조
-    stock_code VARCHAR(20) NOT NULL,
-    title VARCHAR(200) NOT NULL,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
-);
-```
-
-### Favorite (관심/즐겨찾기)
-```sql
-CREATE TABLE favorites (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id BIGINT NOT NULL,  -- ID 기반 참조
-    target_type VARCHAR(20) NOT NULL,  -- STOCK, NEWS
-    target_id VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    UNIQUE KEY uk_user_target (user_id, target_type, target_id)
-);
-```
-
-### API Usage Tracking (API 사용량 추적)
-```sql
-CREATE TABLE api_usage (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    api_name VARCHAR(50) NOT NULL,  -- ALPHA_VANTAGE, FINNHUB, etc.
-    usage_count INT NOT NULL DEFAULT 0,
-    reset_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
-);
-```
 
 ---
 
@@ -324,5 +271,3 @@ CREATE TABLE api_usage (
 ---
 
 **작성일**: 2026-01-19
-**작성자**: Claude Code
-**검토자**: 태형님

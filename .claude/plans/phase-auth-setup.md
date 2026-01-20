@@ -2,12 +2,15 @@
 
 ## 1.1 프로젝트 초기 설정
 
-### 체크리스트
+### 작업 리스트(순서대로 작업 필수)
 - [완료] Spring Boot 프로젝트 생성
-- [ ] 기본 의존성 추가 (Spring Web, JPA, Security, etc.)
-- [ ] 패키지 구조 생성
-- [ ] 데이터베이스 설정 (H2 개발용, PostgreSQL 운영용)
-
+- [완료] 기본 의존성 추가 (Spring Web, JPA, Security, jwt)
+- [완료] 데이터베이스 설정 (PostgreSQL 개발용)
+- [완료] profiles 구조로 yml 분리
+- [완료] Spring Security 작성(profiles 기반으로 dev일때는 모든 API 허용)
+- [ ] 사용자 인증 패키지 구조 생성
+- [ ] JWT 인증 구현
+- [ ] Oauth2 인증 구현
 ---
 
 ## 1.2 JWT 인증 구현 (TDD)
@@ -25,6 +28,10 @@
 - `user/domain/model/User.java`
 - `user/domain/service/JwtTokenService.java` (테스트 먼저)
 - `user/application/AuthService.java` (테스트 먼저)
+
+### 도메인 서비스 배치 주의
+- JWT는 보통 외부 라이브러리/키/시간 소스에 의존하므로 **domain에 직접 구현하지 않는 것을 권장**.
+- 권장: domain에는 `JwtTokenProvider` 같은 **인터페이스(포트)**만 두고, 구현체는 `infrastructure/security/jwt` 등에 위치.
 
 ---
 
@@ -68,4 +75,3 @@
 ---
 
 **작성일**: 2026-01-19
-**작성자**: 이태형

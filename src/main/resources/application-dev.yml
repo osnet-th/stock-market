@@ -1,0 +1,56 @@
+# Development Environment Configuration
+
+spring:
+  # PostgreSQL Database - 개발 환경
+  datasource:
+    url: jdbc:postgresql://localhost:5432/stocks
+    username: root
+    password: root
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 3000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA/Hibernate - 개발 환경
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+
+# External APIs - 개발 환경
+finnhub:
+  api:
+    key: your-finnhub-api-key
+
+kis:
+  api:
+    key: your-kis-api-key
+    secret: your-kis-api-secret
+    account: your-account-number
+
+# Logging - 개발 환경
+logging:
+  level:
+    root: INFO
+    com.thlee.stock.market: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# Actuator - 개발 환경
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      show-details: always

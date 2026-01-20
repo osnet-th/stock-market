@@ -1,0 +1,65 @@
+# Application - 공통 설정
+spring:
+  application:
+    name: stock-market
+
+  # 기본 프로파일
+  profiles:
+    active: dev
+
+  # JPA/Hibernate 공통 설정
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+    properties:
+      hibernate:
+        naming:
+          physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+
+  # Scheduler Configuration
+  task:
+    scheduling:
+      pool:
+        size: 5
+
+server:
+  port: 8080
+
+# JWT Configuration (운영 환경에서는 환경 변수로 오버라이드)
+jwt:
+  secret: your-256-bit-secret-key-change-in-production-minimum-32-characters
+  expiration: 86400000
+
+# External APIs Base URLs
+finnhub:
+  api:
+    url: https://finnhub.io/api/v1
+
+kis:
+  api:
+    url: https://openapi.koreainvestment.com:9443
+
+news:
+  rss:
+    base-url: https://news.google.com/rss/search
+
+# Scheduler Configuration
+scheduler:
+  stock:
+    update:
+      enabled: true
+      cron: 0 */30 9-15 * * MON-FRI
+  news:
+    update:
+      enabled: true
+      cron: 0 0 */1 * * *
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized

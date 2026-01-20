@@ -25,3 +25,4 @@ Local configuration should go in `src/main/resources/application.properties`. Av
 
 ## CIRITICAL 
 Any Git-related operation must be preceded by an explanation of the intended action and carried out only upon approval.
+All responses must be written in Korean.

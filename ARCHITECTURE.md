@@ -60,145 +60,177 @@ infrastructure (Infrastructure Layer)
 
 ## 4. 패키지 구조 (도메인별 분리)
 
+### 기본 패키지 구조 패턴
+
+각 도메인은 다음과 같은 구조를 따릅니다:
+
 ```
-src/main/java/com/stockmarket/
-├── stock/                      # 주식 도메인
-│   ├── presentation/
-│   │   ├── StockController.java
-│   │   └── dto/
-│   │       ├── StockRequest.java
-│   │       └── StockResponse.java
-│   ├── application/
-│   │   ├── StockQueryService.java
-│   │   └── dto/
-│   ├── domain/
-│   │   ├── model/
-│   │   │   └── Stock.java
-│   │   ├── repository/
-│   │   │   └── StockRepository.java (interface)
-│   │   └── service/
-│   │       └── StockDomainService.java
-│   └── infrastructure/
-│       ├── entity/
-│       │   └── StockEntity.java
-│       ├── repository/
-│       │   └── StockRepositoryImpl.java
-│       └── api/
-│           ├── alphavantage/
-│           ├── finnhub/
-│           ├── fss/
-│           └── fallback/
+src/main/java/com/thlee/stock/market/stockmarket/
+└── {domain}/
+    ├── domain/
+    │   ├── model/           # 도메인 모델, Value Object
+    │   ├── repository/      # 도메인 레포지토리 인터페이스 (포트)
+    │   ├── service/         # 도메인 서비스 (순수 비즈니스 로직)
+    │   └── exception/       # 도메인 예외
+    │
+    ├── application/
+    │   ├── {UseCase}Service.java  # 유스케이스 구현
+    │   └── dto/            # Application DTO
+    │
+    ├── infrastructure/
+    │   ├── persistence/
+    │   │   ├── {Domain}Entity.java      # JPA Entity
+    │   │   ├── {Domain}JpaRepository.java
+    │   │   └── {Domain}RepositoryImpl.java  # 어댑터
+    │   │
+    │   ├── client/         # 외부 API 클라이언트 (필요시)
+    │   └── [기타 인프라 구현]
+    │
+    └── presentation/
+        └── {Domain}Controller.java
+```
+
+### 도메인별 패키지 예시
+
+#### User 도메인
+```
+user/
+├── domain/
+│   ├── model/
+│   │   ├── User.java
+│   │   ├── UserId.java
+│   │   ├── Email.java
+│   │   ├── AuthProvider.java
+│   │   └── UserRole.java
+│   ├── repository/
+│   │   └── UserRepository.java
+│   └── service/
+│       └── JwtTokenProvider.java (interface)
 │
-├── news/                       # 뉴스 도메인
-│   ├── presentation/
-│   │   ├── NewsController.java
-│   │   └── dto/
-│   ├── application/
-│   │   ├── NewsQueryService.java
-│   │   └── dto/
-│   ├── domain/
-│   │   ├── model/
-│   │   │   └── News.java    # relatedStockCode 필드로 Stock 참조
-│   │   ├── repository/
-│   │   │   └── NewsRepository.java (interface)
-│   │   └── service/
-│   │       └── NewsDomainService.java
-│   └── infrastructure/
-│       ├── entity/
-│       │   └── NewsEntity.java  # relatedStockCode 필드 (ID 기반 참조)
-│       ├── repository/
-│       │   └── NewsRepositoryImpl.java
-│       └── api/
-│           ├── deepsearch/
-│           ├── newsapi/
-│           ├── arirang/
-│           └── fallback/
+├── application/
+│   ├── AuthService.java
+│   ├── OAuthLoginService.java
+│   └── dto/
 │
-├── user/                       # 사용자/인증 도메인
-│   ├── presentation/
-│   │   ├── AuthController.java
-│   │   ├── UserController.java
-│   │   └── dto/
-│   ├── application/
-│   │   ├── AuthService.java
-│   │   ├── OAuthLoginService.java
-│   │   └── dto/
-│   ├── domain/
-│   │   ├── model/
-│   │   │   ├── User.java
-│   │   │   └── OAuthInfo.java
-│   │   ├── repository/
-│   │   │   └── UserRepository.java (interface)
-│   │   └── service/
-│   │       └── JwtTokenService.java
-│   └── infrastructure/
-│       ├── entity/
-│       │   └── UserEntity.java
-│       ├── repository/
-│       │   └── UserRepositoryImpl.java
-│       └── oauth/
-│           ├── kakao/
-│           │   └── KakaoOAuthClient.java
-│           └── google/
-│               └── GoogleOAuthClient.java
+├── infrastructure/
+│   ├── persistence/
+│   │   ├── UserEntity.java
+│   │   ├── UserJpaRepository.java
+│   │   └── UserRepositoryImpl.java
+│   ├── security/
+│   │   └── jwt/
+│   │       ├── JwtTokenProviderImpl.java
+│   │       └── JwtAuthenticationFilter.java
+│   └── oauth/
+│       ├── kakao/
+│       └── google/
 │
-├── post/                       # 게시글 도메인
-│   ├── presentation/
-│   │   ├── PostController.java
-│   │   └── dto/
-│   ├── application/
-│   │   ├── PostCommandService.java
-│   │   ├── PostQueryService.java
-│   │   └── dto/
-│   ├── domain/
-│   │   ├── model/
-│   │   │   └── Post.java    # userId, stockCode 필드로 참조
-│   │   ├── repository/
-│   │   │   └── PostRepository.java (interface)
-│   │   └── service/
-│   │       └── PostDomainService.java
-│   └── infrastructure/
-│       ├── entity/
-│       │   └── PostEntity.java  # userId, stockCode 필드 (ID 기반 참조)
-│       └── repository/
-│           └── PostRepositoryImpl.java
+└── presentation/
+    └── AuthController.java
+```
+
+#### Stock 도메인
+```
+stock/
+├── domain/
+│   ├── model/
+│   │   ├── Stock.java
+│   │   ├── StockCode.java
+│   │   └── StockPrice.java
+│   ├── repository/
+│   │   └── StockRepository.java
+│   └── service/
+│       └── StockPriceCalculator.java
 │
-├── favorite/                   # 관심/즐겨찾기 도메인
-│   ├── presentation/
-│   │   ├── FavoriteController.java
-│   │   └── dto/
-│   ├── application/
-│   │   ├── FavoriteCommandService.java
-│   │   ├── FavoriteQueryService.java
-│   │   └── dto/
-│   ├── domain/
-│   │   ├── model/
-│   │   │   ├── Favorite.java
-│   │   │   └── FavoriteType.java (enum: STOCK, NEWS)
-│   │   ├── repository/
-│   │   │   └── FavoriteRepository.java (interface)
-│   │   └── service/
-│   │       └── FavoriteDomainService.java
-│   └── infrastructure/
-│       ├── entity/
-│       │   └── FavoriteEntity.java  # userId, targetType, targetId
-│       └── repository/
-│           └── FavoriteRepositoryImpl.java
+├── application/
+│   ├── StockQueryService.java
+│   └── dto/
 │
-└── common/                     # 공통 모듈
-    ├── config/
-    │   ├── SecurityConfig.java
-    │   ├── JpaConfig.java
-    │   └── WebConfig.java
-    ├── exception/
-    │   ├── GlobalExceptionHandler.java
-    │   ├── BusinessException.java
-    │   └── ErrorCode.java
-    ├── util/
-    │   └── DateTimeUtils.java
-    └── dto/
-        ├── ApiResponse.java
-        └── PageResponse.java
+├── infrastructure/
+│   ├── persistence/
+│   ├── client/
+│   │   ├── StockApiClient.java (interface)
+│   │   ├── polygon/
+│   │   ├── alphavantage/
+│   │   └── finnhub/
+│   └── cache/
+│
+└── presentation/
+    └── StockController.java
+```
+
+#### News 도메인
+```
+news/
+├── domain/
+│   ├── model/
+│   │   ├── News.java
+│   │   ├── NewsId.java
+│   │   └── NewsSource.java
+│   ├── repository/
+│   │   └── NewsRepository.java
+│   └── service/
+│
+├── application/
+│   ├── NewsQueryService.java
+│   ├── NewsSearchService.java
+│   └── dto/
+│
+├── infrastructure/
+│   ├── persistence/
+│   └── client/
+│       ├── NewsApiClient.java (interface)
+│       ├── newsapi/
+│       └── finnhub/
+│
+└── presentation/
+    └── NewsController.java
+```
+
+#### Post 도메인 (커뮤니티)
+```
+post/
+├── domain/
+│   ├── model/
+│   │   ├── Post.java
+│   │   ├── PostId.java
+│   │   └── Comment.java
+│   ├── repository/
+│   │   └── PostRepository.java
+│   └── service/
+│
+├── application/
+│   ├── PostService.java
+│   ├── CommentService.java
+│   └── dto/
+│
+├── infrastructure/
+│   └── persistence/
+│
+└── presentation/
+    └── PostController.java
+```
+
+#### Favorite 도메인
+```
+favorite/
+├── domain/
+│   ├── model/
+│   │   ├── Favorite.java
+│   │   └── FavoriteType.java
+│   ├── repository/
+│   │   └── FavoriteRepository.java
+│   └── service/
+│
+├── application/
+│   ├── FavoriteService.java
+│   └── dto/
+│
+├── infrastructure/
+│   └── persistence/
+│
+└── presentation/
+    └── FavoriteController.java
 ```
 
 ---
@@ -244,22 +276,6 @@ src/main/java/com/stockmarket/
 - 여러 도메인 모델에 걸친 복잡한 비즈니스 로직 처리
 - 순수 Java로 작성, 인프라 의존성 없음
 
-예시:
-```java
-public class OrderDomainService {
-    public void validateOrder(Order order) {
-        // 비즈니스 규칙: 최소 주문 금액
-        if (order.getTotalAmount() < 1000) {
-            throw new InvalidOrderException("최소 주문 금액 미달");
-        }
-        // 비즈니스 규칙: 주문 상품 검증
-        if (order.getItems().isEmpty()) {
-            throw new InvalidOrderException("주문 상품이 없습니다.");
-        }
-    }
-}
-```
-
 **domain.repository 인터페이스:**
 - domain 계층에는 리포지토리 인터페이스만 정의
 - 실제 구현은 infrastructure.repository에 위치
@@ -281,28 +297,6 @@ public class OrderDomainService {
 - JPA/MyBatis를 사용한 실제 저장소 로직
 - entity ↔ domain.model 변환 담당
 
-예시:
-```java
-// domain/repository/UserRepository.java (인터페이스)
-public interface UserRepository {
-    User save(User user);
-    Optional<User> findById(Long id);
-}
-
-// infrastructure/repository/UserRepositoryImpl.java (구현)
-@Repository
-public class UserRepositoryImpl implements UserRepository {
-    private final UserJpaRepository jpaRepository;
-
-    @Override
-    public User save(User user) {
-        UserEntity entity = toEntity(user);
-        UserEntity saved = jpaRepository.save(entity);
-        return toDomain(saved);
-    }
-}
-```
-
 ---
 
 ## 6. 주요 설계 원칙
@@ -312,70 +306,24 @@ public class UserRepositoryImpl implements UserRepository {
 - 예: Post Entity는 User 객체가 아닌 userId(Long)만 보유
 - 예: News Entity는 Stock 객체가 아닌 relatedStockCode(String)만 보유
 
-```java
-// ❌ 금지: Entity 연관관계
-@Entity
-public class PostEntity {
-    @ManyToOne
-    private UserEntity user;
-}
-
-// ✅ 허용: ID 기반 참조
-@Entity
-public class PostEntity {
-    private Long userId;
-}
-```
-
 ### 2. 도메인 간 참조 규칙
-- **도메인 모델(domain layer)**: 다른 도메인의 식별자(ID/Code)만 참조 가능
-  ```java
-  // news/domain/model/News.java
-  public class News {
-      private String relatedStockCode;  // ✅ Stock 도메인의 식별자만 참조
-  }
 
-  // post/domain/model/Post.java
-  public class Post {
-      private Long userId;          // ✅ User 도메인의 ID만 참조
-      private String stockCode;     // ✅ Stock 도메인의 식별자만 참조
-  }
-  ```
+#### 도메인 모델(domain layer)
+- 다른 도메인의 식별자(ID/Code)만 참조 가능
+- 예시:
+  - News 도메인 모델은 Stock 도메인의 식별자(relatedStockCode)만 보유
+  - Post 도메인 모델은 User 도메인의 ID(userId)와 Stock 도메인의 식별자(stockCode)만 보유
 
-- **Application 계층에서 조합**: 여러 도메인 정보가 필요할 경우 application 계층에서 조합
-  ```java
-  // news/application/NewsQueryService.java
-  public NewsWithStockResponse findNewsWithStock(Long newsId) {
-      News news = newsRepository.findById(newsId);
-      // 별도로 주식 정보 조회
-      Stock stock = stockQueryService.findByCode(news.getRelatedStockCode());
-      return NewsWithStockResponse.of(news, stock);
-  }
-  ```
+#### Application 계층에서 조합
+- 여러 도메인 정보가 필요할 경우 application 계층에서 조합
+- 예시:
+  - NewsQueryService에서 뉴스 조회 시
+  - 먼저 News를 조회하고
+  - News의 relatedStockCode로 Stock 정보를 별도 조회하여
+  - 두 정보를 조합한 Response DTO 반환
 
 ### 3. N+1 문제 해결 방안
 - **배치 조회 패턴 사용**:
-  ```java
-  // 여러 뉴스와 관련 주식 정보를 효율적으로 조회
-  public List<NewsWithStockResponse> findNewsListWithStock(List<Long> newsIds) {
-      List<News> newsList = newsRepository.findAllById(newsIds);
-
-      // 주식 코드 추출
-      List<String> stockCodes = newsList.stream()
-          .map(News::getRelatedStockCode)
-          .distinct()
-          .collect(Collectors.toList());
-
-      // 배치로 한 번에 조회
-      Map<String, Stock> stockMap = stockQueryService.findByCodesAsMap(stockCodes);
-
-      // 조합
-      return newsList.stream()
-          .map(news -> NewsWithStockResponse.of(news, stockMap.get(news.getRelatedStockCode())))
-          .collect(Collectors.toList());
-  }
-  ```
-
 - **캐싱 활용**: 자주 조회되는 데이터는 Caffeine Cache 활용
 - **페이징 처리**: 대량 데이터는 반드시 페이징 적용
 
@@ -396,6 +344,54 @@ public class PostEntity {
 - 여러 API를 순차적으로 시도
 - 무료 사용량 초과 시 다음 API로 자동 전환
 - Circuit Breaker 패턴 적용 고려
+
+### 8. 외부 의존성 격리 (포트-어댑터 패턴)
+
+외부 라이브러리(JWT, OAuth, 외부 API 등)에 대한 의존성은 domain 계층에서 격리합니다.
+
+#### 기본 원칙
+- **domain 계층**: 인터페이스(포트)만 정의
+- **infrastructure 계층**: 실제 구현체(어댑터) 배치
+
+#### 적용 대상
+- JWT 토큰 처리: domain에 JwtTokenProvider 인터페이스, infrastructure에 구현체
+- OAuth 클라이언트: domain/infrastructure에 OAuthClient 인터페이스, infrastructure 하위에 구현체
+- 외부 API 클라이언트: infrastructure에 인터페이스와 구현체 모두 배치
+
+#### Infrastructure 하위 구조
+
+```
+infrastructure/
+├── persistence/          # 데이터베이스 연동
+│   ├── {Domain}Entity.java
+│   ├── {Domain}JpaRepository.java
+│   └── {Domain}RepositoryImpl.java
+│
+├── security/            # 보안 관련 구현
+│   ├── jwt/
+│   │   ├── JwtTokenProviderImpl.java
+│   │   ├── JwtAuthenticationFilter.java
+│   │   └── JwtProperties.java
+│   └── oauth/
+│       ├── OAuthClient.java (interface)
+│       ├── kakao/
+│       └── google/
+│
+├── client/              # 외부 API 클라이언트
+│   ├── {Service}ApiClient.java (interface)
+│   ├── {Provider1}/
+│   ├── {Provider2}/
+│   └── fallback/
+│
+└── cache/               # 캐싱 구현
+    └── CacheConfig.java
+```
+
+#### 장점
+1. **테스트 용이성**: Mock 객체로 쉽게 대체 가능
+2. **변경 유연성**: 외부 라이브러리 변경 시 어댑터만 수정
+3. **도메인 순수성 유지**: 비즈니스 로직이 인프라에 의존하지 않음
+4. **멀티 구현 지원**: 같은 포트에 여러 어댑터 구현 가능 (폴백 전략)
 
 ---
 
@@ -468,6 +464,3 @@ Controller Request
 - 임의 구조 변경 금지
 
 ---
-
-**작성일**: 2026-01-19
-**작성자**: Claude Code

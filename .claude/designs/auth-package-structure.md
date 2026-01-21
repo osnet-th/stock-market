@@ -2,6 +2,7 @@
 
 ## 1. 개요
 
+기획은 이 파일([user-auth-policy.md](../docs/user-auth-policy.md)) 에 맞춰서 진행했습니다.
 사용자 인증 기능을 DDD 계층형 구조에 맞춰 설계합니다.
 - JWT 기반 토큰 인증
 - OAuth 2.0 소셜 로그인 (카카오, 구글)

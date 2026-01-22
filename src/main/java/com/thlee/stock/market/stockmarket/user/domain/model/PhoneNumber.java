@@ -1,5 +1,7 @@
 package com.thlee.stock.market.stockmarket.user.domain.model;
 
+import com.thlee.stock.market.stockmarket.user.domain.exception.InvalidUserArgumentException;
+
 import java.util.Objects;
 
 /**
@@ -17,7 +19,7 @@ public class PhoneNumber {
 
     private String normalizeAndValidate(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("전화번호는 필수입니다.");
+            throw new InvalidUserArgumentException("전화번호는 필수입니다.");
         }
 
         // 하이픈 제거
@@ -25,15 +27,15 @@ public class PhoneNumber {
 
         // 숫자만 포함되어 있는지 확인
         if (!normalized.matches("\\d+")) {
-            throw new IllegalArgumentException("전화번호는 숫자만 포함해야 합니다.");
+            throw new InvalidUserArgumentException("전화번호는 숫자만 포함해야 합니다.");
         }
 
         if (normalized.length() < MIN_LENGTH) {
-            throw new IllegalArgumentException("전화번호는 10자 이상이어야 합니다.");
+            throw new InvalidUserArgumentException("전화번호는 10자 이상이어야 합니다.");
         }
 
         if (normalized.length() > MAX_LENGTH) {
-            throw new IllegalArgumentException("전화번호는 11자 이하여야 합니다.");
+            throw new InvalidUserArgumentException("전화번호는 11자 이하여야 합니다.");
         }
 
         return normalized;

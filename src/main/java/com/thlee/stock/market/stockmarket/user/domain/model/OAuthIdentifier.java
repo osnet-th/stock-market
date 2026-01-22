@@ -1,5 +1,7 @@
 package com.thlee.stock.market.stockmarket.user.domain.model;
 
+import com.thlee.stock.market.stockmarket.user.domain.exception.InvalidUserArgumentException;
+
 import java.util.Objects;
 
 /**
@@ -20,15 +22,15 @@ public class OAuthIdentifier {
 
     private void validate(OAuthProvider provider, String issuer, String subject) {
         if (provider == null) {
-            throw new IllegalArgumentException("provider는 필수입니다.");
+            throw new InvalidUserArgumentException("provider는 필수입니다.");
         }
 
         if (issuer == null || issuer.isBlank()) {
-            throw new IllegalArgumentException("issuer는 필수입니다.");
+            throw new InvalidUserArgumentException("issuer는 필수입니다.");
         }
 
         if (subject == null || subject.isBlank()) {
-            throw new IllegalArgumentException("subject는 필수입니다.");
+            throw new InvalidUserArgumentException("subject는 필수입니다.");
         }
     }
 

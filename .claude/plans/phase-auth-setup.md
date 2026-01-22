@@ -1,5 +1,32 @@
 # Phase 1: 기반 설정 및 인증 (Week 1-2)
 
+## 구현된 패키지 구조
+
+```
+user/
+├── domain/
+│   ├── model/
+│   │   ├── User.java                    # 사용자 엔티티
+│   │   ├── OAuthAccount.java            # OAuth 연동 계정 엔티티
+│   │   ├── OAuthProvider.java           # OAuth 제공자 enum (KAKAO, GOOGLE)
+│   │   ├── OAuthIdentifier.java         # OAuth 식별자 VO
+│   │   ├── Nickname.java                # 닉네임 VO
+│   │   ├── PhoneNumber.java             # 전화번호 VO
+│   │   ├── UserRole.java                # 사용자 역할 enum (USER, ADMIN)
+│   │   └── UserStatus.java              # 사용자 상태 enum (ACTIVE, INACTIVE, SUSPENDED)
+│   ├── repository/
+│   │   ├── UserRepository.java          # 사용자 리포지토리 인터페이스
+│   │   └── OAuthAccountRepository.java  # OAuth 계정 리포지토리 인터페이스
+│   └── service/
+│       └── OAuthConnectionService.java  # OAuth 연동 도메인 서비스
+│
+infrastructure/
+└── security/
+    └── config/
+        ├── DevSecurityConfig.java       # 개발 환경 Security 설정
+        └── ProdSecurityConfig.java      # 운영 환경 Security 설정
+```
+
 ## 1.1 프로젝트 초기 설정
 
 ### 작업 리스트(순서대로 작업 필수)
@@ -75,3 +102,4 @@
 ---
 
 **작성일**: 2026-01-19
+**수정일**: 2026-01-22

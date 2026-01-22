@@ -1,5 +1,8 @@
 package com.thlee.stock.market.stockmarket.user.domain.model;
 
+import com.thlee.stock.market.stockmarket.user.domain.exception.InvalidUserArgumentException;
+import com.thlee.stock.market.stockmarket.user.domain.exception.InvalidUserStateException;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -23,6 +26,20 @@ public class OAuthAccount {
         this.connectedAt = connectedAt;
     }
 
+    /**
+     * 재구성용 생성자 (Repository에서 조회 시 사용)
+     */
+    public OAuthAccount(Long id, Long userId, OAuthProvider provider, String issuer,
+                        String subject, String email, LocalDateTime connectedAt) {
+        this.id = id;
+        this.userId = userId;
+        this.provider = provider;
+        this.issuer = issuer;
+        this.subject = subject;
+        this.email = email;
+        this.connectedAt = connectedAt;
+    }
+
     public static OAuthAccount create(OAuthProvider provider, String issuer, String subject, String email) {
         validateParameters(provider, issuer, subject, email);
         return new OAuthAccount(provider, issuer, subject, email, LocalDateTime.now());
@@ -30,16 +47,16 @@ public class OAuthAccount {
 
     private static void validateParameters(OAuthProvider provider, String issuer, String subject, String email) {
         if (provider == null) {
-            throw new IllegalArgumentException("provider는 필수입니다.");
+            throw new InvalidUserArgumentException("provider는 필수입니다.");
         }
         if (issuer == null || issuer.isBlank()) {
-            throw new IllegalArgumentException("issuer는 필수입니다.");
+            throw new InvalidUserArgumentException("issuer는 필수입니다.");
         }
         if (subject == null || subject.isBlank()) {
-            throw new IllegalArgumentException("subject는 필수입니다.");
+            throw new InvalidUserArgumentException("subject는 필수입니다.");
         }
         if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException("email은 필수입니다.");
+            throw new InvalidUserArgumentException("email은 필수입니다.");
         }
     }
 
@@ -64,10 +81,10 @@ public class OAuthAccount {
      */
     public void connectToUser(Long userId) {
         if (userId == null) {
-            throw new IllegalArgumentException("userId는 필수입니다.");
+            throw new InvalidUserArgumentException("userId는 필수입니다.");
         }
         if (this.userId != null) {
-            throw new IllegalStateException("이미 연결된 OAuth 계정입니다.");
+            throw new InvalidUserStateException("이미 연결된 OAuth 계정입니다.");
         }
         this.userId = userId;
     }

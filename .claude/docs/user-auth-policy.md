@@ -91,7 +91,7 @@
 ### Value Objects
 
 **Nickname**:
-- 닉네임 유효성 검증 (길이, 특수문자 등)
+- 닉네임 유효성 검증 (길이 2~20자, 영어/한글/숫자만 허용)
 - 중복 검사는 Repository 레이어에서 처리
 
 **PhoneNumber**:

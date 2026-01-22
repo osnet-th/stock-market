@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.user.domain.service;
 
+import com.thlee.stock.market.stockmarket.user.domain.exception.DuplicateOAuthProviderException;
 import com.thlee.stock.market.stockmarket.user.domain.model.OAuthAccount;
 import com.thlee.stock.market.stockmarket.user.domain.model.OAuthProvider;
 import com.thlee.stock.market.stockmarket.user.domain.model.User;
@@ -36,7 +37,7 @@ public class OAuthConnectionService {
      */
     public void connectOAuthAccount(User user, OAuthAccount oauthAccount) {
         if (!canConnectProvider(user, oauthAccount.getProvider())) {
-            throw new IllegalStateException("이미 연결된 provider입니다.");
+            throw new DuplicateOAuthProviderException(oauthAccount.getProvider());
         }
 
         // ID 생성을 위해 먼저 저장

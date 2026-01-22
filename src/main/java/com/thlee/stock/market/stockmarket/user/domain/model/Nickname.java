@@ -1,5 +1,7 @@
 package com.thlee.stock.market.stockmarket.user.domain.model;
 
+import com.thlee.stock.market.stockmarket.user.domain.exception.InvalidUserArgumentException;
+
 import java.util.Objects;
 
 /**
@@ -18,15 +20,19 @@ public class Nickname {
 
     private void validate(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("닉네임은 필수입니다.");
+            throw new InvalidUserArgumentException("닉네임은 필수입니다.");
         }
 
         if (value.length() < MIN_LENGTH) {
-            throw new IllegalArgumentException("닉네임은 2자 이상이어야 합니다.");
+            throw new InvalidUserArgumentException("닉네임은 2자 이상이어야 합니다.");
         }
 
         if (value.length() > MAX_LENGTH) {
-            throw new IllegalArgumentException("닉네임은 20자 이하여야 합니다.");
+            throw new InvalidUserArgumentException("닉네임은 20자 이하여야 합니다.");
+        }
+
+        if (!value.matches("^[a-zA-Z가-힣0-9]+$")) {
+            throw new InvalidUserArgumentException("닉네임은 영어, 한글, 숫자만 사용할 수 있습니다.");
         }
     }
 

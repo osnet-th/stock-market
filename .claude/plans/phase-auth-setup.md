@@ -35,49 +35,22 @@ infrastructure/
 - [완료] 데이터베이스 설정 (PostgreSQL 개발용)
 - [완료] profiles 구조로 yml 분리
 - [완료] Spring Security 작성(profiles 기반으로 dev일때는 모든 API 허용)
-- [ ] 사용자 인증 패키지 구조 생성
-- [ ] JWT 인증 구현
-- [ ] Oauth2 인증 구현
+- [ ] 사용자 인증 기능 구현
+  - [완료] 사용자 인증 도메인 계층 구현
+  - [완료] 사용자 인증 유스케이스(서비스) 구현
+  - [완료] Kakao Oauth 인증 구조 설정
+  - [완료] Kakao Oauth 인증 흐름 구현
+  - [ ] JWT Provider 구현
+  - [ ] Google Oauth 인증 구조 설정
+
+
 ---
 
 ## 1.2 JWT 인증 구현 (TDD)
 
-### 테스트 → 구현 순서
-
-1. [ ] JWT 토큰 생성 테스트 작성
-2. [ ] JWT 토큰 생성 최소 구현
-3. [ ] JWT 토큰 검증 테스트 작성
-4. [ ] JWT 토큰 검증 최소 구현
-5. [ ] JWT 토큰 갱신 테스트 작성
-6. [ ] JWT 토큰 갱신 최소 구현
-
-### 대상 파일
-- `user/domain/model/User.java`
-- `user/domain/service/JwtTokenService.java` (테스트 먼저)
-- `user/application/AuthService.java` (테스트 먼저)
-
 ### 도메인 서비스 배치 주의
 - JWT는 보통 외부 라이브러리/키/시간 소스에 의존하므로 **domain에 직접 구현하지 않는 것을 권장**.
 - 권장: domain에는 `JwtTokenProvider` 같은 **인터페이스(포트)**만 두고, 구현체는 `infrastructure/security/jwt` 등에 위치.
-
----
-
-## 1.3 OAuth 통합 (TDD)
-
-### 테스트 → 구현 순서
-
-1. [ ] 카카오 OAuth 클라이언트 테스트 작성 (Mock)
-2. [ ] 카카오 OAuth 클라이언트 최소 구현
-3. [ ] 구글 OAuth 클라이언트 테스트 작성 (Mock)
-4. [ ] 구글 OAuth 클라이언트 최소 구현
-5. [ ] OAuth 로그인 유스케이스 테스트 작성
-6. [ ] OAuth 로그인 유스케이스 최소 구현
-
-### 대상 파일
-- `user/infrastructure/oauth/kakao/KakaoOAuthClient.java` (테스트 먼저)
-- `user/infrastructure/oauth/google/GoogleOAuthClient.java` (테스트 먼저)
-- `user/application/OAuthLoginService.java` (테스트 먼저)
-- `user/presentation/AuthController.java` (테스트 먼저)
 
 ---
 

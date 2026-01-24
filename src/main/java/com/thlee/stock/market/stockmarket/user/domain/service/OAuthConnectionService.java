@@ -6,6 +6,7 @@ import com.thlee.stock.market.stockmarket.user.domain.model.OAuthProvider;
 import com.thlee.stock.market.stockmarket.user.domain.model.User;
 import com.thlee.stock.market.stockmarket.user.domain.repository.OAuthAccountRepository;
 import com.thlee.stock.market.stockmarket.user.domain.repository.UserRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
@@ -13,6 +14,7 @@ import java.util.List;
  * OAuth 연결 관리 도메인 서비스
  * User와 OAuthAccount 간의 연결을 관리하고 provider 중복을 검증합니다.
  */
+@Service
 public class OAuthConnectionService {
     private final UserRepository userRepository;
     private final OAuthAccountRepository oauthAccountRepository;

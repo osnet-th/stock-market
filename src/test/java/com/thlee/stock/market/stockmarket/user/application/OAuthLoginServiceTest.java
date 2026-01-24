@@ -42,6 +42,9 @@ class OAuthLoginServiceTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
+    @Mock
+    private KakaoOAuthService kakaoOAuthService;
+
     private OAuthLoginService oauthLoginService;
 
     @BeforeEach
@@ -50,7 +53,8 @@ class OAuthLoginServiceTest {
                 userRepository,
                 oauthAccountRepository,
                 oauthConnectionService,
-                jwtTokenProvider
+                jwtTokenProvider,
+                kakaoOAuthService
         );
     }
 
@@ -257,5 +261,92 @@ class OAuthLoginServiceTest {
         assertThatThrownBy(() -> oauthLoginService.connectAccount(signingUserId, request))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("일치하는 사용자를 찾을 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("카카오 인가 코드로 로그인 성공 - 기존 계정")
+    void loginWithKakao_WithExistingAccount_Success() {
+        // Given
+        String authorizationCode = "test-code-12345";
+        OAuthProvider provider = OAuthProvider.KAKAO;
+        String issuer = "https://kauth.kakao.com";
+        String subject = "12345";
+        String email = "test@kakao.com";
+        Long userId = 1L;
+        Long oauthAccountId = 10L;
+
+        OAuthLoginRequest request = new OAuthLoginRequest(provider, issuer, subject, email);
+
+        // KakaoOAuthService에서 OAuthLoginRequest 반환
+        given(kakaoOAuthService.loginWithKakao(authorizationCode)).willReturn(request);
+
+        // 기존 계정 조회
+        OAuthAccount oauthAccount = new OAuthAccount(oauthAccountId, userId, provider, issuer, subject, email, LocalDateTime.now());
+        User user = new User(userId, null, null, null,
+                new ArrayList<>(), UserStatus.ACTIVE, UserRole.USER,
+                LocalDateTime.now(), null);
+
+        given(oauthAccountRepository.findByProviderAndIssuerAndSubject(provider, issuer, subject))
+                .willReturn(Optional.of(oauthAccount));
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(jwtTokenProvider.generateAccessToken(userId, UserRole.USER))
+                .willReturn("access-token");
+        given(jwtTokenProvider.generateRefreshToken(userId))
+                .willReturn("refresh-token");
+
+        // When
+        OAuthLoginResponse response = oauthLoginService.loginWithKakao(authorizationCode);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.accessToken()).isEqualTo("access-token");
+        assertThat(response.refreshToken()).isEqualTo("refresh-token");
+        assertThat(response.userId()).isEqualTo(userId);
+        assertThat(response.role()).isEqualTo(UserRole.USER);
+    }
+
+    @Test
+    @DisplayName("카카오 인가 코드로 로그인 성공 - 신규 계정")
+    void loginWithKakao_WithNewAccount_Success() {
+        // Given
+        String authorizationCode = "test-code-12345";
+        OAuthProvider provider = OAuthProvider.KAKAO;
+        String issuer = "https://kauth.kakao.com";
+        String subject = "67890";
+        String email = "newuser@kakao.com";
+        Long newUserId = 2L;
+        Long newOAuthAccountId = 20L;
+
+        OAuthLoginRequest request = new OAuthLoginRequest(provider, issuer, subject, email);
+
+        // KakaoOAuthService에서 OAuthLoginRequest 반환
+        given(kakaoOAuthService.loginWithKakao(authorizationCode)).willReturn(request);
+
+        // 신규 계정
+        given(oauthAccountRepository.findByProviderAndIssuerAndSubject(provider, issuer, subject))
+                .willReturn(Optional.empty());
+
+        User savedUser = new User(newUserId, null, null, null,
+                new ArrayList<>(), UserStatus.ACTIVE, UserRole.SIGNING_USER,
+                LocalDateTime.now(), null);
+        given(userRepository.save(any(User.class))).willReturn(savedUser);
+
+        OAuthAccount savedOAuthAccount = new OAuthAccount(newOAuthAccountId, newUserId,
+                provider, issuer, subject, email, LocalDateTime.now());
+        given(oauthAccountRepository.save(any(OAuthAccount.class))).willReturn(savedOAuthAccount);
+
+        given(jwtTokenProvider.generateAccessToken(newUserId, UserRole.SIGNING_USER))
+                .willReturn("new-access-token");
+        given(jwtTokenProvider.generateRefreshToken(newUserId))
+                .willReturn("new-refresh-token");
+
+        // When
+        OAuthLoginResponse response = oauthLoginService.loginWithKakao(authorizationCode);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.accessToken()).isEqualTo("new-access-token");
+        assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
+        assertThat(response.role()).isEqualTo(UserRole.SIGNING_USER);
     }
 }

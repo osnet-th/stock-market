@@ -30,6 +30,24 @@ jwt:
   secret: your-256-bit-secret-key-change-in-production-minimum-32-characters
   expiration: 86400000
 
+# Kakao OAuth Configuration
+kakao:
+  oauth:
+    client-id: ${KAKAO_CLIENT_ID}
+    client-secret: ${KAKAO_CLIENT_SECRET}
+    redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8080/oauth/kakao}
+    token-uri: https://kauth.kakao.com/oauth/token
+    user-info-uri: https://kapi.kakao.com/v2/user/me
+
+# Google OAuth Configuration
+google:
+  oauth:
+    client-id: ${GOOGLE_CLIENT_ID}
+    client-secret: ${GOOGLE_CLIENT_SECRET}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/oauth/google}
+    token-uri: https://oauth2.googleapis.com/token
+    user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
+
 # External APIs Base URLs
 finnhub:
   api:

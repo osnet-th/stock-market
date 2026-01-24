@@ -5,19 +5,19 @@ import com.thlee.stock.market.stockmarket.user.application.dto.TokenRefreshRespo
 import com.thlee.stock.market.stockmarket.user.domain.model.User;
 import com.thlee.stock.market.stockmarket.user.domain.repository.UserRepository;
 import com.thlee.stock.market.stockmarket.user.domain.service.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 /**
  * 인증 관련 유스케이스 처리
+ * 리프레시 토큰 발급 서비스
  */
+@Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
-
-    public AuthService(JwtTokenProvider jwtTokenProvider, UserRepository userRepository) {
-        this.jwtTokenProvider = jwtTokenProvider;
-        this.userRepository = userRepository;
-    }
 
     /**
      * Refresh Token으로 새로운 Access Token과 Refresh Token 발급

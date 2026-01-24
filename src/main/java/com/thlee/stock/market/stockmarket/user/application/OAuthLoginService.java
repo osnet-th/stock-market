@@ -9,29 +9,34 @@ import com.thlee.stock.market.stockmarket.user.domain.repository.OAuthAccountRep
 import com.thlee.stock.market.stockmarket.user.domain.repository.UserRepository;
 import com.thlee.stock.market.stockmarket.user.domain.service.JwtTokenProvider;
 import com.thlee.stock.market.stockmarket.user.domain.service.OAuthConnectionService;
+import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 /**
  * OAuth 소셜 로그인 유스케이스 처리
  */
+@Service
 public class OAuthLoginService {
 
     private final UserRepository userRepository;
     private final OAuthAccountRepository oauthAccountRepository;
     private final OAuthConnectionService oauthConnectionService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final KakaoOAuthService kakaoOAuthService;
 
     public OAuthLoginService(
             UserRepository userRepository,
             OAuthAccountRepository oauthAccountRepository,
             OAuthConnectionService oauthConnectionService,
-            JwtTokenProvider jwtTokenProvider
+            JwtTokenProvider jwtTokenProvider,
+            KakaoOAuthService kakaoOAuthService
     ) {
         this.userRepository = userRepository;
         this.oauthAccountRepository = oauthAccountRepository;
         this.oauthConnectionService = oauthConnectionService;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.kakaoOAuthService = kakaoOAuthService;
     }
 
     /**
@@ -79,6 +84,17 @@ public class OAuthLoginService {
 
             return new OAuthLoginResponse(accessToken, refreshToken, userId, savedUser.getRole());
         }
+    }
+
+    /**
+     * 카카오 인가 코드로 로그인 처리
+     *
+     * @param authorizationCode 카카오 인가 코드
+     * @return OAuthLoginResponse
+     */
+    public OAuthLoginResponse loginWithKakao(String authorizationCode) {
+        OAuthLoginRequest request = kakaoOAuthService.loginWithKakao(authorizationCode);
+        return login(request);
     }
 
     /**

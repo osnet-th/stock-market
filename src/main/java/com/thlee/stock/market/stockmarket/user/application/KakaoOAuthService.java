@@ -2,9 +2,10 @@ package com.thlee.stock.market.stockmarket.user.application;
 
 import com.thlee.stock.market.stockmarket.user.application.dto.OAuthLoginRequest;
 import com.thlee.stock.market.stockmarket.user.domain.model.OAuthProvider;
-import com.thlee.stock.market.stockmarket.user.infrastructure.oauth.kakao.KakaoOAuthClient;
+import com.thlee.stock.market.stockmarket.user.domain.oauth.OidcClaims;
+import com.thlee.stock.market.stockmarket.user.domain.oauth.OidcParser;
+import com.thlee.stock.market.stockmarket.user.infrastructure.oauth.kakao.KakaoTokenClient;
 import com.thlee.stock.market.stockmarket.user.infrastructure.oauth.kakao.dto.KakaoTokenResponse;
-import com.thlee.stock.market.stockmarket.user.infrastructure.oauth.kakao.dto.KakaoUserResponse;
 import org.springframework.stereotype.Service;
 
 /**
@@ -15,12 +16,15 @@ public class KakaoOAuthService {
 
     private static final String KAKAO_ISSUER = "https://kauth.kakao.com";
 
-    private final KakaoOAuthClient kakaoOAuthClient;
+    private final KakaoTokenClient kakaoTokenClient;
+    private final OidcParser oidcParser;
 
     public KakaoOAuthService(
-        KakaoOAuthClient kakaoOAuthClient
+        KakaoTokenClient kakaoTokenClient,
+        OidcParser oidcParser
     ) {
-        this.kakaoOAuthClient = kakaoOAuthClient;
+        this.kakaoTokenClient = kakaoTokenClient;
+        this.oidcParser = oidcParser;
     }
 
     /**
@@ -31,17 +35,17 @@ public class KakaoOAuthService {
      */
     public OAuthLoginRequest loginWithKakao(String authorizationCode) {
         // 1. 카카오 토큰 발급
-        KakaoTokenResponse token = kakaoOAuthClient.issueToken(authorizationCode);
+        KakaoTokenResponse token = kakaoTokenClient.issueToken(authorizationCode);
 
         // 2. 카카오 사용자 정보 조회
-        KakaoUserResponse kakaoUser = kakaoOAuthClient.getUserInfo(token.accessToken());
+        OidcClaims kakaoUser = oidcParser.parseIdToken(token.openId());
 
         // 3. OAuthLoginRequest 생성 및 반환
         return new OAuthLoginRequest(
             OAuthProvider.KAKAO,
             KAKAO_ISSUER,
-            kakaoUser.id().toString(),
-            kakaoUser.getEmail()
+            kakaoUser.subject(),
+            kakaoUser.email()
         );
     }
 }

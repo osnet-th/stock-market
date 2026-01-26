@@ -92,233 +92,85 @@ src/main/java/com/thlee/stock/market/stockmarket/
         └── {Domain}Controller.java
 ```
 
+---
 
-#### 전체 패키지 구조 (현재 구현 상태 반영)
+### 현재 구현된 전체 패키지 구조
+
 ```
-user/
-├── domain/
-│   ├── model/
-│   │   ├── User.java ✅                  # Aggregate Root
-│   │   ├── OAuthAccount.java ✅          # Entity
-│   │   ├── Nickname.java ✅              # Value Object
-│   │   ├── PhoneNumber.java ✅           # Value Object
-│   │   ├── OAuthIdentifier.java ✅       # Value Object
-│   │   ├── UserStatus.java ✅            # Enum (ACTIVE, INACTIVE, SUSPENDED, DELETED)
-│   │   ├── UserRole.java ✅              # Enum (USER, ADMIN, SIGNING_USER)
-│   │   └── OAuthProvider.java ✅         # Enum (KAKAO, GOOGLE)
-│   ├── repository/
-│   │   ├── UserRepository.java ✅
-│   │   └── OAuthAccountRepository.java ✅
-│   ├── service/
-│   │   ├── JwtTokenProvider.java ✅      # interface (포트)
-│   │   └── OAuthConnectionService.java ✅ # Domain Service
-│   └── exception/
-│       ├── UserDomainException.java ✅
-│       ├── InvalidUserArgumentException.java ✅
-│       ├── InvalidUserStateException.java ✅
-│       ├── DuplicateNicknameException.java ✅
-│       └── DuplicateOAuthProviderException.java ✅
+src/main/java/com/thlee/stock/market/stockmarket/
 │
-├── application/
-│   ├── AuthService.java ✅
-│   ├── OAuthLoginService.java ✅
-│   ├── KakaoOAuthService.java ✅
-│   └── dto/
-│       ├── OAuthLoginRequest.java ✅
-│       ├── OAuthLoginResponse.java ✅
-│       ├── TokenRefreshRequest.java ✅
-│       ├── TokenRefreshResponse.java ✅
-│       ├── SignupCompleteRequest.java ✅
-│       └── AccountConnectionRequest.java ✅
+├── StockMarketApplication.java
 │
 ├── infrastructure/
-│   ├── persistence/
-│   │   ├── UserEntity.java ✅
-│   │   ├── UserJpaRepository.java ✅
-│   │   ├── UserRepositoryImpl.java ✅
-│   │   ├── OAuthAccountEntity.java
-│   │   ├── OAuthAccountJpaRepository.java
-│   │   ├── OAuthAccountRepositoryImpl.java
-│   │   └── mapper/
-│   │       └── UserMapper.java ✅
-│   ├── security/
-│   │   └── jwt/
-│   │       ├── JwtTokenProviderImpl.java ✅
-│   │       ├── JwtProperties.java ✅
-│   │       └── exception/
-│   │           ├── JwtException.java ✅
-│   │           ├── InvalidTokenException.java ✅
-│   │           └── ExpiredTokenException.java ✅
-│   └── oauth/
-│       └── kakao/
-│           ├── KakaoOAuthClient.java ✅
-│           ├── KakaoOAuthProperties.java ✅
-│           ├── dto/
-│           │   ├── KakaoTokenResponse.java ✅
-│           │   └── KakaoUserResponse.java ✅
+│   └── security/
+│       ├── config/
+│       │   ├── DevSecurityConfig.java
+│       │   └── ProdSecurityConfig.java
+│       └── jwt/
+│           ├── JwtTokenProviderImpl.java
+│           ├── JwtProperties.java
 │           └── exception/
-│               ├── KakaoOAuthException.java ✅
-│               ├── KakaoTokenIssueFailed.java ✅
-│               └── KakaoUserInfoFetchFailed.java ✅
+│               ├── JwtException.java
+│               ├── InvalidTokenException.java
+│               └── ExpiredTokenException.java
 │
-└── presentation/
-    └── AuthController.java ✅
-```
-
-**✅ 완료**: 구현 완료
-**미표시**: 미구현
-
-**User 도메인 모델 상세**:
-
-**User (Aggregate Root)**:
-- 책임: 사용자 상태/권한 관리, 회원가입 완료 처리, 연결된 OAuth 계정 ID 목록 관리
-- 속성:
-  - id (Long, PK)
-  - name (String)
-  - nickname (Nickname VO)
-  - phoneNumber (PhoneNumber VO)
-  - oauthAccountIds (List<Long>) - 연결된 OAuth 계정 ID 목록
-  - status (UserStatus enum)
-  - role (UserRole enum)
-  - createdAt, deletedAt
-- 주요 메서드:
-  - completeSignup(name, nickname, phoneNumber)
-  - isActive(), canAccessResource()
-  - matchesForConnection(nickname, phoneNumber)
-  - addOAuthAccount(oauthAccountId), removeOAuthAccount(oauthAccountId)
-  - delete()
-
-**OAuthAccount (Entity)**:
-- 책임: OAuth 인증 정보 관리, 동일 계정 판별
-- 속성:
-  - id (Long, PK)
-  - userId (Long, FK) - User ID 참조 (연관관계 없음)
-  - provider (OAuthProvider enum)
-  - issuer, subject, email
-  - connectedAt
-- 주요 메서드:
-  - matches(provider, issuer, subject)
-  - isSameProvider(provider)
-  - connectToUser(userId)
-- 제약: provider + issuer + subject 조합 unique
-
-**OAuthConnectionService (Domain Service)**:
-- 책임: User와 OAuthAccount 간 연결 관리, provider 중복 검증
-- 주요 메서드:
-  - canConnectProvider(user, provider)
-  - connectOAuthAccount(user, oauthAccount)
-  - hasProvider(user, provider)
-  - disconnectOAuthAccount(user, oauthAccountId)
-- 의존성: UserRepository, OAuthAccountRepository
-
-**도메인 규칙**:
-1. 닉네임은 시스템 전체에서 unique
-2. 하나의 User는 같은 provider의 OAuth를 중복 연결 불가
-3. SIGNING_USER 권한은 활성화 시 USER 권한으로 전환
-4. DELETED 상태 사용자는 리소스 접근 불가
-
-#### Stock 도메인
-```
-stock/
-├── domain/
-│   ├── model/
-│   │   ├── Stock.java
-│   │   ├── StockCode.java
-│   │   └── StockPrice.java
-│   ├── repository/
-│   │   └── StockRepository.java
-│   └── service/
-│       └── StockPriceCalculator.java
-│
-├── application/
-│   ├── StockQueryService.java
-│   └── dto/
-│
-├── infrastructure/
-│   ├── persistence/
-│   ├── client/
-│   │   ├── StockApiClient.java (interface)
-│   │   ├── polygon/
-│   │   ├── alphavantage/
-│   │   └── finnhub/
-│   └── cache/
-│
-└── presentation/
-    └── StockController.java
-```
-
-#### News 도메인
-```
-news/
-├── domain/
-│   ├── model/
-│   │   ├── News.java
-│   │   ├── NewsId.java
-│   │   └── NewsSource.java
-│   ├── repository/
-│   │   └── NewsRepository.java
-│   └── service/
-│
-├── application/
-│   ├── NewsQueryService.java
-│   ├── NewsSearchService.java
-│   └── dto/
-│
-├── infrastructure/
-│   ├── persistence/
-│   └── client/
-│       ├── NewsApiClient.java (interface)
-│       ├── newsapi/
-│       └── finnhub/
-│
-└── presentation/
-    └── NewsController.java
-```
-
-#### Post 도메인 (커뮤니티)
-```
-post/
-├── domain/
-│   ├── model/
-│   │   ├── Post.java
-│   │   ├── PostId.java
-│   │   └── Comment.java
-│   ├── repository/
-│   │   └── PostRepository.java
-│   └── service/
-│
-├── application/
-│   ├── PostService.java
-│   ├── CommentService.java
-│   └── dto/
-│
-├── infrastructure/
-│   └── persistence/
-│
-└── presentation/
-    └── PostController.java
-```
-
-#### Favorite 도메인
-```
-favorite/
-├── domain/
-│   ├── model/
-│   │   ├── Favorite.java
-│   │   └── FavoriteType.java
-│   ├── repository/
-│   │   └── FavoriteRepository.java
-│   └── service/
-│
-├── application/
-│   ├── FavoriteService.java
-│   └── dto/
-│
-├── infrastructure/
-│   └── persistence/
-│
-└── presentation/
-    └── FavoriteController.java
+└── user/
+    ├── domain/
+    │   ├── model/
+    │   │   ├── User.java
+    │   │   ├── OAuthAccount.java
+    │   │   ├── Nickname.java
+    │   │   ├── PhoneNumber.java
+    │   │   ├── OAuthIdentifier.java
+    │   │   ├── UserRole.java
+    │   │   ├── UserStatus.java
+    │   │   └── OAuthProvider.java
+    │   ├── repository/
+    │   │   ├── UserRepository.java
+    │   │   └── OAuthAccountRepository.java
+    │   ├── service/
+    │   │   ├── JwtTokenProvider.java (interface)
+    │   │   └── OAuthConnectionService.java
+    │   └── exception/
+    │       ├── UserDomainException.java
+    │       ├── InvalidUserArgumentException.java
+    │       ├── InvalidUserStateException.java
+    │       ├── DuplicateNicknameException.java
+    │       └── DuplicateOAuthProviderException.java
+    │
+    ├── application/
+    │   ├── AuthService.java
+    │   ├── OAuthLoginService.java
+    │   ├── KakaoOAuthService.java
+    │   └── dto/
+    │       ├── OAuthLoginRequest.java
+    │       ├── OAuthLoginResponse.java
+    │       ├── TokenRefreshRequest.java
+    │       ├── TokenRefreshResponse.java
+    │       ├── SignupCompleteRequest.java
+    │       └── AccountConnectionRequest.java
+    │
+    ├── infrastructure/
+    │   ├── persistence/
+    │   │   ├── UserEntity.java
+    │   │   ├── UserJpaRepository.java
+    │   │   ├── UserRepositoryImpl.java
+    │   │   └── mapper/
+    │   │       └── UserMapper.java
+    │   └── oauth/
+    │       └── kakao/
+    │           ├── KakaoOAuthClient.java
+    │           ├── KakaoOAuthProperties.java
+    │           ├── dto/
+    │           │   ├── KakaoTokenResponse.java
+    │           │   └── KakaoUserResponse.java
+    │           └── exception/
+    │               ├── KakaoOAuthException.java
+    │               ├── KakaoTokenIssueFailed.java
+    │               └── KakaoUserInfoFetchFailed.java
+    │
+    └── presentation/
+        └── AuthController.java
 ```
 
 ---
@@ -446,44 +298,6 @@ favorite/
 - JWT 토큰 처리: domain에 JwtTokenProvider 인터페이스, infrastructure에 구현체
 - OAuth 클라이언트: domain/infrastructure에 OAuthClient 인터페이스, infrastructure 하위에 구현체
 - 외부 API 클라이언트: infrastructure에 인터페이스와 구현체 모두 배치
-
-#### Infrastructure 하위 구조
-
-```
-infrastructure/
-├── persistence/          # 데이터베이스 연동
-│   ├── {Domain}Entity.java
-│   ├── {Domain}JpaRepository.java
-│   ├── {Domain}RepositoryImpl.java
-│   └── mapper/
-│       └── {Domain}Mapper.java
-│
-├── security/            # 보안 관련 구현
-│   ├── jwt/
-│   │   ├── JwtTokenProviderImpl.java
-│   │   ├── JwtProperties.java
-│   │   └── exception/
-│   │       ├── JwtException.java
-│   │       ├── InvalidTokenException.java
-│   │       └── ExpiredTokenException.java
-│   └── oauth/
-│       ├── OAuthClient.java (interface)
-│       ├── kakao/
-│       │   ├── KakaoOAuthClient.java
-│       │   ├── KakaoOAuthProperties.java
-│       │   ├── dto/
-│       │   └── exception/
-│       └── google/
-│
-├── client/              # 외부 API 클라이언트
-│   ├── {Service}ApiClient.java (interface)
-│   ├── {Provider1}/
-│   ├── {Provider2}/
-│   └── fallback/
-│
-└── cache/               # 캐싱 구현
-    └── CacheConfig.java
-```
 
 #### 장점
 1. **테스트 용이성**: Mock 객체로 쉽게 대체 가능

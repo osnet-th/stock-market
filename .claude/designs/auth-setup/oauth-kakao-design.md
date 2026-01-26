@@ -8,9 +8,8 @@
 - 인가 코드 → 토큰 발급 → 사용자 정보 조회 → 내부 로그인 처리 흐름 구현
 
 ### 기획 문서
-- [kakao-oauth-api-guide.md](../docs/kakao-oauth-api-guide.md)
-- [auth-package-structure.md](./auth-package-structure.md)
-
+- [kakao-oauth-api-guide.md](../../docs/kakao-oauth-api-guide.md)
+- [phase-auth-setup.md](../../plans/phase-auth-setup.md)
 ### 기본 정보
 - REST API KEY: `9e30f4bba41efa94c5256b8f981c2da9`
 - Client Secret Key: `OPXDUa5oZsvKzWdk1hCeBc2ju9Gc8OiG`
@@ -279,10 +278,9 @@ infrastructure/oauth/kakao/exception/
 
 ## 9. 참고 문서
 
-- [ARCHITECTURE.md](../../ARCHITECTURE.md)
-- [auth-package-structure.md](./auth-package-structure.md)
-- [kakao-oauth-api-guide.md](../docs/kakao-oauth-api-guide.md)
-
+- [ARCHITECTURE.md](../../../ARCHITECTURE.md)
+- [kakao-oauth-api-guide.md](../../docs/kakao-oauth-api-guide.md)
+- [phase-auth-setup.md](../../plans/phase-auth-setup.md)
 ---
 
 **작성일**: 2026-01-24

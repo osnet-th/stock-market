@@ -1,7 +1,7 @@
 # ARCHITECTURE.md
 
 이 파일은 Claude Code (claude.ai/code)가 **주식 & 뉴스 통합 플랫폼(stock-market)** 프로젝트를 작업할 때 패키지 구조, 계층 규칙, 의존성 방향, 수정 범위를 정확히 이해하도록 돕는 **아키텍처 기준 문서**입니다.
-
+아키텍처 설명 및 전체 패키지 구조만 설명합니다. 도메인 별로 따로 상세 설명은 없습니다.
 ---
 
 ## 1. 전체 아키텍처 개요
@@ -58,7 +58,7 @@ infrastructure (Infrastructure Layer)
 
 ---
 
-## 4. 패키지 구조 (도메인별 분리)
+## 4. 패키지 구조 
 
 ### 기본 패키지 구조 패턴
 
@@ -81,7 +81,9 @@ src/main/java/com/thlee/stock/market/stockmarket/
     │   ├── persistence/
     │   │   ├── {Domain}Entity.java      # JPA Entity
     │   │   ├── {Domain}JpaRepository.java
-    │   │   └── {Domain}RepositoryImpl.java  # 어댑터
+    │   │   ├── {Domain}RepositoryImpl.java  # 어댑터
+    │   │   └── mapper/
+    │   │       └── {Domain}Mapper.java  # Entity ↔ Domain Model 변환
     │   │
     │   ├── client/         # 외부 API 클라이언트 (필요시)
     │   └── [기타 인프라 구현]
@@ -90,53 +92,81 @@ src/main/java/com/thlee/stock/market/stockmarket/
         └── {Domain}Controller.java
 ```
 
-### 도메인별 패키지 예시
 
-#### User 도메인
+#### 전체 패키지 구조 (현재 구현 상태 반영)
 ```
 user/
 ├── domain/
 │   ├── model/
-│   │   ├── User.java                    # Aggregate Root
-│   │   ├── OAuthAccount.java            # Entity
-│   │   ├── Nickname.java                # Value Object
-│   │   ├── PhoneNumber.java             # Value Object
-│   │   ├── OAuthIdentifier.java         # Value Object
-│   │   ├── UserStatus.java              # Enum (ACTIVE, DELETED)
-│   │   ├── UserRole.java                # Enum (USER, SIGNING_USER)
-│   │   └── OAuthProvider.java           # Enum (GOOGLE, KAKAO)
+│   │   ├── User.java ✅                  # Aggregate Root
+│   │   ├── OAuthAccount.java ✅          # Entity
+│   │   ├── Nickname.java ✅              # Value Object
+│   │   ├── PhoneNumber.java ✅           # Value Object
+│   │   ├── OAuthIdentifier.java ✅       # Value Object
+│   │   ├── UserStatus.java ✅            # Enum (ACTIVE, INACTIVE, SUSPENDED, DELETED)
+│   │   ├── UserRole.java ✅              # Enum (USER, ADMIN, SIGNING_USER)
+│   │   └── OAuthProvider.java ✅         # Enum (KAKAO, GOOGLE)
 │   ├── repository/
-│   │   ├── UserRepository.java
-│   │   └── OAuthAccountRepository.java
-│   └── service/
-│       ├── JwtTokenProvider.java (interface)
-│       └── OAuthConnectionService.java  # Domain Service
+│   │   ├── UserRepository.java ✅
+│   │   └── OAuthAccountRepository.java ✅
+│   ├── service/
+│   │   ├── JwtTokenProvider.java ✅      # interface (포트)
+│   │   └── OAuthConnectionService.java ✅ # Domain Service
+│   └── exception/
+│       ├── UserDomainException.java ✅
+│       ├── InvalidUserArgumentException.java ✅
+│       ├── InvalidUserStateException.java ✅
+│       ├── DuplicateNicknameException.java ✅
+│       └── DuplicateOAuthProviderException.java ✅
 │
 ├── application/
-│   ├── AuthService.java
-│   ├── OAuthLoginService.java
-│   ├── UserSignupService.java
+│   ├── AuthService.java ✅
+│   ├── OAuthLoginService.java ✅
+│   ├── KakaoOAuthService.java ✅
 │   └── dto/
+│       ├── OAuthLoginRequest.java ✅
+│       ├── OAuthLoginResponse.java ✅
+│       ├── TokenRefreshRequest.java ✅
+│       ├── TokenRefreshResponse.java ✅
+│       ├── SignupCompleteRequest.java ✅
+│       └── AccountConnectionRequest.java ✅
 │
 ├── infrastructure/
 │   ├── persistence/
-│   │   ├── UserEntity.java
+│   │   ├── UserEntity.java ✅
+│   │   ├── UserJpaRepository.java ✅
+│   │   ├── UserRepositoryImpl.java ✅
 │   │   ├── OAuthAccountEntity.java
-│   │   ├── UserJpaRepository.java
 │   │   ├── OAuthAccountJpaRepository.java
-│   │   ├── UserRepositoryImpl.java
-│   │   └── OAuthAccountRepositoryImpl.java
+│   │   ├── OAuthAccountRepositoryImpl.java
+│   │   └── mapper/
+│   │       └── UserMapper.java ✅
 │   ├── security/
 │   │   └── jwt/
-│   │       ├── JwtTokenProviderImpl.java
-│   │       └── JwtAuthenticationFilter.java
+│   │       ├── JwtTokenProviderImpl.java ✅
+│   │       ├── JwtProperties.java ✅
+│   │       └── exception/
+│   │           ├── JwtException.java ✅
+│   │           ├── InvalidTokenException.java ✅
+│   │           └── ExpiredTokenException.java ✅
 │   └── oauth/
-│       ├── kakao/
-│       └── google/
+│       └── kakao/
+│           ├── KakaoOAuthClient.java ✅
+│           ├── KakaoOAuthProperties.java ✅
+│           ├── dto/
+│           │   ├── KakaoTokenResponse.java ✅
+│           │   └── KakaoUserResponse.java ✅
+│           └── exception/
+│               ├── KakaoOAuthException.java ✅
+│               ├── KakaoTokenIssueFailed.java ✅
+│               └── KakaoUserInfoFetchFailed.java ✅
 │
 └── presentation/
-    └── AuthController.java
+    └── AuthController.java ✅
 ```
+
+**✅ 완료**: 구현 완료
+**미표시**: 미구현
 
 **User 도메인 모델 상세**:
 
@@ -354,6 +384,7 @@ favorite/
 - domain.repository 인터페이스를 구현
 - JPA/MyBatis를 사용한 실제 저장소 로직
 - entity ↔ domain.model 변환 담당
+- mapper 패키지로 변환 로직 분리 (예: UserMapper.java)
 
 ---
 
@@ -423,16 +454,25 @@ infrastructure/
 ├── persistence/          # 데이터베이스 연동
 │   ├── {Domain}Entity.java
 │   ├── {Domain}JpaRepository.java
-│   └── {Domain}RepositoryImpl.java
+│   ├── {Domain}RepositoryImpl.java
+│   └── mapper/
+│       └── {Domain}Mapper.java
 │
 ├── security/            # 보안 관련 구현
 │   ├── jwt/
 │   │   ├── JwtTokenProviderImpl.java
-│   │   ├── JwtAuthenticationFilter.java
-│   │   └── JwtProperties.java
+│   │   ├── JwtProperties.java
+│   │   └── exception/
+│   │       ├── JwtException.java
+│   │       ├── InvalidTokenException.java
+│   │       └── ExpiredTokenException.java
 │   └── oauth/
 │       ├── OAuthClient.java (interface)
 │       ├── kakao/
+│       │   ├── KakaoOAuthClient.java
+│       │   ├── KakaoOAuthProperties.java
+│       │   ├── dto/
+│       │   └── exception/
 │       └── google/
 │
 ├── client/              # 외부 API 클라이언트

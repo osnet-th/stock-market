@@ -28,7 +28,8 @@ server:
 # JWT Configuration (운영 환경에서는 환경 변수로 오버라이드)
 jwt:
   secret: your-256-bit-secret-key-change-in-production-minimum-32-characters
-  expiration: 86400000
+  access-token-expiration: 1800000    # 30분 (밀리초)
+  refresh-token-expiration: 604800000  # 7일 (밀리초)
 
 # Kakao OAuth Configuration
 kakao:

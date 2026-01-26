@@ -32,7 +32,8 @@ spring:
 # JWT Configuration - 운영 환경 (환경 변수 필수)
 jwt:
   secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION:86400000}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:1800000}    # 30분 (밀리초)
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}  # 7일 (밀리초)
 
 # External APIs - 운영 환경 (환경 변수 사용)
 finnhub:

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kakao OAuth Login (Local)</title>
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        margin: 40px;
+        line-height: 1.4;
+      }
+      .card {
+        max-width: 520px;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .btn {
+        display: inline-block;
+        padding: 10px 16px;
+        background: #fee500;
+        color: #000;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: bold;
+      }
+      code {
+        background: #f6f8fa;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Kakao OAuth (Local)</h1>
+      <p>아래 버튼을 누르면 카카오 인가 페이지로 이동합니다.</p>
+      <p>
+        리다이렉트 URI:
+        <code>http://localhost:8080/oauth/kakao</code>
+      </p>
+      <a id="kakao-login" class="btn" href="#">카카오 로그인</a>
+      <p id="note"></p>
+    </div>
+
+    <script>
+      // NOTE: application.yml의 kakao.oauth.client-id와 동일하게 맞춰주세요.
+      const clientId = "9e30f4bba41efa94c5256b8f981c2da9";
+      const redirectUri = "http://localhost:8080/oauth/kakao";
+      const authorizeUrl =
+        "https://kauth.kakao.com/oauth/authorize" +
+        "?client_id=" +
+        encodeURIComponent(clientId) +
+        "&redirect_uri=" +
+        encodeURIComponent(redirectUri) +
+        "&response_type=code";
+
+      const link = document.getElementById("kakao-login");
+      link.href = authorizeUrl;
+
+      const note = document.getElementById("note");
+      note.textContent =
+        "인가 URL: " + authorizeUrl;
+    </script>
+  </body>
+</html>

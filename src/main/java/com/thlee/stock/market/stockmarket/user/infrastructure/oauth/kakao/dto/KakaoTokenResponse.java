@@ -11,6 +11,8 @@ public record KakaoTokenResponse(
 
     @JsonProperty("refresh_token")
     String refreshToken,
+    @JsonProperty("id_token")
+    String openId,
 
     @JsonProperty("expires_in")
     Long expiresIn,

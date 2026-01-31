@@ -1,0 +1,1 @@
+When finishing tasks: ensure changes follow ARCHITECTURE.md and CLAUDE.md rules. For code changes, add/update unit tests first (except infrastructure/presentation where TDD not required). Avoid git actions unless user explicitly approves; only git add for newly created files. Ask for approval before any file modification/creation.

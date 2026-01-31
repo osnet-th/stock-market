@@ -38,7 +38,8 @@ kakao:
     client-secret: ${KAKAO_CLIENT_SECRET}
     redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8080/oauth/kakao}
     token-uri: https://kauth.kakao.com/oauth/token
-    user-info-uri: https://kapi.kakao.com/v2/user/me
+    issuer: https://kauth.kakao.com
+    audience: ${KAKAO_CLIENT_ID}
 
 # Google OAuth Configuration
 google:

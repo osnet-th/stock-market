@@ -1,0 +1,4 @@
+Project: stock-market (주식 & 뉴스 통합 플랫폼). Purpose: stock info + related news + community posts + favorites, JWT auth (Kakao/Google OAuth), trade history/portfolio.
+Tech stack: Java 21, Spring Boot 4.0.1, Spring Web/WebFlux, Spring Data JPA, Spring Security, Validation, Actuator, JWT (jjwt), QueryDSL 5, Lombok, Rome (RSS). DB: H2 (dev), PostgreSQL (prod). Testing: JUnit 5, Mockito, AssertJ.
+Architecture: Layered + DDD-style. Domain-based packages with presentation/application/domain/infrastructure subpackages. No JPA entity relationships; ID-based references only. Domain has no Spring/JPA dependencies. @Transactional only in application.
+Current codebase scope appears to include only User domain and shared infrastructure/security; other domains (stock/news/post/favorite) are not yet present.

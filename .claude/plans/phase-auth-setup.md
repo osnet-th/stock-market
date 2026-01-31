@@ -285,7 +285,6 @@ src/main/java/com/thlee/stock/market/stockmarket/
 ## 7. 참고 문서
 
 - [ARCHITECTURE.md](../../../ARCHITECTURE.md)
-- [phase-auth-setup.md](../.claude/plans/phase-auth-setup.md)
 - [STOCK-MARKET-PROJECT.md](../../../STOCK-MARKET-PROJECT.md)
 
 ---

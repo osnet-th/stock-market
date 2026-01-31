@@ -9,6 +9,7 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -23,6 +24,7 @@ import java.util.function.Function;
  */
 @Component
 @RequiredArgsConstructor
+@Log4j2
 public class JwtTokenProviderImpl implements JwtTokenProvider {
 
     private final JwtProperties jwtProperties;

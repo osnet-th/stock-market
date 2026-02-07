@@ -15,6 +15,8 @@ spring:
       hibernate:
         naming:
           physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+        jdbc:
+          batch_size: 1000
 
   # Scheduler Configuration
   task:
@@ -49,6 +51,19 @@ google:
     redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/oauth/google}
     token-uri: https://oauth2.googleapis.com/token
     user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
+
+# Mail (SMTP)
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 # External APIs Base URLs
 finnhub:

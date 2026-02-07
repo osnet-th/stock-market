@@ -1,7 +1,7 @@
-package com.thlee.stock.market.stockmarket.keyword.application;
+package com.thlee.stock.market.stockmarket.news.application;
 
-import com.thlee.stock.market.stockmarket.keyword.domain.model.Keyword;
-import com.thlee.stock.market.stockmarket.keyword.domain.repository.KeywordRepository;
+import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
+import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,11 +23,11 @@ class KeywordServiceTest {
     @Mock
     private KeywordRepository keywordRepository;
 
-    private KeywordService keywordService;
+    private KeywordServiceImpl keywordService;
 
     @BeforeEach
     void setUp() {
-        keywordService = new KeywordService(keywordRepository);
+        keywordService = new KeywordServiceImpl(keywordRepository);
     }
 
     @Test

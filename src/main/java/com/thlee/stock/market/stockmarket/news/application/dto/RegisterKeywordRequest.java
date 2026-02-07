@@ -1,4 +1,4 @@
-package com.thlee.stock.market.stockmarket.keyword.presentation.dto;
+package com.thlee.stock.market.stockmarket.news.application.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

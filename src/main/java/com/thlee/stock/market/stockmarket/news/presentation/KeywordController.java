@@ -1,8 +1,8 @@
-package com.thlee.stock.market.stockmarket.keyword.presentation;
+package com.thlee.stock.market.stockmarket.news.presentation;
 
-import com.thlee.stock.market.stockmarket.keyword.application.KeywordService;
-import com.thlee.stock.market.stockmarket.keyword.domain.model.Keyword;
-import com.thlee.stock.market.stockmarket.keyword.presentation.dto.RegisterKeywordRequest;
+import com.thlee.stock.market.stockmarket.news.application.KeywordServiceImpl;
+import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
+import com.thlee.stock.market.stockmarket.news.application.dto.RegisterKeywordRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class KeywordController {
 
-    private final KeywordService keywordService;
+    private final KeywordServiceImpl keywordService;
 
     /**
      * 키워드 등록

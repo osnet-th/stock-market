@@ -1,4 +1,4 @@
-package com.thlee.stock.market.stockmarket.keyword.domain.model;
+package com.thlee.stock.market.stockmarket.news.domain.model;
 
 import org.junit.jupiter.api.Test;
 

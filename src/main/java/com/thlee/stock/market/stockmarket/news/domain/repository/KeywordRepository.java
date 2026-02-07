@@ -1,6 +1,6 @@
-package com.thlee.stock.market.stockmarket.keyword.domain.repository;
+package com.thlee.stock.market.stockmarket.news.domain.repository;
 
-import com.thlee.stock.market.stockmarket.keyword.domain.model.Keyword;
+import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
 
 import java.util.List;
 import java.util.Optional;

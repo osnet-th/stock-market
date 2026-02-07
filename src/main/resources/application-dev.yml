@@ -13,6 +13,8 @@ spring:
       connection-timeout: 3000
       idle-timeout: 600000
       max-lifetime: 1800000
+      connection-properties:
+        reWriteBatchedInserts: true
 
   # JPA/Hibernate - 개발 환경
   jpa:

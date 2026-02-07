@@ -27,4 +27,15 @@ public class NewsQueryService {
                 .map(NewsDto::from)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * 여러 URL 중 이미 존재하는 것 필터링
+     * @param originalLinks 확인할 URL 목록
+     * @return 이미 존재하는 URL 목록
+     */
+    public List<String> findExistingUrls(List<String> originalLinks) {
+        return originalLinks.stream()
+                .filter(url -> newsRepository.findByOriginalUrl(url).isPresent())
+                .collect(Collectors.toList());
+    }
 }

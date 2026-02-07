@@ -18,6 +18,8 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 60000
+      connection-properties:
+        reWriteBatchedInserts: true
 
   # JPA/Hibernate - 운영 환경
   jpa:
@@ -54,6 +56,11 @@ logging:
     org.springframework.security: WARN
     org.springframework.web: WARN
     org.hibernate.SQL: WARN
+
+# Swagger - 운영 환경 (비활성화)
+springdoc:
+  swagger-ui:
+    enabled: false
 
 # Actuator - 운영 환경
 management:

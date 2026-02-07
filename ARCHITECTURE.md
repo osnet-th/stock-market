@@ -8,7 +8,6 @@
 
 - 본 프로젝트는 **Layered Architecture 기반 + DDD 개념을 적용한 구조**입니다.
 - 패키지는 **도메인별로 구성**되며, 각 도메인 내에서 계층별로 패키지가 분리됩니다.
-- Hexagonal / Clean Architecture는 사용하지 않습니다.
 
 기본 철학:
 
@@ -101,6 +100,9 @@ src/main/java/com/thlee/stock/market/stockmarket/
 │
 ├── StockMarketApplication.java
 │
+├── config/
+│   └── ObjectMapperConfig.java
+│
 ├── infrastructure/
 │   └── security/
 │       ├── config/
@@ -114,63 +116,127 @@ src/main/java/com/thlee/stock/market/stockmarket/
 │               ├── InvalidTokenException.java
 │               └── ExpiredTokenException.java
 │
-└── user/
+├── user/
+│   ├── domain/
+│   │   ├── model/
+│   │   │   ├── User.java
+│   │   │   ├── OAuthAccount.java
+│   │   │   ├── Nickname.java
+│   │   │   ├── PhoneNumber.java
+│   │   │   ├── OAuthIdentifier.java
+│   │   │   ├── UserRole.java
+│   │   │   └── OAuthProvider.java
+│   │   ├── UserStatus.java
+│   │   ├── oauth/
+│   │   │   ├── OidcClaims.java
+│   │   │   └── OidcParser.java
+│   │   ├── repository/
+│   │   │   ├── UserRepository.java
+│   │   │   └── OAuthAccountRepository.java
+│   │   ├── service/
+│   │   │   ├── JwtTokenProvider.java (interface)
+│   │   │   └── OAuthConnectionService.java
+│   │   └── exception/
+│   │       ├── UserDomainException.java
+│   │       ├── InvalidUserArgumentException.java
+│   │       ├── InvalidUserStateException.java
+│   │       ├── DuplicateNicknameException.java
+│   │       └── DuplicateOAuthProviderException.java
+│   │
+│   ├── application/
+│   │   ├── AuthService.java
+│   │   ├── OAuthLoginService.java
+│   │   ├── KakaoOAuthService.java
+│   │   └── dto/
+│   │       ├── OAuthLoginRequest.java
+│   │       ├── OAuthLoginResponse.java
+│   │       ├── TokenRefreshRequest.java
+│   │       ├── TokenRefreshResponse.java
+│   │       ├── SignupCompleteRequest.java
+│   │       └── AccountConnectionRequest.java
+│   │
+│   ├── infrastructure/
+│   │   ├── persistence/
+│   │   │   ├── UserEntity.java
+│   │   │   ├── UserJpaRepository.java
+│   │   │   ├── UserRepositoryImpl.java
+│   │   │   ├── OAuthAccountEntity.java
+│   │   │   ├── OAuthAccountJpaRepository.java
+│   │   │   ├── OAuthAccountRepositoryImpl.java
+│   │   │   └── mapper/
+│   │   │       ├── UserMapper.java
+│   │   │       └── OAuthAccountMapper.java
+│   │   └── oauth/
+│   │       └── kakao/
+│   │           ├── KakaoClient.java
+│   │           ├── KakaoJwksProvider.java
+│   │           ├── KakaoOAuthProperties.java
+│   │           ├── KakaoOidcParser.java
+│   │           ├── KakaoTokenClient.java
+│   │           ├── dto/
+│   │           │   ├── KakaoTokenResponse.java
+│   │           │   └── KakaoUserResponse.java
+│   │           └── exception/
+│   │               ├── KakaoOAuthException.java
+│   │               ├── KakaoTokenIssueFailed.java
+│   │               └── KakaoUserInfoFetchFailed.java
+│   │
+│   └── presentation/
+│       └── AuthController.java
+│
+├── news/
+│   ├── domain/
+│   │   ├── model/
+│   │   │   ├── News.java
+│   │   │   ├── NewsPurpose.java
+│   │   │   ├── NewsSearchResult.java
+│   │   │   └── Keyword.java
+│   │   ├── repository/
+│   │   │   ├── NewsRepository.java
+│   │   │   └── KeywordRepository.java
+│   │   └── service/
+│   │       └── NewsSearchPort.java
+│   │
+│   ├── application/
+│   │   ├── NewsQueryService.java
+│   │   ├── NewsSearchService.java
+│   │   ├── NewsSaveService.java
+│   │   ├── KeywordService.java
+│   │   ├── KeywordServiceImpl.java
+│   │   ├── KeywordNewsBatchService.java
+│   │   ├── KeywordNewsBatchServiceImpl.java
+│   │   └── dto/
+│   │       ├── NewsDto.java
+│   │       ├── NewsResultDto.java
+│   │       ├── NewsSaveRequest.java
+│   │       ├── NewsBatchSaveResult.java
+│   │       └── RegisterKeywordRequest.java
+│   │
+│   ├── infrastructure/
+│   │   ├── persistence/
+│   │   │   ├── NewsEntity.java
+│   │   │   ├── NewsJpaRepository.java
+│   │   │   ├── NewsRepositoryImpl.java
+│   │   │   ├── KeywordEntity.java
+│   │   │   ├── KeywordJpaRepository.java
+│   │   │   ├── KeywordRepositoryImpl.java
+│   │   │   └── mapper/
+│   │   │       ├── NewsMapper.java
+│   │   │       └── KeywordMapper.java
+│   │   └── scheduler/
+│   │       ├── KeywordNewsScheduler.java
+│   │       └── KeywordNewsBatchScheduler.java
+│   │
+│   └── presentation/
+│       └── KeywordController.java
+│
+└── notification/
     ├── domain/
-    │   ├── model/
-    │   │   ├── User.java
-    │   │   ├── OAuthAccount.java
-    │   │   ├── Nickname.java
-    │   │   ├── PhoneNumber.java
-    │   │   ├── OAuthIdentifier.java
-    │   │   ├── UserRole.java
-    │   │   ├── UserStatus.java
-    │   │   └── OAuthProvider.java
-    │   ├── repository/
-    │   │   ├── UserRepository.java
-    │   │   └── OAuthAccountRepository.java
-    │   ├── service/
-    │   │   ├── JwtTokenProvider.java (interface)
-    │   │   └── OAuthConnectionService.java
-    │   └── exception/
-    │       ├── UserDomainException.java
-    │       ├── InvalidUserArgumentException.java
-    │       ├── InvalidUserStateException.java
-    │       ├── DuplicateNicknameException.java
-    │       └── DuplicateOAuthProviderException.java
-    │
-    ├── application/
-    │   ├── AuthService.java
-    │   ├── OAuthLoginService.java
-    │   ├── KakaoOAuthService.java
-    │   └── dto/
-    │       ├── OAuthLoginRequest.java
-    │       ├── OAuthLoginResponse.java
-    │       ├── TokenRefreshRequest.java
-    │       ├── TokenRefreshResponse.java
-    │       ├── SignupCompleteRequest.java
-    │       └── AccountConnectionRequest.java
-    │
-    ├── infrastructure/
-    │   ├── persistence/
-    │   │   ├── UserEntity.java
-    │   │   ├── UserJpaRepository.java
-    │   │   ├── UserRepositoryImpl.java
-    │   │   └── mapper/
-    │   │       └── UserMapper.java
-    │   └── oauth/
-    │       └── kakao/
-    │           ├── KakaoOAuthClient.java
-    │           ├── KakaoOAuthProperties.java
-    │           ├── dto/
-    │           │   ├── KakaoTokenResponse.java
-    │           │   └── KakaoUserResponse.java
-    │           └── exception/
-    │               ├── KakaoOAuthException.java
-    │               ├── KakaoTokenIssueFailed.java
-    │               └── KakaoUserInfoFetchFailed.java
-    │
-    └── presentation/
-        └── AuthController.java
+    │   ├── NotificationRequest.java
+    │   └── NotificationService.java
+    └── infrastructure/
+        └── email/
+            └── EmailNotificationService.java
 ```
 
 ---

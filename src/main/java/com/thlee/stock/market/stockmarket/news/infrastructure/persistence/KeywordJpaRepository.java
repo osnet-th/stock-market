@@ -1,4 +1,4 @@
-package com.thlee.stock.market.stockmarket.keyword.infrastructure.persistence;
+package com.thlee.stock.market.stockmarket.news.infrastructure.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

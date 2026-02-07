@@ -1,7 +1,7 @@
-package com.thlee.stock.market.stockmarket.keyword.application;
+package com.thlee.stock.market.stockmarket.news.application;
 
-import com.thlee.stock.market.stockmarket.keyword.domain.model.Keyword;
-import com.thlee.stock.market.stockmarket.keyword.domain.repository.KeywordRepository;
+import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
+import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +14,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class KeywordService {
+public class KeywordServiceImpl implements KeywordService{
 
     private final KeywordRepository keywordRepository;
 

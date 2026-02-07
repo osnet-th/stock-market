@@ -1,8 +1,8 @@
-package com.thlee.stock.market.stockmarket.keyword.infrastructure.persistence;
+package com.thlee.stock.market.stockmarket.news.infrastructure.persistence;
 
-import com.thlee.stock.market.stockmarket.keyword.domain.model.Keyword;
-import com.thlee.stock.market.stockmarket.keyword.domain.repository.KeywordRepository;
-import com.thlee.stock.market.stockmarket.keyword.infrastructure.persistence.mapper.KeywordMapper;
+import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
+import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
+import com.thlee.stock.market.stockmarket.news.infrastructure.persistence.mapper.KeywordMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

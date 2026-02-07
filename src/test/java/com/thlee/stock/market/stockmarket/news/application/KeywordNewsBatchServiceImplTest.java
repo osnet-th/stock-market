@@ -4,6 +4,7 @@ import com.thlee.stock.market.stockmarket.news.application.dto.NewsBatchSaveResu
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsSaveRequest;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsResultDto;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
+import com.thlee.stock.market.stockmarket.news.domain.model.KeywordRegion;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import org.junit.jupiter.api.Test;
 
@@ -49,7 +50,7 @@ class KeywordNewsBatchServiceImplTest {
                 keywordService, newsSearchService, newsSaveService, newsQueryService
         );
 
-        Keyword keyword = new Keyword(1L, "삼성전자", 1L, true, LocalDateTime.now());
+        Keyword keyword = new Keyword(1L, "삼성전자", 1L, true, KeywordRegion.DOMESTIC, LocalDateTime.now());
         when(keywordService.getAllActiveKeywords()).thenReturn(List.of(keyword));
         when(newsSearchService.search("삼성전자")).thenReturn(Collections.emptyList());
 
@@ -69,7 +70,7 @@ class KeywordNewsBatchServiceImplTest {
                 keywordService, newsSearchService, newsSaveService, newsQueryService
         );
 
-        Keyword keyword = new Keyword(1L, "삼성전자", 1L, true, LocalDateTime.now());
+        Keyword keyword = new Keyword(1L, "삼성전자", 1L, true, KeywordRegion.DOMESTIC, LocalDateTime.now());
         NewsResultDto newsResult = new NewsResultDto(
                 "삼성전자 뉴스",
                 "http://example.com/news1",
@@ -99,7 +100,7 @@ class KeywordNewsBatchServiceImplTest {
                 keywordService, newsSearchService, newsSaveService, newsQueryService
         );
 
-        Keyword keyword = new Keyword(1L, "삼성전자", 1L, true, LocalDateTime.now());
+        Keyword keyword = new Keyword(1L, "삼성전자", 1L, true, KeywordRegion.DOMESTIC, LocalDateTime.now());
         NewsResultDto newsResult = new NewsResultDto(
                 "삼성전자 뉴스",
                 "http://example.com/news1",

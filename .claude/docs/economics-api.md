@@ -108,6 +108,6 @@ URL: https://docs.data.nasdaq.com/
 
 --------------------------------
 
-[NOTE] PMI (제조/서비스)
+[NOTE] 미국 PMI (제조/서비스)
 https://kr.investing.com/economic-calendar/ism-manufacturing-pmi-173
 HTTP - Get 요청에서 PMI 지수 확인 가능

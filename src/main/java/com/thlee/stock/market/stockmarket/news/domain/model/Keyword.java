@@ -10,34 +10,38 @@ public class Keyword {
     private String keyword;
     private Long userId;
     private boolean active;
+    private KeywordRegion region;
     private LocalDateTime createdAt;
 
-    private Keyword(String keyword, Long userId, boolean active, LocalDateTime createdAt) {
+    private Keyword(String keyword, Long userId, boolean active, KeywordRegion region, LocalDateTime createdAt) {
         this.keyword = keyword;
         this.userId = userId;
         this.active = active;
+        this.region = region;
         this.createdAt = createdAt;
     }
 
     /**
      * 재구성용 생성자 (Repository에서 조회 시 사용)
      */
-    public Keyword(Long id, String keyword, Long userId, boolean active, LocalDateTime createdAt) {
+    public Keyword(Long id, String keyword, Long userId, boolean active, KeywordRegion region, LocalDateTime createdAt) {
         this.id = id;
         this.keyword = keyword;
         this.userId = userId;
         this.active = active;
+        this.region = region;
         this.createdAt = createdAt;
     }
 
     /**
      * 키워드 생성
      */
-    public static Keyword create(String keyword, Long userId) {
+    public static Keyword create(String keyword, Long userId, KeywordRegion region) {
         validateKeyword(keyword);
         validateUserId(userId);
+        validateRegion(region);
 
-        return new Keyword(keyword, userId, true, LocalDateTime.now());
+        return new Keyword(keyword, userId, true, region, LocalDateTime.now());
     }
 
     private static void validateKeyword(String keyword) {
@@ -49,6 +53,12 @@ public class Keyword {
     private static void validateUserId(Long userId) {
         if (userId == null) {
             throw new IllegalArgumentException("userId는 필수입니다.");
+        }
+    }
+
+    private static void validateRegion(KeywordRegion region) {
+        if (region == null) {
+            throw new IllegalArgumentException("region은 필수입니다.");
         }
     }
 
@@ -81,6 +91,10 @@ public class Keyword {
 
     public boolean isActive() {
         return active;
+    }
+
+    public KeywordRegion getRegion() {
+        return region;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -17,20 +17,8 @@ import org.springframework.stereotype.Component;
 public class EmailNotificationService implements NotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailNotificationService.class);
-    private final JavaMailSender mailSender;
 
     @Override
     public void sendNotification(NotificationRequest request) {
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo("user-" + request.getUserId() + "@stock-market.com"); // TODO: 실제 사용자 이메일 조회
-            message.setSubject(request.getTitle());
-            message.setText(request.getMessage());
-
-            mailSender.send(message);
-            log.info("이메일 알림 발송 완료. userId: {}, title: {}", request.getUserId(), request.getTitle());
-        } catch (Exception e) {
-            log.warn("이메일 알림 발송 실패. userId: {}, reason: {}", request.getUserId(), e.getMessage());
-        }
     }
 }

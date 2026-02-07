@@ -12,13 +12,15 @@ class KeywordTest {
         // given
         String keyword = "삼성전자";
         Long userId = 1L;
+        KeywordRegion region = KeywordRegion.DOMESTIC;
 
         // when
-        Keyword result = Keyword.create(keyword, userId);
+        Keyword result = Keyword.create(keyword, userId, region);
 
         // then
         assertThat(result.getKeyword()).isEqualTo(keyword);
         assertThat(result.getUserId()).isEqualTo(userId);
+        assertThat(result.getRegion()).isEqualTo(region);
         assertThat(result.isActive()).isTrue();
         assertThat(result.getCreatedAt()).isNotNull();
     }
@@ -26,7 +28,7 @@ class KeywordTest {
     @Test
     void keyword가_null이면_예외_발생() {
         // when & then
-        assertThatThrownBy(() -> Keyword.create(null, 1L))
+        assertThatThrownBy(() -> Keyword.create(null, 1L, KeywordRegion.DOMESTIC))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("키워드는 필수");
     }
@@ -34,7 +36,7 @@ class KeywordTest {
     @Test
     void keyword가_빈_문자열이면_예외_발생() {
         // when & then
-        assertThatThrownBy(() -> Keyword.create("", 1L))
+        assertThatThrownBy(() -> Keyword.create("", 1L, KeywordRegion.DOMESTIC))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("키워드는 필수");
     }
@@ -42,7 +44,7 @@ class KeywordTest {
     @Test
     void keyword가_공백만_있으면_예외_발생() {
         // when & then
-        assertThatThrownBy(() -> Keyword.create("   ", 1L))
+        assertThatThrownBy(() -> Keyword.create("   ", 1L, KeywordRegion.DOMESTIC))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("키워드는 필수");
     }
@@ -50,15 +52,23 @@ class KeywordTest {
     @Test
     void userId가_null이면_예외_발생() {
         // when & then
-        assertThatThrownBy(() -> Keyword.create("삼성전자", null))
+        assertThatThrownBy(() -> Keyword.create("삼성전자", null, KeywordRegion.DOMESTIC))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("userId는 필수");
     }
 
     @Test
+    void region이_null이면_예외_발생() {
+        // when & then
+        assertThatThrownBy(() -> Keyword.create("삼성전자", 1L, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("region은 필수");
+    }
+
+    @Test
     void 키워드_비활성화() {
         // given
-        Keyword keyword = Keyword.create("삼성전자", 1L);
+        Keyword keyword = Keyword.create("삼성전자", 1L, KeywordRegion.DOMESTIC);
 
         // when
         keyword.deactivate();
@@ -70,7 +80,7 @@ class KeywordTest {
     @Test
     void 키워드_활성화() {
         // given
-        Keyword keyword = Keyword.create("삼성전자", 1L);
+        Keyword keyword = Keyword.create("삼성전자", 1L, KeywordRegion.DOMESTIC);
         keyword.deactivate();
 
         // when

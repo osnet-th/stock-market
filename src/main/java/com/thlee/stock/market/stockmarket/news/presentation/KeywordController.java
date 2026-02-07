@@ -22,12 +22,12 @@ public class KeywordController {
     /**
      * 키워드 등록
      *
-     * @param request 키워드 등록 요청 (keyword, userId)
+     * @param request 키워드 등록 요청 (keyword, userId, region)
      * @return 등록된 키워드
      */
     @PostMapping
     public ResponseEntity<Keyword> registerKeyword(@RequestBody RegisterKeywordRequest request) {
-        Keyword keyword = keywordService.registerKeyword(request.getKeyword(), request.getUserId());
+        Keyword keyword = keywordService.registerKeyword(request);
         return ResponseEntity.ok(keyword);
     }
 

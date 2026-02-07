@@ -17,6 +17,7 @@ public class KeywordMapper {
                 keyword.getKeyword(),
                 keyword.getUserId(),
                 keyword.isActive(),
+                keyword.getRegion(),
                 keyword.getCreatedAt()
         );
     }
@@ -30,6 +31,7 @@ public class KeywordMapper {
                 entity.getKeyword(),
                 entity.getUserId(),
                 entity.isActive(),
+                entity.getRegion(),
                 entity.getCreatedAt()
         );
     }

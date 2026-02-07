@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.news.application;
 
+import com.thlee.stock.market.stockmarket.news.application.dto.RegisterKeywordRequest;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,8 +23,8 @@ public class KeywordServiceImpl implements KeywordService{
      * 키워드 등록
      */
     @Transactional
-    public Keyword registerKeyword(String keyword, Long userId) {
-        Keyword newKeyword = Keyword.create(keyword, userId);
+    public Keyword registerKeyword(RegisterKeywordRequest request) {
+        Keyword newKeyword = Keyword.create(request.getKeyword(), request.getUserId(), request.getRegion());
         return keywordRepository.save(newKeyword);
     }
 

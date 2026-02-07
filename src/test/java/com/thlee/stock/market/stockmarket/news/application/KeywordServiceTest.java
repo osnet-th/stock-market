@@ -1,6 +1,8 @@
 package com.thlee.stock.market.stockmarket.news.application;
 
+import com.thlee.stock.market.stockmarket.news.application.dto.RegisterKeywordRequest;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
+import com.thlee.stock.market.stockmarket.news.domain.model.KeywordRegion;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,18 +35,19 @@ class KeywordServiceTest {
     @Test
     void 키워드_등록_성공() {
         // given
-        String keyword = "삼성전자";
-        Long userId = 1L;
+        RegisterKeywordRequest request = new RegisterKeywordRequest("삼성전자", 1L, KeywordRegion.DOMESTIC);
 
-        Keyword savedKeyword = new Keyword(1L, keyword, userId, true, LocalDateTime.now());
+        Keyword savedKeyword = new Keyword(1L, request.getKeyword(), request.getUserId(), true,
+                request.getRegion(), LocalDateTime.now());
         when(keywordRepository.save(any(Keyword.class))).thenReturn(savedKeyword);
 
         // when
-        Keyword result = keywordService.registerKeyword(keyword, userId);
+        Keyword result = keywordService.registerKeyword(request);
 
         // then
-        assertThat(result.getKeyword()).isEqualTo(keyword);
-        assertThat(result.getUserId()).isEqualTo(userId);
+        assertThat(result.getKeyword()).isEqualTo(request.getKeyword());
+        assertThat(result.getUserId()).isEqualTo(request.getUserId());
+        assertThat(result.getRegion()).isEqualTo(request.getRegion());
         assertThat(result.isActive()).isTrue();
         verify(keywordRepository).save(any(Keyword.class));
     }
@@ -53,7 +56,7 @@ class KeywordServiceTest {
     void 키워드_비활성화_성공() {
         // given
         Long keywordId = 1L;
-        Keyword keyword = new Keyword(keywordId, "삼성전자", 1L, true, LocalDateTime.now());
+        Keyword keyword = new Keyword(keywordId, "삼성전자", 1L, true, KeywordRegion.DOMESTIC, LocalDateTime.now());
 
         when(keywordRepository.findById(keywordId)).thenReturn(Optional.of(keyword));
         when(keywordRepository.save(any(Keyword.class))).thenReturn(keyword);
@@ -70,7 +73,7 @@ class KeywordServiceTest {
     void 키워드_활성화_성공() {
         // given
         Long keywordId = 1L;
-        Keyword keyword = new Keyword(keywordId, "삼성전자", 1L, false, LocalDateTime.now());
+        Keyword keyword = new Keyword(keywordId, "삼성전자", 1L, false, KeywordRegion.DOMESTIC, LocalDateTime.now());
 
         when(keywordRepository.findById(keywordId)).thenReturn(Optional.of(keyword));
         when(keywordRepository.save(any(Keyword.class))).thenReturn(keyword);
@@ -87,7 +90,7 @@ class KeywordServiceTest {
     void 키워드_삭제_성공() {
         // given
         Long keywordId = 1L;
-        Keyword keyword = new Keyword(keywordId, "삼성전자", 1L, true, LocalDateTime.now());
+        Keyword keyword = new Keyword(keywordId, "삼성전자", 1L, true, KeywordRegion.DOMESTIC, LocalDateTime.now());
 
         when(keywordRepository.findById(keywordId)).thenReturn(Optional.of(keyword));
 

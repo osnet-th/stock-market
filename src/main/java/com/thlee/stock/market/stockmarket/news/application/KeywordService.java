@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.news.application;
 
+import com.thlee.stock.market.stockmarket.news.application.dto.RegisterKeywordRequest;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
 
 import java.util.List;
@@ -9,7 +10,7 @@ public interface KeywordService {
     /**
      * 키워드 등록
      */
-    Keyword registerKeyword(String keyword, Long userId);
+    Keyword registerKeyword(RegisterKeywordRequest request);
 
     /**
      * 사용자별 키워드 목록 조회

@@ -33,7 +33,7 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
 
         List<NewsResultDto> allSearchedNews = new ArrayList<>();
         for (Keyword keyword : activeKeywords) {
-            List<NewsResultDto> searchResults = newsSearchService.search(keyword.getKeyword());
+            List<NewsResultDto> searchResults = newsSearchService.search(keyword.getKeyword(), keyword.getRegion());
             allSearchedNews.addAll(searchResults);
         }
 

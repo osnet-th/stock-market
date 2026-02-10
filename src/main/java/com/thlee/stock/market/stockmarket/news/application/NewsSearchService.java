@@ -2,7 +2,9 @@ package com.thlee.stock.market.stockmarket.news.application;
 
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsResultDto;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsSearchResult;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.service.NewsSearchPort;
+import com.thlee.stock.market.stockmarket.news.domain.service.NewsSearchPortFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,12 +21,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class NewsSearchService {
 
-    private final List<NewsSearchPort> searchPorts;
+    private final NewsSearchPortFactory portFactory;
 
-    public List<NewsResultDto> search(String keyword) {
+    public List<NewsResultDto> search(String keyword, Region region) {
         LocalDateTime fromDateTime = LocalDate.now().atStartOfDay();
+        List<NewsSearchPort> ports = portFactory.getPorts(region);
 
-        for (NewsSearchPort port : searchPorts) {
+        for (NewsSearchPort port : ports) {
             try {
                 List<NewsSearchResult> results = port.search(keyword, fromDateTime);
                 if (results != null && !results.isEmpty()) {

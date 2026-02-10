@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.news.domain.service;
 
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsSearchResult;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,4 +11,5 @@ import java.util.List;
  */
 public interface NewsSearchPort {
     List<NewsSearchResult> search(String keyword, LocalDateTime fromDateTime);
+    Region supportedRegion();
 }

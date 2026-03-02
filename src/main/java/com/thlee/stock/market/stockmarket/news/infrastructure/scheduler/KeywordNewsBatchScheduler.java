@@ -14,7 +14,7 @@ public class KeywordNewsBatchScheduler {
 
     private final KeywordNewsBatchService keywordNewsBatchService;
 
-    @Scheduled(cron = "0 0 * * * *") // 매 시간 정각
+    @Scheduled(cron =  "${batch.schedule.economics-sync-cron:0 0 * * * *}")
     public void scheduleKeywordNewsBatch() {
         keywordNewsBatchService.executeKeywordNewsBatch();
     }

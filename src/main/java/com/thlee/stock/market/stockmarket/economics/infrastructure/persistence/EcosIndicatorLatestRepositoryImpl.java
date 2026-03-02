@@ -1,0 +1,42 @@
+package com.thlee.stock.market.stockmarket.economics.infrastructure.persistence;
+
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorLatest;
+import com.thlee.stock.market.stockmarket.economics.domain.repository.EcosIndicatorLatestRepository;
+import com.thlee.stock.market.stockmarket.economics.infrastructure.persistence.mapper.EcosIndicatorLatestMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+@RequiredArgsConstructor
+public class EcosIndicatorLatestRepositoryImpl implements EcosIndicatorLatestRepository {
+
+    private final EcosIndicatorLatestJpaRepository jpaRepository;
+    private final EcosIndicatorLatestMapper mapper;
+
+    @Override
+    public List<EcosIndicatorLatest> findAll() {
+        return jpaRepository.findAll().stream()
+            .map(mapper::toDomain)
+            .toList();
+    }
+
+    @Override
+    public void saveAll(List<EcosIndicatorLatest> latestList) {
+        for (EcosIndicatorLatest latest : latestList) {
+            EcosIndicatorLatestEntity.LatestId id =
+                new EcosIndicatorLatestEntity.LatestId(latest.getClassName(), latest.getKeystatName());
+
+            Optional<EcosIndicatorLatestEntity> existing = jpaRepository.findById(id);
+
+            if (existing.isPresent()) {
+                existing.get().updateCycle(latest.getCycle(), LocalDateTime.now());
+            } else {
+                jpaRepository.save(mapper.toEntity(latest));
+            }
+        }
+    }
+}

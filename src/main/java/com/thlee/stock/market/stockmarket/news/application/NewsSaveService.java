@@ -39,7 +39,8 @@ public class NewsSaveService {
                 request.getContent(),
                 request.getPublishedAt(),
                 purpose,
-                request.getSearchKeyword()
+                request.getSearchKeyword(),
+                request.getRegion()
         );
 
         News saved = newsRepository.save(news);
@@ -85,7 +86,8 @@ public class NewsSaveService {
                         request.getContent(),
                         request.getPublishedAt(),
                         purpose,
-                        request.getSearchKeyword()
+                        request.getSearchKeyword(),
+                        request.getRegion()
                 );
 
                 boolean inserted = newsRepository.insertIgnoreDuplicate(news);

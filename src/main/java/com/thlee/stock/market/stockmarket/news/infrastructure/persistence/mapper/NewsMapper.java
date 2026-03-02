@@ -18,7 +18,8 @@ public class NewsMapper {
                 news.getPublishedAt(),
                 news.getCreatedAt(),
                 news.getPurpose(),
-                news.getSearchKeyword()
+                news.getSearchKeyword(),
+                news.getRegion()
         );
     }
 
@@ -32,7 +33,8 @@ public class NewsMapper {
                 entity.getPublishedAt(),
                 entity.getCreatedAt(),
                 entity.getPurpose(),
-                entity.getSearchKeyword()
+                entity.getSearchKeyword(),
+                entity.getRegion()
         );
     }
 }

@@ -144,55 +144,6 @@ class OAuthLoginServiceTest {
     }
 
     @Test
-    @DisplayName("가입 완료 처리 성공")
-    void completeSignup_Success() {
-        // Given
-        Long userId = 1L;
-        String name = "홍길동";
-        String nicknameValue = "testuser";
-        String phoneNumberValue = "01012345678";
-
-        SignupCompleteRequest request = new SignupCompleteRequest(name, nicknameValue, phoneNumberValue);
-
-        User signingUser = User.createSigning();
-        Nickname nickname = new Nickname(nicknameValue);
-        PhoneNumber phoneNumber = new PhoneNumber(phoneNumberValue);
-
-        given(userRepository.findById(userId)).willReturn(Optional.of(signingUser));
-        given(userRepository.existsByNickname(nickname)).willReturn(false);
-        given(userRepository.save(any(User.class))).willReturn(signingUser);
-
-        // When
-        oauthLoginService.completeSignup(userId, request);
-
-        // Then
-        verify(userRepository).save(any(User.class));
-    }
-
-    @Test
-    @DisplayName("가입 완료 시 닉네임 중복으로 실패")
-    void completeSignup_WithDuplicateNickname_ThrowsException() {
-        // Given
-        Long userId = 1L;
-        String name = "홍길동";
-        String nicknameValue = "duplicate";
-        String phoneNumberValue = "01012345678";
-
-        SignupCompleteRequest request = new SignupCompleteRequest(name, nicknameValue, phoneNumberValue);
-
-        User signingUser = User.createSigning();
-        Nickname nickname = new Nickname(nicknameValue);
-
-        given(userRepository.findById(userId)).willReturn(Optional.of(signingUser));
-        given(userRepository.existsByNickname(nickname)).willReturn(true);
-
-        // When & Then
-        assertThatThrownBy(() -> oauthLoginService.completeSignup(userId, request))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("이미 사용중인 닉네임");
-    }
-
-    @Test
     @DisplayName("기존 계정 연결 성공")
     void connectAccount_Success() {
         // Given

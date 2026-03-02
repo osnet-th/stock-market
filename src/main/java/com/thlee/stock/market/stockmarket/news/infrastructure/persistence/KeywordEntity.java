@@ -1,6 +1,6 @@
 package com.thlee.stock.market.stockmarket.news.infrastructure.persistence;
 
-import com.thlee.stock.market.stockmarket.news.domain.model.KeywordRegion;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -25,7 +25,7 @@ public class KeywordEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "region", nullable = false, length = 20)
-    private KeywordRegion region;
+    private Region region;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -33,7 +33,7 @@ public class KeywordEntity {
     protected KeywordEntity() {
     }
 
-    public KeywordEntity(Long id, String keyword, Long userId, boolean active, KeywordRegion region, LocalDateTime createdAt) {
+    public KeywordEntity(Long id, String keyword, Long userId, boolean active, Region region, LocalDateTime createdAt) {
         this.id = id;
         this.keyword = keyword;
         this.userId = userId;
@@ -66,7 +66,7 @@ public class KeywordEntity {
         return active;
     }
 
-    public KeywordRegion getRegion() {
+    public Region getRegion() {
         return region;
     }
 
@@ -91,7 +91,7 @@ public class KeywordEntity {
         this.active = active;
     }
 
-    public void setRegion(KeywordRegion region) {
+    public void setRegion(Region region) {
         this.region = region;
     }
 

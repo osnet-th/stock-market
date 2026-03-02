@@ -1,0 +1,125 @@
+# EcosIndicatorSaveService 구현 예시
+
+```java
+package com.thlee.stock.market.stockmarket.economics.application;
+
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicator;
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorCategory;
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorLatest;
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosKeyStatResult;
+import com.thlee.stock.market.stockmarket.economics.domain.model.KeyStatIndicator;
+import com.thlee.stock.market.stockmarket.economics.domain.repository.EcosIndicatorLatestRepository;
+import com.thlee.stock.market.stockmarket.economics.domain.repository.EcosIndicatorRepository;
+import com.thlee.stock.market.stockmarket.economics.domain.service.EcosIndicatorPort;
+import com.thlee.stock.market.stockmarket.economics.infrastructure.korea.ecos.config.EcosCacheConfig;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class EcosIndicatorSaveService {
+
+    private final EcosIndicatorPort ecosIndicatorPort;
+    private final EcosIndicatorRepository ecosIndicatorRepository;
+    private final EcosIndicatorLatestRepository ecosIndicatorLatestRepository;
+    private final CacheManager ecosCacheManager;
+
+    /**
+     * API 1회 조회 → latest 벌크 조회 (1회) → Java 비교 → 변경분 히스토리 INSERT + 캐시 적재 + latest UPSERT
+     *
+     * @return 저장된 지표 수
+     */
+    @Transactional
+    public int fetchAndSave() {
+        LocalDate today = LocalDate.now();
+
+        // 1. API 조회 (1회)
+        EcosKeyStatResult result = ecosIndicatorPort.fetchKeyStatistics();
+
+        // 2. 카테고리별 캐시 적재
+        putCacheByCategory(result.indicators());
+
+        // 3. latest 전체 조회 (1회) → Map 변환 (비교 키 → cycle)
+        Map<String, String> latestCycleMap = ecosIndicatorLatestRepository.findAll().stream()
+            .collect(Collectors.toMap(
+                EcosIndicatorLatest::toCompareKey,
+                EcosIndicatorLatest::getCycle
+            ));
+
+        // 4. 유효 지표 필터링 + 변경분 추출 (cycle 기준)
+        List<KeyStatIndicator> validIndicators = result.validIndicators();
+
+        List<EcosIndicator> changedIndicators = validIndicators.stream()
+            .filter(indicator -> isCycleChanged(indicator, latestCycleMap))
+            .map(indicator -> EcosIndicator.fromKeyStatIndicator(indicator, today))
+            .toList();
+
+        // 5. 변경분 히스토리 INSERT
+        if (!changedIndicators.isEmpty()) {
+            ecosIndicatorRepository.saveAll(changedIndicators);
+            log.info("ECOS 히스토리 저장 완료: date={}, count={}", today, changedIndicators.size());
+        } else {
+            log.info("ECOS 지표 변경 없음, 히스토리 저장 스킵");
+        }
+
+        // 6. latest 전체 갱신 (UPSERT)
+        List<EcosIndicatorLatest> latestList = validIndicators.stream()
+            .map(EcosIndicatorLatest::fromKeyStatIndicator)
+            .toList();
+        ecosIndicatorLatestRepository.saveAll(latestList);
+
+        return changedIndicators.size();
+    }
+
+    /**
+     * 전체 지표를 카테고리별로 분류하여 15개 캐시 키에 적재
+     */
+    private void putCacheByCategory(List<KeyStatIndicator> indicators) {
+        Cache cache = ecosCacheManager.getCache(EcosCacheConfig.ECOS_INDICATOR_CACHE);
+        if (cache == null) {
+            log.warn("ECOS 캐시를 찾을 수 없음: {}", EcosCacheConfig.ECOS_INDICATOR_CACHE);
+            return;
+        }
+
+        Map<EcosIndicatorCategory, List<KeyStatIndicator>> grouped = indicators.stream()
+            .filter(indicator -> EcosIndicatorCategory.fromClassName(indicator.className()) != null)
+            .collect(Collectors.groupingBy(
+                indicator -> EcosIndicatorCategory.fromClassName(indicator.className())
+            ));
+
+        for (EcosIndicatorCategory category : EcosIndicatorCategory.values()) {
+            List<KeyStatIndicator> categoryIndicators = grouped.getOrDefault(category, List.of());
+            cache.put(category.name(), categoryIndicators);
+        }
+
+        log.info("ECOS 캐시 적재 완료: {}개 카테고리", grouped.size());
+    }
+
+    /**
+     * latest Map과 비교하여 통계 기준 시점(cycle) 변경 여부 판단
+     */
+    private boolean isCycleChanged(KeyStatIndicator indicator, Map<String, String> latestCycleMap) {
+        String apiCycle = indicator.cycle();
+        String latestCycle = latestCycleMap.get(indicator.toCompareKey());
+
+        // API 응답 cycle이 null → 데이터 미제공 지표, 저장 불필요
+        if (apiCycle == null) {
+            return false;
+        }
+
+        // latest에 없으면 신규 → 저장 대상
+        // cycle이 다르면 → 저장 대상
+        return latestCycle == null || !latestCycle.equals(apiCycle);
+    }
+}
+```

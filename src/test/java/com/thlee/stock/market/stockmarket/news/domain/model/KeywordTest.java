@@ -12,7 +12,7 @@ class KeywordTest {
         // given
         String keyword = "삼성전자";
         Long userId = 1L;
-        KeywordRegion region = KeywordRegion.DOMESTIC;
+        Region region = Region.DOMESTIC;
 
         // when
         Keyword result = Keyword.create(keyword, userId, region);
@@ -28,7 +28,7 @@ class KeywordTest {
     @Test
     void keyword가_null이면_예외_발생() {
         // when & then
-        assertThatThrownBy(() -> Keyword.create(null, 1L, KeywordRegion.DOMESTIC))
+        assertThatThrownBy(() -> Keyword.create(null, 1L, Region.DOMESTIC))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("키워드는 필수");
     }
@@ -36,7 +36,7 @@ class KeywordTest {
     @Test
     void keyword가_빈_문자열이면_예외_발생() {
         // when & then
-        assertThatThrownBy(() -> Keyword.create("", 1L, KeywordRegion.DOMESTIC))
+        assertThatThrownBy(() -> Keyword.create("", 1L, Region.DOMESTIC))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("키워드는 필수");
     }
@@ -44,7 +44,7 @@ class KeywordTest {
     @Test
     void keyword가_공백만_있으면_예외_발생() {
         // when & then
-        assertThatThrownBy(() -> Keyword.create("   ", 1L, KeywordRegion.DOMESTIC))
+        assertThatThrownBy(() -> Keyword.create("   ", 1L, Region.DOMESTIC))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("키워드는 필수");
     }
@@ -52,7 +52,7 @@ class KeywordTest {
     @Test
     void userId가_null이면_예외_발생() {
         // when & then
-        assertThatThrownBy(() -> Keyword.create("삼성전자", null, KeywordRegion.DOMESTIC))
+        assertThatThrownBy(() -> Keyword.create("삼성전자", null, Region.DOMESTIC))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("userId는 필수");
     }
@@ -68,7 +68,7 @@ class KeywordTest {
     @Test
     void 키워드_비활성화() {
         // given
-        Keyword keyword = Keyword.create("삼성전자", 1L, KeywordRegion.DOMESTIC);
+        Keyword keyword = Keyword.create("삼성전자", 1L, Region.DOMESTIC);
 
         // when
         keyword.deactivate();
@@ -80,7 +80,7 @@ class KeywordTest {
     @Test
     void 키워드_활성화() {
         // given
-        Keyword keyword = Keyword.create("삼성전자", 1L, KeywordRegion.DOMESTIC);
+        Keyword keyword = Keyword.create("삼성전자", 1L, Region.DOMESTIC);
         keyword.deactivate();
 
         // when

@@ -1,10 +1,14 @@
 package com.thlee.stock.market.stockmarket.news.application.dto;
 
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
+import lombok.Getter;
+
 import java.time.LocalDateTime;
 
 /**
  * 뉴스 저장 요청 DTO
  */
+@Getter
 public class NewsSaveRequest {
     private final String originalUrl;
     private final Long userId;
@@ -12,42 +16,22 @@ public class NewsSaveRequest {
     private final String content;
     private final LocalDateTime publishedAt;
     private final String searchKeyword;
+    private final Region region;
 
     public NewsSaveRequest(String originalUrl,
                            Long userId,
                            String title,
                            String content,
                            LocalDateTime publishedAt,
-                           String searchKeyword) {
+                           String searchKeyword,
+                           Region region) {
         this.originalUrl = originalUrl;
         this.userId = userId;
         this.title = title;
         this.content = content;
         this.publishedAt = publishedAt;
         this.searchKeyword = searchKeyword;
+        this.region = region;
     }
 
-    public String getOriginalUrl() {
-        return originalUrl;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public LocalDateTime getPublishedAt() {
-        return publishedAt;
-    }
-
-    public String getSearchKeyword() {
-        return searchKeyword;
-    }
 }

@@ -10,10 +10,10 @@ public class Keyword {
     private String keyword;
     private Long userId;
     private boolean active;
-    private KeywordRegion region;
+    private Region region;
     private LocalDateTime createdAt;
 
-    private Keyword(String keyword, Long userId, boolean active, KeywordRegion region, LocalDateTime createdAt) {
+    private Keyword(String keyword, Long userId, boolean active, Region region, LocalDateTime createdAt) {
         this.keyword = keyword;
         this.userId = userId;
         this.active = active;
@@ -24,7 +24,7 @@ public class Keyword {
     /**
      * 재구성용 생성자 (Repository에서 조회 시 사용)
      */
-    public Keyword(Long id, String keyword, Long userId, boolean active, KeywordRegion region, LocalDateTime createdAt) {
+    public Keyword(Long id, String keyword, Long userId, boolean active, Region region, LocalDateTime createdAt) {
         this.id = id;
         this.keyword = keyword;
         this.userId = userId;
@@ -36,7 +36,7 @@ public class Keyword {
     /**
      * 키워드 생성
      */
-    public static Keyword create(String keyword, Long userId, KeywordRegion region) {
+    public static Keyword create(String keyword, Long userId, Region region) {
         validateKeyword(keyword);
         validateUserId(userId);
         validateRegion(region);
@@ -56,7 +56,7 @@ public class Keyword {
         }
     }
 
-    private static void validateRegion(KeywordRegion region) {
+    private static void validateRegion(Region region) {
         if (region == null) {
             throw new IllegalArgumentException("region은 필수입니다.");
         }
@@ -93,7 +93,7 @@ public class Keyword {
         return active;
     }
 
-    public KeywordRegion getRegion() {
+    public Region getRegion() {
         return region;
     }
 

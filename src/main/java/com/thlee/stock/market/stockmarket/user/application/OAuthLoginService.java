@@ -100,8 +100,8 @@ public class OAuthLoginService {
     /**
      * 가입 완료 처리
      */
-    public void completeSignup(Long userId, SignupCompleteRequest request) {
-        User user = userRepository.findById(userId)
+    public void completeSignup(SignupCompleteRequest request) {
+        User user = userRepository.findById(request.userId())
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
         Nickname nickname = new Nickname(request.nickname());

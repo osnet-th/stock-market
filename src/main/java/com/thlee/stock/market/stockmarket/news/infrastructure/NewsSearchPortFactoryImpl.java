@@ -3,7 +3,6 @@ package com.thlee.stock.market.stockmarket.news.infrastructure;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.service.NewsSearchPort;
 import com.thlee.stock.market.stockmarket.news.domain.service.NewsSearchPortFactory;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -15,7 +14,6 @@ import java.util.stream.Collectors;
  * Region별 NewsSearchPort 제공 팩토리 구현체
  */
 @Component
-@RequiredArgsConstructor
 public class NewsSearchPortFactoryImpl implements NewsSearchPortFactory {
 
     private final Map<Region, List<NewsSearchPort>> portMap;

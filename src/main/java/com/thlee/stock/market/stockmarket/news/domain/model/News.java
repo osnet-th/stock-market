@@ -1,10 +1,13 @@
 package com.thlee.stock.market.stockmarket.news.domain.model;
 
+import lombok.Getter;
+
 import java.time.LocalDateTime;
 
 /**
  * 뉴스 도메인 모델
  */
+@Getter
 public class News {
     private Long id;
     private String originalUrl;
@@ -15,6 +18,7 @@ public class News {
     private LocalDateTime createdAt;
     private NewsPurpose purpose;
     private String searchKeyword;
+    private Region region;
 
     private News(String originalUrl,
                  Long userId,
@@ -23,7 +27,8 @@ public class News {
                  LocalDateTime publishedAt,
                  LocalDateTime createdAt,
                  NewsPurpose purpose,
-                 String searchKeyword) {
+                 String searchKeyword,
+                 Region region) {
         this.originalUrl = originalUrl;
         this.userId = userId;
         this.title = title;
@@ -32,6 +37,7 @@ public class News {
         this.createdAt = createdAt;
         this.purpose = purpose;
         this.searchKeyword = searchKeyword;
+        this.region = region;
     }
 
     /**
@@ -45,7 +51,8 @@ public class News {
                 LocalDateTime publishedAt,
                 LocalDateTime createdAt,
                 NewsPurpose purpose,
-                String searchKeyword) {
+                String searchKeyword,
+                Region region) {
         this.id = id;
         this.originalUrl = originalUrl;
         this.userId = userId;
@@ -55,6 +62,7 @@ public class News {
         this.createdAt = createdAt;
         this.purpose = purpose;
         this.searchKeyword = searchKeyword;
+        this.region = region;
     }
 
     /**
@@ -66,7 +74,8 @@ public class News {
                               String content,
                               LocalDateTime publishedAt,
                               NewsPurpose purpose,
-                              String searchKeyword) {
+                              String searchKeyword,
+                              Region region) {
         validateOriginalUrl(originalUrl);
         validateUserId(userId);
         validateTitle(title);
@@ -82,7 +91,8 @@ public class News {
                 publishedAt,
                 LocalDateTime.now(),
                 purpose,
-                searchKeyword
+                searchKeyword,
+                region
         );
     }
 
@@ -122,39 +132,4 @@ public class News {
         }
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public String getOriginalUrl() {
-        return originalUrl;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public LocalDateTime getPublishedAt() {
-        return publishedAt;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public NewsPurpose getPurpose() {
-        return purpose;
-    }
-
-    public String getSearchKeyword() {
-        return searchKeyword;
-    }
 }

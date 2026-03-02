@@ -1,7 +1,9 @@
 package com.thlee.stock.market.stockmarket.news.infrastructure.persistence;
 
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import jakarta.persistence.*;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
@@ -15,6 +17,7 @@ import java.time.LocalDateTime;
                 @UniqueConstraint(columnNames = "original_url")
         }
 )
+@Getter
 public class NewsEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,6 +48,9 @@ public class NewsEntity {
     @Column(name = "search_keyword", nullable = false)
     private String searchKeyword;
 
+    @Enumerated(EnumType.STRING)
+    private Region region;
+
     protected NewsEntity() {
     }
 
@@ -56,7 +62,8 @@ public class NewsEntity {
                       LocalDateTime publishedAt,
                       LocalDateTime createdAt,
                       NewsPurpose purpose,
-                      String searchKeyword) {
+                      String searchKeyword,
+                      Region region) {
         this.id = id;
         this.originalUrl = originalUrl;
         this.userId = userId;
@@ -66,6 +73,7 @@ public class NewsEntity {
         this.createdAt = createdAt;
         this.purpose = purpose;
         this.searchKeyword = searchKeyword;
+        this.region = region;
     }
 
     @PrePersist
@@ -73,77 +81,5 @@ public class NewsEntity {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getOriginalUrl() {
-        return originalUrl;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public LocalDateTime getPublishedAt() {
-        return publishedAt;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public NewsPurpose getPurpose() {
-        return purpose;
-    }
-
-    public String getSearchKeyword() {
-        return searchKeyword;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setOriginalUrl(String originalUrl) {
-        this.originalUrl = originalUrl;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public void setPublishedAt(LocalDateTime publishedAt) {
-        this.publishedAt = publishedAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public void setPurpose(NewsPurpose purpose) {
-        this.purpose = purpose;
-    }
-
-    public void setSearchKeyword(String searchKeyword) {
-        this.searchKeyword = searchKeyword;
     }
 }

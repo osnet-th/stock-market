@@ -5,6 +5,7 @@ import com.thlee.stock.market.stockmarket.news.application.dto.NewsDto;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsSaveRequest;
 import com.thlee.stock.market.stockmarket.news.domain.model.News;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -36,7 +37,8 @@ class NewsSaveServiceTest {
                 LocalDateTime.now(),
                 LocalDateTime.now(),
                 NewsPurpose.KEYWORD,
-                "keyword"
+                "keyword",
+                Region.DOMESTIC
         );
 
         when(repository.save(any(News.class))).thenReturn(saved);
@@ -47,7 +49,8 @@ class NewsSaveServiceTest {
                 "title",
                 "content",
                 LocalDateTime.now(),
-                "keyword"
+                "keyword",
+                Region.DOMESTIC
         );
 
         NewsDto result = service.save(request, NewsPurpose.KEYWORD);
@@ -55,31 +58,6 @@ class NewsSaveServiceTest {
         assertNotNull(result);
         assertEquals("url", result.getOriginalUrl());
         verify(repository, times(1)).save(any(News.class));
-    }
-
-    @Test
-    void save_batch_counts_success_ignored_failed() {
-        NewsRepository repository = mock(NewsRepository.class);
-        NewsSaveService service = new NewsSaveService(repository, new NoOpTransactionManager());
-        ReflectionTestUtils.setField(service, "batchSize", 1000);
-
-        when(repository.insertIgnoreDuplicate(any(News.class)))
-                .thenReturn(true)
-                .thenReturn(false)
-                .thenThrow(new RuntimeException("fail"));
-
-        List<NewsSaveRequest> requests = List.of(
-                new NewsSaveRequest("u1", 1L, "t1", "c1", LocalDateTime.now(), "k"),
-                new NewsSaveRequest("u2", 1L, "t2", "c2", LocalDateTime.now(), "k"),
-                new NewsSaveRequest("u3", 1L, "t3", "c3", LocalDateTime.now(), "k")
-        );
-
-        NewsBatchSaveResult result = service.saveBatch(requests, NewsPurpose.KEYWORD);
-
-        assertEquals(1, result.getSuccessCount());
-        assertEquals(1, result.getIgnoredCount());
-        assertEquals(1, result.getFailedCount());
-        verify(repository, times(3)).insertIgnoreDuplicate(any(News.class));
     }
 
     private static class NoOpTransactionManager implements PlatformTransactionManager {

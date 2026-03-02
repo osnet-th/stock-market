@@ -3,14 +3,16 @@ package com.thlee.stock.market.stockmarket.news.application;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsBatchSaveResult;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsSaveRequest;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsResultDto;
+import com.thlee.stock.market.stockmarket.news.application.vo.KeywordSearchContext;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 /**
  * 키워드 뉴스 배치 조회 서비스 구현
@@ -31,45 +33,59 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
             return 0;
         }
 
-        List<NewsResultDto> allSearchedNews = new ArrayList<>();
+        List<KeywordSearchContext> searchedContexts = new ArrayList<>();
         for (Keyword keyword : activeKeywords) {
             List<NewsResultDto> searchResults = newsSearchService.search(keyword.getKeyword(), keyword.getRegion());
-            allSearchedNews.addAll(searchResults);
+            for (NewsResultDto dto : searchResults) {
+                searchedContexts.add(new KeywordSearchContext(
+                        keyword.getUserId(),
+                        keyword.getKeyword(),
+                        keyword.getRegion(),
+                        dto
+                ));
+            }
         }
 
-        if (allSearchedNews.isEmpty()) {
+        if (searchedContexts.isEmpty()) {
             return 0;
         }
 
-        List<NewsResultDto> newNews = filterNewNews(allSearchedNews);
-        if (newNews.isEmpty()) {
+        List<KeywordSearchContext> newContexts = filterNewNews(searchedContexts);
+        if (newContexts.isEmpty()) {
             return 0;
         }
 
-        List<NewsSaveRequest> saveRequests = newNews.stream()
-                .map(dto -> new NewsSaveRequest(
-                        dto.getUrl(),
-                        null,
-                        dto.getTitle(),
-                        dto.getContent(),
-                        dto.getPublishedAt(),
-                        null
+        List<NewsSaveRequest> saveRequests = newContexts.stream()
+                .map(context -> new NewsSaveRequest(
+                        context.news().getUrl(),
+                        context.userId(),
+                        context.news().getTitle(),
+                        context.news().getContent(),
+                        context.news().getPublishedAt(),
+                        context.searchKeyword(),
+                        context.region()
                 ))
-                .collect(Collectors.toList());
+                .toList();
 
         NewsBatchSaveResult result = newsSaveService.saveBatch(saveRequests, NewsPurpose.KEYWORD);
         return result.getSuccessCount();
     }
 
-    private List<NewsResultDto> filterNewNews(List<NewsResultDto> searchedNews) {
-        List<String> urls = searchedNews.stream()
-                .map(NewsResultDto::getUrl)
-                .collect(Collectors.toList());
+    private List<KeywordSearchContext> filterNewNews(List<KeywordSearchContext> searchedContexts) {
+        List<String> urls = searchedContexts.stream()
+                .map(context -> context.news().getUrl())
+                .distinct()
+                .toList();
 
         List<String> existingUrls = newsQueryService.findExistingUrls(urls);
+        Set<String> existingUrlSet = new HashSet<>(existingUrls);
+        Set<String> selectedUrls = new HashSet<>();
 
-        return searchedNews.stream()
-                .filter(news -> !existingUrls.contains(news.getUrl()))
-                .collect(Collectors.toList());
+        return searchedContexts.stream()
+                .filter(context -> !existingUrlSet.contains(context.news().getUrl()))
+                .filter(context -> selectedUrls.add(context.news().getUrl()))
+                .toList();
     }
+
+
 }

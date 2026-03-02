@@ -1,6 +1,6 @@
 package com.thlee.stock.market.stockmarket.news.application.dto;
 
-import com.thlee.stock.market.stockmarket.news.domain.model.KeywordRegion;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,5 +14,5 @@ import lombok.NoArgsConstructor;
 public class RegisterKeywordRequest {
     private String keyword;
     private Long userId;
-    private KeywordRegion region;
+    private Region region;
 }

@@ -3,6 +3,7 @@ package com.thlee.stock.market.stockmarket.news.application;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsDto;
 import com.thlee.stock.market.stockmarket.news.domain.model.News;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +30,8 @@ class NewsQueryServiceTest {
                 LocalDateTime.now(),
                 LocalDateTime.now(),
                 NewsPurpose.KEYWORD,
-                "keyword"
+                "keyword",
+                Region.DOMESTIC
         );
 
         when(repository.findByPurpose(NewsPurpose.KEYWORD)).thenReturn(List.of(news));

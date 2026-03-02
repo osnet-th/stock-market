@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Market - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+
+    <div class="text-center">
+        <!-- 로고 -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Stock Market</h1>
+            <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded mt-2 inline-block">Dashboard</span>
+        </div>
+
+        <!-- 로그인 카드 -->
+        <div class="bg-white rounded-xl border border-gray-200 p-8 w-80 shadow-sm">
+            <p class="text-sm text-gray-500 mb-6">로그인하여 대시보드에 접속하세요</p>
+            <a id="kakao-login" href="#"
+                class="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-lg font-bold text-sm transition hover:brightness-95"
+                style="background-color: #FEE500; color: #000000;">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path fill-rule="evenodd" clip-rule="evenodd"
+                        d="M9 1C4.58 1 1 3.79 1 7.21C1 9.27 2.4 11.08 4.5 12.13L3.58 15.44C3.5 15.7 3.82 15.9 4.04 15.74L7.86 13.23C8.23 13.27 8.61 13.3 9 13.3C13.42 13.3 17 10.51 17 7.09C17 3.79 13.42 1 9 1Z"
+                        fill="#000000"/>
+                </svg>
+                카카오 로그인
+            </a>
+        </div>
+
+        <p class="text-xs text-gray-300 mt-6">&copy; 2026 Stock Market</p>
+    </div>
+
+    <script>
+        const clientId = "9e30f4bba41efa94c5256b8f981c2da9";
+        const redirectUri = "http://localhost:8080/oauth/kakao";
+        const authorizeUrl =
+            "https://kauth.kakao.com/oauth/authorize" +
+            "?client_id=" + encodeURIComponent(clientId) +
+            "&redirect_uri=" + encodeURIComponent(redirectUri) +
+            "&response_type=code";
+
+        document.getElementById("kakao-login").href = authorizeUrl;
+    </script>
+</body>
+</html>

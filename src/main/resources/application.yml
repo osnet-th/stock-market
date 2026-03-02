@@ -7,6 +7,13 @@ spring:
   profiles:
     active: dev
 
+  # Static Resources - 새로고침 즉시 반영
+  web:
+    resources:
+      cache:
+        period: 0
+      static-locations: file:src/main/resources/static/
+
   # JPA/Hibernate 공통 설정
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect

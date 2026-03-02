@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Market Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="dashboard()">
+
+    <!-- ==================== HEADER ==================== -->
+    <header class="bg-white shadow-sm border-b border-gray-200 fixed top-0 w-full z-50">
+        <div class="flex items-center justify-between px-6 h-14">
+            <div class="flex items-center gap-3">
+                <h1 @click="navigateTo('home')" class="text-lg font-bold text-gray-800 cursor-pointer hover:text-blue-700 transition">Stock Market</h1>
+                <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">Dashboard</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <template x-if="checkLoggedIn()">
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm text-gray-600">
+                            ID: <span x-text="auth.userId" class="font-medium"></span>
+                        </span>
+                        <button @click="logout()"
+                            class="text-sm text-red-500 hover:text-red-700 font-medium">로그아웃</button>
+                    </div>
+                </template>
+                <template x-if="!checkLoggedIn()">
+                    <a href="/login.html" class="text-sm text-blue-600 hover:text-blue-800 font-medium">로그인</a>
+                </template>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex pt-14">
+        <!-- ==================== SIDEBAR ==================== -->
+        <aside class="w-56 bg-white border-r border-gray-200 min-h-[calc(100vh-3.5rem)] fixed">
+            <nav class="p-4 space-y-1">
+                <template x-for="menu in menus" :key="menu.key">
+                    <button
+                        @click="navigateTo(menu.key)"
+                        :class="currentPage === menu.key
+                            ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700 pl-3'
+                            : 'text-gray-600 hover:bg-gray-50 pl-4'"
+                        class="sidebar-item w-full text-left px-4 py-2.5 rounded-r text-sm font-medium"
+                        x-text="menu.label">
+                    </button>
+                </template>
+            </nav>
+        </aside>
+
+        <!-- ==================== MAIN CONTENT ==================== -->
+        <main class="ml-56 flex-1 p-6 min-h-[calc(100vh-3.5rem)]">
+
+            <!-- ========== HOME ========== -->
+            <div x-show="currentPage === 'home'" x-cloak>
+                <h2 class="text-xl font-bold text-gray-800 mb-6">대시보드</h2>
+
+                <!-- 요약 카드 -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <!-- 키워드 요약 -->
+                    <div @click="navigateTo('keywords')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
+                        <p class="text-sm text-gray-500 mb-1">등록 키워드</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.keywordCount"></p>
+                        <p class="text-xs text-green-600 mt-1">
+                            활성 <span x-text="homeSummary.activeKeywordCount" class="font-medium"></span>개
+                        </p>
+                    </div>
+                    <!-- ECOS 요약 -->
+                    <div @click="navigateTo('ecos')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
+                        <p class="text-sm text-gray-500 mb-1">국내 경제지표</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.ecosCategories.length"></p>
+                        <p class="text-xs text-gray-400 mt-1">카테고리</p>
+                    </div>
+                    <!-- 글로벌 요약 -->
+                    <div @click="navigateTo('global')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
+                        <p class="text-sm text-gray-500 mb-1">글로벌 경제지표</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.globalCategories.length"></p>
+                        <p class="text-xs text-gray-400 mt-1">카테고리</p>
+                    </div>
+                </div>
+
+                <!-- 국내 경제지표 카테고리 -->
+            </div>
+
+            <!-- ========== KEYWORDS ========== -->
+            <div x-show="currentPage === 'keywords'" x-cloak>
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">키워드 관리</h2>
+                    <button @click="keywords.showAddModal = true"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+                        + 키워드 등록
+                    </button>
+                </div>
+
+                <!-- 로그인 필요 안내 -->
+                <template x-if="!checkLoggedIn()">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-700">
+                        키워드 관리를 사용하려면 로그인이 필요합니다.
+                        <a href="/login.html" class="underline font-medium">로그인하기</a>
+                    </div>
+                </template>
+
+                <template x-if="checkLoggedIn()">
+                    <div>
+                        <!-- 필터 -->
+                        <div class="flex gap-2 mb-4 flex-wrap">
+                            <template x-for="f in [{key:'all',label:'전체'},{key:'active',label:'활성'},{key:'inactive',label:'비활성'}]">
+                                <button @click="keywords.filter = f.key; loadKeywords()"
+                                    :class="keywords.filter === f.key ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition" x-text="f.label">
+                                </button>
+                            </template>
+                            <span class="border-l border-gray-300 mx-1"></span>
+                            <template x-for="r in [{key:'all',label:'전체'},{key:'DOMESTIC',label:'국내'},{key:'INTERNATIONAL',label:'해외'}]">
+                                <button @click="keywords.regionFilter = r.key"
+                                    :class="keywords.regionFilter === r.key ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition" x-text="r.label">
+                                </button>
+                            </template>
+                        </div>
+
+                        <!-- 키워드 목록 -->
+                        <div class="space-y-2">
+                            <template x-if="keywords.list.filter(k => keywords.regionFilter === 'all' || k.region === keywords.regionFilter).length === 0">
+                                <div class="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400 text-sm">
+                                    등록된 키워드가 없습니다.
+                                </div>
+                            </template>
+                            <template x-for="kw in keywords.list.filter(k => keywords.regionFilter === 'all' || k.region === keywords.regionFilter)" :key="kw.id">
+                                <div class="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between hover:shadow-sm transition">
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-medium text-gray-800" x-text="kw.keyword"></span>
+                                        <span :class="kw.region === 'DOMESTIC' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'"
+                                            class="text-xs px-2 py-0.5 rounded-full font-medium"
+                                            x-text="kw.region === 'DOMESTIC' ? '국내' : '해외'">
+                                        </span>
+                                        <span :class="kw.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                                            class="text-xs px-2 py-0.5 rounded-full"
+                                            x-text="kw.active ? '활성' : '비활성'">
+                                        </span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button @click="toggleKeyword(kw)"
+                                            :class="kw.active ? 'text-yellow-600 hover:text-yellow-800' : 'text-green-600 hover:text-green-800'"
+                                            class="text-sm font-medium transition"
+                                            x-text="kw.active ? '비활성화' : '활성화'">
+                                        </button>
+                                        <button @click="removeKeyword(kw.id)"
+                                            class="text-sm text-red-500 hover:text-red-700 font-medium transition">삭제</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 등록 모달 -->
+                <div x-show="keywords.showAddModal" x-cloak
+                    class="modal-backdrop fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-xl p-6 w-96 shadow-xl" @click.outside="keywords.showAddModal = false">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">키워드 등록</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm text-gray-600 mb-1">키워드</label>
+                                <input x-model="keywords.newKeyword.keyword"
+                                    placeholder="키워드를 입력하세요"
+                                    @keydown.enter="addKeyword()"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-600 mb-1">분류</label>
+                                <select x-model="keywords.newKeyword.region"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="DOMESTIC">국내</option>
+                                    <option value="INTERNATIONAL">해외</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 mt-5">
+                            <button @click="keywords.showAddModal = false"
+                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">취소</button>
+                            <button @click="addKeyword()"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">등록</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== ECOS ========== -->
+            <div x-show="currentPage === 'ecos'" x-cloak>
+                <h2 class="text-xl font-bold text-gray-800 mb-6">국내 경제지표</h2>
+
+                <!-- 카테고리 탭 -->
+                <div class="flex gap-1 mb-6 overflow-x-auto pb-2 border-b border-gray-200">
+                    <template x-for="cat in ecos.categories" :key="cat.name">
+                        <button @click="selectEcosCategory(cat.name)"
+                            :class="ecos.selectedCategory === cat.name
+                                ? 'text-blue-700 font-bold tab-active'
+                                : 'text-gray-500 hover:text-gray-700'"
+                            class="px-4 py-2 text-sm whitespace-nowrap transition"
+                            x-text="cat.label">
+                        </button>
+                    </template>
+                </div>
+
+                <!-- 로딩 -->
+                <template x-if="ecos.loading">
+                    <div class="flex justify-center py-12">
+                        <div class="spinner"></div>
+                    </div>
+                </template>
+
+                <!-- 지표 테이블 -->
+                <template x-if="!ecos.loading && ecos.indicators.length > 0">
+                    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="data-table w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="text-left py-3 px-4 text-gray-600 font-semibold">분류</th>
+                                        <th class="text-left py-3 px-4 text-gray-600 font-semibold">지표명</th>
+                                        <th class="text-right py-3 px-4 text-gray-600 font-semibold">값</th>
+                                        <th class="text-center py-3 px-4 text-gray-600 font-semibold">주기</th>
+                                        <th class="text-left py-3 px-4 text-gray-600 font-semibold">단위</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(ind, idx) in ecos.indicators" :key="idx">
+                                        <tr class="border-b border-gray-100">
+                                            <td class="py-3 px-4 text-gray-600" x-text="ind.className"></td>
+                                            <td class="py-3 px-4 text-gray-800 font-medium" x-text="ind.keystatName"></td>
+                                            <td class="py-3 px-4 text-right font-mono text-gray-800 font-medium" x-text="Format.number(ind.dataValue)"></td>
+                                            <td class="py-3 px-4 text-center">
+                                                <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full"
+                                                    x-text="ind.cycle"></span>
+                                            </td>
+                                            <td class="py-3 px-4 text-gray-500" x-text="ind.unitName"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 빈 상태 -->
+                <template x-if="!ecos.loading && ecos.indicators.length === 0 && ecos.selectedCategory">
+                    <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
+                        해당 카테고리에 지표가 없습니다.
+                    </div>
+                </template>
+            </div>
+
+            <!-- ========== GLOBAL ========== -->
+            <div x-show="currentPage === 'global'" x-cloak>
+                <h2 class="text-xl font-bold text-gray-800 mb-6">글로벌 경제지표</h2>
+
+                <!-- 카테고리 선택 -->
+                <div class="flex gap-1 mb-4 overflow-x-auto pb-2 border-b border-gray-200">
+                    <template x-for="cat in globalData.categories" :key="cat.key">
+                        <button @click="selectGlobalCategory(cat.key)"
+                            :class="globalData.selectedCategory === cat.key
+                                ? 'text-blue-700 font-bold tab-active'
+                                : 'text-gray-500 hover:text-gray-700'"
+                            class="px-4 py-2 text-sm whitespace-nowrap transition"
+                            x-text="cat.displayName">
+                        </button>
+                    </template>
+                </div>
+
+                <!-- 지표 선택 -->
+                <div class="flex gap-2 mb-6 overflow-x-auto pb-1 flex-wrap">
+                    <template x-for="ind in getCurrentCategoryIndicators()" :key="ind.key">
+                        <button @click="selectGlobalIndicator(ind.key)"
+                            :class="globalData.selectedIndicator === ind.key
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                            class="px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap"
+                            x-text="ind.displayName">
+                        </button>
+                    </template>
+                </div>
+
+                <!-- 로딩 -->
+                <template x-if="globalData.loading">
+                    <div class="flex justify-center py-12">
+                        <div class="spinner"></div>
+                    </div>
+                </template>
+
+                <!-- 지표 데이터 -->
+                <template x-if="!globalData.loading && globalData.indicatorData">
+                    <div>
+                        <!-- 지표 헤더 -->
+                        <div class="bg-white rounded-t-xl border border-gray-200 border-b-0 px-5 py-4">
+                            <h3 class="text-base font-bold text-gray-800" x-text="globalData.indicatorData.displayName"></h3>
+                            <div class="flex gap-3 mt-1 text-xs text-gray-500">
+                                <span x-text="globalData.indicatorData.category"></span>
+                                <span>|</span>
+                                <span><span x-text="globalData.indicatorData.count"></span>개국</span>
+                            </div>
+                        </div>
+
+                        <!-- 국가 데이터 테이블 -->
+                        <div class="bg-white rounded-b-xl border border-gray-200 overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="data-table w-full text-sm">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="text-left py-3 px-4 text-gray-600 font-semibold">국가</th>
+                                            <th class="text-right py-3 px-4 text-gray-600 font-semibold">최신값</th>
+                                            <th class="text-right py-3 px-4 text-gray-600 font-semibold">이전값</th>
+                                            <th class="text-center py-3 px-4 text-gray-600 font-semibold">변화</th>
+                                            <th class="text-right py-3 px-4 text-gray-600 font-semibold">변화율</th>
+                                            <th class="text-left py-3 px-4 text-gray-600 font-semibold">단위</th>
+                                            <th class="text-left py-3 px-4 text-gray-600 font-semibold">참고</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="country in globalData.indicatorData.countries" :key="country.countryName">
+                                            <tr class="border-b border-gray-100">
+                                                <td class="py-3 px-4 text-gray-800 font-medium" x-text="country.countryName"></td>
+                                                <td class="py-3 px-4 text-right font-mono text-gray-800 font-medium" x-text="Format.number(country.lastValue)"></td>
+                                                <td class="py-3 px-4 text-right font-mono text-gray-500" x-text="Format.number(country.previousValue)"></td>
+                                                <td class="py-3 px-4 text-center text-base">
+                                                    <span :class="getChangeInfo(country.lastValue, country.previousValue).className"
+                                                        x-text="getChangeInfo(country.lastValue, country.previousValue).symbol"></span>
+                                                </td>
+                                                <td class="py-3 px-4 text-right font-mono text-xs"
+                                                    :class="getChangeInfo(country.lastValue, country.previousValue).className"
+                                                    x-text="Format.changeRate(country.lastValue, country.previousValue)"></td>
+                                                <td class="py-3 px-4 text-gray-500" x-text="country.unit"></td>
+                                                <td class="py-3 px-4 text-gray-400 text-xs" x-text="country.reference || '-'"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 빈 상태 -->
+                <template x-if="!globalData.loading && !globalData.indicatorData && globalData.selectedCategory">
+                    <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
+                        지표를 선택하세요.
+                    </div>
+                </template>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Scripts (순서 중요: api > utils > app > Alpine) -->
+    <script src="/js/api.js"></script>
+    <script src="/js/utils/format.js"></script>
+    <script src="/js/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+</body>
+</html>

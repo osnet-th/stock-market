@@ -27,14 +27,21 @@ public class AuthController {
 
     /**
      * 카카오 OAuth 콜백 엔드포인트
+     * 로그인 처리 후 토큰 정보를 쿼리 파라미터로 담아 대시보드로 리다이렉트
      *
      * @param code 카카오 인가 코드
-     * @return OAuthLoginResponse
      */
     @GetMapping("/oauth/kakao")
-    public ResponseEntity<OAuthLoginResponse> kakaoCallback(@RequestParam String code) {
+    public ResponseEntity<Void> kakaoCallback(@RequestParam String code) {
         OAuthLoginResponse response = oauthLoginService.loginWithKakao(code);
-        return ResponseEntity.ok(response);
+
+        String redirectUrl = "/?token=" + response.accessToken()
+                + "&userId=" + response.userId()
+                + "&role=" + response.role();
+
+        return ResponseEntity.status(302)
+                .header("Location", redirectUrl)
+                .build();
     }
 
     /**

@@ -40,7 +40,7 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
             for (NewsResultDto dto : searchResults) {
                 searchedContexts.add(new KeywordSearchContext(
                         keyword.getUserId(),
-                        keyword.getKeyword(),
+                        keyword.getId(),
                         keyword.getRegion(),
                         dto
                 ));
@@ -63,7 +63,7 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
                         context.news().getTitle(),
                         context.news().getContent(),
                         context.news().getPublishedAt(),
-                        context.searchKeyword(),
+                        context.keywordId(),
                         context.region()
                 ))
                 .toList();
@@ -73,14 +73,14 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
     }
 
     @Override
-    public NewsBatchSaveResult collectByKeyword(String keyword, Long userId, Region region) {
+    public NewsBatchSaveResult collectByKeyword(Long keywordId, String keyword, Long userId, Region region) {
         List<NewsResultDto> searchResults = newsSearchService.search(keyword, region);
         if (searchResults.isEmpty()) {
             return new NewsBatchSaveResult(0, 0, 0);
         }
 
         List<KeywordSearchContext> contexts = searchResults.stream()
-                .map(dto -> new KeywordSearchContext(userId, keyword, region, dto))
+                .map(dto -> new KeywordSearchContext(userId, keywordId, region, dto))
                 .toList();
 
         List<KeywordSearchContext> newContexts = filterNewNews(contexts);
@@ -95,7 +95,7 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
                         context.news().getTitle(),
                         context.news().getContent(),
                         context.news().getPublishedAt(),
-                        context.searchKeyword(),
+                        context.keywordId(),
                         context.region()
                 ))
                 .toList();

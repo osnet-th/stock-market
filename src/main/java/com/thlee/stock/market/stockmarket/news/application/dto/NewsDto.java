@@ -16,7 +16,7 @@ public class NewsDto {
     private final LocalDateTime publishedAt;
     private final LocalDateTime createdAt;
     private final NewsPurpose purpose;
-    private final String searchKeyword;
+    private final Long sourceId;
 
     public NewsDto(Long id,
                    String originalUrl,
@@ -25,7 +25,7 @@ public class NewsDto {
                    LocalDateTime publishedAt,
                    LocalDateTime createdAt,
                    NewsPurpose purpose,
-                   String searchKeyword) {
+                   Long sourceId) {
         this.id = id;
         this.originalUrl = originalUrl;
         this.title = title;
@@ -33,7 +33,7 @@ public class NewsDto {
         this.publishedAt = publishedAt;
         this.createdAt = createdAt;
         this.purpose = purpose;
-        this.searchKeyword = searchKeyword;
+        this.sourceId = sourceId;
     }
 
     public static NewsDto from(News news) {
@@ -45,7 +45,7 @@ public class NewsDto {
                 news.getPublishedAt(),
                 news.getCreatedAt(),
                 news.getPurpose(),
-                news.getSearchKeyword()
+                news.getSourceId()
         );
     }
 
@@ -77,7 +77,7 @@ public class NewsDto {
         return purpose;
     }
 
-    public String getSearchKeyword() {
-        return searchKeyword;
+    public Long getSourceId() {
+        return sourceId;
     }
 }

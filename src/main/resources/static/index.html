@@ -133,8 +133,8 @@
                                 </div>
                             </template>
                             <template x-for="kw in keywords.list.filter(k => keywords.regionFilter === 'all' || k.region === keywords.regionFilter)" :key="kw.id">
-                                <div @click="kw.active && selectNewsKeyword(kw.keyword)"
-                                    :class="news.selectedKeyword === kw.keyword ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white'"
+                                <div @click="kw.active && selectNewsKeyword(kw)"
+                                    :class="news.selectedKeywordId === kw.id ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white'"
                                     class="rounded-lg border p-4 flex items-center justify-between hover:shadow-sm transition"
                                     :style="kw.active ? 'cursor:pointer' : ''">
                                     <div class="flex items-center gap-3">
@@ -171,7 +171,7 @@
                             </template>
                         </div>
                         <!-- 뉴스 영역 -->
-                        <template x-if="news.selectedKeyword">
+                        <template x-if="news.selectedKeywordId">
                             <div class="mt-6">
                                 <div class="border-t border-gray-200 pt-6">
                                     <!-- 로딩 -->
@@ -185,7 +185,7 @@
                                         <div>
                                             <!-- 결과 요약 -->
                                             <p class="text-sm text-gray-500 mb-4">
-                                                '<span x-text="news.selectedKeyword" class="font-medium text-gray-700"></span>'
+                                                '<span x-text="news.selectedKeywordText" class="font-medium text-gray-700"></span>'
                                                 뉴스 <span x-text="news.totalElements" class="font-medium"></span>건
                                             </p>
 

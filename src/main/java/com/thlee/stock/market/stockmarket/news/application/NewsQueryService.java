@@ -40,8 +40,11 @@ public class NewsQueryService {
                 .collect(Collectors.toList());
     }
 
-    public PageResult<NewsDto> getNewsByKeyword(String keyword, int page, int size) {
-        PageResult<News> result = newsRepository.findBySearchKeyword(keyword, page, size);
+    /**
+     * purpose + sourceId 기반 뉴스 조회
+     */
+    public PageResult<NewsDto> getNewsBySource(NewsPurpose purpose, Long sourceId, int page, int size) {
+        PageResult<News> result = newsRepository.findByPurposeAndSourceId(purpose, sourceId, page, size);
 
         List<NewsDto> dtoList = result.getContent().stream()
                 .map(NewsDto::from)

@@ -16,5 +16,5 @@ public interface NewsRepository {
 
     List<News> findByPurpose(NewsPurpose purpose);
 
-    PageResult<News> findBySearchKeyword(String searchKeyword, int page, int size);
+    PageResult<News> findByPurposeAndSourceId(NewsPurpose purpose, Long sourceId, int page, int size);
 }

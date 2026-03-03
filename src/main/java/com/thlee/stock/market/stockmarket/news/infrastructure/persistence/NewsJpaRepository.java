@@ -19,11 +19,11 @@ public interface NewsJpaRepository extends JpaRepository<NewsEntity, Long> {
 
     List<NewsEntity> findByPurpose(NewsPurpose purpose);
 
-    Page<NewsEntity> findBySearchKeywordOrderByPublishedAtDesc(String searchKeyword, Pageable pageable);
+    Page<NewsEntity> findByPurposeAndSourceIdOrderByPublishedAtDesc(NewsPurpose purpose, Long sourceId, Pageable pageable);
 
     @Modifying
-    @Query(value = "INSERT INTO news (original_url, user_id, title, content, published_at, created_at, purpose, search_keyword) " +
-            "VALUES (:originalUrl, :userId, :title, :content, :publishedAt, :createdAt, :purpose, :searchKeyword) " +
+    @Query(value = "INSERT INTO news (original_url, user_id, title, content, published_at, created_at, purpose, source_id, region) " +
+            "VALUES (:originalUrl, :userId, :title, :content, :publishedAt, :createdAt, :purpose, :sourceId, :region) " +
             "ON CONFLICT (original_url) DO NOTHING",
             nativeQuery = true)
     int insertIgnoreDuplicate(@Param("originalUrl") String originalUrl,
@@ -33,5 +33,6 @@ public interface NewsJpaRepository extends JpaRepository<NewsEntity, Long> {
                               @Param("publishedAt") LocalDateTime publishedAt,
                               @Param("createdAt") LocalDateTime createdAt,
                               @Param("purpose") String purpose,
-                              @Param("searchKeyword") String searchKeyword);
+                              @Param("sourceId") Long sourceId,
+                              @Param("region") String region);
 }

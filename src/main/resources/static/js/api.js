@@ -78,12 +78,12 @@ const API = {
     },
 
     // News
-    getNewsByKeyword(keyword, page = 0, size = 20) {
-        return this.request('GET', `/api/news?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${size}`);
+    getNewsByKeyword(keywordId, page = 0, size = 20) {
+        return this.request('GET', `/api/news?keywordId=${keywordId}&page=${page}&size=${size}`);
     },
 
-    collectNewsByKeyword(keyword, userId, region) {
-        return this.request('POST', '/api/news/collect', { keyword, userId, region });
+    collectNewsByKeyword(keywordId, keyword, userId, region) {
+        return this.request('POST', '/api/news/collect', { keywordId, keyword, userId, region });
     },
 
     // Global Indicators

@@ -33,7 +33,8 @@ public class NewsRepositoryImpl implements NewsRepository {
                 news.getPublishedAt(),
                 news.getCreatedAt(),
                 news.getPurpose().name(),
-                news.getSearchKeyword()
+                news.getSourceId(),
+                news.getRegion() != null ? news.getRegion().name() : null
         );
 
         NewsEntity savedEntity = newsJpaRepository.findByOriginalUrl(news.getOriginalUrl())
@@ -51,7 +52,8 @@ public class NewsRepositoryImpl implements NewsRepository {
                 news.getPublishedAt(),
                 news.getCreatedAt(),
                 news.getPurpose().name(),
-                news.getSearchKeyword()
+                news.getSourceId(),
+                news.getRegion() != null ? news.getRegion().name() : null
         );
         return inserted > 0;
     }
@@ -71,9 +73,9 @@ public class NewsRepositoryImpl implements NewsRepository {
     }
 
     @Override
-    public PageResult<News> findBySearchKeyword(String searchKeyword, int page, int size) {
+    public PageResult<News> findByPurposeAndSourceId(NewsPurpose purpose, Long sourceId, int page, int size) {
         Page<NewsEntity> entityPage = newsJpaRepository
-                .findBySearchKeywordOrderByPublishedAtDesc(searchKeyword, PageRequest.of(page, size));
+                .findByPurposeAndSourceIdOrderByPublishedAtDesc(purpose, sourceId, PageRequest.of(page, size));
 
         List<News> newsList = entityPage.getContent().stream()
                 .map(NewsMapper::toDomain)

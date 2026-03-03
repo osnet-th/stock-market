@@ -1,21 +1,8 @@
-package com.thlee.stock.market.stockmarket.news.presentation;
+# Presentation 예시
 
-import com.thlee.stock.market.stockmarket.common.response.PageResult;
-import com.thlee.stock.market.stockmarket.news.application.KeywordNewsBatchService;
-import com.thlee.stock.market.stockmarket.news.application.NewsQueryService;
-import com.thlee.stock.market.stockmarket.news.application.dto.NewsBatchSaveResult;
-import com.thlee.stock.market.stockmarket.news.application.dto.NewsDto;
-import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
-import com.thlee.stock.market.stockmarket.news.presentation.dto.NewsCollectRequest;
-import com.thlee.stock.market.stockmarket.news.presentation.dto.NewsCollectResponse;
-import com.thlee.stock.market.stockmarket.news.presentation.dto.NewsQueryResponse;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+## NewsController
 
-/**
- * 뉴스 조회 API
- */
+```java
 @RestController
 @RequestMapping("/api/news")
 @RequiredArgsConstructor
@@ -51,4 +38,14 @@ public class NewsController {
         );
         return ResponseEntity.ok(NewsCollectResponse.from(result));
     }
+
+    // 향후 Stock 추가 시:
+    // @GetMapping("/stock")
+    // public ResponseEntity<NewsQueryResponse<NewsDto>> getNewsByStock(
+    //         @RequestParam Long stockId, ...) {
+    //     PageResult<NewsDto> result = newsQueryService.getNewsBySource(
+    //             NewsPurpose.STOCK, stockId, page, size);
+    //     ...
+    // }
 }
+```

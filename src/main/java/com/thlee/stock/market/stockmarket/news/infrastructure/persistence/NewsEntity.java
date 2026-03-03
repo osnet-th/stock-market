@@ -15,6 +15,10 @@ import java.time.LocalDateTime;
         name = "news",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = "original_url")
+        },
+        indexes = {
+                @Index(name = "idx_news_purpose_source_published",
+                       columnList = "purpose, source_id, published_at DESC")
         }
 )
 @Getter
@@ -45,8 +49,8 @@ public class NewsEntity {
     @Column(name = "purpose", nullable = false, length = 100)
     private NewsPurpose purpose;
 
-    @Column(name = "search_keyword", nullable = false)
-    private String searchKeyword;
+    @Column(name = "source_id", nullable = false)
+    private Long sourceId;
 
     @Enumerated(EnumType.STRING)
     private Region region;
@@ -62,7 +66,7 @@ public class NewsEntity {
                       LocalDateTime publishedAt,
                       LocalDateTime createdAt,
                       NewsPurpose purpose,
-                      String searchKeyword,
+                      Long sourceId,
                       Region region) {
         this.id = id;
         this.originalUrl = originalUrl;
@@ -72,7 +76,7 @@ public class NewsEntity {
         this.publishedAt = publishedAt;
         this.createdAt = createdAt;
         this.purpose = purpose;
-        this.searchKeyword = searchKeyword;
+        this.sourceId = sourceId;
         this.region = region;
     }
 

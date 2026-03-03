@@ -1,8 +1,7 @@
+# News 도메인 모델 예시
+
+```java
 package com.thlee.stock.market.stockmarket.news.domain.model;
-
-import lombok.Getter;
-
-import java.time.LocalDateTime;
 
 /**
  * 뉴스 도메인 모델
@@ -17,7 +16,7 @@ public class News {
     private LocalDateTime publishedAt;
     private LocalDateTime createdAt;
     private NewsPurpose purpose;
-    private Long sourceId;
+    private Long sourceId;    // keyword.id 또는 향후 stock.id
     private Region region;
 
     private News(String originalUrl,
@@ -96,40 +95,12 @@ public class News {
         );
     }
 
-    private static void validateOriginalUrl(String originalUrl) {
-        if (originalUrl == null || originalUrl.isBlank()) {
-            throw new IllegalArgumentException("originalUrl은 필수입니다.");
-        }
-    }
-
-    private static void validateUserId(Long userId) {
-        if (userId == null) {
-            throw new IllegalArgumentException("userId는 필수입니다.");
-        }
-    }
-
-    private static void validateTitle(String title) {
-        if (title == null || title.isBlank()) {
-            throw new IllegalArgumentException("title은 필수입니다.");
-        }
-    }
-
-    private static void validatePublishedAt(LocalDateTime publishedAt) {
-        if (publishedAt == null) {
-            throw new IllegalArgumentException("publishedAt은 필수입니다.");
-        }
-    }
-
-    private static void validatePurpose(NewsPurpose purpose) {
-        if (purpose == null) {
-            throw new IllegalArgumentException("purpose는 필수입니다.");
-        }
-    }
+    // ... 기존 validate 메서드 유지
 
     private static void validateSourceId(Long sourceId) {
         if (sourceId == null) {
             throw new IllegalArgumentException("sourceId는 필수입니다.");
         }
     }
-
 }
+```

@@ -12,6 +12,8 @@ public interface KeywordNewsBatchService {
 
     /**
      * 단건 키워드 즉시 뉴스 수집
+     * @param keywordId keyword.id (news 저장 시 source_id로 사용)
+     * @param keyword   외부 뉴스 API 검색용 텍스트
      */
-    NewsBatchSaveResult collectByKeyword(String keyword, Long userId, Region region);
+    NewsBatchSaveResult collectByKeyword(Long keywordId, String keyword, Long userId, Region region);
 }

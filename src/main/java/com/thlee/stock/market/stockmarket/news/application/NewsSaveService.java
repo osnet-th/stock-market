@@ -39,7 +39,7 @@ public class NewsSaveService {
                 request.getContent(),
                 request.getPublishedAt(),
                 purpose,
-                request.getSearchKeyword(),
+                request.getSourceId(),
                 request.getRegion()
         );
 
@@ -86,7 +86,7 @@ public class NewsSaveService {
                         request.getContent(),
                         request.getPublishedAt(),
                         purpose,
-                        request.getSearchKeyword(),
+                        request.getSourceId(),
                         request.getRegion()
                 );
 

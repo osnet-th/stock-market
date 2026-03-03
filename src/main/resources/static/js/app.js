@@ -41,7 +41,8 @@ function dashboard() {
 
         // ==================== News State ====================
         news: {
-            selectedKeyword: null,
+            selectedKeywordId: null,
+            selectedKeywordText: null,
             collectingKeywordId: null,
             list: [],
             page: 0,
@@ -131,7 +132,8 @@ function dashboard() {
                 case 'keywords':
                     if (this.checkLoggedIn()) {
                         await this.loadKeywords();
-                        this.news.selectedKeyword = null;
+                        this.news.selectedKeywordId = null;
+                        this.news.selectedKeywordText = null;
                         this.news.list = [];
                     }
                     break;
@@ -226,12 +228,12 @@ function dashboard() {
             if (this.news.collectingKeywordId) return;
             this.news.collectingKeywordId = kw.id;
             try {
-                var result = await API.collectNewsByKeyword(kw.keyword, this.auth.userId, kw.region);
+                var result = await API.collectNewsByKeyword(kw.id, kw.keyword, this.auth.userId, kw.region);
                 var msg = '수집 완료: ' + result.successCount + '건 저장';
                 if (result.ignoredCount > 0) msg += ', ' + result.ignoredCount + '건 중복';
                 alert(msg);
 
-                if (this.news.selectedKeyword === kw.keyword) {
+                if (this.news.selectedKeywordId === kw.id) {
                     await this.loadNews(0);
                 }
             } catch (e) {
@@ -242,22 +244,24 @@ function dashboard() {
             }
         },
 
-        async selectNewsKeyword(keyword) {
-            if (this.news.selectedKeyword === keyword) {
-                this.news.selectedKeyword = null;
+        async selectNewsKeyword(kw) {
+            if (this.news.selectedKeywordId === kw.id) {
+                this.news.selectedKeywordId = null;
+                this.news.selectedKeywordText = null;
                 this.news.list = [];
                 return;
             }
-            this.news.selectedKeyword = keyword;
+            this.news.selectedKeywordId = kw.id;
+            this.news.selectedKeywordText = kw.keyword;
             this.news.page = 0;
             await this.loadNews(0);
         },
 
         async loadNews(page) {
-            if (!this.news.selectedKeyword) return;
+            if (!this.news.selectedKeywordId) return;
             this.news.loading = true;
             try {
-                var result = await API.getNewsByKeyword(this.news.selectedKeyword, page, this.news.size);
+                var result = await API.getNewsByKeyword(this.news.selectedKeywordId, page, this.news.size);
                 this.news.list = result.content || [];
                 this.news.page = result.page;
                 this.news.totalPages = result.totalPages;

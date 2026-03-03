@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public class NewsCollectRequest {
+    private Long keywordId;
     private String keyword;
     private Long userId;
     private Region region;

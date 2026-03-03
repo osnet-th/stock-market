@@ -24,6 +24,10 @@ public class KeywordServiceImpl implements KeywordService{
      */
     @Transactional
     public Keyword registerKeyword(RegisterKeywordRequest request) {
+        if (keywordRepository.existsByUserIdAndKeyword(request.getUserId(), request.getKeyword())) {
+            throw new IllegalArgumentException("이미 등록된 키워드입니다.");
+        }
+
         Keyword newKeyword = Keyword.create(request.getKeyword(), request.getUserId(), request.getRegion());
         return keywordRepository.save(newKeyword);
     }

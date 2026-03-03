@@ -6,6 +6,7 @@ import com.thlee.stock.market.stockmarket.news.application.dto.NewsResultDto;
 import com.thlee.stock.market.stockmarket.news.application.vo.KeywordSearchContext;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -69,6 +70,37 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
 
         NewsBatchSaveResult result = newsSaveService.saveBatch(saveRequests, NewsPurpose.KEYWORD);
         return result.getSuccessCount();
+    }
+
+    @Override
+    public NewsBatchSaveResult collectByKeyword(String keyword, Long userId, Region region) {
+        List<NewsResultDto> searchResults = newsSearchService.search(keyword, region);
+        if (searchResults.isEmpty()) {
+            return new NewsBatchSaveResult(0, 0, 0);
+        }
+
+        List<KeywordSearchContext> contexts = searchResults.stream()
+                .map(dto -> new KeywordSearchContext(userId, keyword, region, dto))
+                .toList();
+
+        List<KeywordSearchContext> newContexts = filterNewNews(contexts);
+        if (newContexts.isEmpty()) {
+            return new NewsBatchSaveResult(0, 0, 0);
+        }
+
+        List<NewsSaveRequest> saveRequests = newContexts.stream()
+                .map(context -> new NewsSaveRequest(
+                        context.news().getUrl(),
+                        context.userId(),
+                        context.news().getTitle(),
+                        context.news().getContent(),
+                        context.news().getPublishedAt(),
+                        context.searchKeyword(),
+                        context.region()
+                ))
+                .toList();
+
+        return newsSaveService.saveBatch(saveRequests, NewsPurpose.KEYWORD);
     }
 
     private List<KeywordSearchContext> filterNewNews(List<KeywordSearchContext> searchedContexts) {

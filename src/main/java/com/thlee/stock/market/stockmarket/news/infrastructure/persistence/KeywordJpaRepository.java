@@ -23,4 +23,9 @@ public interface KeywordJpaRepository extends JpaRepository<KeywordEntity, Long>
      * 활성화 상태별 키워드 목록 조회 (스케줄러용)
      */
     List<KeywordEntity> findByActive(boolean active);
+
+    /**
+     * 사용자별 키워드 존재 여부 확인
+     */
+    boolean existsByUserIdAndKeyword(Long userId, String keyword);
 }

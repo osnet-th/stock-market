@@ -5,7 +5,7 @@ function dashboard() {
 
         menus: [
             { key: 'home', label: '대시보드', icon: 'home' },
-            { key: 'keywords', label: '키워드 관리', icon: 'tag' },
+            { key: 'keywords', label: '키워드', icon: 'tag' },
             { key: 'ecos', label: '국내 경제지표', icon: 'chart' },
             { key: 'global', label: '글로벌 경제지표', icon: 'globe' }
         ],
@@ -14,7 +14,8 @@ function dashboard() {
         auth: {
             token: localStorage.getItem('accessToken'),
             userId: localStorage.getItem('userId'),
-            role: localStorage.getItem('role')
+            role: localStorage.getItem('role'),
+            displayName: localStorage.getItem('displayName')
         },
 
         checkLoggedIn() {
@@ -38,6 +39,18 @@ function dashboard() {
             loading: false
         },
 
+        // ==================== News State ====================
+        news: {
+            selectedKeyword: null,
+            collectingKeywordId: null,
+            list: [],
+            page: 0,
+            size: 20,
+            totalPages: 0,
+            totalElements: 0,
+            loading: false
+        },
+
         // ==================== Global State ====================
         globalData: {
             categories: [],
@@ -51,6 +64,8 @@ function dashboard() {
         homeSummary: {
             keywordCount: 0,
             activeKeywordCount: 0,
+            domesticKeywordCount: 0,
+            internationalKeywordCount: 0,
             ecosCategories: [],
             globalCategories: []
         },
@@ -64,6 +79,7 @@ function dashboard() {
                 return;
             }
 
+            await this.loadMyProfile();
             await this.loadHomeSummary();
         },
 
@@ -84,13 +100,25 @@ function dashboard() {
             }
         },
 
+        async loadMyProfile() {
+            try {
+                const profile = await API.getMyProfile();
+                this.auth.displayName = profile.displayName;
+                localStorage.setItem('displayName', profile.displayName);
+            } catch (e) {
+                console.error('프로필 로드 실패:', e);
+            }
+        },
+
         logout() {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('userId');
             localStorage.removeItem('role');
+            localStorage.removeItem('displayName');
             this.auth.token = null;
             this.auth.userId = null;
             this.auth.role = null;
+            this.auth.displayName = null;
             window.location.href = '/login.html';
         },
 
@@ -101,7 +129,11 @@ function dashboard() {
                     await this.loadHomeSummary();
                     break;
                 case 'keywords':
-                    if (this.checkLoggedIn()) await this.loadKeywords();
+                    if (this.checkLoggedIn()) {
+                        await this.loadKeywords();
+                        this.news.selectedKeyword = null;
+                        this.news.list = [];
+                    }
                     break;
                 case 'ecos':
                     if (this.ecos.categories.length === 0) await this.loadEcosCategories();
@@ -118,6 +150,8 @@ function dashboard() {
                     const allKeywords = await API.getKeywords(this.auth.userId) || [];
                     this.homeSummary.keywordCount = allKeywords.length;
                     this.homeSummary.activeKeywordCount = allKeywords.filter(k => k.active).length;
+                    this.homeSummary.domesticKeywordCount = allKeywords.filter(k => k.region === 'DOMESTIC').length;
+                    this.homeSummary.internationalKeywordCount = allKeywords.filter(k => k.region === 'INTERNATIONAL').length;
                 }
                 try {
                     this.homeSummary.ecosCategories = await API.getEcosCategories() || [];
@@ -184,6 +218,55 @@ function dashboard() {
                 await this.loadKeywords();
             } catch (e) {
                 console.error('키워드 삭제 실패:', e);
+            }
+        },
+
+        // ==================== News Methods ====================
+        async collectNews(kw) {
+            if (this.news.collectingKeywordId) return;
+            this.news.collectingKeywordId = kw.id;
+            try {
+                var result = await API.collectNewsByKeyword(kw.keyword, this.auth.userId, kw.region);
+                var msg = '수집 완료: ' + result.successCount + '건 저장';
+                if (result.ignoredCount > 0) msg += ', ' + result.ignoredCount + '건 중복';
+                alert(msg);
+
+                if (this.news.selectedKeyword === kw.keyword) {
+                    await this.loadNews(0);
+                }
+            } catch (e) {
+                console.error('뉴스 수집 실패:', e);
+                alert('뉴스 수집에 실패했습니다.');
+            } finally {
+                this.news.collectingKeywordId = null;
+            }
+        },
+
+        async selectNewsKeyword(keyword) {
+            if (this.news.selectedKeyword === keyword) {
+                this.news.selectedKeyword = null;
+                this.news.list = [];
+                return;
+            }
+            this.news.selectedKeyword = keyword;
+            this.news.page = 0;
+            await this.loadNews(0);
+        },
+
+        async loadNews(page) {
+            if (!this.news.selectedKeyword) return;
+            this.news.loading = true;
+            try {
+                var result = await API.getNewsByKeyword(this.news.selectedKeyword, page, this.news.size);
+                this.news.list = result.content || [];
+                this.news.page = result.page;
+                this.news.totalPages = result.totalPages;
+                this.news.totalElements = result.totalElements;
+            } catch (e) {
+                console.error('뉴스 로드 실패:', e);
+                this.news.list = [];
+            } finally {
+                this.news.loading = false;
             }
         },
 

@@ -1,10 +1,13 @@
 package com.thlee.stock.market.stockmarket.news.infrastructure.persistence;
 
+import com.thlee.stock.market.stockmarket.common.response.PageResult;
 import com.thlee.stock.market.stockmarket.news.domain.model.News;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
 import com.thlee.stock.market.stockmarket.news.infrastructure.persistence.mapper.NewsMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -65,5 +68,17 @@ public class NewsRepositoryImpl implements NewsRepository {
                 .stream()
                 .map(NewsMapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public PageResult<News> findBySearchKeyword(String searchKeyword, int page, int size) {
+        Page<NewsEntity> entityPage = newsJpaRepository
+                .findBySearchKeywordOrderByPublishedAtDesc(searchKeyword, PageRequest.of(page, size));
+
+        List<News> newsList = entityPage.getContent().stream()
+                .map(NewsMapper::toDomain)
+                .collect(Collectors.toList());
+
+        return new PageResult<>(newsList, page, size, entityPage.getTotalElements());
     }
 }

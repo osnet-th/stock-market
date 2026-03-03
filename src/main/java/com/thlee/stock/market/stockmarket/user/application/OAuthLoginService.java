@@ -9,6 +9,7 @@ import com.thlee.stock.market.stockmarket.user.domain.repository.OAuthAccountRep
 import com.thlee.stock.market.stockmarket.user.domain.repository.UserRepository;
 import com.thlee.stock.market.stockmarket.user.domain.service.JwtTokenProvider;
 import com.thlee.stock.market.stockmarket.user.domain.service.OAuthConnectionService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -17,6 +18,7 @@ import java.util.Optional;
  * OAuth 소셜 로그인 유스케이스 처리
  */
 @Service
+@RequiredArgsConstructor
 public class OAuthLoginService {
 
     private final UserRepository userRepository;
@@ -24,20 +26,6 @@ public class OAuthLoginService {
     private final OAuthConnectionService oauthConnectionService;
     private final JwtTokenProvider jwtTokenProvider;
     private final KakaoOAuthService kakaoOAuthService;
-
-    public OAuthLoginService(
-            UserRepository userRepository,
-            OAuthAccountRepository oauthAccountRepository,
-            OAuthConnectionService oauthConnectionService,
-            JwtTokenProvider jwtTokenProvider,
-            KakaoOAuthService kakaoOAuthService
-    ) {
-        this.userRepository = userRepository;
-        this.oauthAccountRepository = oauthAccountRepository;
-        this.oauthConnectionService = oauthConnectionService;
-        this.jwtTokenProvider = jwtTokenProvider;
-        this.kakaoOAuthService = kakaoOAuthService;
-    }
 
     /**
      * OAuth 로그인 처리

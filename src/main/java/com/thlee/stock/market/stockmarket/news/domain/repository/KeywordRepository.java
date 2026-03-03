@@ -37,6 +37,11 @@ public interface KeywordRepository {
     List<Keyword> findByActive(boolean active);
 
     /**
+     * 사용자별 키워드 존재 여부 확인
+     */
+    boolean existsByUserIdAndKeyword(Long userId, String keyword);
+
+    /**
      * 키워드 삭제
      */
     void delete(Keyword keyword);

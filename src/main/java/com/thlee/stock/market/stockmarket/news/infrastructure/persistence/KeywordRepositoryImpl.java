@@ -57,6 +57,11 @@ public class KeywordRepositoryImpl implements KeywordRepository {
     }
 
     @Override
+    public boolean existsByUserIdAndKeyword(Long userId, String keyword) {
+        return keywordJpaRepository.existsByUserIdAndKeyword(userId, keyword);
+    }
+
+    @Override
     public void delete(Keyword keyword) {
         KeywordEntity entity = KeywordMapper.toEntity(keyword);
         keywordJpaRepository.delete(entity);

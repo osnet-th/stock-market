@@ -35,6 +35,11 @@ const API = {
         return response.json();
     },
 
+    // Users
+    getMyProfile() {
+        return this.request('GET', '/api/users/me');
+    },
+
     // Auth
     signup(userId, name, nickname, phoneNumber) {
         return this.request('POST', '/signup', { userId, name, nickname, phoneNumber });
@@ -70,6 +75,15 @@ const API = {
 
     getEcosIndicators(category) {
         return this.request('GET', `/api/economics/indicators?category=${category}`);
+    },
+
+    // News
+    getNewsByKeyword(keyword, page = 0, size = 20) {
+        return this.request('GET', `/api/news?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${size}`);
+    },
+
+    collectNewsByKeyword(keyword, userId, region) {
+        return this.request('POST', '/api/news/collect', { keyword, userId, region });
     },
 
     // Global Indicators

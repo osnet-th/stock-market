@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.news.domain.repository;
 
+import com.thlee.stock.market.stockmarket.common.response.PageResult;
 import com.thlee.stock.market.stockmarket.news.domain.model.News;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 
@@ -14,4 +15,6 @@ public interface NewsRepository {
     Optional<News> findByOriginalUrl(String originalUrl);
 
     List<News> findByPurpose(NewsPurpose purpose);
+
+    PageResult<News> findBySearchKeyword(String searchKeyword, int page, int size);
 }

@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.news.application;
 
+import com.thlee.stock.market.stockmarket.common.response.PageResult;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsDto;
 import com.thlee.stock.market.stockmarket.news.domain.model.News;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
@@ -37,5 +38,15 @@ public class NewsQueryService {
         return originalLinks.stream()
                 .filter(url -> newsRepository.findByOriginalUrl(url).isPresent())
                 .collect(Collectors.toList());
+    }
+
+    public PageResult<NewsDto> getNewsByKeyword(String keyword, int page, int size) {
+        PageResult<News> result = newsRepository.findBySearchKeyword(keyword, page, size);
+
+        List<NewsDto> dtoList = result.getContent().stream()
+                .map(NewsDto::from)
+                .collect(Collectors.toList());
+
+        return new PageResult<>(dtoList, result.getPage(), result.getSize(), result.getTotalElements());
     }
 }

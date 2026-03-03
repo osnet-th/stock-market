@@ -20,7 +20,7 @@
                 <template x-if="checkLoggedIn()">
                     <div class="flex items-center gap-3">
                         <span class="text-sm text-gray-600">
-                            ID: <span x-text="auth.userId" class="font-medium"></span>
+                            <span x-text="auth.displayName || ('ID: ' + auth.userId)" class="font-medium"></span>
                         </span>
                         <button @click="logout()"
                             class="text-sm text-red-500 hover:text-red-700 font-medium">로그아웃</button>
@@ -66,6 +66,10 @@
                         <p class="text-xs text-green-600 mt-1">
                             활성 <span x-text="homeSummary.activeKeywordCount" class="font-medium"></span>개
                         </p>
+                        <p class="text-xs text-gray-400 mt-0.5">
+                            국내 <span x-text="homeSummary.domesticKeywordCount" class="font-medium text-blue-600"></span>개
+                            · 해외 <span x-text="homeSummary.internationalKeywordCount" class="font-medium text-purple-600"></span>개
+                        </p>
                     </div>
                     <!-- ECOS 요약 -->
                     <div @click="navigateTo('ecos')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
@@ -87,7 +91,7 @@
             <!-- ========== KEYWORDS ========== -->
             <div x-show="currentPage === 'keywords'" x-cloak>
                 <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-bold text-gray-800">키워드 관리</h2>
+                    <h2 class="text-xl font-bold text-gray-800">키워드</h2>
                     <button @click="keywords.showAddModal = true"
                         class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
                         + 키워드 등록
@@ -129,7 +133,10 @@
                                 </div>
                             </template>
                             <template x-for="kw in keywords.list.filter(k => keywords.regionFilter === 'all' || k.region === keywords.regionFilter)" :key="kw.id">
-                                <div class="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between hover:shadow-sm transition">
+                                <div @click="kw.active && selectNewsKeyword(kw.keyword)"
+                                    :class="news.selectedKeyword === kw.keyword ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white'"
+                                    class="rounded-lg border p-4 flex items-center justify-between hover:shadow-sm transition"
+                                    :style="kw.active ? 'cursor:pointer' : ''">
                                     <div class="flex items-center gap-3">
                                         <span class="font-medium text-gray-800" x-text="kw.keyword"></span>
                                         <span :class="kw.region === 'DOMESTIC' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'"
@@ -142,6 +149,16 @@
                                         </span>
                                     </div>
                                     <div class="flex gap-2">
+                                        <template x-if="kw.active">
+                                            <button @click.stop="collectNews(kw)"
+                                                :disabled="news.collectingKeywordId === kw.id"
+                                                :class="news.collectingKeywordId === kw.id
+                                                    ? 'text-gray-400 cursor-not-allowed'
+                                                    : 'text-blue-600 hover:text-blue-800'"
+                                                class="text-sm font-medium transition"
+                                                x-text="news.collectingKeywordId === kw.id ? '수집 중...' : '수집'">
+                                            </button>
+                                        </template>
                                         <button @click="toggleKeyword(kw)"
                                             :class="kw.active ? 'text-yellow-600 hover:text-yellow-800' : 'text-green-600 hover:text-green-800'"
                                             class="text-sm font-medium transition"
@@ -153,6 +170,79 @@
                                 </div>
                             </template>
                         </div>
+                        <!-- 뉴스 영역 -->
+                        <template x-if="news.selectedKeyword">
+                            <div class="mt-6">
+                                <div class="border-t border-gray-200 pt-6">
+                                    <!-- 로딩 -->
+                                    <template x-if="news.loading">
+                                        <div class="flex justify-center py-12">
+                                            <div class="spinner"></div>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!news.loading">
+                                        <div>
+                                            <!-- 결과 요약 -->
+                                            <p class="text-sm text-gray-500 mb-4">
+                                                '<span x-text="news.selectedKeyword" class="font-medium text-gray-700"></span>'
+                                                뉴스 <span x-text="news.totalElements" class="font-medium"></span>건
+                                            </p>
+
+                                            <!-- 뉴스 카드 -->
+                                            <template x-if="news.list.length === 0">
+                                                <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
+                                                    수집된 뉴스가 없습니다.
+                                                </div>
+                                            </template>
+
+                                            <div class="space-y-3">
+                                                <template x-for="article in news.list" :key="article.id">
+                                                    <a :href="article.originalUrl" target="_blank" rel="noopener noreferrer"
+                                                        @click.stop
+                                                        class="block bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition cursor-pointer">
+                                                        <h3 class="text-sm font-semibold text-gray-800 mb-1 line-clamp-2" x-text="article.title"></h3>
+                                                        <p class="text-xs text-gray-500 line-clamp-2 mb-2" x-text="article.content"></p>
+                                                        <div class="flex items-center gap-3 text-xs text-gray-400">
+                                                            <span x-text="article.publishedAt ? new Date(article.publishedAt).toLocaleDateString('ko-KR') : '-'"></span>
+                                                            <span class="text-blue-500 hover:underline">원문 보기</span>
+                                                        </div>
+                                                    </a>
+                                                </template>
+                                            </div>
+
+                                            <!-- 페이지 네비게이션 -->
+                                            <template x-if="news.totalPages > 1">
+                                                <div class="flex justify-center items-center gap-2 mt-6">
+                                                    <button @click.stop="loadNews(news.page - 1)"
+                                                        :disabled="news.page === 0"
+                                                        :class="news.page === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-blue-600'"
+                                                        class="px-3 py-1.5 text-sm font-medium transition">
+                                                        이전
+                                                    </button>
+                                                    <template x-for="p in news.totalPages" :key="p">
+                                                        <button @click.stop="loadNews(p - 1)"
+                                                            x-show="Math.abs((p - 1) - news.page) < 3 || p === 1 || p === news.totalPages"
+                                                            :class="(p - 1) === news.page
+                                                                ? 'bg-blue-600 text-white'
+                                                                : 'text-gray-600 hover:bg-gray-100'"
+                                                            class="w-8 h-8 rounded text-sm font-medium transition"
+                                                            x-text="p">
+                                                        </button>
+                                                    </template>
+                                                    <button @click.stop="loadNews(news.page + 1)"
+                                                        :disabled="news.page >= news.totalPages - 1"
+                                                        :class="news.page >= news.totalPages - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-blue-600'"
+                                                        class="px-3 py-1.5 text-sm font-medium transition">
+                                                        다음
+                                                    </button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </template>
 

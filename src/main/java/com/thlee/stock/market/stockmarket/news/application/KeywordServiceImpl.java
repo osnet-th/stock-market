@@ -2,7 +2,9 @@ package com.thlee.stock.market.stockmarket.news.application;
 
 import com.thlee.stock.market.stockmarket.news.application.dto.RegisterKeywordRequest;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
+import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
+import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,7 @@ import java.util.List;
 public class KeywordServiceImpl implements KeywordService{
 
     private final KeywordRepository keywordRepository;
+    private final NewsRepository newsRepository;
 
     /**
      * 키워드 등록
@@ -82,6 +85,10 @@ public class KeywordServiceImpl implements KeywordService{
     public void deleteKeyword(Long keywordId) {
         Keyword keyword = keywordRepository.findById(keywordId)
                 .orElseThrow(() -> new IllegalArgumentException("키워드를 찾을 수 없습니다."));
+
+        // 관련 뉴스 먼저 삭제
+        newsRepository.deleteByPurposeAndSourceId(NewsPurpose.KEYWORD, keyword.getId());
+
         keywordRepository.delete(keyword);
     }
 }

@@ -13,4 +13,9 @@ public interface EcosIndicatorRepository {
      * 경제지표 목록 일괄 저장
      */
     List<EcosIndicator> saveAll(List<EcosIndicator> indicators);
+
+    /**
+     * 히스토리 데이터 존재 여부 확인
+     */
+    boolean existsAny();
 }

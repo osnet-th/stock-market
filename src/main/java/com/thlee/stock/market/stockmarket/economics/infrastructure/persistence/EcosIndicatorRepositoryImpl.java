@@ -27,4 +27,9 @@ public class EcosIndicatorRepositoryImpl implements EcosIndicatorRepository {
             .map(mapper::toDomain)
             .toList();
     }
+
+    @Override
+    public boolean existsAny() {
+        return jpaRepository.existsFirstBy();
+    }
 }

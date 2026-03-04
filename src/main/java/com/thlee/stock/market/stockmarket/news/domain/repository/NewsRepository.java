@@ -17,4 +17,6 @@ public interface NewsRepository {
     List<News> findByPurpose(NewsPurpose purpose);
 
     PageResult<News> findByPurposeAndSourceId(NewsPurpose purpose, Long sourceId, int page, int size);
+
+    void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId);
 }

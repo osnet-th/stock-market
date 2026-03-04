@@ -3,27 +3,21 @@
 ## NewsRepository (도메인)
 
 ```java
-/**
- * 사용자별 검색 키워드로 뉴스 삭제
- */
-void deleteByUserIdAndSearchKeyword(Long userId, String searchKeyword);
+void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId);
 ```
 
 ## NewsJpaRepository (인프라)
 
 ```java
-/**
- * 사용자별 검색 키워드로 뉴스 삭제
- */
-void deleteByUserIdAndSearchKeyword(Long userId, String searchKeyword);
+void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId);
 ```
 
 ## NewsRepositoryImpl (인프라)
 
 ```java
 @Override
-public void deleteByUserIdAndSearchKeyword(Long userId, String searchKeyword) {
-    newsJpaRepository.deleteByUserIdAndSearchKeyword(userId, searchKeyword);
+public void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId) {
+    newsJpaRepository.deleteByPurposeAndSourceId(purpose, sourceId);
 }
 ```
 
@@ -39,7 +33,7 @@ public void deleteKeyword(Long keywordId) {
             .orElseThrow(() -> new IllegalArgumentException("키워드를 찾을 수 없습니다."));
 
     // 관련 뉴스 먼저 삭제
-    newsRepository.deleteByUserIdAndSearchKeyword(keyword.getUserId(), keyword.getKeyword());
+    newsRepository.deleteByPurposeAndSourceId(NewsPurpose.KEYWORD, keyword.getId());
 
     keywordRepository.delete(keyword);
 }

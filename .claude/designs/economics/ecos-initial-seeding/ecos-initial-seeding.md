@@ -2,10 +2,10 @@
 
 ## 작업 리스트
 
-- [ ] `EcosIndicatorRepository`에 `existsAny()` 메서드 추가
-- [ ] `EcosIndicatorJpaRepository`에 `existsFirstBy()` 메서드 추가
-- [ ] `EcosIndicatorRepositoryImpl`에 `existsAny()` 구현
-- [ ] `EcosIndicatorSaveService.fetchAndSave()`에 초기 시딩 분기 추가
+- [x] `EcosIndicatorRepository`에 `existsAny()` 메서드 추가
+- [x] `EcosIndicatorJpaRepository`에 `existsFirstBy()` 메서드 추가
+- [x] `EcosIndicatorRepositoryImpl`에 `existsAny()` 구현
+- [x] `EcosIndicatorSaveService.fetchAndSave()`에 초기 시딩 분기 추가
 
 ## 배경
 

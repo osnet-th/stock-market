@@ -83,4 +83,9 @@ public class NewsRepositoryImpl implements NewsRepository {
 
         return new PageResult<>(newsList, page, size, entityPage.getTotalElements());
     }
+
+    @Override
+    public void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId) {
+        newsJpaRepository.deleteByPurposeAndSourceId(purpose, sourceId);
+    }
 }

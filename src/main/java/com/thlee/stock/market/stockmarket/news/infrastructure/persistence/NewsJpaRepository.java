@@ -35,4 +35,6 @@ public interface NewsJpaRepository extends JpaRepository<NewsEntity, Long> {
                               @Param("purpose") String purpose,
                               @Param("sourceId") Long sourceId,
                               @Param("region") String region);
+
+    void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId);
 }

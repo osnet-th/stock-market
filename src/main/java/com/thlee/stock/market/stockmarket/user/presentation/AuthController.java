@@ -3,6 +3,7 @@ package com.thlee.stock.market.stockmarket.user.presentation;
 import com.thlee.stock.market.stockmarket.user.application.OAuthLoginService;
 import com.thlee.stock.market.stockmarket.user.application.dto.OAuthLoginResponse;
 import com.thlee.stock.market.stockmarket.user.application.dto.SignupCompleteRequest;
+import com.thlee.stock.market.stockmarket.user.application.dto.SignupCompleteResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -50,10 +51,10 @@ public class AuthController {
      * @return 204 No Content
      */
     @PostMapping("/signup")
-    public ResponseEntity<Void> completeSignup(
+    public ResponseEntity<SignupCompleteResponse> completeSignup(
             @RequestBody SignupCompleteRequest request
     ) {
-        oauthLoginService.completeSignup(request);
-        return ResponseEntity.noContent().build();
+        SignupCompleteResponse response = oauthLoginService.completeSignup(request);
+        return ResponseEntity.ok(response);
     }
 }

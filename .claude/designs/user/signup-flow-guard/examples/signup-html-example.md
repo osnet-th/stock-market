@@ -1,0 +1,130 @@
+# signup.html 구현 예시
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Market - 회원가입</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+
+    <div class="w-full max-w-md" x-data="signupForm()">
+        <!-- 로고 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Stock Market</h1>
+            <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded mt-2 inline-block">회원가입</span>
+        </div>
+
+        <!-- 회원가입 카드 -->
+        <div class="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
+            <p class="text-sm text-gray-500 mb-6">서비스 이용을 위해 추가 정보를 입력해주세요.</p>
+
+            <div class="space-y-4">
+                <!-- 이름 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">이름</label>
+                    <input x-model="form.name" type="text" placeholder="이름을 입력하세요"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- 닉네임 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">닉네임</label>
+                    <input x-model="form.nickname" type="text" placeholder="2~20자, 한글/영문/숫자"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- 전화번호 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
+                    <input x-model="form.phoneNumber" type="tel" placeholder="010-1234-5678"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- 에러 메시지 -->
+                <template x-if="errorMessage">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600" x-text="errorMessage"></div>
+                </template>
+
+                <!-- 가입 버튼 -->
+                <button @click="submitSignup()" :disabled="submitting"
+                    :class="submitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
+                    class="w-full text-white py-2.5 rounded-lg text-sm font-bold transition mt-2">
+                    <span x-text="submitting ? '처리 중...' : '가입 완료'"></span>
+                </button>
+            </div>
+        </div>
+
+        <p class="text-xs text-gray-300 mt-6 text-center">&copy; 2026 Stock Market</p>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        function signupForm() {
+            return {
+                form: {
+                    name: '',
+                    nickname: '',
+                    phoneNumber: ''
+                },
+                errorMessage: '',
+                submitting: false,
+
+                init() {
+                    const token = localStorage.getItem('accessToken');
+                    const userId = localStorage.getItem('userId');
+                    const role = localStorage.getItem('role');
+
+                    // 토큰 없으면 로그인 페이지로
+                    if (!token || !userId) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    // 이미 가입 완료된 사용자면 대시보드로
+                    if (role === 'USER') {
+                        window.location.href = '/';
+                        return;
+                    }
+                },
+
+                async submitSignup() {
+                    this.errorMessage = '';
+
+                    if (!this.form.name.trim()) {
+                        this.errorMessage = '이름을 입력해주세요.';
+                        return;
+                    }
+                    if (!this.form.nickname.trim()) {
+                        this.errorMessage = '닉네임을 입력해주세요.';
+                        return;
+                    }
+                    if (!this.form.phoneNumber.trim()) {
+                        this.errorMessage = '전화번호를 입력해주세요.';
+                        return;
+                    }
+
+                    this.submitting = true;
+                    try {
+                        const userId = parseInt(localStorage.getItem('userId'));
+                        await API.signup(userId, this.form.name.trim(), this.form.nickname.trim(), this.form.phoneNumber.trim());
+
+                        // 가입 완료: role 갱신 후 대시보드 이동
+                        localStorage.setItem('role', 'USER');
+                        window.location.href = '/';
+                    } catch (e) {
+                        this.errorMessage = e.message || '회원가입에 실패했습니다.';
+                    } finally {
+                        this.submitting = false;
+                    }
+                }
+            };
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+</body>
+</html>
+```

@@ -81,6 +81,13 @@ function dashboard() {
             }
 
             await this.loadMyProfile();
+
+            // SIGNING_USER면 회원가입 페이지로 리다이렉트
+            if (this.auth.role === 'SIGNING_USER') {
+                window.location.href = '/signup.html';
+                return;
+            }
+
             await this.loadHomeSummary();
         },
 
@@ -105,7 +112,9 @@ function dashboard() {
             try {
                 const profile = await API.getMyProfile();
                 this.auth.displayName = profile.displayName;
+                this.auth.role = profile.role;
                 localStorage.setItem('displayName', profile.displayName);
+                localStorage.setItem('role', profile.role);
             } catch (e) {
                 console.error('프로필 로드 실패:', e);
             }

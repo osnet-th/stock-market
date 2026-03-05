@@ -72,7 +72,6 @@ public class EcosIndicatorSaveService {
      */
     private int initialSeed(List<KeyStatIndicator> validIndicators, LocalDate today) {
         List<EcosIndicator> allIndicators = validIndicators.stream()
-                .filter(indicator -> indicator.cycle() != null)
                 .map(indicator -> EcosIndicator.fromKeyStatIndicator(indicator, today))
                 .toList();
 

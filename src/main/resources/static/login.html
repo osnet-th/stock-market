@@ -38,7 +38,7 @@
 
     <script>
         const clientId = "9e30f4bba41efa94c5256b8f981c2da9";
-        const redirectUri = "http://localhost:8080/oauth/kakao";
+        const redirectUri = window.location.origin + "/oauth/kakao";
         const authorizeUrl =
             "https://kauth.kakao.com/oauth/authorize" +
             "?client_id=" + encodeURIComponent(clientId) +

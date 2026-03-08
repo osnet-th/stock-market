@@ -60,6 +60,7 @@ public class ProdSecurityConfig {
 
                 // 인증 엔드포인트는 permitAll
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/oauth/**").permitAll()
 
                 // Actuator health 엔드포인트는 permitAll
                 .requestMatchers("/actuator/health").permitAll()

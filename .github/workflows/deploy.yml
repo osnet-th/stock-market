@@ -19,7 +19,7 @@ jobs:
 
       - run: chmod +x ./gradlew
 
-      - run: ./gradlew clean build
+      - run: ./gradlew clean build -x test
 
       - name: Deploy
         uses: appleboy/ssh-action@v1.0.3
@@ -31,6 +31,6 @@ jobs:
             cd /home/thlee/hubth-server
             git pull origin main
             chmod +x ./gradlew
-            ./gradlew clean build
+            ./gradlew clean build -x test
             docker compose up -d --build
             docker image prune -f

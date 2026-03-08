@@ -25,26 +25,29 @@ public class NewsController {
     private final KeywordNewsBatchService keywordNewsBatchService;
 
     /**
-     * 키워드 ID 기반 뉴스 조회 (페이징)
+     * 뉴스 조회 (페이징)
+     * purpose + sourceId로 범용 조회
      */
     @GetMapping
-    public ResponseEntity<NewsQueryResponse<NewsDto>> getNewsByKeyword(
-            @RequestParam Long keywordId,
+    public ResponseEntity<NewsQueryResponse<NewsDto>> getNews(
+            @RequestParam NewsPurpose purpose,
+            @RequestParam Long sourceId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
         PageResult<NewsDto> result = newsQueryService.getNewsBySource(
-                NewsPurpose.KEYWORD, keywordId, page, size);
+                purpose, sourceId, page, size);
         return ResponseEntity.ok(NewsQueryResponse.from(result));
     }
 
     /**
-     * 키워드 뉴스 즉시 수집
+     * 뉴스 즉시 수집 (purpose + sourceId 범용)
      */
     @PostMapping("/collect")
     public ResponseEntity<NewsCollectResponse> collectNews(@RequestBody NewsCollectRequest request) {
-        NewsBatchSaveResult result = keywordNewsBatchService.collectByKeyword(
-                request.getKeywordId(),
+        NewsBatchSaveResult result = keywordNewsBatchService.collectBySource(
+                request.getPurpose(),
+                request.getSourceId(),
                 request.getKeyword(),
                 request.getUserId(),
                 request.getRegion()

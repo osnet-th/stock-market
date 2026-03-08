@@ -74,13 +74,18 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
 
     @Override
     public NewsBatchSaveResult collectByKeyword(Long keywordId, String keyword, Long userId, Region region) {
+        return collectBySource(NewsPurpose.KEYWORD, keywordId, keyword, userId, region);
+    }
+
+    @Override
+    public NewsBatchSaveResult collectBySource(NewsPurpose purpose, Long sourceId, String keyword, Long userId, Region region) {
         List<NewsResultDto> searchResults = newsSearchService.search(keyword, region);
         if (searchResults.isEmpty()) {
             return new NewsBatchSaveResult(0, 0, 0);
         }
 
         List<KeywordSearchContext> contexts = searchResults.stream()
-                .map(dto -> new KeywordSearchContext(userId, keywordId, region, dto))
+                .map(dto -> new KeywordSearchContext(userId, sourceId, region, dto))
                 .toList();
 
         List<KeywordSearchContext> newContexts = filterNewNews(contexts);
@@ -100,7 +105,7 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
                 ))
                 .toList();
 
-        return newsSaveService.saveBatch(saveRequests, NewsPurpose.KEYWORD);
+        return newsSaveService.saveBatch(saveRequests, purpose);
     }
 
     private List<KeywordSearchContext> filterNewNews(List<KeywordSearchContext> searchedContexts) {

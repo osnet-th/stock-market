@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.news.application;
 
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsBatchSaveResult;
+import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 
 public interface KeywordNewsBatchService {
@@ -16,4 +17,12 @@ public interface KeywordNewsBatchService {
      * @param keyword   외부 뉴스 API 검색용 텍스트
      */
     NewsBatchSaveResult collectByKeyword(Long keywordId, String keyword, Long userId, Region region);
+
+    /**
+     * 범용 단건 즉시 뉴스 수집
+     * @param purpose   뉴스 목적 (KEYWORD, PORTFOLIO 등)
+     * @param sourceId  출처 ID (keyword.id 또는 portfolioItem.id)
+     * @param keyword   외부 뉴스 API 검색용 텍스트
+     */
+    NewsBatchSaveResult collectBySource(NewsPurpose purpose, Long sourceId, String keyword, Long userId, Region region);
 }

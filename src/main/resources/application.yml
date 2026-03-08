@@ -101,6 +101,14 @@ news:
       language: en
       page-size: 100
 
+# Stock API (공공데이터포털 - KRX 상장종목정보)
+stock:
+  api:
+    datagokr:
+      base-url: https://apis.data.go.kr/1160100/service/GetKrxListedInfoService/getItemInfo
+      service-key: ${DATAGOKR_SERVICE_KEY}
+      num-of-rows: 100
+
 # Scheduler Configuration
 scheduler:
   stock:

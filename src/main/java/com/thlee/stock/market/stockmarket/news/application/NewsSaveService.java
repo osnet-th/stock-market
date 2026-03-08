@@ -96,7 +96,8 @@ public class NewsSaveService {
                 } else {
                     ignored++;
                 }
-            } catch (Exception ignoredException) {
+            } catch (Exception e) {
+                e.printStackTrace();
                 failed++;
             }
         }

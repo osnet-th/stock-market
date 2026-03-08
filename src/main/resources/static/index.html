@@ -58,7 +58,7 @@
                 <h2 class="text-xl font-bold text-gray-800 mb-6">대시보드</h2>
 
                 <!-- 요약 카드 -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     <!-- 키워드 요약 -->
                     <div @click="navigateTo('keywords')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
                         <p class="text-sm text-gray-500 mb-1">등록 키워드</p>
@@ -82,6 +82,15 @@
                         <p class="text-sm text-gray-500 mb-1">글로벌 경제지표</p>
                         <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.globalCategories.length"></p>
                         <p class="text-xs text-gray-400 mt-1">카테고리</p>
+                    </div>
+                    <!-- 포트폴리오 요약 -->
+                    <div @click="navigateTo('portfolio')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
+                        <p class="text-sm text-gray-500 mb-1">포트폴리오</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.portfolioItemCount || 0"></p>
+                        <p class="text-xs text-gray-400 mt-1">
+                            자산 항목 · 총 <span x-text="Format.number(homeSummary.portfolioTotalAmount || 0, 0)" class="font-medium text-blue-600"></span>원
+                            · 뉴스 <span x-text="homeSummary.portfolioNewsEnabledCount || 0" class="font-medium text-green-600"></span>개 활성
+                        </p>
                     </div>
                 </div>
 
@@ -438,6 +447,700 @@
                         지표를 선택하세요.
                     </div>
                 </template>
+            </div>
+
+            <!-- ========== PORTFOLIO ========== -->
+            <div x-show="currentPage === 'portfolio'" x-cloak>
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">포트폴리오</h2>
+                    <button @click="openAddModal()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+                        + 자산 추가
+                    </button>
+                </div>
+
+                <!-- 로딩 -->
+                <template x-if="portfolio.loading">
+                    <div class="flex justify-center py-12">
+                        <div class="spinner"></div>
+                    </div>
+                </template>
+
+                <template x-if="!portfolio.loading">
+                    <div>
+                        <!-- 빈 상태 -->
+                        <template x-if="portfolio.items.length === 0">
+                            <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                                <p class="text-gray-400 text-sm mb-4">등록된 자산이 없습니다.</p>
+                                <button @click="openAddModal()"
+                                    class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+                                    첫 번째 자산 추가하기
+                                </button>
+                            </div>
+                        </template>
+
+                        <template x-if="portfolio.items.length > 0">
+                            <div>
+                                <!-- 요약 카드 -->
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                    <div class="bg-white rounded-xl border border-gray-200 p-5">
+                                        <p class="text-sm text-gray-500 mb-1">총 투자 금액</p>
+                                        <p class="text-2xl font-bold text-gray-800">
+                                            <span x-text="Format.number(getTotalInvested(), 0)"></span>
+                                            <span class="text-sm font-normal text-gray-500">원</span>
+                                        </p>
+                                    </div>
+                                    <div class="bg-white rounded-xl border border-gray-200 p-5">
+                                        <p class="text-sm text-gray-500 mb-1">자산 항목</p>
+                                        <p class="text-2xl font-bold text-gray-800">
+                                            <span x-text="portfolio.items.length"></span>
+                                            <span class="text-sm font-normal text-gray-500">개</span>
+                                        </p>
+                                    </div>
+                                    <div class="bg-white rounded-xl border border-gray-200 p-5">
+                                        <p class="text-sm text-gray-500 mb-1">뉴스 수집 활성</p>
+                                        <p class="text-2xl font-bold text-gray-800">
+                                            <span x-text="getNewsEnabledCount()"></span>
+                                            <span class="text-sm font-normal text-gray-500">개</span>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- 자산 비중 바 차트 -->
+                                <div class="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+                                    <h3 class="text-sm font-bold text-gray-700 mb-4">자산 비중</h3>
+                                    <div class="space-y-3">
+                                        <template x-for="alloc in portfolio.allocation" :key="alloc.assetType">
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-xs text-gray-600 w-16 text-right" x-text="alloc.assetTypeName"></span>
+                                                <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                                                    <div :class="getAssetTypeBarClass(alloc.assetType)"
+                                                        class="h-full rounded-full transition-all duration-500"
+                                                        :style="'width: ' + alloc.percentage + '%'">
+                                                    </div>
+                                                </div>
+                                                <span class="text-xs font-mono text-gray-700 w-12 text-right"
+                                                    x-text="alloc.percentage + '%'"></span>
+                                                <span class="text-xs text-gray-400 w-28 text-right"
+                                                    x-text="Format.number(alloc.totalAmount, 0) + '원'"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- 카테고리별 접이식 섹션 -->
+                                <div class="space-y-3">
+                                    <template x-for="alloc in portfolio.allocation" :key="'section-' + alloc.assetType">
+                                        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                            <!-- 섹션 헤더 -->
+                                            <button @click="toggleSection(alloc.assetType)"
+                                                class="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition">
+                                                <div class="flex items-center gap-3">
+                                                    <span x-text="portfolio.expandedSections[alloc.assetType] ? '▼' : '▶'"
+                                                        class="text-xs text-gray-400"></span>
+                                                    <span :class="getAssetTypeBadgeClass(alloc.assetType)"
+                                                        class="text-xs px-2 py-0.5 rounded-full font-medium"
+                                                        x-text="alloc.assetTypeName"></span>
+                                                    <span class="text-sm text-gray-500"
+                                                        x-text="getItemsByType(alloc.assetType).length + '건'"></span>
+                                                </div>
+                                                <span class="text-sm font-mono text-gray-600"
+                                                    x-text="Format.number(alloc.totalAmount, 0) + '원 (' + alloc.percentage + '%)'"></span>
+                                            </button>
+
+                                            <!-- 섹션 내용 -->
+                                            <div x-show="portfolio.expandedSections[alloc.assetType]" class="border-t border-gray-100">
+                                                <template x-for="item in getItemsByType(alloc.assetType)" :key="item.id">
+                                                    <div>
+                                                        <div @click="item.newsEnabled ? selectPortfolioNewsItem(item) : null"
+                                                            class="px-5 py-3 border-b border-gray-50 last:border-b-0 flex items-center justify-between transition"
+                                                            :class="item.newsEnabled ? 'hover:bg-gray-50 cursor-pointer' : ''"
+                                                            :style="portfolio.selectedNewsItemId === item.id ? 'background-color: rgb(240 253 244)' : ''">
+                                                            <div>
+                                                                <div class="flex items-center gap-2">
+                                                                    <span class="text-sm font-medium text-gray-800" x-text="item.itemName"></span>
+                                                                    <span class="text-xs text-gray-400" x-text="Format.number(item.investedAmount, 0) + '원'"></span>
+                                                                </div>
+                                                                <p class="text-xs text-gray-400 mt-0.5" x-text="getItemSummary(item)"></p>
+                                                            </div>
+                                                            <div class="flex items-center gap-2">
+                                                                <!-- 뉴스 토글 -->
+                                                                <button @click.stop="toggleNews(item)"
+                                                                    :class="item.newsEnabled ? 'text-green-600 hover:text-green-800' : 'text-gray-400 hover:text-gray-600'"
+                                                                    class="text-xs font-medium transition"
+                                                                    x-text="item.newsEnabled ? '뉴스 ON' : '뉴스 OFF'">
+                                                                </button>
+                                                                <!-- 추가 매수 (주식만) -->
+                                                                <button x-show="item.assetType === 'STOCK'"
+                                                                    @click.stop="openPurchaseModal(item)"
+                                                                    class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">추가 매수</button>
+                                                                <!-- 수정 -->
+                                                                <button @click.stop="openEditModal(item)"
+                                                                    class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
+                                                                <!-- 삭제 -->
+                                                                <button @click.stop="deleteItem(item.id)"
+                                                                    class="text-xs text-red-500 hover:text-red-700 font-medium transition">삭제</button>
+                                                            </div>
+                                                        </div>
+                                                        <!-- 뉴스 목록 (카드 클릭 시 펼침) -->
+                                                        <div x-show="portfolio.selectedNewsItemId === item.id" class="bg-gray-50 border-t border-gray-100">
+                                                            <!-- 수집 버튼 -->
+                                                            <div class="px-5 py-2 flex items-center justify-between border-b border-gray-100">
+                                                                <span class="text-xs text-gray-500" x-text="'뉴스 ' + portfolio.news.totalElements + '건'"></span>
+                                                                <button @click.stop="collectPortfolioNews(item)"
+                                                                    :disabled="portfolio.collectingItemId === item.id"
+                                                                    class="text-xs font-medium px-3 py-1 rounded-lg transition"
+                                                                    :class="portfolio.collectingItemId === item.id ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-100 text-green-700 hover:bg-green-200'"
+                                                                    x-text="portfolio.collectingItemId === item.id ? '수집 중...' : '뉴스 수집'">
+                                                                </button>
+                                                            </div>
+                                                            <!-- 로딩 -->
+                                                            <div x-show="portfolio.news.loading" class="px-5 py-4 text-center text-sm text-gray-400">뉴스 로딩 중...</div>
+                                                            <!-- 빈 상태 -->
+                                                            <div x-show="!portfolio.news.loading && portfolio.news.list.length === 0" class="px-5 py-4 text-center text-sm text-gray-400">수집된 뉴스가 없습니다.</div>
+                                                            <!-- 뉴스 리스트 -->
+                                                            <template x-for="newsItem in portfolio.news.list" :key="newsItem.id">
+                                                                <a :href="newsItem.link" target="_blank"
+                                                                    class="block px-5 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-100 transition">
+                                                                    <p class="text-sm text-gray-800 font-medium" x-text="newsItem.title"></p>
+                                                                    <div class="flex items-center gap-2 mt-1">
+                                                                        <span class="text-xs text-gray-400" x-text="newsItem.source || ''"></span>
+                                                                        <span class="text-xs text-gray-300" x-text="newsItem.publishedAt ? newsItem.publishedAt.substring(0, 10) : ''"></span>
+                                                                    </div>
+                                                                </a>
+                                                            </template>
+                                                            <!-- 페이징 -->
+                                                            <div x-show="portfolio.news.totalPages > 1" class="px-5 py-3 flex items-center justify-center gap-2 border-t border-gray-100">
+                                                                <button @click.stop="loadPortfolioNews(portfolio.news.page - 1)"
+                                                                    :disabled="portfolio.news.page <= 0"
+                                                                    class="text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed">이전</button>
+                                                                <span class="text-xs text-gray-500" x-text="(portfolio.news.page + 1) + ' / ' + portfolio.news.totalPages"></span>
+                                                                <button @click.stop="loadPortfolioNews(portfolio.news.page + 1)"
+                                                                    :disabled="portfolio.news.page >= portfolio.news.totalPages - 1"
+                                                                    class="text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed">다음</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <!-- 자산 추가 모달 -->
+            <div x-show="portfolio.showAddModal" x-cloak
+                class="modal-backdrop fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+                <div class="bg-white rounded-xl p-6 w-[480px] max-h-[80vh] overflow-y-auto shadow-xl"
+                    @click.outside="portfolio.showAddModal = false">
+
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">자산 추가</h3>
+
+                    <!-- 자산 타입 선택 -->
+                    <template x-if="!portfolio.selectedAssetType">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-3">자산 유형을 선택하세요</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <template x-for="t in [
+                                    {key:'STOCK', label:'주식', desc:'개별주식, ETF'},
+                                    {key:'BOND', label:'채권', desc:'국채, 회사채'},
+                                    {key:'REAL_ESTATE', label:'부동산', desc:'아파트, 오피스텔, 토지'},
+                                    {key:'FUND', label:'펀드', desc:'주식형, 채권형, 혼합형'},
+                                    {key:'GENERAL', label:'일반 자산', desc:'암호화폐, 금, 원자재, 현금, 기타'}
+                                ]">
+                                    <button @click="selectAssetType(t.key)"
+                                        class="border border-gray-200 rounded-lg p-3 text-left hover:border-blue-400 hover:bg-blue-50 transition">
+                                        <span class="text-sm font-medium text-gray-800" x-text="t.label"></span>
+                                        <p class="text-xs text-gray-400 mt-0.5" x-text="t.desc"></p>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- 타입별 폼 -->
+                    <template x-if="portfolio.selectedAssetType">
+                        <div>
+                            <!-- 뒤로가기 -->
+                            <button @click="portfolio.selectedAssetType = null"
+                                class="text-xs text-gray-500 hover:text-gray-700 mb-3 transition">
+                                ← 자산 유형 다시 선택
+                            </button>
+
+                            <div class="space-y-3">
+
+                                <!-- ===== 주식: 종목 검색 ===== -->
+                                <template x-if="portfolio.selectedAssetType === 'STOCK'">
+                                    <div>
+                                        <!-- 종목 검색 -->
+                                        <div class="mb-3">
+                                            <label class="block text-sm text-gray-600 mb-1">종목 검색</label>
+                                            <div class="relative flex gap-1">
+                                                <input x-model="portfolio.stockSearch.query"
+                                                    @keydown.enter.prevent="searchStock()"
+                                                    placeholder="종목명을 입력하세요 (예: 삼성전자)"
+                                                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                <button @click="searchStock()"
+                                                    :disabled="portfolio.stockSearch.loading"
+                                                    class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition text-gray-600">
+                                                    <span x-show="!portfolio.stockSearch.loading">🔍</span>
+                                                    <span x-show="portfolio.stockSearch.loading" class="text-xs text-gray-400">...</span>
+                                                </button>
+                                            </div>
+                                            <!-- 검색 결과 드롭다운 -->
+                                            <div x-show="portfolio.stockSearch.results.length > 0"
+                                                class="mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                                                <template x-for="(stock, idx) in portfolio.stockSearch.results" :key="idx">
+                                                    <button @click="selectStock(stock)"
+                                                        class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition border-b border-gray-50 last:border-b-0">
+                                                        <span class="font-medium text-gray-800" x-text="stock.stockName"></span>
+                                                        <span class="text-gray-400 ml-1" x-text="'(' + stock.stockCode + ')'"></span>
+                                                        <span class="text-xs text-gray-400 ml-1" x-text="stock.marketType"></span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </div>
+
+                                        <!-- 선택된 종목 표시 -->
+                                        <div x-show="portfolio.stockSearch.selected"
+                                            class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3 flex items-center justify-between">
+                                            <div class="text-sm">
+                                                <span class="font-medium text-blue-800" x-text="portfolio.stockSearch.selected?.stockName"></span>
+                                                <span class="text-blue-600 ml-1" x-text="'(' + (portfolio.stockSearch.selected?.stockCode || '') + ')'"></span>
+                                                <span class="text-xs text-blue-500 ml-1" x-text="portfolio.stockSearch.selected?.marketType"></span>
+                                            </div>
+                                            <button @click="clearSelectedStock()" class="text-xs text-blue-500 hover:text-blue-700">변경</button>
+                                        </div>
+
+                                        <!-- 서브타입 -->
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">유형</label>
+                                            <select x-model="portfolio.addForm.subType"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="INDIVIDUAL">개별주식</option>
+                                                <option value="ETF">ETF</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- 수량, 매수가, 배당률 -->
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <div>
+                                                <label class="block text-sm text-gray-600 mb-1">매수 수량 *</label>
+                                                <input type="number" x-model="portfolio.addForm.quantity" placeholder="0"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm text-gray-600 mb-1">매수가 *</label>
+                                                <input type="number" x-model="portfolio.addForm.purchasePrice" placeholder="0"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm text-gray-600 mb-1">배당률(%)</label>
+                                                <input type="number" step="0.01" x-model="portfolio.addForm.dividendYield" placeholder="0.00"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- ===== 채권 전용 필드 ===== -->
+                                <template x-if="portfolio.selectedAssetType === 'BOND'">
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">유형</label>
+                                            <select x-model="portfolio.addForm.subType"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="GOVERNMENT">국채</option>
+                                                <option value="CORPORATE">회사채</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">만기일</label>
+                                            <input type="date" x-model="portfolio.addForm.maturityDate"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label class="block text-sm text-gray-600 mb-1">표면금리(%)</label>
+                                                <input type="number" step="0.01" x-model="portfolio.addForm.couponRate" placeholder="0.00"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm text-gray-600 mb-1">신용등급</label>
+                                                <input type="text" x-model="portfolio.addForm.creditRating" placeholder="AAA"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- ===== 부동산 전용 필드 ===== -->
+                                <template x-if="portfolio.selectedAssetType === 'REAL_ESTATE'">
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">유형</label>
+                                            <select x-model="portfolio.addForm.subType"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="APARTMENT">아파트</option>
+                                                <option value="OFFICETEL">오피스텔</option>
+                                                <option value="LAND">토지</option>
+                                                <option value="COMMERCIAL">상가</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">주소</label>
+                                            <input type="text" x-model="portfolio.addForm.address" placeholder="주소 입력"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">면적 (m²)</label>
+                                            <input type="number" step="0.01" x-model="portfolio.addForm.area" placeholder="0.00"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- ===== 펀드 전용 필드 ===== -->
+                                <template x-if="portfolio.selectedAssetType === 'FUND'">
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">유형</label>
+                                            <select x-model="portfolio.addForm.subType"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="EQUITY_FUND">주식형</option>
+                                                <option value="BOND_FUND">채권형</option>
+                                                <option value="MIXED_FUND">혼합형</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">운용보수(%)</label>
+                                            <input type="number" step="0.01" x-model="portfolio.addForm.managementFee" placeholder="0.00"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- ===== 일반 자산 전용 필드 ===== -->
+                                <template x-if="portfolio.selectedAssetType === 'GENERAL'">
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">자산 유형</label>
+                                        <select x-model="portfolio.addForm.assetType"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="CRYPTO">암호화폐</option>
+                                            <option value="GOLD">금</option>
+                                            <option value="COMMODITY">원자재</option>
+                                            <option value="CASH">현금성 자산</option>
+                                            <option value="OTHER">기타</option>
+                                        </select>
+                                    </div>
+                                </template>
+
+                                <!-- ===== 공통 필드 (모든 타입) ===== -->
+                                <template x-if="portfolio.selectedAssetType !== 'STOCK'">
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">항목명 *</label>
+                                        <input type="text" x-model="portfolio.addForm.itemName" placeholder="항목명을 입력하세요"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </template>
+
+                                <template x-if="portfolio.selectedAssetType !== 'STOCK'">
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">투자 금액 (원) *</label>
+                                        <input type="number" x-model="portfolio.addForm.investedAmount" placeholder="0"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </template>
+
+                                <div>
+                                    <label class="block text-sm text-gray-600 mb-1">리전</label>
+                                    <select x-model="portfolio.addForm.region"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="DOMESTIC">국내</option>
+                                        <option value="INTERNATIONAL">해외</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm text-gray-600 mb-1">메모</label>
+                                    <input type="text" x-model="portfolio.addForm.memo" placeholder="메모 (선택)"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+
+                            <!-- 버튼 -->
+                            <div class="flex justify-end gap-2 mt-5">
+                                <button @click="portfolio.showAddModal = false"
+                                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">취소</button>
+                                <button @click="submitAddItem()"
+                                    class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">등록</button>
+                            </div>
+                        </div>
+                    </template>
+
+                </div>
+            </div>
+
+            <!-- 자산 수정 모달 -->
+            <div x-show="portfolio.showEditModal" x-cloak
+                class="modal-backdrop fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+                <div class="bg-white rounded-xl p-6 w-[480px] max-h-[80vh] overflow-y-auto shadow-xl"
+                    @click.outside="portfolio.showEditModal = false">
+
+                    <h3 class="text-lg font-bold text-gray-800 mb-1">자산 수정</h3>
+                    <template x-if="portfolio.editingItem">
+                        <p class="text-xs text-gray-400 mb-4">
+                            <span :class="getAssetTypeBadgeClass(portfolio.editingItem.assetType)"
+                                class="px-2 py-0.5 rounded-full"
+                                x-text="getAssetTypeLabel(portfolio.editingItem.assetType)"></span>
+                        </p>
+                    </template>
+
+                    <template x-if="portfolio.editingItem">
+                        <div class="space-y-3">
+
+                            <!-- ===== 주식 수정: 종목 재검색 가능 ===== -->
+                            <template x-if="portfolio.editingItem.assetType === 'STOCK'">
+                                <div>
+                                    <!-- 종목 재검색 -->
+                                    <div class="mb-3">
+                                        <label class="block text-sm text-gray-600 mb-1">종목 변경 (선택)</label>
+                                        <div class="relative flex gap-1">
+                                            <input x-model="portfolio.stockSearch.query"
+                                                @keydown.enter.prevent="searchStockForEdit()"
+                                                placeholder="다른 종목으로 변경하려면 검색"
+                                                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                            <button @click="searchStockForEdit()"
+                                                :disabled="portfolio.stockSearch.loading"
+                                                class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition text-gray-600">
+                                                <span x-show="!portfolio.stockSearch.loading">🔍</span>
+                                                <span x-show="portfolio.stockSearch.loading" class="text-xs text-gray-400">...</span>
+                                            </button>
+                                        </div>
+                                        <div x-show="portfolio.stockSearch.results.length > 0"
+                                            class="mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                                            <template x-for="(stock, idx) in portfolio.stockSearch.results" :key="idx">
+                                                <button @click="selectStockForEdit(stock)"
+                                                    class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition border-b border-gray-50 last:border-b-0">
+                                                    <span class="font-medium text-gray-800" x-text="stock.stockName"></span>
+                                                    <span class="text-gray-400 ml-1" x-text="'(' + stock.stockCode + ')'"></span>
+                                                    <span class="text-xs text-gray-400 ml-1" x-text="stock.marketType"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">유형</label>
+                                        <select x-model="portfolio.editForm.subType"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="INDIVIDUAL">개별주식</option>
+                                            <option value="ETF">ETF</option>
+                                        </select>
+                                    </div>
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">매수 수량 *</label>
+                                            <input type="number" x-model="portfolio.editForm.quantity" placeholder="0"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">매수가 *</label>
+                                            <input type="number" x-model="portfolio.editForm.purchasePrice" placeholder="0"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">배당률(%)</label>
+                                            <input type="number" step="0.01" x-model="portfolio.editForm.dividendYield" placeholder="0.00"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- ===== 채권 수정 ===== -->
+                            <template x-if="portfolio.editingItem.assetType === 'BOND'">
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">유형</label>
+                                        <select x-model="portfolio.editForm.subType"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="GOVERNMENT">국채</option>
+                                            <option value="CORPORATE">회사채</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">만기일</label>
+                                        <input type="date" x-model="portfolio.editForm.maturityDate"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">표면금리(%)</label>
+                                            <input type="number" step="0.01" x-model="portfolio.editForm.couponRate" placeholder="0.00"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm text-gray-600 mb-1">신용등급</label>
+                                            <input type="text" x-model="portfolio.editForm.creditRating" placeholder="AAA"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- ===== 부동산 수정 ===== -->
+                            <template x-if="portfolio.editingItem.assetType === 'REAL_ESTATE'">
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">유형</label>
+                                        <select x-model="portfolio.editForm.subType"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="APARTMENT">아파트</option>
+                                            <option value="OFFICETEL">오피스텔</option>
+                                            <option value="LAND">토지</option>
+                                            <option value="COMMERCIAL">상가</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">주소</label>
+                                        <input type="text" x-model="portfolio.editForm.address" placeholder="주소 입력"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">면적 (m²)</label>
+                                        <input type="number" step="0.01" x-model="portfolio.editForm.area" placeholder="0.00"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- ===== 펀드 수정 ===== -->
+                            <template x-if="portfolio.editingItem.assetType === 'FUND'">
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">유형</label>
+                                        <select x-model="portfolio.editForm.subType"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="EQUITY_FUND">주식형</option>
+                                            <option value="BOND_FUND">채권형</option>
+                                            <option value="MIXED_FUND">혼합형</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm text-gray-600 mb-1">운용보수(%)</label>
+                                        <input type="number" step="0.01" x-model="portfolio.editForm.managementFee" placeholder="0.00"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- ===== 공통 필드 ===== -->
+                            <div>
+                                <label class="block text-sm text-gray-600 mb-1">항목명 *</label>
+                                <input type="text" x-model="portfolio.editForm.itemName" placeholder="항목명"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <template x-if="portfolio.editingItem.assetType !== 'STOCK'">
+                                <div>
+                                    <label class="block text-sm text-gray-600 mb-1">투자 금액 (원) *</label>
+                                    <input type="number" x-model="portfolio.editForm.investedAmount" placeholder="0"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </template>
+                            <div>
+                                <label class="block text-sm text-gray-600 mb-1">메모</label>
+                                <input type="text" x-model="portfolio.editForm.memo" placeholder="메모 (선택)"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+
+                            <!-- 버튼 -->
+                            <div class="flex justify-end gap-2 mt-5">
+                                <button @click="portfolio.showEditModal = false; portfolio.editingItem = null"
+                                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">취소</button>
+                                <button @click="submitEditItem()"
+                                    class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">수정</button>
+                            </div>
+                        </div>
+                    </template>
+
+                </div>
+            </div>
+
+            <!-- 추가 매수 모달 -->
+            <div x-show="portfolio.showPurchaseModal" x-cloak
+                class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
+                    @click.outside="portfolio.showPurchaseModal = false">
+
+                    <h3 class="text-lg font-bold text-gray-900 mb-1">추가 매수</h3>
+                    <p class="text-sm text-gray-500 mb-4" x-text="portfolio.purchaseItem ? portfolio.purchaseItem.itemName : ''"></p>
+
+                    <!-- 현재 보유 정보 -->
+                    <template x-if="portfolio.purchaseItem && portfolio.purchaseItem.stockDetail">
+                        <div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600 space-y-1">
+                            <div class="flex justify-between">
+                                <span>현재 보유 수량</span>
+                                <span class="font-medium text-gray-800" x-text="Format.number(portfolio.purchaseItem.stockDetail.quantity, 0) + '주'"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>현재 평균 매수가</span>
+                                <span class="font-medium text-gray-800" x-text="Format.number(portfolio.purchaseItem.stockDetail.avgBuyPrice, 0) + '원'"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>현재 투자 금액</span>
+                                <span class="font-medium text-gray-800" x-text="Format.number(portfolio.purchaseItem.investedAmount, 0) + '원'"></span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- 추가 매수 입력 -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">추가 매수 수량</label>
+                            <input type="number" x-model="portfolio.purchaseForm.quantity"
+                                placeholder="매수할 수량" min="1"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">매수 단가</label>
+                            <input type="number" x-model="portfolio.purchaseForm.purchasePrice"
+                                placeholder="1주당 매수가" min="1"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                        </div>
+                    </div>
+
+                    <!-- 예상 결과 미리보기 -->
+                    <template x-if="portfolio.purchaseForm.quantity > 0 && portfolio.purchaseForm.purchasePrice > 0 && portfolio.purchaseItem && portfolio.purchaseItem.stockDetail">
+                        <div class="bg-emerald-50 rounded-lg p-3 mt-4 text-sm text-emerald-700 space-y-1">
+                            <p class="font-medium text-emerald-800 mb-1">매수 후 예상</p>
+                            <div class="flex justify-between">
+                                <span>총 수량</span>
+                                <span class="font-medium" x-text="Format.number(portfolio.purchaseItem.stockDetail.quantity + Number(portfolio.purchaseForm.quantity), 0) + '주'"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>예상 평균 매수가</span>
+                                <span class="font-medium" x-text="Format.number(Math.round((portfolio.purchaseItem.stockDetail.quantity * portfolio.purchaseItem.stockDetail.avgBuyPrice + Number(portfolio.purchaseForm.quantity) * Number(portfolio.purchaseForm.purchasePrice)) / (portfolio.purchaseItem.stockDetail.quantity + Number(portfolio.purchaseForm.quantity))), 0) + '원'"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>예상 투자 금액</span>
+                                <span class="font-medium" x-text="Format.number(Math.round((portfolio.purchaseItem.stockDetail.quantity + Number(portfolio.purchaseForm.quantity)) * Math.round((portfolio.purchaseItem.stockDetail.quantity * portfolio.purchaseItem.stockDetail.avgBuyPrice + Number(portfolio.purchaseForm.quantity) * Number(portfolio.purchaseForm.purchasePrice)) / (portfolio.purchaseItem.stockDetail.quantity + Number(portfolio.purchaseForm.quantity)))), 0) + '원'"></span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- 버튼 -->
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button @click="portfolio.showPurchaseModal = false"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">취소</button>
+                        <button @click="submitPurchase()"
+                            class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition">추가 매수</button>
+                    </div>
+                </div>
             </div>
 
         </main>

@@ -40,6 +40,10 @@ public class ProdSecurityConfig {
 
             // 인증/인가 설정
             .authorizeHttpRequests(auth -> auth
+                // Static 리소스 허용
+                .requestMatchers("/", "/index.html", "/login.html", "/signup.html").permitAll()
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
+
                 // 인증 엔드포인트는 permitAll
                 .requestMatchers("/api/auth/**").permitAll()
 

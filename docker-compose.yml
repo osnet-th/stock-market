@@ -35,3 +35,4 @@ services:
     volumes:
       - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
       - /home/thlee/.cloudflared/f865f55e-4fe3-474f-859d-a0d2cd562fc0.json:/etc/cloudflared/f865f55e-4fe3-474f-859d-a0d2cd562fc0.json:ro
+      - /home/thlee/.cloudflared/cert.pem:/etc/cloudflared/cert.pem:ro

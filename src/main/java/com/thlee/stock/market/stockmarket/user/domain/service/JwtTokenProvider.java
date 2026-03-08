@@ -38,6 +38,13 @@ public interface JwtTokenProvider {
     Long getUserIdFromToken(String token);
 
     /**
+     * 토큰에서 사용자 권한 추출
+     * @param token JWT 토큰
+     * @return 사용자 권한 문자열
+     */
+    String getRoleFromToken(String token);
+
+    /**
      * 토큰 만료 여부 확인
      * @param token 확인할 토큰
      * @return 만료되었으면 true, 아니면 false

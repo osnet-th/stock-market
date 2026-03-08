@@ -38,6 +38,6 @@
 
 ## 작업 리스트
 
-- [ ] `JwtAuthenticationFilter` 구현 → [예시](examples/JwtAuthenticationFilter-example.md)
-- [ ] `JwtAuthenticationEntryPoint` 구현 → [예시](examples/JwtAuthenticationEntryPoint-example.md)
-- [ ] `ProdSecurityConfig` 수정 (필터 + EntryPoint 등록) → [예시](examples/ProdSecurityConfig-example.md)
+- [x] `JwtAuthenticationFilter` 구현 → [예시](examples/JwtAuthenticationFilter-example.md)
+- [x] `JwtAuthenticationEntryPoint` 구현 → [예시](examples/JwtAuthenticationEntryPoint-example.md)
+- [x] `ProdSecurityConfig` 수정 (필터 + EntryPoint 등록) → [예시](examples/ProdSecurityConfig-example.md)

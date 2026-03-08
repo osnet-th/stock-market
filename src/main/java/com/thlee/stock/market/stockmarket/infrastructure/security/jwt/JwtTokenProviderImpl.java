@@ -64,6 +64,11 @@ public class JwtTokenProviderImpl implements JwtTokenProvider {
     }
 
     @Override
+    public String getRoleFromToken(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    @Override
     public boolean isTokenExpired(String token) {
         try {
             Date expiration = extractClaim(token, Claims::getExpiration);

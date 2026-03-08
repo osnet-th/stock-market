@@ -1,5 +1,9 @@
 package com.thlee.stock.market.stockmarket.infrastructure.security.config;
 
+import com.thlee.stock.market.stockmarket.infrastructure.security.jwt.JwtAuthenticationEntryPoint;
+import com.thlee.stock.market.stockmarket.infrastructure.security.jwt.JwtAuthenticationFilter;
+import com.thlee.stock.market.stockmarket.user.domain.service.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,6 +13,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -19,7 +24,11 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @Profile("prod")
+@RequiredArgsConstructor
 public class ProdSecurityConfig {
+
+    private final JwtTokenProvider jwtTokenProvider;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
@@ -36,6 +45,11 @@ public class ProdSecurityConfig {
             // 세션 정책: STATELESS (JWT 기반)
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+
+            // 인증 실패 시 401 응답
+            .exceptionHandling(exception ->
+                exception.authenticationEntryPoint(jwtAuthenticationEntryPoint)
             )
 
             // 인증/인가 설정
@@ -58,10 +72,13 @@ public class ProdSecurityConfig {
             .httpBasic(AbstractHttpConfigurer::disable)
 
             // formLogin 비활성화
-            .formLogin(AbstractHttpConfigurer::disable);
+            .formLogin(AbstractHttpConfigurer::disable)
 
-        // TODO: JWT 필터 추가 (향후 구현)
-        // http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            // JWT 필터 등록
+            .addFilterBefore(
+                new JwtAuthenticationFilter(jwtTokenProvider),
+                UsernamePasswordAuthenticationFilter.class
+            );
 
         return http.build();
     }

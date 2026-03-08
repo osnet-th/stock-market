@@ -1,0 +1,9 @@
+tunnel: hubth-server
+credentials-file: /etc/cloudflared/f865f55e-4fe3-474f-859d-a0d2cd562fc0.json
+
+ingress:
+  - hostname: hubth.com
+    service: http://nginx:80
+  - hostname: www.hubth.com
+    service: http://nginx:80
+  - service: http_status:404

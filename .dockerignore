@@ -1,0 +1,14 @@
+.git
+.gradle
+.idea
+*.iml
+bin
+build/tmp
+build/classes
+build/generated
+build/reports
+src/test
+*.md
+*.txt
+.claude
+.serena

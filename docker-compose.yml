@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hubth-app
+    restart: always
+    env_file:
+      - /home/thlee/hubth-server/.env
+    expose:
+      - "8080"
+
+  nginx:
+    image: nginx:latest
+    container_name: hubth-nginx
+    restart: always
+    depends_on:
+      - app
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    expose:
+      - "80"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: hubth-cloudflared
+    restart: always
+    depends_on:
+      - nginx
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - /home/thlee/.cloudflared/f865f55e-4fe3-474f-859d-a0d2cd562fc0.json:/etc/cloudflared/f865f55e-4fe3-474f-859d-a0d2cd562fc0.json:ro

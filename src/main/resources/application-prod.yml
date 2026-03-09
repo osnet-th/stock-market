@@ -47,12 +47,6 @@ finnhub:
   api:
     key: ${FINNHUB_API_KEY}
 
-kis:
-  api:
-    key: ${KIS_API_KEY}
-    secret: ${KIS_API_SECRET}
-    account: ${KIS_ACCOUNT_NUMBER}
-
 # Logging - 운영 환경
 logging:
   level:

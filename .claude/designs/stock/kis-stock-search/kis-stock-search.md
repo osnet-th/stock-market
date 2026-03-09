@@ -10,11 +10,11 @@
 - [x] KisDomesticMasterFileParser 작성 (국내 .mst 파싱)
 - [x] KisOverseasMasterFileParser 작성 (해외 .cod 파싱)
 - [x] KisMasterFileClient 작성 (ZIP 다운로드 + 파서 호출)
-- [ ] KisStockMasterCache 작성 (Caffeine 캐시 + 검색)
-- [ ] KisStockAdapter 작성 (`StockPort` 구현체)
-- [ ] DataGoKrStockAdapter `@Component` 제거
-- [ ] KisProperties에 마스터파일 설정 추가
-- [ ] application.yml 설정 추가
+- [x] KisStockMasterCache 작성 (Caffeine 캐시 + 검색)
+- [x] KisStockAdapter 작성 (`StockPort` 구현체)
+- [x] ~~DataGoKrStockAdapter `@Component` 제거~~ → KisStockAdapter에 `@Primary` 추가로 대체
+- [x] KisProperties에 마스터파일 설정 추가
+- [x] application.yml 설정 추가
 
 ## 배경
 

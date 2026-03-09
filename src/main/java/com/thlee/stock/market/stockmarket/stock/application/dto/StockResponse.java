@@ -9,15 +9,17 @@ import lombok.RequiredArgsConstructor;
 public class StockResponse {
     private final String stockCode;
     private final String stockName;
+    private final String englishName;
     private final String marketType;
-    private final String corpName;
+    private final String exchangeCode;
 
     public static StockResponse from(Stock stock) {
         return new StockResponse(
             stock.stockCode(),
             stock.stockName(),
-            stock.marketType(),
-            stock.corpName()
+            stock.englishName(),
+            stock.marketType().name(),
+            stock.exchangeCode().name()
         );
     }
 }

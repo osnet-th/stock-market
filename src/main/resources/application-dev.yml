@@ -31,12 +31,6 @@ finnhub:
   api:
     key: your-finnhub-api-key
 
-kis:
-  api:
-    key: your-kis-api-key
-    secret: your-kis-api-secret
-    account: your-account-number
-
 # Logging - 개발 환경
 logging:
   level:

@@ -1,5 +1,7 @@
 package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.datagokr;
 
+import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
+import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
 import com.thlee.stock.market.stockmarket.stock.domain.model.Stock;
 import com.thlee.stock.market.stockmarket.stock.domain.service.StockPort;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.datagokr.dto.DataGoKrStockResponse;
@@ -33,8 +35,9 @@ public class DataGoKrStockAdapter implements StockPort {
             new Stock(
                 item.getSrtnCd(),
                 item.getItmsNm(),
-                item.getMrktCtg(),
-                item.getCorpNm()
+                null,
+                MarketType.valueOf(item.getMrktCtg()),
+                ExchangeCode.KRX
             )
         ));
 

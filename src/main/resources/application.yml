@@ -50,28 +50,6 @@ kakao:
     issuer: https://kauth.kakao.com
     audience: ${KAKAO_CLIENT_ID}
 
-# Google OAuth Configuration
-google:
-  oauth:
-    client-id: ${GOOGLE_CLIENT_ID}
-    client-secret: ${GOOGLE_CLIENT_SECRET}
-    redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/oauth/google}
-    token-uri: https://oauth2.googleapis.com/token
-    user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
-
-# Mail (SMTP)
-  mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-
 # External APIs Base URLs
 finnhub:
   api:
@@ -80,6 +58,11 @@ finnhub:
 kis:
   api:
     url: https://openapi.koreainvestment.com:9443
+    key: ${KIS_API_KEY}
+    secret: ${KIS_API_SECRET}
+    account: ${KIS_ACCOUNT_NUMBER}
+    master:
+      base-url: https://new.real.download.dws.co.kr/common/master
 
 news:
   rss:
@@ -108,6 +91,12 @@ stock:
       base-url: https://apis.data.go.kr/1160100/service/GetKrxListedInfoService/getItemInfo
       service-key: ${DATAGOKR_SERVICE_KEY}
       num-of-rows: 100
+
+# DART OpenAPI (전자공시시스템)
+dart:
+  api:
+    base-url: https://opendart.fss.or.kr/api
+    crtfc-key: ${DART_API_KEY}
 
 # Scheduler Configuration
 scheduler:

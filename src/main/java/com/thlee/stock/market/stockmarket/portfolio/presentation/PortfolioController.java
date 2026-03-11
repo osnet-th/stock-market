@@ -32,7 +32,8 @@ public class PortfolioController {
         PortfolioItemResponse response = portfolioService.addStockItem(
                 userId, request.getItemName(),
                 request.getRegion(), request.getMemo(),
-                request.getSubType(), request.getStockCode(), request.getMarket(), request.getCountry(),
+                request.getSubType(), request.getStockCode(), request.getMarket(),
+                request.getExchangeCode(), request.getCountry(),
                 request.getQuantity(), request.getPurchasePrice(), request.getDividendYield());
         return ResponseEntity.ok(response);
     }
@@ -113,7 +114,8 @@ public class PortfolioController {
         PortfolioItemResponse response = portfolioService.updateStockItem(
                 userId, itemId,
                 request.getItemName(), request.getMemo(),
-                request.getSubType(), request.getStockCode(), request.getMarket(), request.getCountry(),
+                request.getSubType(), request.getStockCode(), request.getMarket(),
+                request.getExchangeCode(), request.getCountry(),
                 request.getQuantity(), request.getPurchasePrice(), request.getDividendYield());
         return ResponseEntity.ok(response);
     }

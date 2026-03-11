@@ -47,6 +47,19 @@ public class NewsSourceRepositoryImpl implements NewsSourceRepository {
     }
 
     @Override
+    public List<Long> findNewsIdsByPurposeAndSourceId(NewsPurpose purpose, Long sourceId) {
+        return newsSourceJpaRepository.findNewsIdsByPurposeAndSourceId(purpose, sourceId);
+    }
+
+    @Override
+    public List<Long> findNewsIdsWithSources(List<Long> newsIds) {
+        if (newsIds.isEmpty()) {
+            return List.of();
+        }
+        return newsSourceJpaRepository.findNewsIdsWithSources(newsIds);
+    }
+
+    @Override
     public void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId) {
         newsSourceJpaRepository.deleteByPurposeAndSourceId(purpose, sourceId);
     }

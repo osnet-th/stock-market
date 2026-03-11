@@ -90,13 +90,34 @@ function dashboard() {
                 selected: null,
                 debounceTimer: null
             },
+            stockPrices: {},
             expandedSections: {},
             showPurchaseModal: false,
             purchaseItem: null,
             purchaseForm: { quantity: '', purchasePrice: '' },
             selectedNewsItemId: null,
             news: { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false },
-            collectingItemId: null
+            collectingItemId: null,
+            // 재무정보
+            financialOptions: null,
+            financialResult: null,
+            financialLoading: false,
+            selectedStockItem: null,
+            financialYear: '',
+            financialReportCode: 'ANNUAL',
+            selectedFinancialMenu: null,
+            financialIndexClass: 'PROFITABILITY',
+            financialFsDiv: 'CFS',
+            financialMenus: [
+                { key: 'accounts', label: '재무계정' },
+                { key: 'indices', label: '재무지표' },
+                { key: 'full-statements', label: '전체재무제표' },
+                { key: 'stock-quantities', label: '주식수량' },
+                { key: 'dividends', label: '배당정보' },
+                { key: 'lawsuits', label: '소송현황' },
+                { key: 'private-fund', label: '사모자금사용' },
+                { key: 'public-fund', label: '공모자금사용' }
+            ]
         },
 
         assetTypeConfig: {
@@ -439,6 +460,8 @@ function dashboard() {
                 this.portfolio.items = results[0] || [];
                 this.portfolio.allocation = results[1] || [];
 
+                await this.loadStockPrices();
+
                 var sections = {};
                 this.portfolio.items.forEach(function(item) {
                     if (sections[item.assetType] === undefined) {
@@ -453,6 +476,83 @@ function dashboard() {
             } finally {
                 this.portfolio.loading = false;
             }
+        },
+
+        async loadStockPrices() {
+            var stockItems = this.portfolio.items.filter(function(item) {
+                return item.assetType === 'STOCK' && item.stockDetail;
+            });
+            if (stockItems.length === 0) {
+                this.portfolio.stockPrices = {};
+                return;
+            }
+
+            var stocks = stockItems.map(function(item) {
+                return {
+                    stockCode: item.stockDetail.stockCode,
+                    marketType: item.stockDetail.market,
+                    exchangeCode: item.stockDetail.exchangeCode
+                };
+            });
+
+            try {
+                var result = await API.getStockPrices(stocks);
+                this.portfolio.stockPrices = result.prices || {};
+            } catch (e) {
+                console.error('현재가 조회 실패:', e);
+                this.portfolio.stockPrices = {};
+            }
+        },
+
+        getEvalAmount(item) {
+            if (item.assetType === 'STOCK' && item.stockDetail) {
+                var priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
+                if (priceData && priceData.currentPrice) {
+                    return parseFloat(priceData.currentPrice) * item.stockDetail.quantity;
+                }
+            }
+            return item.investedAmount;
+        },
+
+        getProfitAmount(item) {
+            return this.getEvalAmount(item) - item.investedAmount;
+        },
+
+        getProfitRate(item) {
+            if (item.assetType !== 'STOCK' || !item.stockDetail || !item.stockDetail.avgBuyPrice) return null;
+            var priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
+            if (!priceData || !priceData.currentPrice) return null;
+            var currentPrice = parseFloat(priceData.currentPrice);
+            var avgPrice = parseFloat(item.stockDetail.avgBuyPrice);
+            if (avgPrice === 0) return null;
+            return ((currentPrice - avgPrice) / avgPrice * 100);
+        },
+
+        getTotalEvalAmount() {
+            return this.portfolio.items.reduce(function(sum, item) {
+                return sum + this.getEvalAmount(item);
+            }.bind(this), 0);
+        },
+
+        getEvalAllocation() {
+            var totalEval = this.getTotalEvalAmount();
+            if (totalEval === 0) return this.portfolio.allocation;
+
+            var typeMap = {};
+            this.portfolio.items.forEach(function(item) {
+                if (!typeMap[item.assetType]) {
+                    typeMap[item.assetType] = { assetType: item.assetType, assetTypeName: this.getAssetTypeLabel(item.assetType), totalAmount: 0 };
+                }
+                typeMap[item.assetType].totalAmount += this.getEvalAmount(item);
+            }.bind(this));
+
+            var assetTypeOrder = ['STOCK', 'BOND', 'REAL_ESTATE', 'FUND', 'OTHER', 'CRYPTO', 'GOLD', 'COMMODITY', 'CASH'];
+            return Object.values(typeMap).map(function(alloc) {
+                alloc.percentage = Math.round(alloc.totalAmount / totalEval * 1000) / 10;
+                return alloc;
+            }).sort(function(a, b) {
+                return assetTypeOrder.indexOf(a.assetType) - assetTypeOrder.indexOf(b.assetType);
+            });
         },
 
         getItemsByType(type) {
@@ -479,6 +579,15 @@ function dashboard() {
                     if (item.stockDetail.subType === 'ETF') parts.push('ETF');
                     if (item.stockDetail.quantity) parts.push(item.stockDetail.quantity + '주');
                     if (item.stockDetail.avgBuyPrice) parts.push('평균 ' + Format.number(item.stockDetail.avgBuyPrice) + '원');
+                    var priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
+                    if (priceData && priceData.currentPrice) {
+                        parts.push('평가 ' + Format.number(priceData.currentPrice) + '원');
+                        var rate = this.getProfitRate(item);
+                        if (rate !== null) {
+                            var sign = rate >= 0 ? '+' : '';
+                            parts.push('(' + sign + rate.toFixed(2) + '%)');
+                        }
+                    }
                     return parts.join(' · ');
                 case 'BOND':
                     if (!item.bondDetail) return '';
@@ -568,6 +677,7 @@ function dashboard() {
             this.portfolio.addForm.itemName = stock.stockName;
             this.portfolio.addForm.ticker = stock.stockCode;
             this.portfolio.addForm.exchange = stock.marketType;
+            this.portfolio.addForm.exchangeCode = stock.exchangeCode;
         },
 
         clearSelectedStock() {
@@ -575,6 +685,7 @@ function dashboard() {
             this.portfolio.addForm.itemName = '';
             this.portfolio.addForm.ticker = '';
             this.portfolio.addForm.exchange = '';
+            this.portfolio.addForm.exchangeCode = '';
         },
 
         async submitAddItem() {
@@ -612,6 +723,7 @@ function dashboard() {
                             subType: form.subType || 'INDIVIDUAL',
                             stockCode: form.ticker,
                             market: form.exchange,
+                            exchangeCode: form.exchangeCode,
                             country: form.region === 'DOMESTIC' ? 'KR' : null,
                             quantity: Number(form.quantity),
                             purchasePrice: Number(form.purchasePrice),
@@ -763,6 +875,7 @@ function dashboard() {
             var form = {
                 itemName: item.itemName,
                 investedAmount: item.investedAmount,
+                region: item.region || 'DOMESTIC',
                 memo: item.memo || ''
             };
 
@@ -772,6 +885,8 @@ function dashboard() {
                         form.subType = item.stockDetail.subType;
                         form.ticker = item.stockDetail.stockCode;
                         form.exchange = item.stockDetail.market;
+                        form.exchangeCode = item.stockDetail.exchangeCode;
+                        form.country = item.stockDetail.country;
                         form.quantity = item.stockDetail.quantity;
                         form.purchasePrice = item.stockDetail.avgBuyPrice;
                         form.dividendYield = item.stockDetail.dividendYield;
@@ -825,6 +940,7 @@ function dashboard() {
             this.portfolio.editForm.itemName = stock.stockName;
             this.portfolio.editForm.ticker = stock.stockCode;
             this.portfolio.editForm.exchange = stock.marketType;
+            this.portfolio.editForm.exchangeCode = stock.exchangeCode;
         },
 
         async submitEditItem() {
@@ -855,13 +971,15 @@ function dashboard() {
             try {
                 switch (item.assetType) {
                     case 'STOCK':
+                        var stockDetail = item.stockDetail || {};
                         await API.updateStockItem(userId, item.id, {
                             itemName: form.itemName,
                             memo: form.memo || null,
                             subType: form.subType || 'INDIVIDUAL',
-                            stockCode: form.ticker,
-                            market: form.exchange,
-                            country: form.region === 'DOMESTIC' ? 'KR' : null,
+                            stockCode: stockDetail.stockCode,
+                            market: stockDetail.market,
+                            exchangeCode: stockDetail.exchangeCode,
+                            country: stockDetail.country,
                             quantity: Number(form.quantity),
                             purchasePrice: Number(form.purchasePrice),
                             dividendYield: form.dividendYield ? Number(form.dividendYield) : null
@@ -911,6 +1029,102 @@ function dashboard() {
             } catch (e) {
                 console.error('자산 수정 실패:', e);
                 alert('수정에 실패했습니다.');
+            }
+        },
+
+        // ==================== 재무 상세 ====================
+
+        getYearOptions() {
+            var currentYear = new Date().getFullYear();
+            return Array.from({ length: 6 }, function(_, i) { return String(currentYear - i); });
+        },
+
+        getDefaultYear() {
+            return String(new Date().getFullYear() - 1);
+        },
+
+        async loadFinancialOptions() {
+            if (this.portfolio.financialOptions) return;
+            try {
+                this.portfolio.financialOptions = await API.getFinancialOptions();
+            } catch (e) {
+                console.error('재무 옵션 로드 실패:', e);
+            }
+        },
+
+        async openStockDetail(item) {
+            var stockCode = item.stockDetail?.stockCode;
+            if (!stockCode || item.stockDetail?.country !== 'KR') return;
+
+            this.portfolio.selectedStockItem = item;
+            this.portfolio.financialYear = this.getDefaultYear();
+            this.portfolio.financialReportCode = 'ANNUAL';
+            this.portfolio.selectedFinancialMenu = null;
+            this.portfolio.financialResult = null;
+
+            await this.loadFinancialOptions();
+        },
+
+        closeStockDetail() {
+            this.portfolio.selectedStockItem = null;
+            this.portfolio.selectedFinancialMenu = null;
+            this.portfolio.financialResult = null;
+        },
+
+        async selectFinancialMenu(menuKey) {
+            this.portfolio.selectedFinancialMenu = menuKey;
+            this.portfolio.financialResult = null;
+            await this.loadSelectedFinancial();
+        },
+
+        async onFinancialFilterChange() {
+            if (!this.portfolio.selectedFinancialMenu) return;
+            await this.loadSelectedFinancial();
+        },
+
+        async loadSelectedFinancial() {
+            var stockCode = this.portfolio.selectedStockItem?.stockDetail?.stockCode;
+            var menu = this.portfolio.selectedFinancialMenu;
+            if (!stockCode || !menu) return;
+
+            var year = this.portfolio.financialYear;
+            var reportCode = this.portfolio.financialReportCode;
+
+            this.portfolio.financialLoading = true;
+            try {
+                var result;
+                switch (menu) {
+                    case 'accounts':
+                        result = await API.getFinancialAccounts(stockCode, year, reportCode);
+                        break;
+                    case 'indices':
+                        result = await API.getFinancialIndices(stockCode, year, reportCode, this.portfolio.financialIndexClass);
+                        break;
+                    case 'full-statements':
+                        result = await API.getFullFinancialStatements(stockCode, year, reportCode, this.portfolio.financialFsDiv);
+                        break;
+                    case 'stock-quantities':
+                        result = await API.getFinancialStockQuantities(stockCode, year, reportCode);
+                        break;
+                    case 'dividends':
+                        result = await API.getFinancialDividends(stockCode, year, reportCode);
+                        break;
+                    case 'lawsuits':
+                        result = await API.getLawsuits(stockCode, year + '-01-01', year + '-12-31');
+                        break;
+                    case 'private-fund':
+                        result = await API.getPrivateFundUsages(stockCode, year, reportCode);
+                        break;
+                    case 'public-fund':
+                        result = await API.getPublicFundUsages(stockCode, year, reportCode);
+                        break;
+                }
+                this.portfolio.financialResult = result || [];
+            } catch (e) {
+                console.error('재무정보 조회 실패:', e);
+                this.portfolio.financialResult = [];
+            } finally {
+                this.portfolio.financialLoading = false;
             }
         }
     };

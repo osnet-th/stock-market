@@ -58,8 +58,8 @@ finnhub:
 kis:
   api:
     url: https://openapi.koreainvestment.com:9443
-    key: ${KIS_API_KEY}
-    secret: ${KIS_API_SECRET}
+    key: ${KIS_APP_KEY}
+    secret: ${KIS_APP_SECRET}
     account: ${KIS_ACCOUNT_NUMBER}
     master:
       base-url: https://new.real.download.dws.co.kr/common/master

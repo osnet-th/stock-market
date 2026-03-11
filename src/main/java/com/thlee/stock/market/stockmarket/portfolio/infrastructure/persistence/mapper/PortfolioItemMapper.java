@@ -28,6 +28,7 @@ public class PortfolioItemMapper {
                     stock.getSubType() != null ? StockSubType.valueOf(stock.getSubType()) : null,
                     stock.getStockCode(),
                     stock.getMarket(),
+                    stock.getExchangeCode(),
                     stock.getCountry(),
                     stock.getQuantity(),
                     stock.getAvgBuyPrice(),
@@ -85,8 +86,9 @@ public class PortfolioItemMapper {
                         item.getInvestedAmount(), item.isNewsEnabled(), region,
                         item.getMemo(), item.getCreatedAt(), item.getUpdatedAt(),
                         detail.getSubType() != null ? detail.getSubType().name() : null,
-                        detail.getStockCode(), detail.getMarket(), detail.getCountry(),
-                        detail.getQuantity(), detail.getAvgBuyPrice(), detail.getDividendYield()
+                        detail.getStockCode(), detail.getMarket(), detail.getExchangeCode(),
+                        detail.getCountry(), detail.getQuantity(),
+                        detail.getAvgBuyPrice(), detail.getDividendYield()
                 );
             }
             case BOND -> {

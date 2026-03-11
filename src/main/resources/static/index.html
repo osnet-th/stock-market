@@ -491,26 +491,28 @@
                                         </p>
                                     </div>
                                     <div class="bg-white rounded-xl border border-gray-200 p-5">
-                                        <p class="text-sm text-gray-500 mb-1">자산 항목</p>
+                                        <p class="text-sm text-gray-500 mb-1">총 평가 금액</p>
                                         <p class="text-2xl font-bold text-gray-800">
-                                            <span x-text="portfolio.items.length"></span>
-                                            <span class="text-sm font-normal text-gray-500">개</span>
+                                            <span x-text="Format.number(getTotalEvalAmount(), 0)"></span>
+                                            <span class="text-sm font-normal text-gray-500">원</span>
                                         </p>
                                     </div>
                                     <div class="bg-white rounded-xl border border-gray-200 p-5">
-                                        <p class="text-sm text-gray-500 mb-1">뉴스 수집 활성</p>
-                                        <p class="text-2xl font-bold text-gray-800">
-                                            <span x-text="getNewsEnabledCount()"></span>
-                                            <span class="text-sm font-normal text-gray-500">개</span>
+                                        <p class="text-sm text-gray-500 mb-1">총 수익금</p>
+                                        <p class="text-2xl font-bold"
+                                           :class="getTotalEvalAmount() - getTotalInvested() >= 0 ? 'text-red-600' : 'text-blue-600'">
+                                            <span x-text="(getTotalEvalAmount() - getTotalInvested() >= 0 ? '+' : '') + Format.number(getTotalEvalAmount() - getTotalInvested(), 0)"></span>
+                                            <span class="text-sm font-normal"
+                                                  x-text="getTotalInvested() > 0 ? '(' + (getTotalEvalAmount() - getTotalInvested() >= 0 ? '+' : '') + ((getTotalEvalAmount() - getTotalInvested()) / getTotalInvested() * 100).toFixed(2) + '%)' : ''"></span>
                                         </p>
                                     </div>
                                 </div>
 
                                 <!-- 자산 비중 바 차트 -->
                                 <div class="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-                                    <h3 class="text-sm font-bold text-gray-700 mb-4">자산 비중</h3>
+                                    <h3 class="text-sm font-bold text-gray-700 mb-4">자산 비중 (평가금액 기준)</h3>
                                     <div class="space-y-3">
-                                        <template x-for="alloc in portfolio.allocation" :key="alloc.assetType">
+                                        <template x-for="alloc in getEvalAllocation()" :key="alloc.assetType">
                                             <div class="flex items-center gap-3">
                                                 <span class="text-xs text-gray-600 w-16 text-right" x-text="alloc.assetTypeName"></span>
                                                 <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
@@ -530,7 +532,7 @@
 
                                 <!-- 카테고리별 접이식 섹션 -->
                                 <div class="space-y-3">
-                                    <template x-for="alloc in portfolio.allocation" :key="'section-' + alloc.assetType">
+                                    <template x-for="alloc in getEvalAllocation()" :key="'section-' + alloc.assetType">
                                         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                                             <!-- 섹션 헤더 -->
                                             <button @click="toggleSection(alloc.assetType)"
@@ -559,7 +561,10 @@
                                                             <div>
                                                                 <div class="flex items-center gap-2">
                                                                     <span class="text-sm font-medium text-gray-800" x-text="item.itemName"></span>
-                                                                    <span class="text-xs text-gray-400" x-text="Format.number(item.investedAmount, 0) + '원'"></span>
+                                                                    <span class="text-xs text-gray-400" x-text="'원금 ' + Format.number(item.investedAmount, 0) + '원'"></span>
+                                                                    <span class="text-xs font-medium"
+                                                                        :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                                                        x-text="Format.number(getEvalAmount(item), 0) + '원'"></span>
                                                                 </div>
                                                                 <p class="text-xs text-gray-400 mt-0.5" x-text="getItemSummary(item)"></p>
                                                             </div>
@@ -570,6 +575,10 @@
                                                                     class="text-xs font-medium transition"
                                                                     x-text="item.newsEnabled ? '뉴스 ON' : '뉴스 OFF'">
                                                                 </button>
+                                                                <!-- 재무상세 (국내 주식만) -->
+                                                                <button x-show="item.assetType === 'STOCK' && item.stockDetail?.country === 'KR'"
+                                                                    @click.stop="openStockDetail(item)"
+                                                                    class="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition">재무상세 ▸</button>
                                                                 <!-- 추가 매수 (주식만) -->
                                                                 <button x-show="item.assetType === 'STOCK'"
                                                                     @click.stop="openPurchaseModal(item)"
@@ -582,6 +591,151 @@
                                                                     class="text-xs text-red-500 hover:text-red-700 font-medium transition">삭제</button>
                                                             </div>
                                                         </div>
+                                                        <!-- 재무 상세 패널 -->
+                                                        <template x-if="portfolio.selectedStockItem?.id === item.id">
+                                                            <div class="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200"
+                                                                 x-transition:enter="transition ease-out duration-200"
+                                                                 x-transition:enter-start="opacity-0 transform -translate-y-2"
+                                                                 x-transition:enter-end="opacity-100 transform translate-y-0">
+
+                                                                <!-- 헤더 -->
+                                                                <div class="flex justify-between items-center mb-3">
+                                                                    <h4 class="font-semibold text-sm">
+                                                                        <span x-text="item.itemName"></span>
+                                                                        (<span x-text="item.stockDetail?.stockCode"></span>) 재무 상세
+                                                                    </h4>
+                                                                    <button @click.stop="closeStockDetail()"
+                                                                            class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+                                                                </div>
+
+                                                                <!-- 보유 정보 -->
+                                                                <div class="flex gap-4 text-sm text-gray-600 mb-3 pb-3 border-b border-gray-200">
+                                                                    <span>수량: <span class="font-semibold" x-text="Format.number(item.stockDetail?.quantity)"></span>주</span>
+                                                                    <span>평단가: <span class="font-semibold" x-text="'&#8361;' + Format.number(item.stockDetail?.avgBuyPrice)"></span></span>
+                                                                    <span>투자금: <span class="font-semibold" x-text="'&#8361;' + Format.number(item.investedAmount)"></span></span>
+                                                                </div>
+
+                                                                <!-- 메뉴 버튼 목록 -->
+                                                                <div class="flex flex-wrap gap-2 mb-4">
+                                                                    <template x-for="menu in portfolio.financialMenus" :key="menu.key">
+                                                                        <button @click.stop="selectFinancialMenu(menu.key)"
+                                                                                class="text-xs px-3 py-1.5 rounded-full border transition"
+                                                                                :class="portfolio.selectedFinancialMenu === menu.key
+                                                                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                                                                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'"
+                                                                                x-text="menu.label">
+                                                                        </button>
+                                                                    </template>
+                                                                </div>
+
+                                                                <!-- 메뉴 선택 시: 파라미터 + 결과 -->
+                                                                <template x-if="portfolio.selectedFinancialMenu">
+                                                                    <div>
+                                                                        <!-- 파라미터 드롭다운 -->
+                                                                        <div class="flex flex-wrap gap-3 mb-4">
+                                                                            <!-- 연도 -->
+                                                                            <div class="flex items-center gap-2">
+                                                                                <label class="text-xs text-gray-500">연도</label>
+                                                                                <select x-model="portfolio.financialYear"
+                                                                                        @change="onFinancialFilterChange()"
+                                                                                        class="text-sm border border-gray-300 rounded px-2 py-1">
+                                                                                    <template x-for="year in getYearOptions()" :key="year">
+                                                                                        <option :value="year" x-text="year + '년'"></option>
+                                                                                    </template>
+                                                                                </select>
+                                                                            </div>
+                                                                            <!-- 보고서 (소송 제외) -->
+                                                                            <div class="flex items-center gap-2"
+                                                                                 x-show="portfolio.selectedFinancialMenu !== 'lawsuits' && portfolio.financialOptions">
+                                                                                <label class="text-xs text-gray-500">보고서</label>
+                                                                                <select x-model="portfolio.financialReportCode"
+                                                                                        @change="onFinancialFilterChange()"
+                                                                                        class="text-sm border border-gray-300 rounded px-2 py-1">
+                                                                                    <template x-for="opt in portfolio.financialOptions?.reportCodes" :key="opt.code">
+                                                                                        <option :value="opt.code" x-text="opt.label"></option>
+                                                                                    </template>
+                                                                                </select>
+                                                                            </div>
+                                                                            <!-- 지표분류 (재무지표만) -->
+                                                                            <div class="flex items-center gap-2"
+                                                                                 x-show="portfolio.selectedFinancialMenu === 'indices' && portfolio.financialOptions">
+                                                                                <label class="text-xs text-gray-500">지표분류</label>
+                                                                                <select x-model="portfolio.financialIndexClass"
+                                                                                        @change="onFinancialFilterChange()"
+                                                                                        class="text-sm border border-gray-300 rounded px-2 py-1">
+                                                                                    <template x-for="opt in portfolio.financialOptions?.indexClassCodes" :key="opt.code">
+                                                                                        <option :value="opt.code" x-text="opt.label"></option>
+                                                                                    </template>
+                                                                                </select>
+                                                                            </div>
+                                                                            <!-- 재무제표구분 (전체재무제표만) -->
+                                                                            <div class="flex items-center gap-2"
+                                                                                 x-show="portfolio.selectedFinancialMenu === 'full-statements'">
+                                                                                <label class="text-xs text-gray-500">구분</label>
+                                                                                <select x-model="portfolio.financialFsDiv"
+                                                                                        @change="onFinancialFilterChange()"
+                                                                                        class="text-sm border border-gray-300 rounded px-2 py-1">
+                                                                                    <option value="CFS">연결</option>
+                                                                                    <option value="OFS">개별</option>
+                                                                                </select>
+                                                                            </div>
+                                                                            <!-- 로딩 스피너 -->
+                                                                            <div x-show="portfolio.financialLoading"
+                                                                                 class="flex items-center text-xs text-gray-400">
+                                                                                <svg class="animate-spin h-4 w-4 mr-1" viewBox="0 0 24 24">
+                                                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                                                                </svg>
+                                                                                조회 중...
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <!-- 결과 영역 -->
+                                                                        <template x-if="portfolio.financialResult !== null && !portfolio.financialLoading">
+                                                                            <div>
+                                                                                <!-- 빈 결과 -->
+                                                                                <template x-if="portfolio.financialResult.length === 0">
+                                                                                    <div class="text-center py-6 text-gray-400 text-sm">
+                                                                                        해당 연도/보고서의 데이터가 아직 등록되지 않았습니다.
+                                                                                        <br><span class="text-xs">다른 연도나 보고서를 선택해 주세요.</span>
+                                                                                    </div>
+                                                                                </template>
+                                                                                <!-- 결과 테이블 -->
+                                                                                <template x-if="portfolio.financialResult.length > 0">
+                                                                                    <div class="overflow-x-auto">
+                                                                                        <table class="w-full text-sm">
+                                                                                            <thead>
+                                                                                                <tr class="border-b border-gray-200">
+                                                                                                    <template x-for="key in Object.keys(portfolio.financialResult[0])" :key="key">
+                                                                                                        <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium" x-text="key"></th>
+                                                                                                    </template>
+                                                                                                </tr>
+                                                                                            </thead>
+                                                                                            <tbody>
+                                                                                                <template x-for="(row, idx) in portfolio.financialResult" :key="idx">
+                                                                                                    <tr class="border-b border-gray-50">
+                                                                                                        <template x-for="key in Object.keys(row)" :key="key">
+                                                                                                            <td class="py-2 px-2 text-gray-700" x-text="row[key]"></td>
+                                                                                                        </template>
+                                                                                                    </tr>
+                                                                                                </template>
+                                                                                            </tbody>
+                                                                                        </table>
+                                                                                    </div>
+                                                                                </template>
+                                                                            </div>
+                                                                        </template>
+                                                                    </div>
+                                                                </template>
+
+                                                                <!-- 메뉴 미선택 시 안내 -->
+                                                                <template x-if="!portfolio.selectedFinancialMenu">
+                                                                    <div class="text-center py-6 text-gray-400 text-sm">
+                                                                        위 메뉴를 선택하여 재무정보를 조회하세요
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </template>
                                                         <!-- 뉴스 목록 (카드 클릭 시 펼침) -->
                                                         <div x-show="portfolio.selectedNewsItemId === item.id" class="bg-gray-50 border-t border-gray-100">
                                                             <!-- 수집 버튼 -->
@@ -903,35 +1057,14 @@
                     <template x-if="portfolio.editingItem">
                         <div class="space-y-3">
 
-                            <!-- ===== 주식 수정: 종목 재검색 가능 ===== -->
+                            <!-- ===== 주식 수정 ===== -->
                             <template x-if="portfolio.editingItem.assetType === 'STOCK'">
                                 <div>
-                                    <!-- 종목 재검색 -->
                                     <div class="mb-3">
-                                        <label class="block text-sm text-gray-600 mb-1">종목 변경 (선택)</label>
-                                        <div class="relative flex gap-1">
-                                            <input x-model="portfolio.stockSearch.query"
-                                                @keydown.enter.prevent="searchStockForEdit()"
-                                                placeholder="다른 종목으로 변경하려면 검색"
-                                                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                            <button @click="searchStockForEdit()"
-                                                :disabled="portfolio.stockSearch.loading"
-                                                class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition text-gray-600">
-                                                <span x-show="!portfolio.stockSearch.loading">🔍</span>
-                                                <span x-show="portfolio.stockSearch.loading" class="text-xs text-gray-400">...</span>
-                                            </button>
-                                        </div>
-                                        <div x-show="portfolio.stockSearch.results.length > 0"
-                                            class="mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                                            <template x-for="(stock, idx) in portfolio.stockSearch.results" :key="idx">
-                                                <button @click="selectStockForEdit(stock)"
-                                                    class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition border-b border-gray-50 last:border-b-0">
-                                                    <span class="font-medium text-gray-800" x-text="stock.stockName"></span>
-                                                    <span class="text-gray-400 ml-1" x-text="'(' + stock.stockCode + ')'"></span>
-                                                    <span class="text-xs text-gray-400 ml-1" x-text="stock.marketType"></span>
-                                                </button>
-                                            </template>
-                                        </div>
+                                        <label class="block text-sm text-gray-600 mb-1">종목</label>
+                                        <input type="text" disabled
+                                            :value="portfolio.editForm.itemName + ' (' + portfolio.editForm.ticker + ' / ' + portfolio.editForm.exchange + ')'"
+                                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
                                     </div>
 
                                     <div>

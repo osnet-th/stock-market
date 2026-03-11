@@ -19,4 +19,9 @@ public interface NewsRepository {
     PageResult<News> findByPurposeAndSourceId(NewsPurpose purpose, Long sourceId, int page, int size);
 
     void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId);
+
+    /**
+     * ID 목록으로 뉴스 일괄 삭제
+     */
+    void deleteByIds(List<Long> ids);
 }

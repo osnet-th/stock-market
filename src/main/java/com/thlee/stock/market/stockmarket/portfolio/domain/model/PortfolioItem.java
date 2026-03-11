@@ -201,6 +201,7 @@ public class PortfolioItem {
                 this.stockDetail.getSubType(),
                 this.stockDetail.getStockCode(),
                 this.stockDetail.getMarket(),
+                this.stockDetail.getExchangeCode(),
                 this.stockDetail.getCountry(),
                 newQuantity,
                 newAvgBuyPrice,

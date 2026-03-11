@@ -21,6 +21,9 @@ public class StockItemEntity extends PortfolioItemEntity {
     @Column(name = "market", length = 20)
     private String market;
 
+    @Column(name = "exchange_code", length = 10)
+    private String exchangeCode;
+
     @Column(name = "country", length = 10)
     private String country;
 
@@ -48,6 +51,7 @@ public class StockItemEntity extends PortfolioItemEntity {
                            String subType,
                            String stockCode,
                            String market,
+                           String exchangeCode,
                            String country,
                            Integer quantity,
                            BigDecimal avgBuyPrice,
@@ -56,6 +60,7 @@ public class StockItemEntity extends PortfolioItemEntity {
         this.subType = subType;
         this.stockCode = stockCode;
         this.market = market;
+        this.exchangeCode = exchangeCode;
         this.country = country;
         this.quantity = quantity;
         this.avgBuyPrice = avgBuyPrice;

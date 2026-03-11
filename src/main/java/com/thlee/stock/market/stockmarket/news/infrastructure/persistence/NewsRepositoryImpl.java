@@ -88,4 +88,12 @@ public class NewsRepositoryImpl implements NewsRepository {
     public void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId) {
         newsJpaRepository.deleteByPurposeAndSourceId(purpose, sourceId);
     }
+
+    @Override
+    public void deleteByIds(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return;
+        }
+        newsJpaRepository.deleteAllByIdInBatch(ids);
+    }
 }

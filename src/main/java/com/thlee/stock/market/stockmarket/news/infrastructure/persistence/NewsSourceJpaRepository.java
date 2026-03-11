@@ -36,5 +36,12 @@ public interface NewsSourceJpaRepository extends JpaRepository<NewsSourceEntity,
     Page<NewsSourceEntity> findByPurposeAndSourceIdOrderByCreatedAtDesc(
             NewsPurpose purpose, Long sourceId, Pageable pageable);
 
+    @Query("SELECT ns.newsId FROM NewsSourceEntity ns WHERE ns.purpose = :purpose AND ns.sourceId = :sourceId")
+    List<Long> findNewsIdsByPurposeAndSourceId(@Param("purpose") NewsPurpose purpose,
+                                               @Param("sourceId") Long sourceId);
+
+    @Query("SELECT DISTINCT ns.newsId FROM NewsSourceEntity ns WHERE ns.newsId IN :newsIds")
+    List<Long> findNewsIdsWithSources(@Param("newsIds") List<Long> newsIds);
+
     void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId);
 }

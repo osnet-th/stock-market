@@ -176,5 +176,56 @@ const API = {
     // 뉴스 토글
     togglePortfolioNews(userId, itemId, enabled) {
         return this.request('PATCH', `/api/portfolio/items/${itemId}/news?userId=${userId}`, { enabled });
+    },
+
+    // ==================== Stock Prices ====================
+    getStockPrices(stocks) {
+        return this.request('POST', '/api/stocks/prices', { stocks });
+    },
+
+    // ==================== Stock Financial ====================
+
+    getFinancialOptions() {
+        return this.request('GET', '/api/stocks/financial/options');
+    },
+
+    getFinancialAccounts(stockCode, year, reportCode) {
+        return this.request('GET',
+            `/api/stocks/${stockCode}/financial/accounts?year=${year}&reportCode=${reportCode}`);
+    },
+
+    getFinancialIndices(stockCode, year, reportCode, indexClassCode) {
+        return this.request('GET',
+            `/api/stocks/${stockCode}/financial/indices?year=${year}&reportCode=${reportCode}&indexClassCode=${indexClassCode}`);
+    },
+
+    getFinancialDividends(stockCode, year, reportCode) {
+        return this.request('GET',
+            `/api/stocks/${stockCode}/financial/dividends?year=${year}&reportCode=${reportCode}`);
+    },
+
+    getFinancialStockQuantities(stockCode, year, reportCode) {
+        return this.request('GET',
+            `/api/stocks/${stockCode}/financial/stock-quantities?year=${year}&reportCode=${reportCode}`);
+    },
+
+    getFullFinancialStatements(stockCode, year, reportCode, fsDiv) {
+        return this.request('GET',
+            `/api/stocks/${stockCode}/financial/full-statements?year=${year}&reportCode=${reportCode}&fsDiv=${fsDiv}`);
+    },
+
+    getLawsuits(stockCode, startDate, endDate) {
+        return this.request('GET',
+            `/api/stocks/${stockCode}/financial/lawsuits?startDate=${startDate}&endDate=${endDate}`);
+    },
+
+    getPrivateFundUsages(stockCode, year, reportCode) {
+        return this.request('GET',
+            `/api/stocks/${stockCode}/financial/private-fund-usages?year=${year}&reportCode=${reportCode}`);
+    },
+
+    getPublicFundUsages(stockCode, year, reportCode) {
+        return this.request('GET',
+            `/api/stocks/${stockCode}/financial/public-fund-usages?year=${year}&reportCode=${reportCode}`);
     }
 };

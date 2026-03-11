@@ -11,6 +11,7 @@ public class StockItemUpdateRequest {
     private String subType;
     private String stockCode;
     private String market;
+    private String exchangeCode;
     private String country;
     private Integer quantity;
     private BigDecimal purchasePrice;

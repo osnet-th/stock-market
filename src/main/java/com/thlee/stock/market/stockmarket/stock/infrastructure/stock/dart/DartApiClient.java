@@ -3,19 +3,33 @@ package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.config.DartProperties;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.dto.*;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.exception.DartApiException;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamReader;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
 @Component
-@RequiredArgsConstructor
 public class DartApiClient {
 
     private final RestClient restClient;
     private final DartProperties properties;
+
+    public DartApiClient(@Qualifier("dartRestClient") RestClient restClient, DartProperties properties) {
+        this.restClient = restClient;
+        this.properties = properties;
+    }
 
     /**
      * 단일회사 재무계정 조회
@@ -137,6 +151,31 @@ public class DartApiClient {
                 new ParameterizedTypeReference<>() {});
     }
 
+    /**
+     * DART 고유번호 전체 목록 다운로드 및 파싱
+     * ZIP(CORPCODE.xml) → List<DartCorpCode>
+     */
+    public List<DartCorpCode> downloadCorpCodes() {
+        String uri = buildBaseUri("/corpCode.xml").toUriString();
+
+        try {
+            byte[] zipBytes = restClient.get()
+                    .uri(uri)
+                    .retrieve()
+                    .body(byte[].class);
+
+            if (zipBytes == null || zipBytes.length == 0) {
+                throw new DartApiException("DART CORPCODE.xml 다운로드 실패: 빈 응답");
+            }
+
+            return parseCorpCodeZip(zipBytes);
+        } catch (DartApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new DartApiException("DART CORPCODE.xml 다운로드 실패: " + e.getMessage(), e);
+        }
+    }
+
     // === 내부 헬퍼 메서드 ===
 
     /**
@@ -183,5 +222,71 @@ public class DartApiClient {
         return UriComponentsBuilder
                 .fromUriString(properties.getBaseUrl() + apiPath)
                 .queryParam("crtfc_key", properties.getCrtfcKey());
+    }
+
+    private List<DartCorpCode> parseCorpCodeZip(byte[] zipBytes) {
+        try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+            ZipEntry entry = zis.getNextEntry();
+            if (entry == null) {
+                throw new DartApiException("DART CORPCODE.xml ZIP에 파일이 없음");
+            }
+
+            byte[] xmlBytes = zis.readAllBytes();
+            return parseCorpCodeXml(new ByteArrayInputStream(xmlBytes));
+        } catch (DartApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new DartApiException("DART CORPCODE.xml 파싱 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * CORPCODE.xml 구조:
+     * <result>
+     *   <list>
+     *     <corp_code>00126380</corp_code>
+     *     <corp_name>삼성전자</corp_name>
+     *     <stock_code>005930</stock_code>
+     *     <modify_date>20240101</modify_date>
+     *   </list>
+     * </result>
+     */
+    private List<DartCorpCode> parseCorpCodeXml(InputStream is) throws Exception {
+        List<DartCorpCode> result = new ArrayList<>();
+        XMLInputFactory factory = XMLInputFactory.newInstance();
+        factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+        factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+        XMLStreamReader reader = factory.createXMLStreamReader(is);
+
+        String corpCode = null, corpName = null, stockCode = null, modifyDate = null;
+        String currentElement = null;
+
+        while (reader.hasNext()) {
+            int event = reader.next();
+
+            if (event == XMLStreamConstants.START_ELEMENT) {
+                currentElement = reader.getLocalName();
+            } else if (event == XMLStreamConstants.CHARACTERS && currentElement != null) {
+                String text = reader.getText().trim();
+                switch (currentElement) {
+                    case "corp_code" -> corpCode = text;
+                    case "corp_name" -> corpName = text;
+                    case "stock_code" -> stockCode = text;
+                    case "modify_date" -> modifyDate = text;
+                }
+            } else if (event == XMLStreamConstants.END_ELEMENT) {
+                if ("list".equals(reader.getLocalName())) {
+                    result.add(new DartCorpCode(corpCode, corpName, stockCode, modifyDate));
+                    corpCode = null;
+                    corpName = null;
+                    stockCode = null;
+                    modifyDate = null;
+                }
+                currentElement = null;
+            }
+        }
+
+        reader.close();
+        return result;
     }
 }

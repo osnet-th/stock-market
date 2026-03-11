@@ -10,6 +10,7 @@ public class StockDetail {
     private final StockSubType subType;
     private final String stockCode;
     private final String market;
+    private final String exchangeCode;
     private final String country;
     private final Integer quantity;
     private final BigDecimal avgBuyPrice;
@@ -18,6 +19,7 @@ public class StockDetail {
     public StockDetail(StockSubType subType,
                        String stockCode,
                        String market,
+                       String exchangeCode,
                        String country,
                        Integer quantity,
                        BigDecimal avgBuyPrice,
@@ -25,6 +27,7 @@ public class StockDetail {
         this.subType = subType;
         this.stockCode = stockCode;
         this.market = market;
+        this.exchangeCode = exchangeCode;
         this.country = country;
         this.quantity = quantity;
         this.avgBuyPrice = avgBuyPrice;

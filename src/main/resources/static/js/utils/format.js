@@ -36,6 +36,26 @@ const Format = {
         });
     },
 
+    compactNumber(value) {
+        if (!value) return '-';
+        var num = typeof value === 'string' ? parseInt(value.replace(/,/g, '')) : value;
+        if (isNaN(num)) return value;
+
+        var absNum = Math.abs(num);
+        var sign = num < 0 ? '-' : '';
+
+        if (absNum >= 1_0000_0000_0000) {
+            return sign + (absNum / 1_0000_0000_0000).toFixed(1) + '조';
+        }
+        if (absNum >= 1_0000_0000) {
+            return sign + (absNum / 1_0000_0000).toFixed(0) + '억';
+        }
+        if (absNum >= 1_0000) {
+            return sign + (absNum / 1_0000).toFixed(0) + '만';
+        }
+        return sign + Format.number(absNum);
+    },
+
     changeRate(current, previous) {
         if (current === null || previous === null || current === undefined || previous === undefined) return '-';
         const curr = parseFloat(current);

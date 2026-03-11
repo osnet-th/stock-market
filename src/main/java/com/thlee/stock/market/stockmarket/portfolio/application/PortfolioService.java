@@ -1,8 +1,8 @@
 package com.thlee.stock.market.stockmarket.portfolio.application;
 
+import com.thlee.stock.market.stockmarket.news.application.NewsCleanupService;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
-import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 public class PortfolioService {
 
     private final PortfolioItemRepository portfolioItemRepository;
-    private final NewsRepository newsRepository;
+    private final NewsCleanupService newsCleanupService;
 
     /**
      * 주식 항목 등록 (investedAmount = quantity × purchasePrice 자동 계산)
@@ -37,11 +37,12 @@ public class PortfolioService {
     @Transactional
     public PortfolioItemResponse addStockItem(Long userId, String itemName,
                                                String region, String memo,
-                                               String subType, String stockCode, String market, String country,
+                                               String subType, String stockCode, String market,
+                                               String exchangeCode, String country,
                                                Integer quantity, BigDecimal purchasePrice, BigDecimal dividendYield) {
         StockDetail detail = new StockDetail(
                 subType != null ? StockSubType.valueOf(subType) : null,
-                stockCode, market, country, quantity, purchasePrice, dividendYield
+                stockCode, market, exchangeCode, country, quantity, purchasePrice, dividendYield
         );
         PortfolioItem item = PortfolioItem.createWithStock(
                 userId, itemName, Region.valueOf(region), detail);
@@ -148,14 +149,15 @@ public class PortfolioService {
     @Transactional
     public PortfolioItemResponse updateStockItem(Long userId, Long itemId,
                                                   String itemName, String memo,
-                                                  String subType, String stockCode, String market, String country,
+                                                  String subType, String stockCode, String market,
+                                                  String exchangeCode, String country,
                                                   Integer quantity, BigDecimal purchasePrice, BigDecimal dividendYield) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateMemo(memo);
         StockDetail detail = new StockDetail(
                 subType != null ? StockSubType.valueOf(subType) : null,
-                stockCode, market, country, quantity, purchasePrice, dividendYield
+                stockCode, market, exchangeCode, country, quantity, purchasePrice, dividendYield
         );
         item.updateStockDetail(detail);
         PortfolioItem saved = portfolioItemRepository.save(item);
@@ -264,12 +266,12 @@ public class PortfolioService {
     }
 
     /**
-     * 항목 삭제 + 관련 뉴스 Cascade Delete
+     * 항목 삭제 + 관련 뉴스 출처 매핑 삭제 + orphan 뉴스 정리
      */
     @Transactional
     public void deleteItem(Long userId, Long itemId) {
         PortfolioItem item = findUserItem(userId, itemId);
-        newsRepository.deleteByPurposeAndSourceId(NewsPurpose.PORTFOLIO, item.getId());
+        newsCleanupService.deleteSourceAndCleanOrphans(NewsPurpose.PORTFOLIO, item.getId());
         portfolioItemRepository.delete(item);
     }
 

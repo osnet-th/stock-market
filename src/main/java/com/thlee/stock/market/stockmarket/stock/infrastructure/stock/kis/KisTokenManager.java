@@ -6,6 +6,7 @@ import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.config.
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisTokenResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.exception.KisApiException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -55,6 +56,7 @@ public class KisTokenManager {
 
             KisTokenResponse response = restClient.post()
                 .uri(properties.getUrl() + TOKEN_ENDPOINT)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
                 .body(KisTokenResponse.class);

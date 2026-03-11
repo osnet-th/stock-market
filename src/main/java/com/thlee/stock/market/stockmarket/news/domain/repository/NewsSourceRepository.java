@@ -20,5 +20,15 @@ public interface NewsSourceRepository {
      */
     PageResult<Long> findNewsIdsByPurposeAndSourceId(NewsPurpose purpose, Long sourceId, int page, int size);
 
+    /**
+     * purpose + sourceId 기반 뉴스 ID 목록 조회 (전체)
+     */
+    List<Long> findNewsIdsByPurposeAndSourceId(NewsPurpose purpose, Long sourceId);
+
+    /**
+     * 주어진 newsId 목록 중 아직 NewsSource가 존재하는 newsId 목록 반환
+     */
+    List<Long> findNewsIdsWithSources(List<Long> newsIds);
+
     void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId);
 }

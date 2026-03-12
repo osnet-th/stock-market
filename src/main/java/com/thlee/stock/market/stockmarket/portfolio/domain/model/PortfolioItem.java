@@ -7,6 +7,7 @@ import lombok.Getter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 public class PortfolioItem {
@@ -208,6 +209,42 @@ public class PortfolioItem {
                 this.stockDetail.getDividendYield()
         );
         this.investedAmount = calcInvestedAmount(newAvgBuyPrice, newQuantity);
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 매수이력 기반 수량/평균단가/투자금 재계산
+     * 이력 수정/삭제 후 호출
+     */
+    public void recalculateFromPurchaseHistories(List<StockPurchaseHistory> histories) {
+        if (this.assetType != AssetType.STOCK) {
+            throw new IllegalArgumentException("주식 항목이 아닙니다.");
+        }
+        validateDetail(this.stockDetail, "stockDetail");
+        if (histories.isEmpty()) {
+            throw new IllegalArgumentException("매수 이력이 최소 1건 이상 있어야 합니다.");
+        }
+
+        int totalQuantity = 0;
+        BigDecimal totalCost = BigDecimal.ZERO;
+        for (StockPurchaseHistory h : histories) {
+            totalQuantity += h.getQuantity();
+            totalCost = totalCost.add(h.getTotalCost());
+        }
+
+        BigDecimal newAvgBuyPrice = totalCost.divide(BigDecimal.valueOf(totalQuantity), 2, RoundingMode.HALF_UP);
+
+        this.stockDetail = new StockDetail(
+                this.stockDetail.getSubType(),
+                this.stockDetail.getStockCode(),
+                this.stockDetail.getMarket(),
+                this.stockDetail.getExchangeCode(),
+                this.stockDetail.getCountry(),
+                totalQuantity,
+                newAvgBuyPrice,
+                this.stockDetail.getDividendYield()
+        );
+        this.investedAmount = calcInvestedAmount(newAvgBuyPrice, totalQuantity);
         this.updatedAt = LocalDateTime.now();
     }
 

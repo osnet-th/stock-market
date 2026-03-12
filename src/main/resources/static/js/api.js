@@ -147,6 +147,19 @@ const API = {
         return this.request('POST', `/api/portfolio/items/stock/${itemId}/purchase?userId=${userId}`, body);
     },
 
+    // 매수이력
+    getPurchaseHistories(userId, itemId) {
+        return this.request('GET', `/api/portfolio/items/stock/${itemId}/purchases?userId=${userId}`);
+    },
+
+    updatePurchaseHistory(userId, itemId, historyId, body) {
+        return this.request('PUT', `/api/portfolio/items/stock/${itemId}/purchases/${historyId}?userId=${userId}`, body);
+    },
+
+    deletePurchaseHistory(userId, itemId, historyId) {
+        return this.request('DELETE', `/api/portfolio/items/stock/${itemId}/purchases/${historyId}?userId=${userId}`);
+    },
+
     // 수정 (타입별)
     updateStockItem(userId, itemId, body) {
         return this.request('PUT', `/api/portfolio/items/stock/${itemId}?userId=${userId}`, body);

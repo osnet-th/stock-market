@@ -4,6 +4,7 @@ import com.thlee.stock.market.stockmarket.news.application.NewsCleanupService;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockPurchaseHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
@@ -11,6 +12,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubTy
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstateSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.StockSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioItemRepository;
+import com.thlee.stock.market.stockmarket.portfolio.domain.repository.StockPurchaseHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 public class PortfolioService {
 
     private final PortfolioItemRepository portfolioItemRepository;
+    private final StockPurchaseHistoryRepository purchaseHistoryRepository;
     private final NewsCleanupService newsCleanupService;
 
     /**
@@ -51,6 +54,12 @@ public class PortfolioService {
         }
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
+
+        // 최초 매수이력 생성
+        StockPurchaseHistory history = StockPurchaseHistory.create(
+                saved.getId(), quantity, purchasePrice, LocalDate.now(), null);
+        purchaseHistoryRepository.save(history);
+
         return PortfolioItemResponse.from(saved);
     }
 
@@ -165,13 +174,22 @@ public class PortfolioService {
     }
 
     /**
-     * 주식 추가 매수 (가중평균 계산, investedAmount 자동 갱신)
+     * 주식 추가 매수 - 이력 저장 후 재계산
      */
     @Transactional
     public PortfolioItemResponse addStockPurchase(Long userId, Long itemId,
                                                    Integer quantity, BigDecimal purchasePrice) {
         PortfolioItem item = findUserItem(userId, itemId);
-        item.addStockPurchase(quantity, purchasePrice);
+
+        // 매수이력 저장
+        StockPurchaseHistory history = StockPurchaseHistory.create(
+                itemId, quantity, purchasePrice, LocalDate.now(), null);
+        purchaseHistoryRepository.save(history);
+
+        // 전체 이력 기반 재계산
+        List<StockPurchaseHistory> histories = purchaseHistoryRepository.findByPortfolioItemId(itemId);
+        item.recalculateFromPurchaseHistories(histories);
+
         PortfolioItem saved = portfolioItemRepository.save(item);
         return PortfolioItemResponse.from(saved);
     }
@@ -266,11 +284,77 @@ public class PortfolioService {
     }
 
     /**
-     * 항목 삭제 + 관련 뉴스 출처 매핑 삭제 + orphan 뉴스 정리
+     * 매수이력 조회
+     */
+    public List<StockPurchaseHistoryResponse> getPurchaseHistories(Long userId, Long itemId) {
+        findUserItem(userId, itemId); // 권한 검증
+        return purchaseHistoryRepository.findByPortfolioItemId(itemId).stream()
+                .map(StockPurchaseHistoryResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 매수이력 수정 + 재계산
+     */
+    @Transactional
+    public PortfolioItemResponse updatePurchaseHistory(Long userId, Long itemId, Long historyId,
+                                                        Integer quantity, BigDecimal purchasePrice,
+                                                        LocalDate purchasedAt, String memo) {
+        PortfolioItem item = findUserItem(userId, itemId);
+
+        StockPurchaseHistory history = purchaseHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new IllegalArgumentException("매수 이력을 찾을 수 없습니다."));
+        if (!history.getPortfolioItemId().equals(itemId)) {
+            throw new IllegalArgumentException("해당 항목의 매수 이력이 아닙니다.");
+        }
+
+        history.update(quantity, purchasePrice, purchasedAt, memo);
+        purchaseHistoryRepository.save(history);
+
+        // 전체 이력 기반 재계산
+        List<StockPurchaseHistory> histories = purchaseHistoryRepository.findByPortfolioItemId(itemId);
+        item.recalculateFromPurchaseHistories(histories);
+
+        PortfolioItem saved = portfolioItemRepository.save(item);
+        return PortfolioItemResponse.from(saved);
+    }
+
+    /**
+     * 매수이력 삭제 + 재계산
+     */
+    @Transactional
+    public PortfolioItemResponse deletePurchaseHistory(Long userId, Long itemId, Long historyId) {
+        PortfolioItem item = findUserItem(userId, itemId);
+
+        StockPurchaseHistory history = purchaseHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new IllegalArgumentException("매수 이력을 찾을 수 없습니다."));
+        if (!history.getPortfolioItemId().equals(itemId)) {
+            throw new IllegalArgumentException("해당 항목의 매수 이력이 아닙니다.");
+        }
+
+        // 최소 1건 검증
+        List<StockPurchaseHistory> histories = purchaseHistoryRepository.findByPortfolioItemId(itemId);
+        if (histories.size() <= 1) {
+            throw new IllegalArgumentException("매수 이력은 최소 1건 이상이어야 합니다.");
+        }
+
+        purchaseHistoryRepository.delete(history);
+
+        // 삭제 후 남은 이력으로 재계산
+        histories.removeIf(h -> h.getId().equals(historyId));
+        item.recalculateFromPurchaseHistories(histories);
+
+        PortfolioItem saved = portfolioItemRepository.save(item);
+        return PortfolioItemResponse.from(saved);
+    }
+
+    /**
+     * 항목 삭제 + 매수이력 삭제 + 관련 뉴스 출처 매핑 삭제 + orphan 뉴스 정리
      */
     @Transactional
     public void deleteItem(Long userId, Long itemId) {
         PortfolioItem item = findUserItem(userId, itemId);
+        purchaseHistoryRepository.deleteByPortfolioItemId(itemId);
         newsCleanupService.deleteSourceAndCleanOrphans(NewsPurpose.PORTFOLIO, item.getId());
         portfolioItemRepository.delete(item);
     }

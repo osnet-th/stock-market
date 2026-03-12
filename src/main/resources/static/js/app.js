@@ -95,6 +95,9 @@ function dashboard() {
             showPurchaseModal: false,
             purchaseItem: null,
             purchaseForm: { quantity: '', purchasePrice: '' },
+            purchaseHistories: [],
+            editingHistory: null,
+            editHistoryForm: { quantity: '', purchasePrice: '', purchasedAt: '', memo: '' },
             selectedNewsItemId: null,
             news: { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false },
             collectingItemId: null,
@@ -571,6 +574,20 @@ function dashboard() {
             this.portfolio.expandedSections[assetType] = !this.portfolio.expandedSections[assetType];
         },
 
+        getStockPriceSummary(item) {
+            if (item.assetType !== 'STOCK' || !item.stockDetail) return '';
+            var priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
+            if (!priceData || !priceData.currentPrice) return '';
+            var parts = ['현재가 ' + Format.number(priceData.currentPrice) + '원'];
+            var rate = this.getProfitRate(item);
+            if (rate !== null) {
+                var sign = rate >= 0 ? '+' : '';
+                parts.push(sign + rate.toFixed(2) + '%');
+            }
+            parts.push('총 ' + Format.number(this.getEvalAmount(item), 0) + '원');
+            return parts.join(' · ');
+        },
+
         getItemSummary(item) {
             switch (item.assetType) {
                 case 'STOCK':
@@ -579,15 +596,6 @@ function dashboard() {
                     if (item.stockDetail.subType === 'ETF') parts.push('ETF');
                     if (item.stockDetail.quantity) parts.push(item.stockDetail.quantity + '주');
                     if (item.stockDetail.avgBuyPrice) parts.push('평균 ' + Format.number(item.stockDetail.avgBuyPrice) + '원');
-                    var priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
-                    if (priceData && priceData.currentPrice) {
-                        parts.push('평가 ' + Format.number(priceData.currentPrice) + '원');
-                        var rate = this.getProfitRate(item);
-                        if (rate !== null) {
-                            var sign = rate >= 0 ? '+' : '';
-                            parts.push('(' + sign + rate.toFixed(2) + '%)');
-                        }
-                    }
                     return parts.join(' · ');
                 case 'BOND':
                     if (!item.bondDetail) return '';
@@ -833,10 +841,13 @@ function dashboard() {
 
         // ==================== 추가 매수 모달 ====================
 
-        openPurchaseModal(item) {
+        async openPurchaseModal(item) {
             this.portfolio.purchaseItem = item;
             this.portfolio.purchaseForm = { quantity: '', purchasePrice: '' };
+            this.portfolio.purchaseHistories = [];
+            this.portfolio.editingHistory = null;
             this.portfolio.showPurchaseModal = true;
+            await this.loadPurchaseHistories(item.id);
         },
 
         async submitPurchase() {
@@ -863,6 +874,74 @@ function dashboard() {
             } catch (e) {
                 console.error('추가 매수 실패:', e);
                 alert('추가 매수에 실패했습니다.');
+            }
+        },
+
+        // ==================== 매수이력 ====================
+
+        async loadPurchaseHistories(itemId) {
+            try {
+                this.portfolio.purchaseHistories = await API.getPurchaseHistories(this.auth.userId, itemId) || [];
+            } catch (e) {
+                console.error('매수이력 조회 실패:', e);
+                this.portfolio.purchaseHistories = [];
+            }
+        },
+
+        startEditHistory(history) {
+            this.portfolio.editingHistory = history.id;
+            this.portfolio.editHistoryForm = {
+                quantity: history.quantity,
+                purchasePrice: history.purchasePrice,
+                purchasedAt: history.purchasedAt || '',
+                memo: history.memo || ''
+            };
+        },
+
+        cancelEditHistory() {
+            this.portfolio.editingHistory = null;
+        },
+
+        async submitEditHistory(historyId) {
+            var form = this.portfolio.editHistoryForm;
+            var item = this.portfolio.purchaseItem;
+
+            if (!form.quantity || Number(form.quantity) <= 0) {
+                alert('수량을 입력해주세요.');
+                return;
+            }
+            if (!form.purchasePrice || Number(form.purchasePrice) <= 0) {
+                alert('매수 단가를 입력해주세요.');
+                return;
+            }
+
+            try {
+                await API.updatePurchaseHistory(this.auth.userId, item.id, historyId, {
+                    quantity: Number(form.quantity),
+                    purchasePrice: Number(form.purchasePrice),
+                    purchasedAt: form.purchasedAt || null,
+                    memo: form.memo || null
+                });
+                this.portfolio.editingHistory = null;
+                await this.loadPurchaseHistories(item.id);
+                await this.loadPortfolio();
+            } catch (e) {
+                console.error('매수이력 수정 실패:', e);
+                alert('매수이력 수정에 실패했습니다.');
+            }
+        },
+
+        async deleteHistory(historyId) {
+            if (!confirm('이 매수 이력을 삭제하시겠습니까?\n삭제 후 수량과 평균단가가 재계산됩니다.')) return;
+            var item = this.portfolio.purchaseItem;
+
+            try {
+                await API.deletePurchaseHistory(this.auth.userId, item.id, historyId);
+                await this.loadPurchaseHistories(item.id);
+                await this.loadPortfolio();
+            } catch (e) {
+                console.error('매수이력 삭제 실패:', e);
+                alert(e.message || '매수이력 삭제에 실패했습니다.');
             }
         },
 

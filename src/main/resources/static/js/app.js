@@ -11,6 +11,13 @@ function dashboard() {
             { key: 'portfolio', label: '포트폴리오', icon: 'portfolio' }
         ],
 
+        sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
+
+        toggleSidebar() {
+            this.sidebarCollapsed = !this.sidebarCollapsed;
+            localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
+        },
+
         // ==================== Auth ====================
         auth: {
             token: localStorage.getItem('accessToken'),
@@ -101,6 +108,7 @@ function dashboard() {
             selectedNewsItemId: null,
             news: { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false },
             collectingItemId: null,
+            chartInstance: null,
             // 재무정보
             financialOptions: null,
             financialResult: null,
@@ -124,15 +132,15 @@ function dashboard() {
         },
 
         assetTypeConfig: {
-            STOCK:       { label: '주식',     color: 'blue',   barColor: 'bg-blue-500' },
-            BOND:        { label: '채권',     color: 'green',  barColor: 'bg-green-500' },
-            REAL_ESTATE: { label: '부동산',   color: 'yellow', barColor: 'bg-yellow-500' },
-            FUND:        { label: '펀드',     color: 'purple', barColor: 'bg-purple-500' },
-            CRYPTO:      { label: '암호화폐', color: 'orange', barColor: 'bg-orange-500' },
-            GOLD:        { label: '금',       color: 'amber',  barColor: 'bg-amber-500' },
-            COMMODITY:   { label: '원자재',   color: 'red',    barColor: 'bg-red-500' },
-            CASH:        { label: '현금',     color: 'gray',   barColor: 'bg-gray-500' },
-            OTHER:       { label: '기타',     color: 'slate',  barColor: 'bg-slate-500' }
+            STOCK:       { label: '주식',     color: 'blue',   barColor: 'bg-blue-500',   chartColor: '#3B82F6' },
+            BOND:        { label: '채권',     color: 'green',  barColor: 'bg-green-500',  chartColor: '#22C55E' },
+            REAL_ESTATE: { label: '부동산',   color: 'yellow', barColor: 'bg-yellow-500', chartColor: '#EAB308' },
+            FUND:        { label: '펀드',     color: 'purple', barColor: 'bg-purple-500', chartColor: '#A855F7' },
+            CRYPTO:      { label: '암호화폐', color: 'orange', barColor: 'bg-orange-500', chartColor: '#F97316' },
+            GOLD:        { label: '금',       color: 'amber',  barColor: 'bg-amber-500',  chartColor: '#F59E0B' },
+            COMMODITY:   { label: '원자재',   color: 'red',    barColor: 'bg-red-500',    chartColor: '#EF4444' },
+            CASH:        { label: '현금',     color: 'gray',   barColor: 'bg-gray-500',   chartColor: '#6B7280' },
+            OTHER:       { label: '기타',     color: 'slate',  barColor: 'bg-slate-500',  chartColor: '#64748B' }
         },
 
         // ==================== Init ====================
@@ -478,6 +486,10 @@ function dashboard() {
                 this.portfolio.allocation = [];
             } finally {
                 this.portfolio.loading = false;
+                var self = this;
+                this.$nextTick(function() {
+                    self.renderDonutChart();
+                });
             }
         },
 
@@ -566,12 +578,113 @@ function dashboard() {
             return this.portfolio.items.reduce(function(sum, item) { return sum + item.investedAmount; }, 0);
         },
 
+        getSubTotalInvested(assetType) {
+            return this.portfolio.items
+                .filter(function(item) { return item.assetType === assetType; })
+                .reduce(function(sum, item) { return sum + item.investedAmount; }, 0);
+        },
+
+        getSubTotalEvalAmount(assetType) {
+            return this.portfolio.items
+                .filter(function(item) { return item.assetType === assetType; })
+                .reduce(function(sum, item) { return sum + this.getEvalAmount(item); }.bind(this), 0);
+        },
+
+        getSubTotalProfitRate(assetType) {
+            var invested = this.getSubTotalInvested(assetType);
+            if (invested === 0) return null;
+            var evalAmount = this.getSubTotalEvalAmount(assetType);
+            return ((evalAmount - invested) / invested * 100);
+        },
+
         getNewsEnabledCount() {
             return this.portfolio.items.filter(function(item) { return item.newsEnabled; }).length;
         },
 
         toggleSection(assetType) {
             this.portfolio.expandedSections[assetType] = !this.portfolio.expandedSections[assetType];
+        },
+
+        renderDonutChart() {
+            var canvas = document.getElementById('portfolioDonutChart');
+            if (!canvas) return;
+
+            if (this.portfolio.chartInstance) {
+                this.portfolio.chartInstance.destroy();
+                this.portfolio.chartInstance = null;
+            }
+
+            var allocation = this.getEvalAllocation();
+            if (allocation.length === 0) return;
+
+            var labels = [];
+            var data = [];
+            var colors = [];
+            var self = this;
+
+            allocation.forEach(function(alloc) {
+                labels.push(alloc.assetTypeName);
+                data.push(alloc.totalAmount);
+                var config = self.assetTypeConfig[alloc.assetType];
+                colors.push(config ? config.chartColor : '#94A3B8');
+            });
+
+            this.portfolio.chartInstance = new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverBorderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                padding: 16,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                font: { size: 12 },
+                                generateLabels: function(chart) {
+                                    var dataset = chart.data.datasets[0];
+                                    var total = dataset.data.reduce(function(sum, val) { return sum + val; }, 0);
+                                    return chart.data.labels.map(function(label, i) {
+                                        var pct = total > 0 ? Math.round(dataset.data[i] / total * 1000) / 10 : 0;
+                                        return {
+                                            text: label + ' ' + pct + '%',
+                                            fillStyle: dataset.backgroundColor[i],
+                                            strokeStyle: '#ffffff',
+                                            lineWidth: 1,
+                                            hidden: false,
+                                            index: i,
+                                            pointStyle: 'circle'
+                                        };
+                                    });
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var value = context.parsed;
+                                    var total = context.dataset.data.reduce(function(sum, val) { return sum + val; }, 0);
+                                    var pct = total > 0 ? Math.round(value / total * 1000) / 10 : 0;
+                                    return context.label + ': ' + Format.number(value, 0) + '원 (' + pct + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         },
 
         getStockPriceSummary(item) {

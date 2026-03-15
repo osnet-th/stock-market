@@ -96,6 +96,12 @@ stock:
       service-key: ${DATAGOKR_SERVICE_KEY}
       num-of-rows: 100
 
+# 한국수출입은행 환율 API
+koreaexim:
+  api:
+    url: https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON
+    authkey: ${KOREAEXIM_API_KEY}
+
 # DART OpenAPI (전자공시시스템)
 dart:
   api:

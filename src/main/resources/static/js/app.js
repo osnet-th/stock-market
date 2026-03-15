@@ -522,15 +522,29 @@ function dashboard() {
         getEvalAmount(item) {
             if (item.assetType === 'STOCK' && item.stockDetail) {
                 var priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
-                if (priceData && priceData.currentPrice) {
-                    return parseFloat(priceData.currentPrice) * item.stockDetail.quantity;
+                if (priceData && priceData.currentPriceKrw) {
+                    return parseFloat(priceData.currentPriceKrw) * item.stockDetail.quantity;
                 }
             }
             return item.investedAmount;
         },
 
+        getExchangeRate(item) {
+            if (item.assetType !== 'STOCK' || !item.stockDetail) return 1;
+            // priceCurrency가 KRW이면 이미 원화이므로 환율 적용 불필요
+            var priceCurrency = item.stockDetail.priceCurrency;
+            if (!priceCurrency || priceCurrency === 'KRW') return 1;
+            var priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
+            if (!priceData || !priceData.exchangeRateValue) return 1;
+            return parseFloat(priceData.exchangeRateValue);
+        },
+
+        getInvestedAmountKrw(item) {
+            return item.investedAmount * this.getExchangeRate(item);
+        },
+
         getProfitAmount(item) {
-            return this.getEvalAmount(item) - item.investedAmount;
+            return this.getEvalAmount(item) - this.getInvestedAmountKrw(item);
         },
 
         getProfitRate(item) {
@@ -575,13 +589,15 @@ function dashboard() {
         },
 
         getTotalInvested() {
-            return this.portfolio.items.reduce(function(sum, item) { return sum + item.investedAmount; }, 0);
+            return this.portfolio.items.reduce(function(sum, item) {
+                return sum + this.getInvestedAmountKrw(item);
+            }.bind(this), 0);
         },
 
         getSubTotalInvested(assetType) {
             return this.portfolio.items
                 .filter(function(item) { return item.assetType === assetType; })
-                .reduce(function(sum, item) { return sum + item.investedAmount; }, 0);
+                .reduce(function(sum, item) { return sum + this.getInvestedAmountKrw(item); }.bind(this), 0);
         },
 
         getSubTotalEvalAmount(assetType) {
@@ -691,7 +707,11 @@ function dashboard() {
             if (item.assetType !== 'STOCK' || !item.stockDetail) return '';
             var priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
             if (!priceData || !priceData.currentPrice) return '';
-            var parts = ['현재가 ' + Format.number(priceData.currentPrice) + '원'];
+            var currency = priceData.currency || 'KRW';
+            var priceDisplay = currency === 'KRW'
+                ? '현재가 ' + Format.number(priceData.currentPrice) + '원'
+                : '현재가 ' + Format.number(priceData.currentPrice, 2) + ' ' + currency;
+            var parts = [priceDisplay];
             var rate = this.getProfitRate(item);
             if (rate !== null) {
                 var sign = rate >= 0 ? '+' : '';
@@ -708,7 +728,12 @@ function dashboard() {
                     var parts = [item.stockDetail.market + ':' + item.stockDetail.stockCode];
                     if (item.stockDetail.subType === 'ETF') parts.push('ETF');
                     if (item.stockDetail.quantity) parts.push(item.stockDetail.quantity + '주');
-                    if (item.stockDetail.avgBuyPrice) parts.push('평균 ' + Format.number(item.stockDetail.avgBuyPrice) + '원');
+                    if (item.stockDetail.avgBuyPrice) {
+                        var cur = item.stockDetail.priceCurrency;
+                        var suffix = (!cur || cur === 'KRW') ? '원' : ' ' + cur;
+                        var decimals = (!cur || cur === 'KRW') ? 0 : 2;
+                        parts.push('평균 ' + Format.number(item.stockDetail.avgBuyPrice, decimals) + suffix);
+                    }
                     return parts.join(' · ');
                 case 'BOND':
                     if (!item.bondDetail) return '';
@@ -799,6 +824,20 @@ function dashboard() {
             this.portfolio.addForm.ticker = stock.stockCode;
             this.portfolio.addForm.exchange = stock.marketType;
             this.portfolio.addForm.exchangeCode = stock.exchangeCode;
+            this.portfolio.addForm.region = stock.exchangeCode === 'KRX' ? 'DOMESTIC' : 'INTERNATIONAL';
+            this.portfolio.addForm.priceCurrency = this.getCurrencyByExchangeCode(stock.exchangeCode);
+        },
+
+        getCurrencyByExchangeCode(exchangeCode) {
+            var mapping = {
+                KRX: 'KRW',
+                NAS: 'USD', NYS: 'USD', AMS: 'USD',
+                SHS: 'CNY', SHI: 'CNY', SZS: 'CNY', SZI: 'CNY',
+                TSE: 'JPY',
+                HKS: 'HKD',
+                HNX: 'VND', HSX: 'VND'
+            };
+            return mapping[exchangeCode] || 'KRW';
         },
 
         clearSelectedStock() {
@@ -807,6 +846,18 @@ function dashboard() {
             this.portfolio.addForm.ticker = '';
             this.portfolio.addForm.exchange = '';
             this.portfolio.addForm.exchangeCode = '';
+        },
+
+        getCountryByExchangeCode(exchangeCode) {
+            var mapping = {
+                KRX: 'KR',
+                NAS: 'US', NYS: 'US', AMS: 'US',
+                SHS: 'CN', SHI: 'CN', SZS: 'CN', SZI: 'CN',
+                TSE: 'JP',
+                HKS: 'HK',
+                HNX: 'VN', HSX: 'VN'
+            };
+            return mapping[exchangeCode] || null;
         },
 
         async submitAddItem() {
@@ -845,10 +896,11 @@ function dashboard() {
                             stockCode: form.ticker,
                             market: form.exchange,
                             exchangeCode: form.exchangeCode,
-                            country: form.region === 'DOMESTIC' ? 'KR' : null,
+                            country: this.getCountryByExchangeCode(form.exchangeCode),
                             quantity: Number(form.quantity),
                             purchasePrice: Number(form.purchasePrice),
-                            dividendYield: form.dividendYield ? Number(form.dividendYield) : null
+                            dividendYield: form.dividendYield ? Number(form.dividendYield) : null,
+                            priceCurrency: form.priceCurrency || 'KRW'
                         });
                         break;
                     case 'BOND':
@@ -1082,6 +1134,7 @@ function dashboard() {
                         form.quantity = item.stockDetail.quantity;
                         form.purchasePrice = item.stockDetail.avgBuyPrice;
                         form.dividendYield = item.stockDetail.dividendYield;
+                        form.priceCurrency = item.stockDetail.priceCurrency || 'KRW';
                     }
                     break;
                 case 'BOND':
@@ -1133,6 +1186,7 @@ function dashboard() {
             this.portfolio.editForm.ticker = stock.stockCode;
             this.portfolio.editForm.exchange = stock.marketType;
             this.portfolio.editForm.exchangeCode = stock.exchangeCode;
+            this.portfolio.editForm.priceCurrency = this.getCurrencyByExchangeCode(stock.exchangeCode);
         },
 
         async submitEditItem() {
@@ -1174,7 +1228,8 @@ function dashboard() {
                             country: stockDetail.country,
                             quantity: Number(form.quantity),
                             purchasePrice: Number(form.purchasePrice),
-                            dividendYield: form.dividendYield ? Number(form.dividendYield) : null
+                            dividendYield: form.dividendYield ? Number(form.dividendYield) : null,
+                            priceCurrency: form.priceCurrency || 'KRW'
                         });
                         break;
                     case 'BOND':

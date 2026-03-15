@@ -5,6 +5,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PriceCurrency;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstateSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.StockSubType;
 import com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence.*;
@@ -32,7 +33,8 @@ public class PortfolioItemMapper {
                     stock.getCountry(),
                     stock.getQuantity(),
                     stock.getAvgBuyPrice(),
-                    stock.getDividendYield()
+                    stock.getDividendYield(),
+                    stock.getPriceCurrency() != null ? PriceCurrency.valueOf(stock.getPriceCurrency()) : PriceCurrency.KRW
             );
         } else if (entity instanceof BondItemEntity bond) {
             bondDetail = new BondDetail(
@@ -88,7 +90,8 @@ public class PortfolioItemMapper {
                         detail.getSubType() != null ? detail.getSubType().name() : null,
                         detail.getStockCode(), detail.getMarket(), detail.getExchangeCode(),
                         detail.getCountry(), detail.getQuantity(),
-                        detail.getAvgBuyPrice(), detail.getDividendYield()
+                        detail.getAvgBuyPrice(), detail.getDividendYield(),
+                        detail.getPriceCurrency() != null ? detail.getPriceCurrency().name() : null
                 );
             }
             case BOND -> {

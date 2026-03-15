@@ -36,6 +36,9 @@ public class StockItemEntity extends PortfolioItemEntity {
     @Column(name = "dividend_yield", precision = 5, scale = 2)
     private BigDecimal dividendYield;
 
+    @Column(name = "price_currency", length = 10)
+    private String priceCurrency;
+
     protected StockItemEntity() {
     }
 
@@ -55,7 +58,8 @@ public class StockItemEntity extends PortfolioItemEntity {
                            String country,
                            Integer quantity,
                            BigDecimal avgBuyPrice,
-                           BigDecimal dividendYield) {
+                           BigDecimal dividendYield,
+                           String priceCurrency) {
         super(id, userId, itemName, investedAmount, newsEnabled, region, memo, createdAt, updatedAt);
         this.subType = subType;
         this.stockCode = stockCode;
@@ -65,5 +69,6 @@ public class StockItemEntity extends PortfolioItemEntity {
         this.quantity = quantity;
         this.avgBuyPrice = avgBuyPrice;
         this.dividendYield = dividendYield;
+        this.priceCurrency = priceCurrency;
     }
 }

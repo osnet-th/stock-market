@@ -595,7 +595,7 @@
                                                             <div>
                                                                 <div class="flex items-center gap-2">
                                                                     <span class="text-sm font-medium text-gray-800" x-text="item.itemName"></span>
-                                                                    <span class="text-xs text-gray-400" x-text="'원금 ' + Format.number(item.investedAmount, 0) + '원'"></span>
+                                                                    <span class="text-xs text-gray-400" x-text="'원금 ' + Format.number(getInvestedAmountKrw(item), 0) + '원'"></span>
                                                                     <span class="text-xs font-medium"
                                                                         :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
                                                                         x-text="Format.number(getEvalAmount(item), 0) + '원'"></span>
@@ -925,8 +925,15 @@
                                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                             </div>
                                             <div>
-                                                <label class="block text-sm text-gray-600 mb-1">매수가 *</label>
-                                                <input type="number" x-model="portfolio.addForm.purchasePrice" placeholder="0"
+                                                <label class="block text-sm text-gray-600 mb-1">
+                                                    매수가 *
+                                                    <span x-show="portfolio.addForm.priceCurrency && portfolio.addForm.priceCurrency !== 'KRW'"
+                                                          class="text-blue-500 font-medium"
+                                                          x-text="'(' + portfolio.addForm.priceCurrency + ')'"></span>
+                                                </label>
+                                                <input type="number" x-model="portfolio.addForm.purchasePrice"
+                                                    :step="portfolio.addForm.priceCurrency && portfolio.addForm.priceCurrency !== 'KRW' ? '0.01' : '1'"
+                                                    :placeholder="portfolio.addForm.priceCurrency && portfolio.addForm.priceCurrency !== 'KRW' ? '0.00' : '0'"
                                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                             </div>
                                             <div>
@@ -1047,7 +1054,7 @@
                                     </div>
                                 </template>
 
-                                <div>
+                                <div x-show="portfolio.selectedAssetType !== 'STOCK'">
                                     <label class="block text-sm text-gray-600 mb-1">리전</label>
                                     <select x-model="portfolio.addForm.region"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -1119,8 +1126,15 @@
                                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                         </div>
                                         <div>
-                                            <label class="block text-sm text-gray-600 mb-1">매수가 *</label>
-                                            <input type="number" x-model="portfolio.editForm.purchasePrice" placeholder="0"
+                                            <label class="block text-sm text-gray-600 mb-1">
+                                                매수가 *
+                                                <span x-show="portfolio.editForm.priceCurrency && portfolio.editForm.priceCurrency !== 'KRW'"
+                                                      class="text-blue-500 font-medium"
+                                                      x-text="'(' + portfolio.editForm.priceCurrency + ')'"></span>
+                                            </label>
+                                            <input type="number" x-model="portfolio.editForm.purchasePrice"
+                                                :step="portfolio.editForm.priceCurrency && portfolio.editForm.priceCurrency !== 'KRW' ? '0.01' : '1'"
+                                                :placeholder="portfolio.editForm.priceCurrency && portfolio.editForm.priceCurrency !== 'KRW' ? '0.00' : '0'"
                                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                         </div>
                                         <div>
@@ -1277,9 +1291,16 @@
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">매수 단가</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                매수 단가
+                                <span x-show="portfolio.purchaseItem?.stockDetail?.priceCurrency && portfolio.purchaseItem.stockDetail.priceCurrency !== 'KRW'"
+                                      class="text-blue-500 font-medium"
+                                      x-text="'(' + portfolio.purchaseItem.stockDetail.priceCurrency + ')'"></span>
+                            </label>
                             <input type="number" x-model="portfolio.purchaseForm.purchasePrice"
-                                placeholder="1주당 매수가" min="1"
+                                :step="portfolio.purchaseItem?.stockDetail?.priceCurrency && portfolio.purchaseItem.stockDetail.priceCurrency !== 'KRW' ? '0.01' : '1'"
+                                :placeholder="portfolio.purchaseItem?.stockDetail?.priceCurrency && portfolio.purchaseItem.stockDetail.priceCurrency !== 'KRW' ? '1주당 매수가 (외화)' : '1주당 매수가'"
+                                min="0.01"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                         </div>
                     </div>

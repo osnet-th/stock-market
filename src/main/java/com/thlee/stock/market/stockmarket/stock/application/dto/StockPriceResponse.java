@@ -4,6 +4,9 @@ import com.thlee.stock.market.stockmarket.stock.domain.model.StockPrice;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 @Getter
 @RequiredArgsConstructor
 public class StockPriceResponse {
@@ -21,8 +24,17 @@ public class StockPriceResponse {
     private final String open;
     private final String marketType;
     private final String exchangeCode;
+    private final String currency;
+    private final BigDecimal exchangeRateValue;
+    private final String currentPriceKrw;
 
     public static StockPriceResponse from(StockPrice price) {
+        return from(price, "KRW", BigDecimal.ONE);
+    }
+
+    public static StockPriceResponse from(StockPrice price, String currency, BigDecimal exchangeRate) {
+        String priceKrw = calculatePriceKrw(price.currentPrice(), exchangeRate);
+
         return new StockPriceResponse(
             price.stockCode(),
             price.currentPrice(),
@@ -36,7 +48,22 @@ public class StockPriceResponse {
             price.low(),
             price.open(),
             price.marketType().name(),
-            price.exchangeCode().name()
+            price.exchangeCode().name(),
+            currency,
+            exchangeRate,
+            priceKrw
         );
+    }
+
+    private static String calculatePriceKrw(String currentPrice, BigDecimal exchangeRate) {
+        if (currentPrice == null || currentPrice.isEmpty()) {
+            return "0";
+        }
+        try {
+            BigDecimal price = new BigDecimal(currentPrice.replace(",", ""));
+            return price.multiply(exchangeRate).setScale(0, RoundingMode.HALF_UP).toPlainString();
+        } catch (NumberFormatException e) {
+            return "0";
+        }
     }
 }

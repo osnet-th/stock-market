@@ -10,6 +10,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstateSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PriceCurrency;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.StockSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioItemRepository;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.StockPurchaseHistoryRepository;
@@ -42,10 +43,12 @@ public class PortfolioService {
                                                String region, String memo,
                                                String subType, String stockCode, String market,
                                                String exchangeCode, String country,
-                                               Integer quantity, BigDecimal purchasePrice, BigDecimal dividendYield) {
+                                               Integer quantity, BigDecimal purchasePrice, BigDecimal dividendYield,
+                                               String priceCurrency) {
         StockDetail detail = new StockDetail(
                 subType != null ? StockSubType.valueOf(subType) : null,
-                stockCode, market, exchangeCode, country, quantity, purchasePrice, dividendYield
+                stockCode, market, exchangeCode, country, quantity, purchasePrice, dividendYield,
+                priceCurrency != null ? PriceCurrency.valueOf(priceCurrency) : PriceCurrency.KRW
         );
         PortfolioItem item = PortfolioItem.createWithStock(
                 userId, itemName, Region.valueOf(region), detail);
@@ -160,13 +163,15 @@ public class PortfolioService {
                                                   String itemName, String memo,
                                                   String subType, String stockCode, String market,
                                                   String exchangeCode, String country,
-                                                  Integer quantity, BigDecimal purchasePrice, BigDecimal dividendYield) {
+                                                  Integer quantity, BigDecimal purchasePrice, BigDecimal dividendYield,
+                                                  String priceCurrency) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateMemo(memo);
         StockDetail detail = new StockDetail(
                 subType != null ? StockSubType.valueOf(subType) : null,
-                stockCode, market, exchangeCode, country, quantity, purchasePrice, dividendYield
+                stockCode, market, exchangeCode, country, quantity, purchasePrice, dividendYield,
+                priceCurrency != null ? PriceCurrency.valueOf(priceCurrency) : PriceCurrency.KRW
         );
         item.updateStockDetail(detail);
         PortfolioItem saved = portfolioItemRepository.save(item);

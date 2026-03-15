@@ -5,11 +5,13 @@ import com.thlee.stock.market.stockmarket.stock.application.dto.StockPriceRespon
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
 import com.thlee.stock.market.stockmarket.stock.domain.model.StockPrice;
+import com.thlee.stock.market.stockmarket.stock.domain.service.ExchangeRatePort;
 import com.thlee.stock.market.stockmarket.stock.domain.service.StockPricePort;
 import com.thlee.stock.market.stockmarket.stock.presentation.dto.BulkStockPriceRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,10 +21,13 @@ import java.util.Map;
 public class StockPriceService {
 
     private final StockPricePort stockPricePort;
+    private final ExchangeRatePort exchangeRatePort;
 
     public StockPriceResponse getPrice(String stockCode, MarketType marketType, ExchangeCode exchangeCode) {
         StockPrice price = stockPricePort.getPrice(stockCode, marketType, exchangeCode);
-        return StockPriceResponse.from(price);
+        String currency = exchangeCode.getCurrency();
+        BigDecimal exchangeRate = exchangeRatePort.getRate(currency);
+        return StockPriceResponse.from(price, currency, exchangeRate);
     }
 
     public BulkStockPriceResponse getPrices(List<BulkStockPriceRequest.StockPriceItem> stocks) {

@@ -15,10 +15,11 @@ public class StockDetailResponse {
     private final Integer quantity;
     private final BigDecimal avgBuyPrice;
     private final BigDecimal dividendYield;
+    private final String priceCurrency;
 
     private StockDetailResponse(String subType, String stockCode, String market, String exchangeCode,
                                 String country, Integer quantity, BigDecimal avgBuyPrice,
-                                BigDecimal dividendYield) {
+                                BigDecimal dividendYield, String priceCurrency) {
         this.subType = subType;
         this.stockCode = stockCode;
         this.market = market;
@@ -27,6 +28,7 @@ public class StockDetailResponse {
         this.quantity = quantity;
         this.avgBuyPrice = avgBuyPrice;
         this.dividendYield = dividendYield;
+        this.priceCurrency = priceCurrency;
     }
 
     public static StockDetailResponse from(StockDetail detail) {
@@ -34,7 +36,8 @@ public class StockDetailResponse {
                 detail.getSubType() != null ? detail.getSubType().name() : null,
                 detail.getStockCode(), detail.getMarket(), detail.getExchangeCode(),
                 detail.getCountry(), detail.getQuantity(),
-                detail.getAvgBuyPrice(), detail.getDividendYield()
+                detail.getAvgBuyPrice(), detail.getDividendYield(),
+                detail.getPriceCurrency() != null ? detail.getPriceCurrency().name() : null
         );
     }
 }

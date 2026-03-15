@@ -35,7 +35,8 @@ public class PortfolioController {
                 request.getRegion(), request.getMemo(),
                 request.getSubType(), request.getStockCode(), request.getMarket(),
                 request.getExchangeCode(), request.getCountry(),
-                request.getQuantity(), request.getPurchasePrice(), request.getDividendYield());
+                request.getQuantity(), request.getPurchasePrice(), request.getDividendYield(),
+                request.getPriceCurrency());
         return ResponseEntity.ok(response);
     }
 
@@ -117,7 +118,8 @@ public class PortfolioController {
                 request.getItemName(), request.getMemo(),
                 request.getSubType(), request.getStockCode(), request.getMarket(),
                 request.getExchangeCode(), request.getCountry(),
-                request.getQuantity(), request.getPurchasePrice(), request.getDividendYield());
+                request.getQuantity(), request.getPurchasePrice(), request.getDividendYield(),
+                request.getPriceCurrency());
         return ResponseEntity.ok(response);
     }
 

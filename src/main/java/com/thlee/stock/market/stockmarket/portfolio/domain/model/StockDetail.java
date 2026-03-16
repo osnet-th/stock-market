@@ -17,6 +17,7 @@ public class StockDetail {
     private final BigDecimal avgBuyPrice;
     private final BigDecimal dividendYield;
     private final PriceCurrency priceCurrency;
+    private final BigDecimal investedAmountKrw;
 
     public StockDetail(StockSubType subType,
                        String stockCode,
@@ -26,7 +27,8 @@ public class StockDetail {
                        Integer quantity,
                        BigDecimal avgBuyPrice,
                        BigDecimal dividendYield,
-                       PriceCurrency priceCurrency) {
+                       PriceCurrency priceCurrency,
+                       BigDecimal investedAmountKrw) {
         this.subType = subType;
         this.stockCode = stockCode;
         this.market = market;
@@ -36,5 +38,6 @@ public class StockDetail {
         this.avgBuyPrice = avgBuyPrice;
         this.dividendYield = dividendYield;
         this.priceCurrency = priceCurrency;
+        this.investedAmountKrw = investedAmountKrw;
     }
 }

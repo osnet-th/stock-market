@@ -791,7 +791,7 @@
                                                             <div x-show="!portfolio.news.loading && portfolio.news.list.length === 0" class="px-5 py-4 text-center text-sm text-gray-400">수집된 뉴스가 없습니다.</div>
                                                             <!-- 뉴스 리스트 -->
                                                             <template x-for="newsItem in portfolio.news.list" :key="newsItem.id">
-                                                                <a :href="newsItem.link" target="_blank"
+                                                                <a :href="newsItem.originalUrl" target="_blank"
                                                                     class="block px-5 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-100 transition">
                                                                     <p class="text-sm text-gray-800 font-medium" x-text="newsItem.title"></p>
                                                                     <div class="flex items-center gap-2 mt-1">

@@ -34,7 +34,8 @@ public class PortfolioItemMapper {
                     stock.getQuantity(),
                     stock.getAvgBuyPrice(),
                     stock.getDividendYield(),
-                    stock.getPriceCurrency() != null ? PriceCurrency.valueOf(stock.getPriceCurrency()) : PriceCurrency.KRW
+                    stock.getPriceCurrency() != null ? PriceCurrency.valueOf(stock.getPriceCurrency()) : PriceCurrency.KRW,
+                    stock.getInvestedAmountKrw()
             );
         } else if (entity instanceof BondItemEntity bond) {
             bondDetail = new BondDetail(
@@ -91,7 +92,8 @@ public class PortfolioItemMapper {
                         detail.getStockCode(), detail.getMarket(), detail.getExchangeCode(),
                         detail.getCountry(), detail.getQuantity(),
                         detail.getAvgBuyPrice(), detail.getDividendYield(),
-                        detail.getPriceCurrency() != null ? detail.getPriceCurrency().name() : null
+                        detail.getPriceCurrency() != null ? detail.getPriceCurrency().name() : null,
+                        detail.getInvestedAmountKrw()
                 );
             }
             case BOND -> {

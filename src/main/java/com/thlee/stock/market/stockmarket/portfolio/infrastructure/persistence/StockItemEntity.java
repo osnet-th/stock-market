@@ -39,6 +39,9 @@ public class StockItemEntity extends PortfolioItemEntity {
     @Column(name = "price_currency", length = 10)
     private String priceCurrency;
 
+    @Column(name = "invested_amount_krw", precision = 18, scale = 2)
+    private BigDecimal investedAmountKrw;
+
     protected StockItemEntity() {
     }
 
@@ -59,7 +62,8 @@ public class StockItemEntity extends PortfolioItemEntity {
                            Integer quantity,
                            BigDecimal avgBuyPrice,
                            BigDecimal dividendYield,
-                           String priceCurrency) {
+                           String priceCurrency,
+                           BigDecimal investedAmountKrw) {
         super(id, userId, itemName, investedAmount, newsEnabled, region, memo, createdAt, updatedAt);
         this.subType = subType;
         this.stockCode = stockCode;
@@ -70,5 +74,6 @@ public class StockItemEntity extends PortfolioItemEntity {
         this.avgBuyPrice = avgBuyPrice;
         this.dividendYield = dividendYield;
         this.priceCurrency = priceCurrency;
+        this.investedAmountKrw = investedAmountKrw;
     }
 }

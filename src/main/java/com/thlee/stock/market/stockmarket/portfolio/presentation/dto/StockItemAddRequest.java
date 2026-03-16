@@ -18,4 +18,5 @@ public class StockItemAddRequest {
     private BigDecimal purchasePrice;
     private BigDecimal dividendYield;
     private String priceCurrency;
+    private BigDecimal investedAmountKrw;
 }

@@ -44,11 +44,12 @@ public class PortfolioService {
                                                String subType, String stockCode, String market,
                                                String exchangeCode, String country,
                                                Integer quantity, BigDecimal purchasePrice, BigDecimal dividendYield,
-                                               String priceCurrency) {
+                                               String priceCurrency, BigDecimal investedAmountKrw) {
         StockDetail detail = new StockDetail(
                 subType != null ? StockSubType.valueOf(subType) : null,
                 stockCode, market, exchangeCode, country, quantity, purchasePrice, dividendYield,
-                priceCurrency != null ? PriceCurrency.valueOf(priceCurrency) : PriceCurrency.KRW
+                priceCurrency != null ? PriceCurrency.valueOf(priceCurrency) : PriceCurrency.KRW,
+                investedAmountKrw
         );
         PortfolioItem item = PortfolioItem.createWithStock(
                 userId, itemName, Region.valueOf(region), detail);
@@ -164,14 +165,15 @@ public class PortfolioService {
                                                   String subType, String stockCode, String market,
                                                   String exchangeCode, String country,
                                                   Integer quantity, BigDecimal purchasePrice, BigDecimal dividendYield,
-                                                  String priceCurrency) {
+                                                  String priceCurrency, BigDecimal investedAmountKrw) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateMemo(memo);
         StockDetail detail = new StockDetail(
                 subType != null ? StockSubType.valueOf(subType) : null,
                 stockCode, market, exchangeCode, country, quantity, purchasePrice, dividendYield,
-                priceCurrency != null ? PriceCurrency.valueOf(priceCurrency) : PriceCurrency.KRW
+                priceCurrency != null ? PriceCurrency.valueOf(priceCurrency) : PriceCurrency.KRW,
+                investedAmountKrw
         );
         item.updateStockDetail(detail);
         PortfolioItem saved = portfolioItemRepository.save(item);

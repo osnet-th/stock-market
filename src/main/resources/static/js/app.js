@@ -540,6 +540,10 @@ function dashboard() {
         },
 
         getInvestedAmountKrw(item) {
+            // 해외 주식: 사용자가 입력한 원화 투자금액 우선 사용
+            if (item.assetType === 'STOCK' && item.stockDetail && item.stockDetail.investedAmountKrw) {
+                return parseFloat(item.stockDetail.investedAmountKrw);
+            }
             return item.investedAmount * this.getExchangeRate(item);
         },
 
@@ -900,7 +904,8 @@ function dashboard() {
                             quantity: Number(form.quantity),
                             purchasePrice: Number(form.purchasePrice),
                             dividendYield: form.dividendYield ? Number(form.dividendYield) : null,
-                            priceCurrency: form.priceCurrency || 'KRW'
+                            priceCurrency: form.priceCurrency || 'KRW',
+                            investedAmountKrw: form.investedAmountKrw ? Number(form.investedAmountKrw) : null
                         });
                         break;
                     case 'BOND':
@@ -1135,6 +1140,7 @@ function dashboard() {
                         form.purchasePrice = item.stockDetail.avgBuyPrice;
                         form.dividendYield = item.stockDetail.dividendYield;
                         form.priceCurrency = item.stockDetail.priceCurrency || 'KRW';
+                        form.investedAmountKrw = item.stockDetail.investedAmountKrw;
                     }
                     break;
                 case 'BOND':
@@ -1229,7 +1235,8 @@ function dashboard() {
                             quantity: Number(form.quantity),
                             purchasePrice: Number(form.purchasePrice),
                             dividendYield: form.dividendYield ? Number(form.dividendYield) : null,
-                            priceCurrency: form.priceCurrency || 'KRW'
+                            priceCurrency: form.priceCurrency || 'KRW',
+                            investedAmountKrw: form.investedAmountKrw ? Number(form.investedAmountKrw) : null
                         });
                         break;
                     case 'BOND':

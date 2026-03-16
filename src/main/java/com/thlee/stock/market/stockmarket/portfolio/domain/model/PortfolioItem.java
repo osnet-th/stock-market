@@ -207,7 +207,8 @@ public class PortfolioItem {
                 newQuantity,
                 newAvgBuyPrice,
                 this.stockDetail.getDividendYield(),
-                this.stockDetail.getPriceCurrency()
+                this.stockDetail.getPriceCurrency(),
+                this.stockDetail.getInvestedAmountKrw()
         );
         this.investedAmount = calcInvestedAmount(newAvgBuyPrice, newQuantity);
         this.updatedAt = LocalDateTime.now();
@@ -244,7 +245,8 @@ public class PortfolioItem {
                 totalQuantity,
                 newAvgBuyPrice,
                 this.stockDetail.getDividendYield(),
-                this.stockDetail.getPriceCurrency()
+                this.stockDetail.getPriceCurrency(),
+                this.stockDetail.getInvestedAmountKrw()
         );
         this.investedAmount = calcInvestedAmount(newAvgBuyPrice, totalQuantity);
         this.updatedAt = LocalDateTime.now();

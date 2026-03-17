@@ -29,6 +29,7 @@ public class EcosIndicatorAdapter implements EcosIndicatorPort {
                 row.getClassName(),
                 row.getKeystatName(),
                 row.getDataValue(),
+                null,
                 row.getCycle(),
                 row.getUnitName()))
             .toList();

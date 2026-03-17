@@ -11,6 +11,8 @@ public class EcosIndicatorLatestMapper {
         return new EcosIndicatorLatestEntity(
             domain.getClassName(),
             domain.getKeystatName(),
+            domain.getDataValue(),
+            domain.getPreviousDataValue(),
             domain.getCycle(),
             domain.getUpdatedAt()
         );
@@ -20,6 +22,8 @@ public class EcosIndicatorLatestMapper {
         return new EcosIndicatorLatest(
             entity.getClassName(),
             entity.getKeystatName(),
+            entity.getDataValue(),
+            entity.getPreviousDataValue(),
             entity.getCycle(),
             entity.getUpdatedAt()
         );

@@ -24,6 +24,12 @@ public class EcosIndicatorLatestEntity {
     @Column(name = "keystat_name", nullable = false, length = 200)
     private String keystatName;
 
+    @Column(name = "data_value", length = 50)
+    private String dataValue;
+
+    @Column(name = "previous_data_value", length = 50)
+    private String previousDataValue;
+
     @Column(name = "cycle", length = 20)
     private String cycle;
 
@@ -35,19 +41,27 @@ public class EcosIndicatorLatestEntity {
 
     public EcosIndicatorLatestEntity(String className,
                                       String keystatName,
+                                      String dataValue,
+                                      String previousDataValue,
                                       String cycle,
                                       LocalDateTime updatedAt) {
         this.className = className;
         this.keystatName = keystatName;
+        this.dataValue = dataValue;
+        this.previousDataValue = previousDataValue;
         this.cycle = cycle;
         this.updatedAt = updatedAt;
     }
 
     /**
-     * 값 갱신 (UPSERT 시 사용)
+     * 값 갱신 — cycle 변경 시 이전값 보존
      */
-    public void updateCycle(String cycle, LocalDateTime updatedAt) {
-        this.cycle = cycle;
+    public void update(String newDataValue, String newCycle, boolean cycleChanged, LocalDateTime updatedAt) {
+        if (cycleChanged) {
+            this.previousDataValue = this.dataValue;
+        }
+        this.dataValue = newDataValue;
+        this.cycle = newCycle;
         this.updatedAt = updatedAt;
     }
 

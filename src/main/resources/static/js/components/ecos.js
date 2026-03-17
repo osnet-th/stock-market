@@ -14,20 +14,53 @@ const EcosComponent = {
 
     async loadEcosIndicators() {
         if (!this.ecos.selectedCategory) return;
+
+        const thisGeneration = ++this.ecos._requestGeneration;
         this.ecos.loading = true;
+
         try {
-            this.ecos.indicators = await API.getEcosIndicators(this.ecos.selectedCategory) || [];
+            const result = await API.getEcosIndicators(this.ecos.selectedCategory) || [];
+            if (thisGeneration !== this.ecos._requestGeneration) return;
+            this.ecos.indicators = result;
         } catch (e) {
+            if (thisGeneration !== this.ecos._requestGeneration) return;
             console.error('ECOS 지표 로드 실패:', e);
             this.ecos.indicators = [];
         } finally {
-            this.ecos.loading = false;
+            if (thisGeneration === this.ecos._requestGeneration) {
+                this.ecos.loading = false;
+            }
         }
     },
 
     async selectEcosCategory(categoryName) {
         this.ecos.selectedCategory = categoryName;
         await this.loadEcosIndicators();
+    },
+
+    getEcosKeyIndicators() {
+        return this.ecos.indicators.filter(ind => ind.keyIndicator);
+    },
+
+    getEcosSortedIndicators() {
+        return [...this.ecos.indicators].sort((a, b) =>
+            a.className.localeCompare(b.className)
+        );
+    },
+
+    getEcosCardBorderClass(ind) {
+        const change = Format.change(ind.dataValue, ind.previousDataValue);
+        if (change.direction === 'none' || change.direction === 'same') {
+            return 'border-gray-300';
+        }
+        const positive = ind.positiveDirection || 'NEUTRAL';
+        if (positive === 'NEUTRAL') return 'border-gray-300';
+
+        const isPositiveChange =
+            (positive === 'UP' && change.direction === 'up') ||
+            (positive === 'DOWN' && change.direction === 'down');
+
+        return isPositiveChange ? 'border-green-500' : 'border-red-500';
     },
 
     getEcosCategoryLabel(name) {

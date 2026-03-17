@@ -1,7 +1,7 @@
 package com.thlee.stock.market.stockmarket.economics.presentation.dto;
 
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorMetadata;
 import com.thlee.stock.market.stockmarket.economics.domain.model.KeyStatIndicator;
-import com.thlee.stock.market.stockmarket.economics.infrastructure.korea.ecos.config.EcosIndicatorMetadataProperties;
 
 /**
  * 경제지표 단건 응답 DTO
@@ -19,7 +19,7 @@ public record IndicatorResponse(
 ) {
 
     public static IndicatorResponse from(KeyStatIndicator indicator,
-                                          EcosIndicatorMetadataProperties.IndicatorMeta meta) {
+                                          EcosIndicatorMetadata meta) {
         return new IndicatorResponse(
             indicator.className(),
             indicator.keystatName(),

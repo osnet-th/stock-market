@@ -683,11 +683,15 @@
                                             </template>
 
                                             <!-- 섹션 내용 -->
-                                            <div x-show="portfolio.expandedSections[alloc.assetType]" class="border-t border-gray-100">
-                                                <template x-for="item in getItemsByType(alloc.assetType)" :key="item.id">
-                                                    <div>
+                                            <div x-show="portfolio.expandedSections[alloc.assetType]" class="p-3 space-y-2 border-t border-gray-100">
+                                                <!-- STOCK: 국내/해외 서브 헤더 -->
+                                                <template x-if="alloc.assetType === 'STOCK' && getDomesticStocks().length > 0">
+                                                    <div class="text-xs font-medium text-gray-500 px-1 pt-1">🇰🇷 국내 주식</div>
+                                                </template>
+                                                <template x-for="item in alloc.assetType === 'STOCK' ? getDomesticStocks() : getItemsByType(alloc.assetType)" :key="item.id">
+                                                    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
                                                         <div @click="item.newsEnabled ? selectPortfolioNewsItem(item) : null"
-                                                            class="px-5 py-3 border-b border-gray-50 last:border-b-0 flex items-center justify-between transition"
+                                                            class="px-4 py-3 flex items-center justify-between transition"
                                                             :class="item.newsEnabled ? 'hover:bg-gray-50 cursor-pointer' : ''"
                                                             :style="portfolio.selectedNewsItemId === item.id ? 'background-color: rgb(240 253 244)' : ''">
                                                             <div>
@@ -704,8 +708,9 @@
                                                                     x-text="getStockPriceSummary(item)"></p>
                                                             </div>
                                                             <div class="flex items-center gap-2">
-                                                                <!-- 뉴스 토글 -->
-                                                                <button @click.stop="toggleNews(item)"
+                                                                <!-- 뉴스 토글 (현금 제외) -->
+                                                                <button x-show="item.assetType !== 'CASH'"
+                                                                    @click.stop="toggleNews(item)"
                                                                     :class="item.newsEnabled ? 'text-green-600 hover:text-green-800' : 'text-gray-400 hover:text-gray-600'"
                                                                     class="text-xs font-medium transition"
                                                                     x-text="item.newsEnabled ? '뉴스 ON' : '뉴스 OFF'">
@@ -934,6 +939,80 @@
                                                                 </a>
                                                             </template>
                                                             <!-- 페이징 -->
+                                                            <div x-show="portfolio.news.totalPages > 1" class="px-5 py-3 flex items-center justify-center gap-2 border-t border-gray-100">
+                                                                <button @click.stop="loadPortfolioNews(portfolio.news.page - 1)"
+                                                                    :disabled="portfolio.news.page <= 0"
+                                                                    class="text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed">이전</button>
+                                                                <span class="text-xs text-gray-500" x-text="(portfolio.news.page + 1) + ' / ' + portfolio.news.totalPages"></span>
+                                                                <button @click.stop="loadPortfolioNews(portfolio.news.page + 1)"
+                                                                    :disabled="portfolio.news.page >= portfolio.news.totalPages - 1"
+                                                                    class="text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed">다음</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <!-- STOCK: 해외 주식 서브 헤더 + 루프 -->
+                                                <template x-if="alloc.assetType === 'STOCK' && getOverseasStocks().length > 0">
+                                                    <div class="text-xs font-medium text-gray-500 px-1 pt-2">🌐 해외 주식</div>
+                                                </template>
+                                                <template x-for="item in alloc.assetType === 'STOCK' ? getOverseasStocks() : []" :key="'overseas-' + item.id">
+                                                    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                                                        <div @click="item.newsEnabled ? selectPortfolioNewsItem(item) : null"
+                                                            class="px-4 py-3 flex items-center justify-between transition"
+                                                            :class="item.newsEnabled ? 'hover:bg-gray-50 cursor-pointer' : ''"
+                                                            :style="portfolio.selectedNewsItemId === item.id ? 'background-color: rgb(240 253 244)' : ''">
+                                                            <div>
+                                                                <div class="flex items-center gap-2">
+                                                                    <span class="text-sm font-medium text-gray-800" x-text="item.itemName"></span>
+                                                                    <span class="text-xs text-gray-400" x-text="'원금 ' + Format.number(getInvestedAmountKrw(item), 0) + '원'"></span>
+                                                                    <span class="text-xs font-medium"
+                                                                        :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                                                        x-text="Format.number(getEvalAmount(item), 0) + '원'"></span>
+                                                                </div>
+                                                                <p class="text-xs text-gray-400 mt-0.5" x-text="getItemSummary(item)"></p>
+                                                                <p x-show="getStockPriceSummary(item)" class="text-xs mt-0.5"
+                                                                    :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                                                    x-text="getStockPriceSummary(item)"></p>
+                                                            </div>
+                                                            <div class="flex items-center gap-2">
+                                                                <button x-show="item.assetType !== 'CASH'"
+                                                                    @click.stop="toggleNews(item)"
+                                                                    :class="item.newsEnabled ? 'text-green-600 hover:text-green-800' : 'text-gray-400 hover:text-gray-600'"
+                                                                    class="text-xs font-medium transition"
+                                                                    x-text="item.newsEnabled ? '뉴스 ON' : '뉴스 OFF'">
+                                                                </button>
+                                                                <button x-show="item.assetType === 'STOCK'"
+                                                                    @click.stop="openPurchaseModal(item)"
+                                                                    class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">추가 매수</button>
+                                                                <button @click.stop="openEditModal(item)"
+                                                                    class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
+                                                                <button @click.stop="deleteItem(item.id)"
+                                                                    class="text-xs text-red-500 hover:text-red-700 font-medium transition">삭제</button>
+                                                            </div>
+                                                        </div>
+                                                        <!-- 뉴스 목록 -->
+                                                        <div x-show="portfolio.selectedNewsItemId === item.id" class="bg-gray-50 border-t border-gray-100">
+                                                            <div class="px-5 py-2 flex items-center justify-between border-b border-gray-100">
+                                                                <span class="text-xs text-gray-500" x-text="'뉴스 ' + portfolio.news.totalElements + '건'"></span>
+                                                                <button @click.stop="collectPortfolioNews(item)"
+                                                                    :disabled="portfolio.collectingItemId === item.id"
+                                                                    class="text-xs font-medium px-3 py-1 rounded-lg transition"
+                                                                    :class="portfolio.collectingItemId === item.id ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-100 text-green-700 hover:bg-green-200'"
+                                                                    x-text="portfolio.collectingItemId === item.id ? '수집 중...' : '뉴스 수집'">
+                                                                </button>
+                                                            </div>
+                                                            <div x-show="portfolio.news.loading" class="px-5 py-4 text-center text-sm text-gray-400">뉴스 로딩 중...</div>
+                                                            <div x-show="!portfolio.news.loading && portfolio.news.list.length === 0" class="px-5 py-4 text-center text-sm text-gray-400">수집된 뉴스가 없습니다.</div>
+                                                            <template x-for="newsItem in portfolio.news.list" :key="newsItem.id">
+                                                                <a :href="newsItem.originalUrl" target="_blank"
+                                                                    class="block px-5 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-100 transition">
+                                                                    <p class="text-sm text-gray-800 font-medium" x-text="newsItem.title"></p>
+                                                                    <div class="flex items-center gap-2 mt-1">
+                                                                        <span class="text-xs text-gray-400" x-text="newsItem.source || ''"></span>
+                                                                        <span class="text-xs text-gray-300" x-text="newsItem.publishedAt ? newsItem.publishedAt.substring(0, 10) : ''"></span>
+                                                                    </div>
+                                                                </a>
+                                                            </template>
                                                             <div x-show="portfolio.news.totalPages > 1" class="px-5 py-3 flex items-center justify-center gap-2 border-t border-gray-100">
                                                                 <button @click.stop="loadPortfolioNews(portfolio.news.page - 1)"
                                                                     :disabled="portfolio.news.page <= 0"

@@ -3,11 +3,6 @@ spring:
   application:
     name: stock-market
 
-  # 추가 설정 파일 임포트
-  config:
-    import:
-      - optional:classpath:ecos-indicator-metadata.yml
-
   # 기본 프로파일
   profiles:
     active: dev

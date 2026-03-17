@@ -697,6 +697,18 @@ function dashboard() {
             return this.portfolio.items.filter(function(item) { return item.assetType === type; });
         },
 
+        getDomesticStocks() {
+            return this.portfolio.items.filter(function(item) {
+                return item.assetType === 'STOCK' && item.stockDetail?.country === 'KR';
+            });
+        },
+
+        getOverseasStocks() {
+            return this.portfolio.items.filter(function(item) {
+                return item.assetType === 'STOCK' && item.stockDetail?.country !== 'KR';
+            });
+        },
+
         getTotalInvested() {
             return this.portfolio.items.reduce(function(sum, item) {
                 return sum + this.getInvestedAmountKrw(item);

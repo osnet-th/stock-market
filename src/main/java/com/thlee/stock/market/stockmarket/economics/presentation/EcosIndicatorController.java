@@ -1,9 +1,10 @@
 package com.thlee.stock.market.stockmarket.economics.presentation;
 
+import com.thlee.stock.market.stockmarket.economics.application.EcosIndicatorMetadataService;
 import com.thlee.stock.market.stockmarket.economics.application.EcosIndicatorService;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorCategory;
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorMetadata;
 import com.thlee.stock.market.stockmarket.economics.domain.model.KeyStatIndicator;
-import com.thlee.stock.market.stockmarket.economics.infrastructure.korea.ecos.config.EcosIndicatorMetadataProperties;
 import com.thlee.stock.market.stockmarket.economics.presentation.dto.CategoryResponse;
 import com.thlee.stock.market.stockmarket.economics.presentation.dto.IndicatorResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,7 @@ import java.util.Map;
 public class EcosIndicatorController {
 
     private final EcosIndicatorService ecosIndicatorService;
-    private final EcosIndicatorMetadataProperties metadataProperties;
+    private final EcosIndicatorMetadataService metadataService;
 
     /**
      * 카테고리별 경제지표 조회
@@ -39,8 +40,7 @@ public class EcosIndicatorController {
             @RequestParam EcosIndicatorCategory category
     ) {
         List<KeyStatIndicator> indicators = ecosIndicatorService.getIndicatorsByCategory(category);
-        Map<String, EcosIndicatorMetadataProperties.IndicatorMeta> metaMap =
-            metadataProperties.toMap();
+        Map<String, EcosIndicatorMetadata> metaMap = metadataService.getMetadataMap();
 
         List<IndicatorResponse> response = indicators.stream()
                 .map(ind -> IndicatorResponse.from(ind, metaMap.get(ind.toCompareKey())))

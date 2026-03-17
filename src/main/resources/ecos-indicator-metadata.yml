@@ -1,0 +1,133 @@
+ecos:
+  indicator:
+    metadata:
+      indicators:
+        # === 금리 (INTEREST_RATE) ===
+        - class-name: "시장금리"
+          keystat-name: "한국은행 기준금리"
+          description: "한국은행 기준금리 — 금융기관 간 RP 매매 기준"
+          positive-direction: DOWN
+          key-indicator: true
+        - class-name: "시장금리"
+          keystat-name: "CD(91일)"
+          description: "91일 만기 양도성예금증서 유통수익률"
+          positive-direction: DOWN
+          key-indicator: true
+
+        # === 통화/금융 (MONEY_FINANCE) ===
+        - class-name: "통화량"
+          keystat-name: "M2(광의통화)(평잔)"
+          description: "광의통화 — 시중 유동성 규모"
+          positive-direction: NEUTRAL
+          key-indicator: true
+
+        # === 주식/채권 (STOCK_BOND) ===
+        - class-name: "주식"
+          keystat-name: "KOSPI"
+          description: "한국 종합주가지수"
+          positive-direction: UP
+          key-indicator: true
+        - class-name: "주식"
+          keystat-name: "KOSDAQ"
+          description: "코스닥 종합주가지수"
+          positive-direction: UP
+          key-indicator: true
+
+        # === 환율 (EXCHANGE_RATE) ===
+        - class-name: "환율"
+          keystat-name: "원/달러"
+          description: "원/달러 환율 — 원화 강세 시 하락"
+          positive-direction: DOWN
+          key-indicator: true
+
+        # === 성장/소득 (GROWTH_INCOME) ===
+        - class-name: "성장률"
+          keystat-name: "GDP성장률(전기대비)"
+          description: "국내총생산 성장률 — 경제 성장 속도"
+          positive-direction: UP
+          key-indicator: true
+
+        # === 생산 (PRODUCTION) ===
+        - class-name: "생산"
+          keystat-name: "광공업생산지수"
+          description: "광업·제조업 생산활동 동향 지수"
+          positive-direction: UP
+          key-indicator: true
+
+        # === 소비/투자 (CONSUMPTION_INVESTMENT) ===
+        - class-name: "소비"
+          keystat-name: "소매판매액지수"
+          description: "소매업 판매액 변동 지수"
+          positive-direction: UP
+          key-indicator: true
+
+        # === 물가 (PRICE) ===
+        - class-name: "소비자/생산자 물가"
+          keystat-name: "소비자물가지수"
+          description: "소비자물가 변동을 측정하는 종합 지수"
+          positive-direction: DOWN
+          key-indicator: true
+
+        # === 고용/노동 (EMPLOYMENT_LABOR) ===
+        - class-name: "고용"
+          keystat-name: "실업률"
+          description: "경제활동인구 중 실업자 비율"
+          positive-direction: DOWN
+          key-indicator: true
+        - class-name: "고용"
+          keystat-name: "취업자수"
+          description: "15세 이상 취업자 수"
+          positive-direction: UP
+          key-indicator: true
+
+        # === 경기심리 (SENTIMENT) ===
+        - class-name: "심리지표"
+          keystat-name: "소비자심리지수(CSI)"
+          description: "소비자심리지수 — 100 이상이면 낙관적"
+          positive-direction: UP
+          key-indicator: true
+        - class-name: "경기순환지표"
+          keystat-name: "경기선행지수 순환변동치"
+          description: "향후 경기 방향을 예측하는 선행 지표"
+          positive-direction: UP
+          key-indicator: true
+
+        # === 대외경제 (EXTERNAL_ECONOMY) ===
+        - class-name: "통관수출입"
+          keystat-name: "수출(통관기준)"
+          description: "통관 기준 수출액"
+          positive-direction: UP
+          key-indicator: true
+        - class-name: "국제수지"
+          keystat-name: "경상수지"
+          description: "상품·서비스·소득 등의 대외 거래 수지"
+          positive-direction: UP
+          key-indicator: true
+
+        # === 기업/가계 (CORPORATE_HOUSEHOLD) ===
+        - class-name: "가계"
+          keystat-name: "가계신용(잔액)"
+          description: "가계 대출·판매신용 잔액 합계"
+          positive-direction: DOWN
+          key-indicator: true
+
+        # === 부동산 (REAL_ESTATE) ===
+        - class-name: "부동산 가격"
+          keystat-name: "주택매매가격지수"
+          description: "전국 주택 매매 가격 변동 지수"
+          positive-direction: NEUTRAL
+          key-indicator: true
+
+        # === 인구 (POPULATION) ===
+        - class-name: "인구"
+          keystat-name: "총인구"
+          description: "대한민국 총 인구수"
+          positive-direction: UP
+          key-indicator: true
+
+        # === 원자재 (COMMODITY) ===
+        - class-name: "국제원자재가격"
+          keystat-name: "두바이유"
+          description: "두바이유 국제 시세"
+          positive-direction: DOWN
+          key-indicator: true

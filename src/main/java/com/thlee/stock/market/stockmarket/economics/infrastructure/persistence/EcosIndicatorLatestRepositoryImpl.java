@@ -33,7 +33,10 @@ public class EcosIndicatorLatestRepositoryImpl implements EcosIndicatorLatestRep
             Optional<EcosIndicatorLatestEntity> existing = jpaRepository.findById(id);
 
             if (existing.isPresent()) {
-                existing.get().updateCycle(latest.getCycle(), LocalDateTime.now());
+                EcosIndicatorLatestEntity entity = existing.get();
+                boolean cycleChanged = latest.getCycle() != null
+                    && !latest.getCycle().equals(entity.getCycle());
+                entity.update(latest.getDataValue(), latest.getCycle(), cycleChanged, LocalDateTime.now());
             } else {
                 jpaRepository.save(mapper.toEntity(latest));
             }

@@ -7,6 +7,7 @@ public record KeyStatIndicator(
     String className,
     String keystatName,
     String dataValue,
+    String previousDataValue,
     String cycle,
     String unitName
 ) {
@@ -16,5 +17,14 @@ public record KeyStatIndicator(
      */
     public String toCompareKey() {
         return className + "::" + keystatName;
+    }
+
+    /**
+     * previousDataValue를 병합한 새 인스턴스 생성
+     */
+    public KeyStatIndicator withPreviousDataValue(String previousDataValue) {
+        return new KeyStatIndicator(
+            className, keystatName, dataValue, previousDataValue, cycle, unitName
+        );
     }
 }

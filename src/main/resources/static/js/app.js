@@ -44,7 +44,8 @@ function dashboard() {
             categories: [],
             selectedCategory: null,
             indicators: [],
-            loading: false
+            loading: false,
+            _requestGeneration: 0
         },
 
         // ==================== News State ====================
@@ -128,6 +129,77 @@ function dashboard() {
                 { key: 'lawsuits', label: '소송현황' },
                 { key: 'private-fund', label: '사모자금사용' },
                 { key: 'public-fund', label: '공모자금사용' }
+            ]
+        },
+
+        financialColumns: {
+            accounts: [
+                { key: 'accountName', label: '계정명', type: 'text' },
+                { key: 'fsName', label: '재무제표', type: 'text' },
+                { key: 'currentTermAmount', label: '당기', type: 'amount' },
+                { key: 'previousTermAmount', label: '전기', type: 'amount' },
+                { key: 'beforePreviousTermAmount', label: '전전기', type: 'amount' }
+            ],
+            indices: [
+                { key: 'indexName', label: '지표명', type: 'text' },
+                { key: 'indexValue', label: '값', type: 'number' }
+            ],
+            'full-statements': [
+                { key: 'statementName', label: '제표종류', type: 'text' },
+                { key: 'accountName', label: '계정명', type: 'text' },
+                { key: 'accountDetail', label: '상세', type: 'text' },
+                { key: 'currentTermAmount', label: '당기', type: 'amount' },
+                { key: 'previousTermAmount', label: '전기', type: 'amount' }
+            ],
+            'stock-quantities': [
+                { key: 'category', label: '구분', type: 'text' },
+                { key: 'issuedTotalQuantity', label: '발행주식총수', type: 'amount' },
+                { key: 'treasuryStockCount', label: '자기주식수', type: 'amount' },
+                { key: 'distributedStockCount', label: '유통주식수', type: 'amount' }
+            ],
+            dividends: [
+                { key: 'category', label: '구분', type: 'text' },
+                { key: 'stockKind', label: '주식종류', type: 'text' },
+                { key: 'currentTerm', label: '당기', type: 'number' },
+                { key: 'previousTerm', label: '전기', type: 'number' },
+                { key: 'beforePreviousTerm', label: '전전기', type: 'number' }
+            ],
+            lawsuits: [
+                { key: 'plaintiffName', label: '원고', type: 'text' },
+                { key: 'lawsuitAmount', label: '소송금액', type: 'amount' },
+                { key: 'claimContent', label: '청구내용', type: 'text' },
+                { key: 'currentProgress', label: '현재진행', type: 'text' },
+                { key: 'litigationDate', label: '소송제기일', type: 'text' }
+            ],
+            'private-fund': [
+                { key: 'category', label: '구분', type: 'text' },
+                { key: 'usePurpose', label: '사용목적', type: 'text' },
+                { key: 'planAmount', label: '계획금액', type: 'amount' },
+                { key: 'actualAmount', label: '실제금액', type: 'amount' },
+                { key: 'differenceReason', label: '차이사유', type: 'text' }
+            ],
+            'public-fund': [
+                { key: 'category', label: '구분', type: 'text' },
+                { key: 'usePurpose', label: '사용목적', type: 'text' },
+                { key: 'planAmount', label: '계획금액', type: 'amount' },
+                { key: 'actualAmount', label: '실제금액', type: 'amount' },
+                { key: 'differenceReason', label: '차이사유', type: 'text' }
+            ]
+        },
+
+        financialSummaryConfig: {
+            accounts: [
+                { match: '매출액', label: '매출액' },
+                { match: '영업이익', label: '영업이익' },
+                { match: '당기순이익', label: '당기순이익' },
+                { match: '자산총계', label: '자산총계' },
+                { match: '부채총계', label: '부채총계' },
+                { match: '자본총계', label: '자본총계' }
+            ],
+            dividends: [
+                { match: '주당 현금배당금', label: '주당배당금' },
+                { match: '현금배당수익률', label: '배당수익률' },
+                { match: '현금배당성향', label: '배당성향' }
             ]
         },
 
@@ -380,20 +452,53 @@ function dashboard() {
 
         async loadEcosIndicators() {
             if (!this.ecos.selectedCategory) return;
+
+            const thisGeneration = ++this.ecos._requestGeneration;
             this.ecos.loading = true;
+
             try {
-                this.ecos.indicators = await API.getEcosIndicators(this.ecos.selectedCategory) || [];
+                const result = await API.getEcosIndicators(this.ecos.selectedCategory) || [];
+                if (thisGeneration !== this.ecos._requestGeneration) return;
+                this.ecos.indicators = result;
             } catch (e) {
+                if (thisGeneration !== this.ecos._requestGeneration) return;
                 console.error('ECOS 지표 로드 실패:', e);
                 this.ecos.indicators = [];
             } finally {
-                this.ecos.loading = false;
+                if (thisGeneration === this.ecos._requestGeneration) {
+                    this.ecos.loading = false;
+                }
             }
         },
 
         async selectEcosCategory(categoryName) {
             this.ecos.selectedCategory = categoryName;
             await this.loadEcosIndicators();
+        },
+
+        getEcosKeyIndicators() {
+            return this.ecos.indicators.filter(ind => ind.keyIndicator);
+        },
+
+        getEcosSortedIndicators() {
+            return [...this.ecos.indicators].sort((a, b) =>
+                a.className.localeCompare(b.className)
+            );
+        },
+
+        getEcosCardBorderClass(ind) {
+            const change = Format.change(ind.dataValue, ind.previousDataValue);
+            if (change.direction === 'none' || change.direction === 'same') {
+                return 'border-gray-300';
+            }
+            const positive = ind.positiveDirection || 'NEUTRAL';
+            if (positive === 'NEUTRAL') return 'border-gray-300';
+
+            const isPositiveChange =
+                (positive === 'UP' && change.direction === 'up') ||
+                (positive === 'DOWN' && change.direction === 'down');
+
+            return isPositiveChange ? 'border-green-500' : 'border-red-500';
         },
 
         // ==================== Global Methods ====================
@@ -1323,6 +1428,60 @@ function dashboard() {
             this.portfolio.selectedStockItem = null;
             this.portfolio.selectedFinancialMenu = null;
             this.portfolio.financialResult = null;
+        },
+
+        getFinancialColumns() {
+            var menu = this.portfolio.selectedFinancialMenu;
+            return this.financialColumns[menu] || null;
+        },
+
+        getFinancialSummaryCards() {
+            var menu = this.portfolio.selectedFinancialMenu;
+            var result = this.portfolio.financialResult;
+            if (!result || result.length === 0) return [];
+
+            var config = this.financialSummaryConfig[menu];
+            if (!config) return [];
+
+            var cards = [];
+            for (var i = 0; i < config.length; i++) {
+                var cfg = config[i];
+                for (var j = 0; j < result.length; j++) {
+                    var row = result[j];
+                    var name = row.accountName || row.category || '';
+                    if (name.indexOf(cfg.match) !== -1) {
+                        var current = row.currentTermAmount || row.currentTerm || '';
+                        var previous = row.previousTermAmount || row.previousTerm || '';
+                        var currentNum = parseFloat(String(current).replace(/,/g, '')) || 0;
+                        var previousNum = parseFloat(String(previous).replace(/,/g, '')) || 0;
+                        var changeRate = previousNum !== 0 ? ((currentNum - previousNum) / Math.abs(previousNum) * 100) : null;
+                        cards.push({
+                            label: cfg.label,
+                            value: current,
+                            changeRate: changeRate
+                        });
+                        break;
+                    }
+                }
+            }
+            return cards;
+        },
+
+        formatFinancialCell(value, type) {
+            if (value == null || value === '') return '-';
+            if (type === 'amount') {
+                var num = parseFloat(String(value).replace(/,/g, ''));
+                return isNaN(num) ? value : Format.number(num, 0);
+            }
+            if (type === 'number') {
+                var n = parseFloat(String(value).replace(/,/g, ''));
+                return isNaN(n) ? value : Format.number(n);
+            }
+            return value;
+        },
+
+        isAmountColumn(type) {
+            return type === 'amount' || type === 'number';
         },
 
         async selectFinancialMenu(menuKey) {

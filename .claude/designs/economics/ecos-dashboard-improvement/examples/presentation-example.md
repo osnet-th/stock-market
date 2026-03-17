@@ -1,11 +1,13 @@
+# 프레젠테이션 예시
+
+## IndicatorResponse DTO (확장)
+
+```java
 package com.thlee.stock.market.stockmarket.economics.presentation.dto;
 
 import com.thlee.stock.market.stockmarket.economics.domain.model.KeyStatIndicator;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.korea.ecos.config.EcosIndicatorMetadataProperties;
 
-/**
- * 경제지표 단건 응답 DTO
- */
 public record IndicatorResponse(
     String className,
     String keystatName,
@@ -33,3 +35,23 @@ public record IndicatorResponse(
         );
     }
 }
+```
+
+## EcosIndicatorController (변경)
+
+```java
+@GetMapping
+public ResponseEntity<List<IndicatorResponse>> getIndicatorsByCategory(
+        @RequestParam EcosIndicatorCategory category
+) {
+    List<KeyStatIndicator> indicators = ecosIndicatorService.getIndicatorsByCategory(category);
+    Map<String, EcosIndicatorMetadataProperties.IndicatorMeta> metaMap =
+        metadataProperties.getIndicators();
+
+    List<IndicatorResponse> response = indicators.stream()
+            .map(ind -> IndicatorResponse.from(ind, metaMap.get(ind.toCompareKey())))
+            .toList();
+
+    return ResponseEntity.ok(response);
+}
+```

@@ -1,7 +1,5 @@
 package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.config.KisProperties;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisTokenResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.exception.KisApiException;
@@ -11,37 +9,33 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.time.Instant;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
 public class KisTokenManager {
 
-    private static final String TOKEN_CACHE_KEY = "kis_access_token";
     private static final String TOKEN_ENDPOINT = "/oauth2/tokenP";
 
     private final RestClient restClient;
     private final KisProperties properties;
-    private final Cache<String, String> tokenCache;
+
+    private String cachedToken;
+    private Instant tokenExpiresAt;
 
     public KisTokenManager(RestClient restClient, KisProperties properties) {
         this.restClient = restClient;
         this.properties = properties;
-        this.tokenCache = Caffeine.newBuilder()
-            .expireAfterWrite(23, TimeUnit.HOURS)
-            .maximumSize(1)
-            .build();
     }
 
     /**
      * KIS Access Token 반환.
      * 캐시에 토큰이 있으면 즉시 반환, 없으면 발급 후 캐시에 저장.
      */
-    public String getAccessToken() {
-        String token = tokenCache.getIfPresent(TOKEN_CACHE_KEY);
-        if (token != null) {
-            return token;
+    public synchronized String getAccessToken() {
+        if (cachedToken != null && Instant.now().isBefore(tokenExpiresAt)) {
+            return cachedToken;
         }
         return issueAndCacheToken();
     }
@@ -66,8 +60,9 @@ public class KisTokenManager {
             }
 
             String accessToken = response.getAccessToken();
-            tokenCache.put(TOKEN_CACHE_KEY, accessToken);
-            log.info("KIS Access Token 발급 완료");
+            cachedToken = accessToken;
+            tokenExpiresAt = Instant.now().plusSeconds(response.getExpiresIn());
+            log.info("KIS Access Token 발급 완료 (만료: {})", tokenExpiresAt);
 
             return accessToken;
         } catch (RestClientException e) {

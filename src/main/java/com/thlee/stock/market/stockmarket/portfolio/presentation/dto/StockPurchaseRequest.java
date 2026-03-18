@@ -8,4 +8,5 @@ import java.math.BigDecimal;
 public class StockPurchaseRequest {
     private Integer quantity;
     private BigDecimal purchasePrice;
+    private BigDecimal investedAmountKrw;
 }

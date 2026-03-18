@@ -151,6 +151,33 @@ public class PortfolioItem {
         this.updatedAt = LocalDateTime.now();
     }
 
+    /**
+     * CASH 잔액 차감 (잔액 >= 차감액 검증, 결과 0원 허용)
+     */
+    public void deductAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("차감 금액은 0보다 커야 합니다.");
+        }
+        if (this.investedAmount.compareTo(amount) < 0) {
+            throw new IllegalArgumentException(
+                    String.format("원화 잔액이 부족합니다. (잔액: %s원, 필요: %s원)",
+                            this.investedAmount.toPlainString(), amount.toPlainString()));
+        }
+        this.investedAmount = this.investedAmount.subtract(amount);
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * CASH 잔액 복원
+     */
+    public void restoreAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("복원 금액은 0보다 커야 합니다.");
+        }
+        this.investedAmount = this.investedAmount.add(amount);
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void enableNews() {
         this.newsEnabled = true;
         this.updatedAt = LocalDateTime.now();

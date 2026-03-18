@@ -182,8 +182,12 @@ const API = {
     },
 
     // 삭제
-    deletePortfolioItem(userId, itemId) {
-        return this.request('DELETE', `/api/portfolio/items/${itemId}?userId=${userId}`);
+    deletePortfolioItem(userId, itemId, restoreCash = false, restoreAmount = null) {
+        let url = `/api/portfolio/items/${itemId}?userId=${userId}&restoreCash=${restoreCash}`;
+        if (restoreAmount != null) {
+            url += `&restoreAmount=${restoreAmount}`;
+        }
+        return this.request('DELETE', url);
     },
 
     // 뉴스 토글

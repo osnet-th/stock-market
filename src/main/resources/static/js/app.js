@@ -102,6 +102,7 @@ function dashboard() {
             expandedSections: {},
             showPurchaseModal: false,
             purchaseItem: null,
+            deleteConfirm: { show: false },
             purchaseForm: { quantity: '', purchasePrice: '' },
             purchaseHistories: [],
             editingHistory: null,
@@ -884,6 +885,22 @@ function dashboard() {
         },
 
         async deleteItem(itemId) {
+            var item = this.portfolio.items.find(function(i) { return i.id === itemId; });
+            var hasLinkedCash = item && item.assetType === 'STOCK' && item.linkedCashItemId;
+
+            if (hasLinkedCash) {
+                // 연결된 CASH가 있는 주식: 복원 옵션 제공
+                this.portfolio.deleteConfirm = {
+                    show: true,
+                    itemId: itemId,
+                    itemName: item.itemName,
+                    restoreCash: false,
+                    restoreAmount: item.investedAmount || 0,
+                    linkedCashItemId: item.linkedCashItemId
+                };
+                return;
+            }
+
             if (!confirm('자산 항목을 삭제하시겠습니까?\n관련 뉴스도 함께 삭제됩니다.')) return;
             try {
                 await API.deletePortfolioItem(this.auth.userId, itemId);
@@ -892,6 +909,25 @@ function dashboard() {
                 console.error('항목 삭제 실패:', e);
                 alert('삭제에 실패했습니다.');
             }
+        },
+
+        async confirmDelete() {
+            var dc = this.portfolio.deleteConfirm;
+            try {
+                await API.deletePortfolioItem(
+                    this.auth.userId, dc.itemId,
+                    dc.restoreCash, dc.restoreCash ? Number(dc.restoreAmount) : null
+                );
+                this.portfolio.deleteConfirm = { show: false };
+                await this.loadPortfolio();
+            } catch (e) {
+                console.error('항목 삭제 실패:', e);
+                alert('삭제에 실패했습니다: ' + e.message);
+            }
+        },
+
+        cancelDelete() {
+            this.portfolio.deleteConfirm = { show: false };
         },
 
         async toggleNews(item) {
@@ -947,6 +983,12 @@ function dashboard() {
             this.portfolio.addForm.exchangeCode = stock.exchangeCode;
             this.portfolio.addForm.region = stock.exchangeCode === 'KRX' ? 'DOMESTIC' : 'INTERNATIONAL';
             this.portfolio.addForm.priceCurrency = this.getCurrencyByExchangeCode(stock.exchangeCode);
+        },
+
+        getCashItems() {
+            return this.portfolio.items.filter(function(item) {
+                return item.assetType === 'CASH';
+            });
         },
 
         getCurrencyByExchangeCode(exchangeCode) {
@@ -1022,7 +1064,8 @@ function dashboard() {
                             purchasePrice: Number(form.purchasePrice),
                             dividendYield: form.dividendYield ? Number(form.dividendYield) : null,
                             priceCurrency: form.priceCurrency || 'KRW',
-                            investedAmountKrw: form.investedAmountKrw ? Number(form.investedAmountKrw) : null
+                            investedAmountKrw: form.investedAmountKrw ? Number(form.investedAmountKrw) : null,
+                            cashItemId: form.cashItemId ? Number(form.cashItemId) : null
                         });
                         break;
                     case 'BOND':
@@ -1151,13 +1194,14 @@ function dashboard() {
             }
 
             try {
-                await API.addStockPurchase(this.auth.userId, item.id, {
+                var response = await API.addStockPurchase(this.auth.userId, item.id, {
                     quantity: Number(form.quantity),
                     purchasePrice: Number(form.purchasePrice)
                 });
-                this.portfolio.showPurchaseModal = false;
-                this.portfolio.purchaseItem = null;
-                await this.loadPortfolio();
+                this.portfolio.purchaseForm = { quantity: '', purchasePrice: '' };
+                this.portfolio.purchaseItem = { ...this.portfolio.purchaseItem, ...response };
+                await this.loadPurchaseHistories(item.id);
+                this.loadPortfolio();
             } catch (e) {
                 console.error('추가 매수 실패:', e);
                 alert('추가 매수에 실패했습니다.');
@@ -1259,6 +1303,7 @@ function dashboard() {
                         form.priceCurrency = item.stockDetail.priceCurrency || 'KRW';
                         form.investedAmountKrw = item.stockDetail.investedAmountKrw;
                     }
+                    form.cashItemId = item.linkedCashItemId || '';
                     break;
                 case 'BOND':
                     if (item.bondDetail) {
@@ -1341,6 +1386,20 @@ function dashboard() {
                 switch (item.assetType) {
                     case 'STOCK':
                         var stockDetail = item.stockDetail || {};
+                        var newCashItemId = form.cashItemId ? Number(form.cashItemId) : null;
+                        var oldCashItemId = item.linkedCashItemId || null;
+                        var isNewLink = newCashItemId && !oldCashItemId;
+                        var deductOnLink = false;
+
+                        if (isNewLink) {
+                            deductOnLink = confirm(
+                                '이미 보유 중인 주식에 원화를 연결합니다.\n' +
+                                '현재 투자금(' + Number(item.investedAmount).toLocaleString() + '원)을 원화에서 차감할까요?\n\n' +
+                                '확인: 차감함 (신규 매수와 동일)\n' +
+                                '취소: 연결만 (이후 추가 매수부터 차감)'
+                            );
+                        }
+
                         await API.updateStockItem(userId, item.id, {
                             itemName: form.itemName,
                             memo: form.memo || null,
@@ -1353,7 +1412,9 @@ function dashboard() {
                             purchasePrice: Number(form.purchasePrice),
                             dividendYield: form.dividendYield ? Number(form.dividendYield) : null,
                             priceCurrency: form.priceCurrency || 'KRW',
-                            investedAmountKrw: form.investedAmountKrw ? Number(form.investedAmountKrw) : null
+                            investedAmountKrw: form.investedAmountKrw ? Number(form.investedAmountKrw) : null,
+                            cashItemId: newCashItemId,
+                            deductOnLink: deductOnLink
                         });
                         break;
                     case 'BOND':

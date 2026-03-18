@@ -18,4 +18,6 @@ public class StockItemUpdateRequest {
     private BigDecimal dividendYield;
     private String priceCurrency;
     private BigDecimal investedAmountKrw;
+    private Long cashItemId;
+    private boolean deductOnLink;
 }

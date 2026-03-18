@@ -1160,6 +1160,18 @@
                                             <input type="number" x-model="portfolio.addForm.investedAmountKrw" placeholder="실제 투자한 원화 금액"
                                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                         </div>
+
+                                        <!-- 원화 연결 -->
+                                        <div class="col-span-3" x-show="getCashItems().length > 0">
+                                            <label class="block text-sm text-gray-600 mb-1">연결 현금 자산 (선택)</label>
+                                            <select x-model="portfolio.addForm.cashItemId"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="">연결 안 함</option>
+                                                <template x-for="cash in getCashItems()" :key="cash.id">
+                                                    <option :value="cash.id" x-text="cash.itemName + ' (' + Number(cash.investedAmount).toLocaleString() + '원)'"></option>
+                                                </template>
+                                            </select>
+                                        </div>
                                     </div>
                                 </template>
 
@@ -1366,6 +1378,18 @@
                                             <input type="number" x-model="portfolio.editForm.investedAmountKrw" placeholder="실제 투자한 원화 금액"
                                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                         </div>
+
+                                        <!-- 원화 연결 -->
+                                        <div class="col-span-3" x-show="getCashItems().length > 0">
+                                            <label class="block text-sm text-gray-600 mb-1">연결 현금 자산</label>
+                                            <select x-model="portfolio.editForm.cashItemId"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="">연결 안 함</option>
+                                                <template x-for="cash in getCashItems()" :key="cash.id">
+                                                    <option :value="cash.id" x-text="cash.itemName + ' (' + Number(cash.investedAmount).toLocaleString() + '원)'"></option>
+                                                </template>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                             </template>
@@ -1476,6 +1500,39 @@
                         </div>
                     </template>
 
+                </div>
+            </div>
+
+            <!-- 삭제 확인 모달 (원화 복원 옵션) -->
+            <div x-show="portfolio.deleteConfirm.show" x-cloak
+                class="modal-backdrop fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+                <div class="bg-white rounded-xl p-6 w-[400px] shadow-xl"
+                    @click.outside="cancelDelete()">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">자산 삭제</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        <span class="font-medium" x-text="portfolio.deleteConfirm.itemName"></span> 항목을 삭제하시겠습니까?
+                        <br><span class="text-xs text-gray-400">관련 뉴스도 함께 삭제됩니다.</span>
+                    </p>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" x-model="portfolio.deleteConfirm.restoreCash"
+                                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-blue-800">연결된 원화에 금액 복원</span>
+                        </label>
+                        <div x-show="portfolio.deleteConfirm.restoreCash" class="mt-2">
+                            <label class="block text-xs text-blue-600 mb-1">복원 금액 (원)</label>
+                            <input type="number" x-model="portfolio.deleteConfirm.restoreAmount"
+                                class="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button @click="cancelDelete()"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">취소</button>
+                        <button @click="confirmDelete()"
+                            class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition">삭제</button>
+                    </div>
                 </div>
             </div>
 

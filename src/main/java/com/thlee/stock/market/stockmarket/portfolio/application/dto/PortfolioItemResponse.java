@@ -23,6 +23,7 @@ public class PortfolioItemResponse {
     private final BondDetailResponse bondDetail;
     private final RealEstateDetailResponse realEstateDetail;
     private final FundDetailResponse fundDetail;
+    private final Long linkedCashItemId;
 
     private PortfolioItemResponse(Long id, String assetType, String itemName,
                                   BigDecimal investedAmount, boolean newsEnabled,
@@ -31,7 +32,8 @@ public class PortfolioItemResponse {
                                   StockDetailResponse stockDetail,
                                   BondDetailResponse bondDetail,
                                   RealEstateDetailResponse realEstateDetail,
-                                  FundDetailResponse fundDetail) {
+                                  FundDetailResponse fundDetail,
+                                  Long linkedCashItemId) {
         this.id = id;
         this.assetType = assetType;
         this.itemName = itemName;
@@ -45,9 +47,14 @@ public class PortfolioItemResponse {
         this.bondDetail = bondDetail;
         this.realEstateDetail = realEstateDetail;
         this.fundDetail = fundDetail;
+        this.linkedCashItemId = linkedCashItemId;
     }
 
     public static PortfolioItemResponse from(PortfolioItem item) {
+        return from(item, null);
+    }
+
+    public static PortfolioItemResponse from(PortfolioItem item, Long linkedCashItemId) {
         return new PortfolioItemResponse(
                 item.getId(),
                 item.getAssetType().name(),
@@ -61,7 +68,8 @@ public class PortfolioItemResponse {
                 item.getStockDetail() != null ? StockDetailResponse.from(item.getStockDetail()) : null,
                 item.getBondDetail() != null ? BondDetailResponse.from(item.getBondDetail()) : null,
                 item.getRealEstateDetail() != null ? RealEstateDetailResponse.from(item.getRealEstateDetail()) : null,
-                item.getFundDetail() != null ? FundDetailResponse.from(item.getFundDetail()) : null
+                item.getFundDetail() != null ? FundDetailResponse.from(item.getFundDetail()) : null,
+                linkedCashItemId
         );
     }
 }

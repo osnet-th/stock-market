@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+
 import java.util.List;
 
 /**
@@ -36,7 +38,8 @@ public class PortfolioController {
                 request.getSubType(), request.getStockCode(), request.getMarket(),
                 request.getExchangeCode(), request.getCountry(),
                 request.getQuantity(), request.getPurchasePrice(), request.getDividendYield(),
-                request.getPriceCurrency(), request.getInvestedAmountKrw());
+                request.getPriceCurrency(), request.getInvestedAmountKrw(),
+                request.getCashItemId());
         return ResponseEntity.ok(response);
     }
 
@@ -119,7 +122,8 @@ public class PortfolioController {
                 request.getSubType(), request.getStockCode(), request.getMarket(),
                 request.getExchangeCode(), request.getCountry(),
                 request.getQuantity(), request.getPurchasePrice(), request.getDividendYield(),
-                request.getPriceCurrency(), request.getInvestedAmountKrw());
+                request.getPriceCurrency(), request.getInvestedAmountKrw(),
+                request.getCashItemId(), request.isDeductOnLink());
         return ResponseEntity.ok(response);
     }
 
@@ -192,7 +196,8 @@ public class PortfolioController {
             @PathVariable Long itemId,
             @RequestBody StockPurchaseRequest request) {
         PortfolioItemResponse response = portfolioService.addStockPurchase(
-                userId, itemId, request.getQuantity(), request.getPurchasePrice());
+                userId, itemId, request.getQuantity(), request.getPurchasePrice(),
+                request.getInvestedAmountKrw());
         return ResponseEntity.ok(response);
     }
 
@@ -253,8 +258,10 @@ public class PortfolioController {
     @DeleteMapping("/items/{itemId}")
     public ResponseEntity<Void> deleteItem(
             @RequestParam Long userId,
-            @PathVariable Long itemId) {
-        portfolioService.deleteItem(userId, itemId);
+            @PathVariable Long itemId,
+            @RequestParam(required = false, defaultValue = "false") boolean restoreCash,
+            @RequestParam(required = false) BigDecimal restoreAmount) {
+        portfolioService.deleteItem(userId, itemId, restoreCash, restoreAmount);
         return ResponseEntity.noContent().build();
     }
 

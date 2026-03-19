@@ -112,6 +112,7 @@ function dashboard() {
             collectingItemId: null,
             chartInstance: null,
             // 재무정보
+            financialChartInstance: null,
             financialOptions: null,
             financialResult: null,
             financialLoading: false,
@@ -121,6 +122,8 @@ function dashboard() {
             selectedFinancialMenu: null,
             financialIndexClass: 'PROFITABILITY',
             financialFsDiv: 'CFS',
+            financialAccountFsFilter: '',
+            financialStatementFilter: '',
             financialMenus: [
                 { key: 'accounts', label: '재무계정' },
                 { key: 'indices', label: '재무지표' },
@@ -321,8 +324,16 @@ function dashboard() {
                 try {
                     var portfolioItems = await API.getPortfolioItems(this.auth.userId) || [];
                     this.homeSummary.portfolioItemCount = portfolioItems.length;
-                    this.homeSummary.portfolioTotalAmount = portfolioItems.reduce(function(sum, item) { return sum + item.investedAmount; }, 0);
                     this.homeSummary.portfolioNewsEnabledCount = portfolioItems.filter(function(item) { return item.newsEnabled; }).length;
+                    var typeCounts = {};
+                    var assetTypeConfig = this.assetTypeConfig;
+                    portfolioItems.forEach(function(item) {
+                        var label = assetTypeConfig[item.assetType]?.label || item.assetType;
+                        typeCounts[label] = (typeCounts[label] || 0) + 1;
+                    });
+                    this.homeSummary.portfolioTypeSummary = Object.keys(typeCounts)
+                        .map(function(label) { return label + ' ' + typeCounts[label] + '건'; })
+                        .join(' · ');
                 } catch (e) { /* skip */ }
             } catch (e) {
                 console.error('홈 요약 로드 실패:', e);
@@ -1498,6 +1509,10 @@ function dashboard() {
         },
 
         closeStockDetail() {
+            if (this.portfolio.financialChartInstance) {
+                this.portfolio.financialChartInstance.destroy();
+                this.portfolio.financialChartInstance = null;
+            }
             this.portfolio.selectedStockItem = null;
             this.portfolio.selectedFinancialMenu = null;
             this.portfolio.financialResult = null;
@@ -1508,9 +1523,40 @@ function dashboard() {
             return this.financialColumns[menu] || null;
         },
 
+        getFilteredFinancialResult() {
+            var result = this.portfolio.financialResult;
+            if (!result || result.length === 0) return [];
+            var menu = this.portfolio.selectedFinancialMenu;
+
+            if (menu === 'accounts' && this.portfolio.financialAccountFsFilter) {
+                var fsFilter = this.portfolio.financialAccountFsFilter;
+                return result.filter(function(row) { return row.fsName === fsFilter; });
+            }
+            if (menu === 'full-statements' && this.portfolio.financialStatementFilter) {
+                var stFilter = this.portfolio.financialStatementFilter;
+                return result.filter(function(row) { return row.statementName === stFilter; });
+            }
+            return result;
+        },
+
+        getFilterOptions(fieldName) {
+            var result = this.portfolio.financialResult;
+            if (!result || result.length === 0) return [];
+            var seen = {};
+            var options = [];
+            for (var i = 0; i < result.length; i++) {
+                var name = result[i][fieldName];
+                if (name && !seen[name]) {
+                    seen[name] = true;
+                    options.push(name);
+                }
+            }
+            return options;
+        },
+
         getFinancialSummaryCards() {
             var menu = this.portfolio.selectedFinancialMenu;
-            var result = this.portfolio.financialResult;
+            var result = this.getFilteredFinancialResult();
             if (!result || result.length === 0) return [];
 
             var config = this.financialSummaryConfig[menu];
@@ -1530,7 +1576,7 @@ function dashboard() {
                         var changeRate = previousNum !== 0 ? ((currentNum - previousNum) / Math.abs(previousNum) * 100) : null;
                         cards.push({
                             label: cfg.label,
-                            value: current,
+                            value: Format.compactNumber(current),
                             changeRate: changeRate
                         });
                         break;
@@ -1543,8 +1589,7 @@ function dashboard() {
         formatFinancialCell(value, type) {
             if (value == null || value === '') return '-';
             if (type === 'amount') {
-                var num = parseFloat(String(value).replace(/,/g, ''));
-                return isNaN(num) ? value : Format.number(num, 0);
+                return Format.compactNumber(value);
             }
             if (type === 'number') {
                 var n = parseFloat(String(value).replace(/,/g, ''));
@@ -1560,6 +1605,8 @@ function dashboard() {
         async selectFinancialMenu(menuKey) {
             this.portfolio.selectedFinancialMenu = menuKey;
             this.portfolio.financialResult = null;
+            this.portfolio.financialAccountFsFilter = '';
+            this.portfolio.financialStatementFilter = '';
             await this.loadSelectedFinancial();
         },
 
@@ -1606,12 +1653,124 @@ function dashboard() {
                         break;
                 }
                 this.portfolio.financialResult = result || [];
+                if (menu === 'accounts' && this.portfolio.financialResult.length > 0) {
+                    var self = this;
+                    this.$nextTick(function() {
+                        self.renderFinancialBarChart();
+                    });
+                }
             } catch (e) {
                 console.error('재무정보 조회 실패:', e);
                 this.portfolio.financialResult = [];
             } finally {
                 this.portfolio.financialLoading = false;
             }
+        },
+
+        parseAmount(value) {
+            if (!value) return 0;
+            var num = parseFloat(String(value).replace(/,/g, ''));
+            return isNaN(num) ? 0 : num;
+        },
+
+        renderFinancialBarChart() {
+            var canvas = document.getElementById('financialBarChart');
+            if (!canvas) return;
+
+            if (this.portfolio.financialChartInstance) {
+                this.portfolio.financialChartInstance.destroy();
+                this.portfolio.financialChartInstance = null;
+            }
+
+            var result = this.getFilteredFinancialResult();
+            var config = this.financialSummaryConfig.accounts;
+            if (!result || result.length === 0 || !config) return;
+
+            var labels = [];
+            var currentData = [];
+            var previousData = [];
+            var beforePreviousData = [];
+
+            for (var i = 0; i < config.length; i++) {
+                var cfg = config[i];
+                for (var j = 0; j < result.length; j++) {
+                    var row = result[j];
+                    var name = row.accountName || '';
+                    if (name.indexOf(cfg.match) !== -1) {
+                        labels.push(cfg.label);
+                        currentData.push(this.parseAmount(row.currentTermAmount));
+                        previousData.push(this.parseAmount(row.previousTermAmount));
+                        beforePreviousData.push(this.parseAmount(row.beforePreviousTermAmount));
+                        break;
+                    }
+                }
+            }
+
+            if (labels.length === 0) return;
+
+            this.portfolio.financialChartInstance = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '당기',
+                            data: currentData,
+                            backgroundColor: '#3B82F6',
+                            borderRadius: 4
+                        },
+                        {
+                            label: '전기',
+                            data: previousData,
+                            backgroundColor: '#93C5FD',
+                            borderRadius: 4
+                        },
+                        {
+                            label: '전전기',
+                            data: beforePreviousData,
+                            backgroundColor: '#DBEAFE',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'rect',
+                                font: { size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + Format.compactNumber(context.parsed.y);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return Format.compactNumber(value);
+                                },
+                                font: { size: 11 }
+                            },
+                            grid: { color: '#F3F4F6' }
+                        },
+                        x: {
+                            ticks: { font: { size: 11 } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
         }
     };
 }

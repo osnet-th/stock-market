@@ -204,12 +204,22 @@ public class DartApiClient {
                     .retrieve()
                     .body(typeRef);
 
-            if (response != null && !response.isSuccess()) {
-                throw new DartApiException(
-                        "DART API 오류 [" + response.getStatus() + "]: " + response.getMessage());
+            if (response == null) {
+                throw new DartApiException("DART API 응답이 null입니다");
             }
 
-            return response;
+            if (response.isSuccess()) {
+                return response;
+            }
+
+            if (response.isNoData()) {
+                return DartApiResponse.empty();
+            }
+
+            throw new DartApiException(
+                    response.getStatusCode(),
+                    "DART API 오류 [" + response.getStatus() + "]: " + response.getMessage());
+
         } catch (RestClientException e) {
             throw new DartApiException("DART API 호출 실패: " + e.getMessage(), e);
         }

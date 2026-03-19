@@ -5,6 +5,7 @@ import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradin
 import com.thlee.stock.market.stockmarket.economics.infrastructure.korea.ecos.exception.EcosApiException;
 import com.thlee.stock.market.stockmarket.news.infrastructure.infrastructure.common.NewsApiException;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.datagokr.exception.DataGoKrApiException;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.dto.DartStatusCode;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.exception.DartApiException;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.exception.KisApiException;
 import com.thlee.stock.market.stockmarket.user.domain.exception.UserDomainException;
@@ -36,10 +37,32 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 외부 API 예외 (DART, KIS, ECOS, News, DataGoKr, TradingEconomics)
+     * DART API 예외 (상태 코드별 HTTP 매핑)
+     */
+    @ExceptionHandler(DartApiException.class)
+    public ResponseEntity<Map<String, Object>> handleDartApi(DartApiException e) {
+        DartStatusCode statusCode = e.getStatusCode();
+
+        if (statusCode == null) {
+            return buildResponse(HttpStatus.BAD_GATEWAY, "EXTERNAL_API_ERROR", e.getMessage());
+        }
+
+        return switch (statusCode) {
+            case RATE_LIMIT_EXCEEDED ->
+                    buildResponse(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", e.getMessage());
+            case INVALID_FIELD ->
+                    buildResponse(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", e.getMessage());
+            case SYSTEM_MAINTENANCE ->
+                    buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", e.getMessage());
+            default ->
+                    buildResponse(HttpStatus.BAD_GATEWAY, "EXTERNAL_API_ERROR", e.getMessage());
+        };
+    }
+
+    /**
+     * 외부 API 예외 (KIS, ECOS, News, DataGoKr, TradingEconomics)
      */
     @ExceptionHandler({
-            DartApiException.class,
             KisApiException.class,
             EcosApiException.class,
             NewsApiException.class,

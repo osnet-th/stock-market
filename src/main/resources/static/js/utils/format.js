@@ -48,7 +48,7 @@ const Format = {
             return sign + (absNum / 1_0000_0000_0000).toFixed(1) + '조';
         }
         if (absNum >= 1_0000_0000) {
-            return sign + (absNum / 1_0000_0000).toFixed(0) + '억';
+            return sign + (absNum / 1_0000_0000).toFixed(1) + '억';
         }
         if (absNum >= 1_0000) {
             return sign + (absNum / 1_0000).toFixed(0) + '만';

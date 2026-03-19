@@ -1596,7 +1596,7 @@ function dashboard() {
                         result = await API.getFinancialDividends(stockCode, year, reportCode);
                         break;
                     case 'lawsuits':
-                        result = await API.getLawsuits(stockCode, year + '-01-01', year + '-12-31');
+                        result = await API.getLawsuits(stockCode, year + '0101', year + '1231');
                         break;
                     case 'private-fund':
                         result = await API.getPrivateFundUsages(stockCode, year, reportCode);

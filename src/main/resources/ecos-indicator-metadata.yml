@@ -5,129 +5,169 @@ ecos:
         # === 금리 (INTEREST_RATE) ===
         - class-name: "시장금리"
           keystat-name: "한국은행 기준금리"
-          description: "한국은행 기준금리 — 금융기관 간 RP 매매 기준"
+          description: "한국은행이 정하는 기본 금리. 이 금리가 오르면 대출이자가 오르고, 내리면 대출이자가 내려감"
           positive-direction: DOWN
           key-indicator: true
         - class-name: "시장금리"
-          keystat-name: "CD(91일)"
-          description: "91일 만기 양도성예금증서 유통수익률"
+          keystat-name: "콜금리(익일물)"
+          description: "은행끼리 하루만 빌려줄 때 적용하는 금리. 기준금리가 바뀌면 가장 먼저 움직임"
+          positive-direction: DOWN
+          key-indicator: false
+        - class-name: "시장금리"
+          keystat-name: "KORIBOR(3개월)"
+          description: "은행끼리 3개월간 빌려줄 때의 금리. 변동금리 대출 이자를 정할 때 기준이 됨"
+          positive-direction: DOWN
+          key-indicator: false
+        - class-name: "시장금리"
+          keystat-name: "CD수익률(91일)"
+          description: "은행이 발행하는 3개월짜리 예금증서의 금리. 주택담보대출 변동금리의 기준으로 많이 쓰임"
+          positive-direction: DOWN
+          key-indicator: true
+        - class-name: "시장금리"
+          keystat-name: "통안증권수익률(364일)"
+          description: "한국은행이 발행하는 1년짜리 채권의 금리. 1년 정도 돈을 묶어둘 때 받을 수 있는 수익률 기준"
+          positive-direction: DOWN
+          key-indicator: false
+        - class-name: "시장금리"
+          keystat-name: "국고채수익률(3년)"
+          description: "나라에서 발행하는 3년짜리 채권의 금리. 적금·예금 금리와 비교할 때 참고하는 대표 지표"
+          positive-direction: DOWN
+          key-indicator: true
+        - class-name: "시장금리"
+          keystat-name: "국고채수익률(5년)"
+          description: "나라에서 발행하는 5년짜리 채권의 금리. 장기 금리 흐름을 볼 때 참고"
+          positive-direction: DOWN
+          key-indicator: false
+        - class-name: "시장금리"
+          keystat-name: "회사채수익률(3년,AA-)"
+          description: "신용이 좋은 기업이 발행한 3년짜리 채권의 금리. 국고채보다 높으면 기업 투자심리가 위축된 것"
+          positive-direction: DOWN
+          key-indicator: false
+        - class-name: "여수신금리"
+          keystat-name: "예금은행 수신금리"
+          description: "은행에 돈을 맡길 때 받는 평균 이자율. 높을수록 예금·적금 이자를 많이 받음"
+          positive-direction: UP
+          key-indicator: true
+        - class-name: "여수신금리"
+          keystat-name: "예금은행 대출금리"
+          description: "은행에서 돈을 빌릴 때 내는 평균 이자율. 높을수록 대출 이자 부담이 큼"
           positive-direction: DOWN
           key-indicator: true
 
         # === 통화/금융 (MONEY_FINANCE) ===
         - class-name: "통화량"
           keystat-name: "M2(광의통화)(평잔)"
-          description: "광의통화 — 시중 유동성 규모"
+          description: "시중에 풀린 돈의 총량. 이 수치가 빠르게 늘면 물가가 오를 수 있음"
           positive-direction: NEUTRAL
           key-indicator: true
 
         # === 주식/채권 (STOCK_BOND) ===
         - class-name: "주식"
           keystat-name: "KOSPI"
-          description: "한국 종합주가지수"
+          description: "한국 대표 주가지수. 삼성전자 등 대기업 주식의 전체 흐름을 보여줌"
           positive-direction: UP
           key-indicator: true
         - class-name: "주식"
           keystat-name: "KOSDAQ"
-          description: "코스닥 종합주가지수"
+          description: "중소·벤처기업 중심 주가지수. IT·바이오 등 성장주 흐름을 보여줌"
           positive-direction: UP
           key-indicator: true
 
         # === 환율 (EXCHANGE_RATE) ===
         - class-name: "환율"
           keystat-name: "원/달러"
-          description: "원/달러 환율 — 원화 강세 시 하락"
+          description: "1달러를 사는 데 필요한 원화. 숫자가 오르면 원화 가치가 떨어진 것, 내리면 원화 가치가 오른 것"
           positive-direction: DOWN
           key-indicator: true
 
         # === 성장/소득 (GROWTH_INCOME) ===
         - class-name: "성장률"
           keystat-name: "GDP성장률(전기대비)"
-          description: "국내총생산 성장률 — 경제 성장 속도"
+          description: "우리나라 경제가 지난 분기 대비 얼마나 성장했는지를 나타내는 비율"
           positive-direction: UP
           key-indicator: true
 
         # === 생산 (PRODUCTION) ===
         - class-name: "생산"
           keystat-name: "광공업생산지수"
-          description: "광업·제조업 생산활동 동향 지수"
+          description: "공장에서 물건을 얼마나 만들고 있는지를 나타내는 지수. 경기가 좋으면 올라감"
           positive-direction: UP
           key-indicator: true
 
         # === 소비/투자 (CONSUMPTION_INVESTMENT) ===
         - class-name: "소비"
           keystat-name: "소매판매액지수"
-          description: "소매업 판매액 변동 지수"
+          description: "사람들이 물건을 얼마나 사고 있는지를 나타내는 지수. 소비가 활발하면 올라감"
           positive-direction: UP
           key-indicator: true
 
         # === 물가 (PRICE) ===
         - class-name: "소비자/생산자 물가"
           keystat-name: "소비자물가지수"
-          description: "소비자물가 변동을 측정하는 종합 지수"
+          description: "생활물가가 얼마나 올랐는지를 나타내는 지수. 숫자가 빠르게 오르면 장바구니 부담이 커짐"
           positive-direction: DOWN
           key-indicator: true
 
         # === 고용/노동 (EMPLOYMENT_LABOR) ===
         - class-name: "고용"
           keystat-name: "실업률"
-          description: "경제활동인구 중 실업자 비율"
+          description: "일하고 싶은데 일자리를 못 구한 사람의 비율. 낮을수록 고용 상황이 좋음"
           positive-direction: DOWN
           key-indicator: true
         - class-name: "고용"
           keystat-name: "취업자수"
-          description: "15세 이상 취업자 수"
+          description: "현재 일하고 있는 사람의 수. 많을수록 고용 상황이 좋음"
           positive-direction: UP
           key-indicator: true
 
         # === 경기심리 (SENTIMENT) ===
         - class-name: "심리지표"
           keystat-name: "소비자심리지수(CSI)"
-          description: "소비자심리지수 — 100 이상이면 낙관적"
+          description: "사람들이 경제 상황을 어떻게 느끼는지를 숫자로 표현. 100 이상이면 낙관적, 미만이면 비관적"
           positive-direction: UP
           key-indicator: true
         - class-name: "경기순환지표"
           keystat-name: "경기선행지수 순환변동치"
-          description: "향후 경기 방향을 예측하는 선행 지표"
+          description: "앞으로 경기가 좋아질지 나빠질지 미리 알려주는 지표. 100 위면 호황, 아래면 불황 신호"
           positive-direction: UP
           key-indicator: true
 
         # === 대외경제 (EXTERNAL_ECONOMY) ===
         - class-name: "통관수출입"
           keystat-name: "수출(통관기준)"
-          description: "통관 기준 수출액"
+          description: "우리나라가 해외에 물건을 판 금액. 수출이 늘면 경제에 좋은 신호"
           positive-direction: UP
           key-indicator: true
         - class-name: "국제수지"
           keystat-name: "경상수지"
-          description: "상품·서비스·소득 등의 대외 거래 수지"
+          description: "해외와 주고받은 돈의 차이. 플러스면 벌어들인 돈이 더 많은 것, 마이너스면 나간 돈이 더 많은 것"
           positive-direction: UP
           key-indicator: true
 
         # === 기업/가계 (CORPORATE_HOUSEHOLD) ===
         - class-name: "가계"
           keystat-name: "가계신용(잔액)"
-          description: "가계 대출·판매신용 잔액 합계"
+          description: "가계가 은행 등에서 빌린 돈의 총액. 빠르게 늘면 가계 부채 부담이 커지는 신호"
           positive-direction: DOWN
           key-indicator: true
 
         # === 부동산 (REAL_ESTATE) ===
         - class-name: "부동산 가격"
           keystat-name: "주택매매가격지수"
-          description: "전국 주택 매매 가격 변동 지수"
+          description: "전국 집값이 오르고 있는지 내리고 있는지를 보여주는 지수"
           positive-direction: NEUTRAL
           key-indicator: true
 
         # === 인구 (POPULATION) ===
         - class-name: "인구"
           keystat-name: "총인구"
-          description: "대한민국 총 인구수"
+          description: "대한민국에 살고 있는 전체 인구수"
           positive-direction: UP
           key-indicator: true
 
         # === 원자재 (COMMODITY) ===
         - class-name: "국제원자재가격"
           keystat-name: "두바이유"
-          description: "두바이유 국제 시세"
+          description: "국제 원유 가격. 오르면 기름값·물가가 올라가고, 내리면 생활비 부담이 줄어듦"
           positive-direction: DOWN
           key-indicator: true

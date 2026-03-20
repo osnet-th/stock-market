@@ -12,13 +12,11 @@ public class NewsMapper {
         return new NewsEntity(
                 news.getId(),
                 news.getOriginalUrl(),
-                news.getUserId(),
                 news.getTitle(),
                 news.getContent(),
                 news.getPublishedAt(),
                 news.getCreatedAt(),
-                news.getPurpose(),
-                news.getSourceId(),
+                news.getKeywordId(),
                 news.getRegion()
         );
     }
@@ -27,13 +25,11 @@ public class NewsMapper {
         return new News(
                 entity.getId(),
                 entity.getOriginalUrl(),
-                entity.getUserId(),
                 entity.getTitle(),
                 entity.getContent(),
                 entity.getPublishedAt(),
                 entity.getCreatedAt(),
-                entity.getPurpose(),
-                entity.getSourceId(),
+                entity.getKeywordId(),
                 entity.getRegion()
         );
     }

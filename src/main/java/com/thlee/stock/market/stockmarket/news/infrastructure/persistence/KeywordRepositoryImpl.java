@@ -1,8 +1,10 @@
 package com.thlee.stock.market.stockmarket.news.infrastructure.persistence;
 
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
 import com.thlee.stock.market.stockmarket.news.infrastructure.persistence.mapper.KeywordMapper;
+import com.thlee.stock.market.stockmarket.news.infrastructure.persistence.repository.KeywordJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -33,37 +35,31 @@ public class KeywordRepositoryImpl implements KeywordRepository {
     }
 
     @Override
-    public List<Keyword> findByUserId(Long userId) {
-        return keywordJpaRepository.findByUserId(userId)
-                .stream()
+    public List<Keyword> findAll() {
+        return keywordJpaRepository.findAll().stream()
                 .map(KeywordMapper::toDomain)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<Keyword> findByUserIdAndActive(Long userId, boolean active) {
-        return keywordJpaRepository.findByUserIdAndActive(userId, active)
-                .stream()
-                .map(KeywordMapper::toDomain)
-                .collect(Collectors.toList());
+    public Optional<Keyword> findByKeywordAndRegion(String keyword, Region region) {
+        return keywordJpaRepository.findByKeywordAndRegion(keyword, region)
+                .map(KeywordMapper::toDomain);
     }
 
     @Override
-    public List<Keyword> findByActive(boolean active) {
-        return keywordJpaRepository.findByActive(active)
-                .stream()
-                .map(KeywordMapper::toDomain)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public boolean existsByUserIdAndKeyword(Long userId, String keyword) {
-        return keywordJpaRepository.existsByUserIdAndKeyword(userId, keyword);
+    public boolean existsByKeywordAndRegion(String keyword, Region region) {
+        return keywordJpaRepository.existsByKeywordAndRegion(keyword, region);
     }
 
     @Override
     public void delete(Keyword keyword) {
         KeywordEntity entity = KeywordMapper.toEntity(keyword);
         keywordJpaRepository.delete(entity);
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        keywordJpaRepository.deleteById(id);
     }
 }

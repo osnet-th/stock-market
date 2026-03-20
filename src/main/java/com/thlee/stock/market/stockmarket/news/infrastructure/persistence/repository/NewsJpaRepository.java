@@ -1,6 +1,6 @@
-package com.thlee.stock.market.stockmarket.news.infrastructure.persistence;
+package com.thlee.stock.market.stockmarket.news.infrastructure.persistence.repository;
 
-import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
+import com.thlee.stock.market.stockmarket.news.infrastructure.persistence.NewsEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -10,31 +10,26 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 public interface NewsJpaRepository extends JpaRepository<NewsEntity, Long> {
 
     Optional<NewsEntity> findByOriginalUrl(String originalUrl);
 
-    List<NewsEntity> findByPurpose(NewsPurpose purpose);
-
-    Page<NewsEntity> findByPurposeAndSourceIdOrderByPublishedAtDesc(NewsPurpose purpose, Long sourceId, Pageable pageable);
+    Page<NewsEntity> findByKeywordIdOrderByPublishedAtDesc(Long keywordId, Pageable pageable);
 
     @Modifying
-    @Query(value = "INSERT INTO news (original_url, user_id, title, content, published_at, created_at, purpose, source_id, region) " +
-            "VALUES (:originalUrl, :userId, :title, :content, :publishedAt, :createdAt, :purpose, :sourceId, :region) " +
+    @Query(value = "INSERT INTO news (original_url, title, content, published_at, created_at, keyword_id, region) " +
+            "VALUES (:originalUrl, :title, :content, :publishedAt, :createdAt, :keywordId, :region) " +
             "ON CONFLICT (original_url) DO NOTHING",
             nativeQuery = true)
     int insertIgnoreDuplicate(@Param("originalUrl") String originalUrl,
-                              @Param("userId") Long userId,
                               @Param("title") String title,
                               @Param("content") String content,
                               @Param("publishedAt") LocalDateTime publishedAt,
                               @Param("createdAt") LocalDateTime createdAt,
-                              @Param("purpose") String purpose,
-                              @Param("sourceId") Long sourceId,
+                              @Param("keywordId") Long keywordId,
                               @Param("region") String region);
 
-    void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId);
+    void deleteByKeywordId(Long keywordId);
 }

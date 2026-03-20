@@ -11,32 +11,26 @@ import java.time.LocalDateTime;
 public class News {
     private Long id;
     private String originalUrl;
-    private Long userId;
     private String title;
     private String content;
     private LocalDateTime publishedAt;
     private LocalDateTime createdAt;
-    private NewsPurpose purpose;
-    private Long sourceId;
+    private Long keywordId;
     private Region region;
 
     private News(String originalUrl,
-                 Long userId,
                  String title,
                  String content,
                  LocalDateTime publishedAt,
                  LocalDateTime createdAt,
-                 NewsPurpose purpose,
-                 Long sourceId,
+                 Long keywordId,
                  Region region) {
         this.originalUrl = originalUrl;
-        this.userId = userId;
         this.title = title;
         this.content = content;
         this.publishedAt = publishedAt;
         this.createdAt = createdAt;
-        this.purpose = purpose;
-        this.sourceId = sourceId;
+        this.keywordId = keywordId;
         this.region = region;
     }
 
@@ -45,23 +39,19 @@ public class News {
      */
     public News(Long id,
                 String originalUrl,
-                Long userId,
                 String title,
                 String content,
                 LocalDateTime publishedAt,
                 LocalDateTime createdAt,
-                NewsPurpose purpose,
-                Long sourceId,
+                Long keywordId,
                 Region region) {
         this.id = id;
         this.originalUrl = originalUrl;
-        this.userId = userId;
         this.title = title;
         this.content = content;
         this.publishedAt = publishedAt;
         this.createdAt = createdAt;
-        this.purpose = purpose;
-        this.sourceId = sourceId;
+        this.keywordId = keywordId;
         this.region = region;
     }
 
@@ -69,29 +59,23 @@ public class News {
      * 뉴스 생성
      */
     public static News create(String originalUrl,
-                              Long userId,
                               String title,
                               String content,
                               LocalDateTime publishedAt,
-                              NewsPurpose purpose,
-                              Long sourceId,
+                              Long keywordId,
                               Region region) {
         validateOriginalUrl(originalUrl);
-        validateUserId(userId);
         validateTitle(title);
         validatePublishedAt(publishedAt);
-        validatePurpose(purpose);
-        validateSourceId(sourceId);
+        validateKeywordId(keywordId);
 
         return new News(
                 originalUrl,
-                userId,
                 title,
                 content,
                 publishedAt,
                 LocalDateTime.now(),
-                purpose,
-                sourceId,
+                keywordId,
                 region
         );
     }
@@ -99,12 +83,6 @@ public class News {
     private static void validateOriginalUrl(String originalUrl) {
         if (originalUrl == null || originalUrl.isBlank()) {
             throw new IllegalArgumentException("originalUrl은 필수입니다.");
-        }
-    }
-
-    private static void validateUserId(Long userId) {
-        if (userId == null) {
-            throw new IllegalArgumentException("userId는 필수입니다.");
         }
     }
 
@@ -120,16 +98,9 @@ public class News {
         }
     }
 
-    private static void validatePurpose(NewsPurpose purpose) {
-        if (purpose == null) {
-            throw new IllegalArgumentException("purpose는 필수입니다.");
+    private static void validateKeywordId(Long keywordId) {
+        if (keywordId == null) {
+            throw new IllegalArgumentException("keywordId는 필수입니다.");
         }
     }
-
-    private static void validateSourceId(Long sourceId) {
-        if (sourceId == null) {
-            throw new IllegalArgumentException("sourceId는 필수입니다.");
-        }
-    }
-
 }

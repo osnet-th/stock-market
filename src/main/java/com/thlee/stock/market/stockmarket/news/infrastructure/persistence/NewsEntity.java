@@ -1,6 +1,5 @@
 package com.thlee.stock.market.stockmarket.news.infrastructure.persistence;
 
-import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -17,8 +16,8 @@ import java.time.LocalDateTime;
                 @UniqueConstraint(columnNames = "original_url")
         },
         indexes = {
-                @Index(name = "idx_news_purpose_source_published",
-                       columnList = "purpose, source_id, published_at DESC")
+                @Index(name = "idx_news_keyword_published",
+                       columnList = "keyword_id, published_at DESC")
         }
 )
 @Getter
@@ -29,9 +28,6 @@ public class NewsEntity {
 
     @Column(name = "original_url", nullable = false, length = 500)
     private String originalUrl;
-
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
 
     @Column(name = "title", nullable = false, length = 500)
     private String title;
@@ -45,12 +41,8 @@ public class NewsEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "purpose", nullable = false, length = 100)
-    private NewsPurpose purpose;
-
-    @Column(name = "source_id", nullable = false)
-    private Long sourceId;
+    @Column(name = "keyword_id", nullable = false)
+    private Long keywordId;
 
     @Enumerated(EnumType.STRING)
     private Region region;
@@ -60,23 +52,19 @@ public class NewsEntity {
 
     public NewsEntity(Long id,
                       String originalUrl,
-                      Long userId,
                       String title,
                       String content,
                       LocalDateTime publishedAt,
                       LocalDateTime createdAt,
-                      NewsPurpose purpose,
-                      Long sourceId,
+                      Long keywordId,
                       Region region) {
         this.id = id;
         this.originalUrl = originalUrl;
-        this.userId = userId;
         this.title = title;
         this.content = content;
         this.publishedAt = publishedAt;
         this.createdAt = createdAt;
-        this.purpose = purpose;
-        this.sourceId = sourceId;
+        this.keywordId = keywordId;
         this.region = region;
     }
 

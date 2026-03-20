@@ -1,8 +1,10 @@
 package com.thlee.stock.market.stockmarket.portfolio.application;
 
-import com.thlee.stock.market.stockmarket.news.application.NewsCleanupService;
-import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
+import com.thlee.stock.market.stockmarket.news.application.KeywordService;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
+import com.thlee.stock.market.stockmarket.news.domain.model.UserKeyword;
+import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
+import com.thlee.stock.market.stockmarket.news.domain.repository.UserKeywordRepository;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockPurchaseHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
@@ -36,7 +38,9 @@ public class PortfolioService {
     private final PortfolioItemRepository portfolioItemRepository;
     private final StockPurchaseHistoryRepository purchaseHistoryRepository;
     private final CashStockLinkRepository cashStockLinkRepository;
-    private final NewsCleanupService newsCleanupService;
+    private final KeywordService keywordService;
+    private final KeywordRepository keywordRepository;
+    private final UserKeywordRepository userKeywordRepository;
 
     /**
      * 주식 항목 등록 (investedAmount = quantity × purchasePrice 자동 계산)
@@ -338,14 +342,24 @@ public class PortfolioService {
 
     /**
      * 뉴스 수집 토글
+     * ON: 종목명으로 keyword 등록 + user_keyword 구독 생성
+     * OFF: user_keyword 비활성화
      */
     @Transactional
     public void toggleNews(Long userId, Long itemId, boolean enabled) {
         PortfolioItem item = findUserItem(userId, itemId);
         if (enabled) {
             item.enableNews();
+            Region region = item.getRegion();
+            keywordService.registerKeyword(item.getItemName(), region, userId);
         } else {
             item.disableNews();
+            Region region = item.getRegion();
+            keywordRepository.findByKeywordAndRegion(item.getItemName(), region)
+                    .ifPresent(keyword -> {
+                        userKeywordRepository.findByUserIdAndKeywordId(userId, keyword.getId())
+                                .ifPresent(UserKeyword::deactivate);
+                    });
         }
         portfolioItemRepository.save(item);
     }
@@ -443,7 +457,13 @@ public class PortfolioService {
         }
 
         purchaseHistoryRepository.deleteByPortfolioItemId(itemId);
-        newsCleanupService.deleteSourceAndCleanOrphans(NewsPurpose.PORTFOLIO, item.getId());
+
+        // 뉴스 활성화 상태였으면 구독 해제
+        if (item.isNewsEnabled()) {
+            keywordRepository.findByKeywordAndRegion(item.getItemName(), item.getRegion())
+                    .ifPresent(keyword -> keywordService.unsubscribeKeyword(userId, keyword.getId()));
+        }
+
         portfolioItemRepository.delete(item);
     }
 

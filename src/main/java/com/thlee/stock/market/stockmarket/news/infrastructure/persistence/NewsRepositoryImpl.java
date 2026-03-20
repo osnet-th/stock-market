@@ -2,9 +2,9 @@ package com.thlee.stock.market.stockmarket.news.infrastructure.persistence;
 
 import com.thlee.stock.market.stockmarket.common.response.PageResult;
 import com.thlee.stock.market.stockmarket.news.domain.model.News;
-import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
 import com.thlee.stock.market.stockmarket.news.infrastructure.persistence.mapper.NewsMapper;
+import com.thlee.stock.market.stockmarket.news.infrastructure.persistence.repository.NewsJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,13 +27,11 @@ public class NewsRepositoryImpl implements NewsRepository {
     public News save(News news) {
         newsJpaRepository.insertIgnoreDuplicate(
                 news.getOriginalUrl(),
-                news.getUserId(),
                 news.getTitle(),
                 news.getContent(),
                 news.getPublishedAt(),
                 news.getCreatedAt(),
-                news.getPurpose().name(),
-                news.getSourceId(),
+                news.getKeywordId(),
                 news.getRegion() != null ? news.getRegion().name() : null
         );
 
@@ -46,13 +44,11 @@ public class NewsRepositoryImpl implements NewsRepository {
     public boolean insertIgnoreDuplicate(News news) {
         int inserted = newsJpaRepository.insertIgnoreDuplicate(
                 news.getOriginalUrl(),
-                news.getUserId(),
                 news.getTitle(),
                 news.getContent(),
                 news.getPublishedAt(),
                 news.getCreatedAt(),
-                news.getPurpose().name(),
-                news.getSourceId(),
+                news.getKeywordId(),
                 news.getRegion() != null ? news.getRegion().name() : null
         );
         return inserted > 0;
@@ -65,17 +61,9 @@ public class NewsRepositoryImpl implements NewsRepository {
     }
 
     @Override
-    public List<News> findByPurpose(NewsPurpose purpose) {
-        return newsJpaRepository.findByPurpose(purpose)
-                .stream()
-                .map(NewsMapper::toDomain)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public PageResult<News> findByPurposeAndSourceId(NewsPurpose purpose, Long sourceId, int page, int size) {
+    public PageResult<News> findByKeywordId(Long keywordId, int page, int size) {
         Page<NewsEntity> entityPage = newsJpaRepository
-                .findByPurposeAndSourceIdOrderByPublishedAtDesc(purpose, sourceId, PageRequest.of(page, size));
+                .findByKeywordIdOrderByPublishedAtDesc(keywordId, PageRequest.of(page, size));
 
         List<News> newsList = entityPage.getContent().stream()
                 .map(NewsMapper::toDomain)
@@ -85,8 +73,8 @@ public class NewsRepositoryImpl implements NewsRepository {
     }
 
     @Override
-    public void deleteByPurposeAndSourceId(NewsPurpose purpose, Long sourceId) {
-        newsJpaRepository.deleteByPurposeAndSourceId(purpose, sourceId);
+    public void deleteByKeywordId(Long keywordId) {
+        newsJpaRepository.deleteByKeywordId(keywordId);
     }
 
     @Override

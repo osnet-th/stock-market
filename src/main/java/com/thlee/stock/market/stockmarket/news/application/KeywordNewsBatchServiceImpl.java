@@ -5,7 +5,6 @@ import com.thlee.stock.market.stockmarket.news.application.dto.NewsSaveRequest;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsResultDto;
 import com.thlee.stock.market.stockmarket.news.application.vo.KeywordSearchContext;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
-import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,17 +28,16 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
 
     @Override
     public int executeKeywordNewsBatch() {
-        List<Keyword> activeKeywords = keywordService.getAllActiveKeywords();
-        if (activeKeywords.isEmpty()) {
+        List<Keyword> allKeywords = keywordService.getAllKeywords();
+        if (allKeywords.isEmpty()) {
             return 0;
         }
 
         List<KeywordSearchContext> searchedContexts = new ArrayList<>();
-        for (Keyword keyword : activeKeywords) {
+        for (Keyword keyword : allKeywords) {
             List<NewsResultDto> searchResults = newsSearchService.search(keyword.getKeyword(), keyword.getRegion());
             for (NewsResultDto dto : searchResults) {
                 searchedContexts.add(new KeywordSearchContext(
-                        keyword.getUserId(),
                         keyword.getId(),
                         keyword.getRegion(),
                         dto
@@ -59,7 +57,6 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
         List<NewsSaveRequest> saveRequests = newContexts.stream()
                 .map(context -> new NewsSaveRequest(
                         context.news().getUrl(),
-                        context.userId(),
                         context.news().getTitle(),
                         context.news().getContent(),
                         context.news().getPublishedAt(),
@@ -68,24 +65,19 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
                 ))
                 .toList();
 
-        NewsBatchSaveResult result = newsSaveService.saveBatch(saveRequests, NewsPurpose.KEYWORD);
+        NewsBatchSaveResult result = newsSaveService.saveBatch(saveRequests);
         return result.getSuccessCount();
     }
 
     @Override
-    public NewsBatchSaveResult collectByKeyword(Long keywordId, String keyword, Long userId, Region region) {
-        return collectBySource(NewsPurpose.KEYWORD, keywordId, keyword, userId, region);
-    }
-
-    @Override
-    public NewsBatchSaveResult collectBySource(NewsPurpose purpose, Long sourceId, String keyword, Long userId, Region region) {
+    public NewsBatchSaveResult collectByKeyword(Long keywordId, String keyword, Region region) {
         List<NewsResultDto> searchResults = newsSearchService.search(keyword, region);
         if (searchResults.isEmpty()) {
             return new NewsBatchSaveResult(0, 0, 0);
         }
 
         List<KeywordSearchContext> contexts = searchResults.stream()
-                .map(dto -> new KeywordSearchContext(userId, sourceId, region, dto))
+                .map(dto -> new KeywordSearchContext(keywordId, region, dto))
                 .toList();
 
         List<KeywordSearchContext> newContexts = filterNewNews(contexts);
@@ -96,7 +88,6 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
         List<NewsSaveRequest> saveRequests = newContexts.stream()
                 .map(context -> new NewsSaveRequest(
                         context.news().getUrl(),
-                        context.userId(),
                         context.news().getTitle(),
                         context.news().getContent(),
                         context.news().getPublishedAt(),
@@ -105,7 +96,7 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
                 ))
                 .toList();
 
-        return newsSaveService.saveBatch(saveRequests, purpose);
+        return newsSaveService.saveBatch(saveRequests);
     }
 
     private List<KeywordSearchContext> filterNewNews(List<KeywordSearchContext> searchedContexts) {
@@ -123,6 +114,4 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
                 .filter(context -> selectedUrls.add(context.news().getUrl()))
                 .toList();
     }
-
-
 }

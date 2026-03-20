@@ -8,6 +8,8 @@ import com.thlee.stock.market.stockmarket.news.domain.model.UserKeyword;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
 import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
 import com.thlee.stock.market.stockmarket.news.domain.repository.UserKeywordRepository;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.PortfolioItem;
+import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,7 @@ public class KeywordServiceImpl implements KeywordService {
     private final KeywordRepository keywordRepository;
     private final UserKeywordRepository userKeywordRepository;
     private final NewsRepository newsRepository;
+    private final PortfolioItemRepository portfolioItemRepository;
 
     @Override
     @Transactional
@@ -99,11 +102,17 @@ public class KeywordServiceImpl implements KeywordService {
                 .orElseThrow(() -> new IllegalArgumentException("구독 정보를 찾을 수 없습니다."));
         subscription.deactivate();
         userKeywordRepository.save(subscription);
+
+        // 포트폴리오 항목의 newsEnabled도 OFF
+        disablePortfolioNewsByKeywordId(userId, keywordId);
     }
 
     @Override
     @Transactional
     public void unsubscribeKeyword(Long userId, Long keywordId) {
+        // 포트폴리오 항목의 newsEnabled OFF
+        disablePortfolioNewsByKeywordId(userId, keywordId);
+
         // 1. UserKeyword 삭제
         userKeywordRepository.deleteByUserIdAndKeywordId(userId, keywordId);
 
@@ -113,5 +122,16 @@ public class KeywordServiceImpl implements KeywordService {
             newsRepository.deleteByKeywordId(keywordId);
             keywordRepository.deleteById(keywordId);
         }
+    }
+
+    private void disablePortfolioNewsByKeywordId(Long userId, Long keywordId) {
+        keywordRepository.findById(keywordId).ifPresent(keyword -> {
+            List<PortfolioItem> items = portfolioItemRepository
+                    .findByUserIdAndItemNameAndNewsEnabled(userId, keyword.getKeyword(), true);
+            for (PortfolioItem item : items) {
+                item.disableNews();
+                portfolioItemRepository.save(item);
+            }
+        });
     }
 }

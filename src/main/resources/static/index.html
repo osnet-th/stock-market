@@ -708,12 +708,12 @@
                                                                     x-text="getStockPriceSummary(item)"></p>
                                                             </div>
                                                             <div class="flex items-center gap-2">
-                                                                <!-- 뉴스 토글 (현금 제외) -->
+                                                                <!-- 키워드 추가/삭제 (현금, ETF 제외) -->
                                                                 <button x-show="item.assetType !== 'CASH' && item.stockDetail?.subType !== 'ETF'"
                                                                     @click.stop="toggleNews(item)"
                                                                     :class="item.newsEnabled ? 'text-green-600 hover:text-green-800' : 'text-gray-400 hover:text-gray-600'"
                                                                     class="text-xs font-medium transition"
-                                                                    x-text="item.newsEnabled ? '뉴스 ON' : '뉴스 OFF'">
+                                                                    x-text="item.newsEnabled ? '키워드 삭제' : '키워드 추가'">
                                                                 </button>
                                                                 <!-- 재무상세 (국내 주식만) -->
                                                                 <button x-show="item.assetType === 'STOCK' && item.stockDetail?.country === 'KR' && item.stockDetail?.subType !== 'ETF'"
@@ -799,7 +799,7 @@
                                                                     @click.stop="toggleNews(item)"
                                                                     :class="item.newsEnabled ? 'text-green-600 hover:text-green-800' : 'text-gray-400 hover:text-gray-600'"
                                                                     class="text-xs font-medium transition"
-                                                                    x-text="item.newsEnabled ? '뉴스 ON' : '뉴스 OFF'">
+                                                                    x-text="item.newsEnabled ? '키워드 삭제' : '키워드 추가'">
                                                                 </button>
                                                                 <button x-show="item.assetType === 'STOCK'"
                                                                     @click.stop="openPurchaseModal(item)"

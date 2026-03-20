@@ -33,6 +33,11 @@ public interface PortfolioItemRepository {
     List<PortfolioItem> findByNewsEnabled(boolean newsEnabled);
 
     /**
+     * 사용자별 종목명 + 뉴스 활성화 상태로 조회
+     */
+    List<PortfolioItem> findByUserIdAndItemNameAndNewsEnabled(Long userId, String itemName, boolean newsEnabled);
+
+    /**
      * 중복 확인
      */
     boolean existsByUserIdAndItemNameAndAssetType(Long userId, String itemName, AssetType assetType);

@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.news.domain.repository;
 
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 
 import java.util.List;
 import java.util.Optional;
@@ -11,38 +12,17 @@ import java.util.Optional;
  */
 public interface KeywordRepository {
 
-    /**
-     * 키워드 저장
-     */
     Keyword save(Keyword keyword);
 
-    /**
-     * ID로 키워드 조회
-     */
     Optional<Keyword> findById(Long id);
 
-    /**
-     * 사용자별 키워드 목록 조회
-     */
-    List<Keyword> findByUserId(Long userId);
+    List<Keyword> findAll();
 
-    /**
-     * 사용자별 + 활성화 상태별 키워드 목록 조회
-     */
-    List<Keyword> findByUserIdAndActive(Long userId, boolean active);
+    Optional<Keyword> findByKeywordAndRegion(String keyword, Region region);
 
-    /**
-     * 활성화된 모든 키워드 조회 (스케줄러용)
-     */
-    List<Keyword> findByActive(boolean active);
+    boolean existsByKeywordAndRegion(String keyword, Region region);
 
-    /**
-     * 사용자별 키워드 존재 여부 확인
-     */
-    boolean existsByUserIdAndKeyword(Long userId, String keyword);
-
-    /**
-     * 키워드 삭제
-     */
     void delete(Keyword keyword);
+
+    void deleteById(Long id);
 }

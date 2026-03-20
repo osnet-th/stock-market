@@ -117,7 +117,7 @@ function dashboard() {
             financialResult: null,
             financialLoading: false,
             selectedStockItem: null,
-            financialYear: '',
+            financialYear: String(new Date().getFullYear()),
             financialReportCode: 'ANNUAL',
             selectedFinancialMenu: null,
             financialIndexClass: 'PROFITABILITY',
@@ -377,9 +377,9 @@ function dashboard() {
         async toggleKeyword(kw) {
             try {
                 if (kw.active) {
-                    await API.deactivateKeyword(kw.id);
+                    await API.deactivateKeyword(kw.id, this.auth.userId);
                 } else {
-                    await API.activateKeyword(kw.id);
+                    await API.activateKeyword(kw.id, this.auth.userId);
                 }
                 await this.loadKeywords();
             } catch (e) {
@@ -390,7 +390,7 @@ function dashboard() {
         async removeKeyword(id) {
             if (!confirm('키워드를 삭제하시겠습니까?')) return;
             try {
-                await API.deleteKeyword(id);
+                await API.deleteKeyword(id, this.auth.userId);
                 await this.loadKeywords();
             } catch (e) {
                 console.error('키워드 삭제 실패:', e);
@@ -402,7 +402,7 @@ function dashboard() {
             if (this.news.collectingKeywordId) return;
             this.news.collectingKeywordId = kw.id;
             try {
-                var result = await API.collectNewsByKeyword(kw.id, kw.keyword, this.auth.userId, kw.region);
+                var result = await API.collectNewsByKeyword(kw.id, kw.keyword, kw.region);
                 var msg = '수집 완료: ' + result.successCount + '건 저장';
                 if (result.ignoredCount > 0) msg += ', ' + result.ignoredCount + '건 중복';
                 alert(msg);
@@ -712,6 +712,10 @@ function dashboard() {
         getDomesticStocks() {
             return this.portfolio.items.filter(function(item) {
                 return item.assetType === 'STOCK' && item.stockDetail?.country === 'KR';
+            }).sort(function(a, b) {
+                var aIsEtf = a.stockDetail?.subType === 'ETF' ? 1 : 0;
+                var bIsEtf = b.stockDetail?.subType === 'ETF' ? 1 : 0;
+                return aIsEtf - bIsEtf;
             });
         },
 
@@ -1132,22 +1136,30 @@ function dashboard() {
 
         // ==================== 포트폴리오 뉴스 ====================
 
+        async findKeywordIdByItemName(itemName, region) {
+            var keywords = await API.getKeywords(this.auth.userId) || [];
+            var matched = keywords.find(function(k) { return k.keyword === itemName && k.region === region; });
+            return matched ? matched.id : null;
+        },
+
         async selectPortfolioNewsItem(item) {
             if (this.portfolio.selectedNewsItemId === item.id) {
                 this.portfolio.selectedNewsItemId = null;
+                this.portfolio.selectedNewsKeywordId = null;
                 this.portfolio.news = { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false };
                 return;
             }
             this.portfolio.selectedNewsItemId = item.id;
+            this.portfolio.selectedNewsKeywordId = await this.findKeywordIdByItemName(item.itemName, item.region);
             this.portfolio.news.page = 0;
             await this.loadPortfolioNews(0);
         },
 
         async loadPortfolioNews(page) {
-            if (!this.portfolio.selectedNewsItemId) return;
+            if (!this.portfolio.selectedNewsKeywordId) return;
             this.portfolio.news.loading = true;
             try {
-                var result = await API.getNewsByPortfolioItem(this.portfolio.selectedNewsItemId, page, this.portfolio.news.size);
+                var result = await API.getNewsByKeyword(this.portfolio.selectedNewsKeywordId, page, this.portfolio.news.size);
                 this.portfolio.news.list = result.content || [];
                 this.portfolio.news.page = result.page;
                 this.portfolio.news.totalPages = result.totalPages;
@@ -1164,7 +1176,12 @@ function dashboard() {
             if (this.portfolio.collectingItemId) return;
             this.portfolio.collectingItemId = item.id;
             try {
-                var result = await API.collectNewsByPortfolioItem(item.id, item.itemName, this.auth.userId, item.region);
+                var keywordId = await this.findKeywordIdByItemName(item.itemName, item.region);
+                if (!keywordId) {
+                    alert('키워드를 찾을 수 없습니다. 뉴스를 먼저 활성화해주세요.');
+                    return;
+                }
+                var result = await API.collectNewsByKeyword(keywordId, item.itemName, item.region);
                 var msg = '수집 완료: ' + result.successCount + '건 저장';
                 if (result.ignoredCount > 0) msg += ', ' + result.ignoredCount + '건 중복';
                 alert(msg);
@@ -1483,7 +1500,7 @@ function dashboard() {
         },
 
         getDefaultYear() {
-            return String(new Date().getFullYear() - 1);
+            return String(new Date().getFullYear());
         },
 
         async loadFinancialOptions() {
@@ -1497,7 +1514,7 @@ function dashboard() {
 
         async openStockDetail(item) {
             var stockCode = item.stockDetail?.stockCode;
-            if (!stockCode || item.stockDetail?.country !== 'KR') return;
+            if (!stockCode || item.stockDetail?.country !== 'KR' || item.stockDetail?.subType === 'ETF') return;
 
             this.portfolio.selectedStockItem = item;
             this.portfolio.financialYear = this.getDefaultYear();

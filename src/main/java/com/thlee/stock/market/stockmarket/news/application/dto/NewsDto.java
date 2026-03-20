@@ -1,7 +1,6 @@
 package com.thlee.stock.market.stockmarket.news.application.dto;
 
 import com.thlee.stock.market.stockmarket.news.domain.model.News;
-import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 
 import java.time.LocalDateTime;
 
@@ -15,8 +14,7 @@ public class NewsDto {
     private final String content;
     private final LocalDateTime publishedAt;
     private final LocalDateTime createdAt;
-    private final NewsPurpose purpose;
-    private final Long sourceId;
+    private final Long keywordId;
 
     public NewsDto(Long id,
                    String originalUrl,
@@ -24,16 +22,14 @@ public class NewsDto {
                    String content,
                    LocalDateTime publishedAt,
                    LocalDateTime createdAt,
-                   NewsPurpose purpose,
-                   Long sourceId) {
+                   Long keywordId) {
         this.id = id;
         this.originalUrl = originalUrl;
         this.title = title;
         this.content = content;
         this.publishedAt = publishedAt;
         this.createdAt = createdAt;
-        this.purpose = purpose;
-        this.sourceId = sourceId;
+        this.keywordId = keywordId;
     }
 
     public static NewsDto from(News news) {
@@ -44,40 +40,15 @@ public class NewsDto {
                 news.getContent(),
                 news.getPublishedAt(),
                 news.getCreatedAt(),
-                news.getPurpose(),
-                news.getSourceId()
+                news.getKeywordId()
         );
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public String getOriginalUrl() {
-        return originalUrl;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public LocalDateTime getPublishedAt() {
-        return publishedAt;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public NewsPurpose getPurpose() {
-        return purpose;
-    }
-
-    public Long getSourceId() {
-        return sourceId;
-    }
+    public Long getId() { return id; }
+    public String getOriginalUrl() { return originalUrl; }
+    public String getTitle() { return title; }
+    public String getContent() { return content; }
+    public LocalDateTime getPublishedAt() { return publishedAt; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public Long getKeywordId() { return keywordId; }
 }

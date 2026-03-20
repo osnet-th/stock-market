@@ -11,27 +11,23 @@ import java.time.LocalDateTime;
 @Getter
 public class NewsSaveRequest {
     private final String originalUrl;
-    private final Long userId;
     private final String title;
     private final String content;
     private final LocalDateTime publishedAt;
-    private final Long sourceId;
+    private final Long keywordId;
     private final Region region;
 
     public NewsSaveRequest(String originalUrl,
-                           Long userId,
                            String title,
                            String content,
                            LocalDateTime publishedAt,
-                           Long sourceId,
+                           Long keywordId,
                            Region region) {
         this.originalUrl = originalUrl;
-        this.userId = userId;
         this.title = title;
         this.content = content;
         this.publishedAt = publishedAt;
-        this.sourceId = sourceId;
+        this.keywordId = keywordId;
         this.region = region;
     }
-
 }

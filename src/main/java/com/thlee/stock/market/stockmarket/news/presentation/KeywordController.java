@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.news.presentation;
 
-import com.thlee.stock.market.stockmarket.news.application.KeywordServiceImpl;
+import com.thlee.stock.market.stockmarket.news.application.KeywordService;
+import com.thlee.stock.market.stockmarket.news.application.dto.KeywordResponse;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
 import com.thlee.stock.market.stockmarket.news.application.dto.RegisterKeywordRequest;
 import lombok.RequiredArgsConstructor;
@@ -17,13 +18,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class KeywordController {
 
-    private final KeywordServiceImpl keywordService;
+    private final KeywordService keywordService;
 
     /**
      * 키워드 등록
-     *
-     * @param request 키워드 등록 요청 (keyword, userId, region)
-     * @return 등록된 키워드
      */
     @PostMapping
     public ResponseEntity<Keyword> registerKeyword(@RequestBody RegisterKeywordRequest request) {
@@ -32,63 +30,57 @@ public class KeywordController {
     }
 
     /**
-     * 키워드 목록 조회
-     *
-     * @param userId 사용자 ID (필수)
-     * @param active 활성화 여부 (선택적)
-     * @return 키워드 목록
+     * 사용자별 키워드 목록 조회
      */
     @GetMapping
-    public ResponseEntity<List<Keyword>> getKeywords(
+    public ResponseEntity<List<KeywordResponse>> getKeywords(
             @RequestParam Long userId,
             @RequestParam(required = false) Boolean active
     ) {
-        List<Keyword> keywords;
+        List<KeywordResponse> keywords;
         if (active == null) {
-            keywords = keywordService.getKeywordsByUserId(userId);
+            keywords = keywordService.getKeywordsByUser(userId);
         } else if (active) {
-            keywords = keywordService.getActiveKeywordsByUserId(userId);
+            keywords = keywordService.getActiveKeywordsByUser(userId);
         } else {
-            keywords = keywordService.getKeywordsByUserId(userId).stream()
-                    .filter(k -> !k.isActive())
-                    .toList();
+            keywords = keywordService.getKeywordsByUser(userId);
         }
         return ResponseEntity.ok(keywords);
     }
 
     /**
-     * 키워드 활성화
-     *
-     * @param keywordId 키워드 ID
-     * @return 성공 응답
+     * 사용자의 키워드 구독 활성화
      */
     @PatchMapping("/{keywordId}/activate")
-    public ResponseEntity<Void> activateKeyword(@PathVariable Long keywordId) {
-        keywordService.activateKeyword(keywordId);
+    public ResponseEntity<Void> activateKeyword(
+            @PathVariable Long keywordId,
+            @RequestParam Long userId
+    ) {
+        keywordService.activateUserKeyword(userId, keywordId);
         return ResponseEntity.noContent().build();
     }
 
     /**
-     * 키워드 비활성화
-     *
-     * @param keywordId 키워드 ID
-     * @return 성공 응답
+     * 사용자의 키워드 구독 비활성화
      */
     @PatchMapping("/{keywordId}/deactivate")
-    public ResponseEntity<Void> deactivateKeyword(@PathVariable Long keywordId) {
-        keywordService.deactivateKeyword(keywordId);
+    public ResponseEntity<Void> deactivateKeyword(
+            @PathVariable Long keywordId,
+            @RequestParam Long userId
+    ) {
+        keywordService.deactivateUserKeyword(userId, keywordId);
         return ResponseEntity.noContent().build();
     }
 
     /**
-     * 키워드 삭제
-     *
-     * @param keywordId 키워드 ID
-     * @return 성공 응답
+     * 사용자의 키워드 구독 해제
      */
     @DeleteMapping("/{keywordId}")
-    public ResponseEntity<Void> deleteKeyword(@PathVariable Long keywordId) {
-        keywordService.deleteKeyword(keywordId);
+    public ResponseEntity<Void> deleteKeyword(
+            @PathVariable Long keywordId,
+            @RequestParam Long userId
+    ) {
+        keywordService.unsubscribeKeyword(userId, keywordId);
         return ResponseEntity.noContent().build();
     }
 }

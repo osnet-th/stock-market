@@ -5,7 +5,6 @@ import com.thlee.stock.market.stockmarket.news.application.KeywordNewsBatchServi
 import com.thlee.stock.market.stockmarket.news.application.NewsQueryService;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsBatchSaveResult;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsDto;
-import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import com.thlee.stock.market.stockmarket.news.presentation.dto.NewsCollectRequest;
 import com.thlee.stock.market.stockmarket.news.presentation.dto.NewsCollectResponse;
 import com.thlee.stock.market.stockmarket.news.presentation.dto.NewsQueryResponse;
@@ -25,31 +24,26 @@ public class NewsController {
     private final KeywordNewsBatchService keywordNewsBatchService;
 
     /**
-     * 뉴스 조회 (페이징)
-     * purpose + sourceId로 범용 조회
+     * 뉴스 조회 (keywordId 기반, 페이징)
      */
     @GetMapping
     public ResponseEntity<NewsQueryResponse<NewsDto>> getNews(
-            @RequestParam NewsPurpose purpose,
-            @RequestParam Long sourceId,
+            @RequestParam Long keywordId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        PageResult<NewsDto> result = newsQueryService.getNewsBySource(
-                purpose, sourceId, page, size);
+        PageResult<NewsDto> result = newsQueryService.getNewsByKeywordId(keywordId, page, size);
         return ResponseEntity.ok(NewsQueryResponse.from(result));
     }
 
     /**
-     * 뉴스 즉시 수집 (purpose + sourceId 범용)
+     * 뉴스 즉시 수집
      */
     @PostMapping("/collect")
     public ResponseEntity<NewsCollectResponse> collectNews(@RequestBody NewsCollectRequest request) {
-        NewsBatchSaveResult result = keywordNewsBatchService.collectBySource(
-                request.getPurpose(),
-                request.getSourceId(),
+        NewsBatchSaveResult result = keywordNewsBatchService.collectByKeyword(
+                request.getKeywordId(),
                 request.getKeyword(),
-                request.getUserId(),
                 request.getRegion()
         );
         return ResponseEntity.ok(NewsCollectResponse.from(result));

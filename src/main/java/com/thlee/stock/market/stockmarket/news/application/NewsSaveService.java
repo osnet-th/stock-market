@@ -4,7 +4,6 @@ import com.thlee.stock.market.stockmarket.news.application.dto.NewsBatchSaveResu
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsDto;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsSaveRequest;
 import com.thlee.stock.market.stockmarket.news.domain.model.News;
-import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
 import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,15 +30,13 @@ public class NewsSaveService {
     private int batchSize;
 
     @Transactional
-    public NewsDto save(NewsSaveRequest request, NewsPurpose purpose) {
+    public NewsDto save(NewsSaveRequest request) {
         News news = News.create(
                 request.getOriginalUrl(),
-                request.getUserId(),
                 request.getTitle(),
                 request.getContent(),
                 request.getPublishedAt(),
-                purpose,
-                request.getSourceId(),
+                request.getKeywordId(),
                 request.getRegion()
         );
 
@@ -47,7 +44,7 @@ public class NewsSaveService {
         return NewsDto.from(saved);
     }
 
-    public NewsBatchSaveResult saveBatch(List<NewsSaveRequest> requests, NewsPurpose purpose) {
+    public NewsBatchSaveResult saveBatch(List<NewsSaveRequest> requests) {
         if (requests == null || requests.isEmpty()) {
             return new NewsBatchSaveResult(0, 0, 0);
         }
@@ -61,7 +58,7 @@ public class NewsSaveService {
             TransactionTemplate template = new TransactionTemplate(transactionManager);
             template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-            NewsBatchSaveResult result = template.execute(status -> saveChunk(chunk, purpose));
+            NewsBatchSaveResult result = template.execute(status -> saveChunk(chunk));
             if (result != null) {
                 success += result.getSuccessCount();
                 ignored += result.getIgnoredCount();
@@ -72,7 +69,7 @@ public class NewsSaveService {
         return new NewsBatchSaveResult(success, ignored, failed);
     }
 
-    private NewsBatchSaveResult saveChunk(List<NewsSaveRequest> chunk, NewsPurpose purpose) {
+    private NewsBatchSaveResult saveChunk(List<NewsSaveRequest> chunk) {
         int success = 0;
         int ignored = 0;
         int failed = 0;
@@ -81,12 +78,10 @@ public class NewsSaveService {
             try {
                 News news = News.create(
                         request.getOriginalUrl(),
-                        request.getUserId(),
                         request.getTitle(),
                         request.getContent(),
                         request.getPublishedAt(),
-                        purpose,
-                        request.getSourceId(),
+                        request.getKeywordId(),
                         request.getRegion()
                 );
 

@@ -1,14 +1,20 @@
 package com.thlee.stock.market.stockmarket.news.application;
 
+import com.thlee.stock.market.stockmarket.news.application.dto.KeywordResponse;
 import com.thlee.stock.market.stockmarket.news.application.dto.RegisterKeywordRequest;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
-import com.thlee.stock.market.stockmarket.news.domain.model.NewsPurpose;
+import com.thlee.stock.market.stockmarket.news.domain.model.Region;
+import com.thlee.stock.market.stockmarket.news.domain.model.UserKeyword;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
+import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
+import com.thlee.stock.market.stockmarket.news.domain.repository.UserKeywordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 키워드 유스케이스 서비스
@@ -16,76 +22,96 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class KeywordServiceImpl implements KeywordService{
+public class KeywordServiceImpl implements KeywordService {
 
     private final KeywordRepository keywordRepository;
-    private final NewsCleanupService newsCleanupService;
+    private final UserKeywordRepository userKeywordRepository;
+    private final NewsRepository newsRepository;
 
-    /**
-     * 키워드 등록
-     */
+    @Override
     @Transactional
     public Keyword registerKeyword(RegisterKeywordRequest request) {
-        if (keywordRepository.existsByUserIdAndKeyword(request.getUserId(), request.getKeyword())) {
-            throw new IllegalArgumentException("이미 등록된 키워드입니다.");
+        return registerKeyword(request.getKeyword(), request.getRegion(), request.getUserId());
+    }
+
+    @Override
+    @Transactional
+    public Keyword registerKeyword(String keywordText, Region region, Long userId) {
+        // 1. 기존 키워드 재사용 또는 신규 생성
+        Keyword keyword = keywordRepository.findByKeywordAndRegion(keywordText, region)
+                .orElseGet(() -> {
+                    Keyword newKeyword = Keyword.create(keywordText, region);
+                    return keywordRepository.save(newKeyword);
+                });
+
+        // 2. UserKeyword 구독 생성 (이미 존재하면 활성화)
+        Optional<UserKeyword> existing = userKeywordRepository.findByUserIdAndKeywordId(userId, keyword.getId());
+        if (existing.isPresent()) {
+            UserKeyword subscription = existing.get();
+            subscription.activate();
+            userKeywordRepository.save(subscription);
+        } else {
+            UserKeyword subscription = UserKeyword.create(userId, keyword.getId());
+            userKeywordRepository.save(subscription);
         }
 
-        Keyword newKeyword = Keyword.create(request.getKeyword(), request.getUserId(), request.getRegion());
-        return keywordRepository.save(newKeyword);
+        return keyword;
     }
 
-    /**
-     * 사용자별 키워드 목록 조회
-     */
-    public List<Keyword> getKeywordsByUserId(Long userId) {
-        return keywordRepository.findByUserId(userId);
+    @Override
+    public List<KeywordResponse> getKeywordsByUser(Long userId) {
+        List<UserKeyword> subscriptions = userKeywordRepository.findByUserId(userId);
+        return subscriptions.stream()
+                .flatMap(sub -> keywordRepository.findById(sub.getKeywordId())
+                        .map(kw -> KeywordResponse.from(kw, sub))
+                        .stream())
+                .collect(Collectors.toList());
     }
 
-    /**
-     * 사용자별 활성화된 키워드 목록 조회
-     */
-    public List<Keyword> getActiveKeywordsByUserId(Long userId) {
-        return keywordRepository.findByUserIdAndActive(userId, true);
+    @Override
+    public List<KeywordResponse> getActiveKeywordsByUser(Long userId) {
+        List<UserKeyword> subscriptions = userKeywordRepository.findByUserIdAndActive(userId, true);
+        return subscriptions.stream()
+                .flatMap(sub -> keywordRepository.findById(sub.getKeywordId())
+                        .map(kw -> KeywordResponse.from(kw, sub))
+                        .stream())
+                .collect(Collectors.toList());
     }
 
-    /**
-     * 활성화된 모든 키워드 조회 (스케줄러용)
-     */
-    public List<Keyword> getAllActiveKeywords() {
-        return keywordRepository.findByActive(true);
+    @Override
+    public List<Keyword> getAllKeywords() {
+        return keywordRepository.findAll();
     }
 
-    /**
-     * 키워드 비활성화
-     */
+    @Override
     @Transactional
-    public void deactivateKeyword(Long keywordId) {
-        Keyword keyword = keywordRepository.findById(keywordId)
-                .orElseThrow(() -> new IllegalArgumentException("키워드를 찾을 수 없습니다."));
-        keyword.deactivate();
-        keywordRepository.save(keyword);
+    public void activateUserKeyword(Long userId, Long keywordId) {
+        UserKeyword subscription = userKeywordRepository.findByUserIdAndKeywordId(userId, keywordId)
+                .orElseThrow(() -> new IllegalArgumentException("구독 정보를 찾을 수 없습니다."));
+        subscription.activate();
+        userKeywordRepository.save(subscription);
     }
 
-    /**
-     * 키워드 활성화
-     */
+    @Override
     @Transactional
-    public void activateKeyword(Long keywordId) {
-        Keyword keyword = keywordRepository.findById(keywordId)
-                .orElseThrow(() -> new IllegalArgumentException("키워드를 찾을 수 없습니다."));
-        keyword.activate();
-        keywordRepository.save(keyword);
+    public void deactivateUserKeyword(Long userId, Long keywordId) {
+        UserKeyword subscription = userKeywordRepository.findByUserIdAndKeywordId(userId, keywordId)
+                .orElseThrow(() -> new IllegalArgumentException("구독 정보를 찾을 수 없습니다."));
+        subscription.deactivate();
+        userKeywordRepository.save(subscription);
     }
 
-    /**
-     * 키워드 삭제
-     */
+    @Override
     @Transactional
-    public void deleteKeyword(Long keywordId) {
-        Keyword keyword = keywordRepository.findById(keywordId)
-                .orElseThrow(() -> new IllegalArgumentException("키워드를 찾을 수 없습니다."));
+    public void unsubscribeKeyword(Long userId, Long keywordId) {
+        // 1. UserKeyword 삭제
+        userKeywordRepository.deleteByUserIdAndKeywordId(userId, keywordId);
 
-        newsCleanupService.deleteSourceAndCleanOrphans(NewsPurpose.KEYWORD, keyword.getId());
-        keywordRepository.delete(keyword);
+        // 2. 해당 keyword 구독자가 0명이면 keyword + news 일괄 삭제
+        boolean hasSubscribers = userKeywordRepository.existsByKeywordId(keywordId);
+        if (!hasSubscribers) {
+            newsRepository.deleteByKeywordId(keywordId);
+            keywordRepository.deleteById(keywordId);
+        }
     }
 }

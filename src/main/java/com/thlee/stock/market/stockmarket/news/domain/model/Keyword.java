@@ -3,20 +3,16 @@ package com.thlee.stock.market.stockmarket.news.domain.model;
 import java.time.LocalDateTime;
 
 /**
- * 키워드 도메인 모델
+ * 키워드 도메인 모델 (공유 리소스)
  */
 public class Keyword {
     private Long id;
     private String keyword;
-    private Long userId;
-    private boolean active;
     private Region region;
     private LocalDateTime createdAt;
 
-    private Keyword(String keyword, Long userId, boolean active, Region region, LocalDateTime createdAt) {
+    private Keyword(String keyword, Region region, LocalDateTime createdAt) {
         this.keyword = keyword;
-        this.userId = userId;
-        this.active = active;
         this.region = region;
         this.createdAt = createdAt;
     }
@@ -24,11 +20,9 @@ public class Keyword {
     /**
      * 재구성용 생성자 (Repository에서 조회 시 사용)
      */
-    public Keyword(Long id, String keyword, Long userId, boolean active, Region region, LocalDateTime createdAt) {
+    public Keyword(Long id, String keyword, Region region, LocalDateTime createdAt) {
         this.id = id;
         this.keyword = keyword;
-        this.userId = userId;
-        this.active = active;
         this.region = region;
         this.createdAt = createdAt;
     }
@@ -36,23 +30,16 @@ public class Keyword {
     /**
      * 키워드 생성
      */
-    public static Keyword create(String keyword, Long userId, Region region) {
+    public static Keyword create(String keyword, Region region) {
         validateKeyword(keyword);
-        validateUserId(userId);
         validateRegion(region);
 
-        return new Keyword(keyword, userId, true, region, LocalDateTime.now());
+        return new Keyword(keyword, region, LocalDateTime.now());
     }
 
     private static void validateKeyword(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             throw new IllegalArgumentException("키워드는 필수입니다.");
-        }
-    }
-
-    private static void validateUserId(Long userId) {
-        if (userId == null) {
-            throw new IllegalArgumentException("userId는 필수입니다.");
         }
     }
 
@@ -62,20 +49,6 @@ public class Keyword {
         }
     }
 
-    /**
-     * 키워드 비활성화
-     */
-    public void deactivate() {
-        this.active = false;
-    }
-
-    /**
-     * 키워드 활성화
-     */
-    public void activate() {
-        this.active = true;
-    }
-
     // Getters
     public Long getId() {
         return id;
@@ -83,14 +56,6 @@ public class Keyword {
 
     public String getKeyword() {
         return keyword;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public boolean isActive() {
-        return active;
     }
 
     public Region getRegion() {

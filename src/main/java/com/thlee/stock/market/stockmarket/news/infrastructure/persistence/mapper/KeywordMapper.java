@@ -15,8 +15,6 @@ public class KeywordMapper {
         return new KeywordEntity(
                 keyword.getId(),
                 keyword.getKeyword(),
-                keyword.getUserId(),
-                keyword.isActive(),
                 keyword.getRegion(),
                 keyword.getCreatedAt()
         );
@@ -29,8 +27,6 @@ public class KeywordMapper {
         return new Keyword(
                 entity.getId(),
                 entity.getKeyword(),
-                entity.getUserId(),
-                entity.isActive(),
                 entity.getRegion(),
                 entity.getCreatedAt()
         );

@@ -47,8 +47,8 @@ const API = {
 
     // Keywords
     getKeywords(userId, active = null) {
-        let url = `/api/keywords?userId=${userId}`;
-        if (active !== null) url += `&active=${active}`;
+        var url = '/api/keywords?userId=' + userId;
+        if (active !== null) url += '&active=' + active;
         return this.request('GET', url);
     },
 
@@ -56,16 +56,16 @@ const API = {
         return this.request('POST', '/api/keywords', { keyword, userId, region });
     },
 
-    activateKeyword(id) {
-        return this.request('PATCH', `/api/keywords/${id}/activate`);
+    activateKeyword(id, userId) {
+        return this.request('PATCH', '/api/keywords/' + id + '/activate?userId=' + userId);
     },
 
-    deactivateKeyword(id) {
-        return this.request('PATCH', `/api/keywords/${id}/deactivate`);
+    deactivateKeyword(id, userId) {
+        return this.request('PATCH', '/api/keywords/' + id + '/deactivate?userId=' + userId);
     },
 
-    deleteKeyword(id) {
-        return this.request('DELETE', `/api/keywords/${id}`);
+    deleteKeyword(id, userId) {
+        return this.request('DELETE', '/api/keywords/' + id + '?userId=' + userId);
     },
 
     // ECOS Indicators
@@ -78,20 +78,14 @@ const API = {
     },
 
     // News
-    getNewsByKeyword(keywordId, page = 0, size = 20) {
-        return this.request('GET', `/api/news?purpose=KEYWORD&sourceId=${keywordId}&page=${page}&size=${size}`);
+    getNewsByKeyword(keywordId, page, size) {
+        page = page || 0;
+        size = size || 20;
+        return this.request('GET', '/api/news?keywordId=' + keywordId + '&page=' + page + '&size=' + size);
     },
 
-    getNewsByPortfolioItem(portfolioItemId, page = 0, size = 20) {
-        return this.request('GET', `/api/news?purpose=PORTFOLIO&sourceId=${portfolioItemId}&page=${page}&size=${size}`);
-    },
-
-    collectNewsByKeyword(keywordId, keyword, userId, region) {
-        return this.request('POST', '/api/news/collect', { purpose: 'KEYWORD', sourceId: keywordId, keyword, userId, region });
-    },
-
-    collectNewsByPortfolioItem(portfolioItemId, keyword, userId, region) {
-        return this.request('POST', '/api/news/collect', { purpose: 'PORTFOLIO', sourceId: portfolioItemId, keyword, userId, region });
+    collectNewsByKeyword(keywordId, keyword, region) {
+        return this.request('POST', '/api/news/collect', { keywordId: keywordId, keyword: keyword, region: region });
     },
 
     // Global Indicators

@@ -14,4 +14,6 @@ public interface PortfolioItemJpaRepository extends JpaRepository<PortfolioItemE
     List<PortfolioItemEntity> findByNewsEnabled(boolean newsEnabled);
 
     boolean existsByUserIdAndItemNameAndAssetType(Long userId, String itemName, String assetType);
+
+    List<PortfolioItemEntity> findByUserIdAndItemNameAndNewsEnabled(Long userId, String itemName, boolean newsEnabled);
 }

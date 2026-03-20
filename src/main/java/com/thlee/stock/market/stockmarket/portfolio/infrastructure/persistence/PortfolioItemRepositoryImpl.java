@@ -50,6 +50,14 @@ public class PortfolioItemRepositoryImpl implements PortfolioItemRepository {
     }
 
     @Override
+    public List<PortfolioItem> findByUserIdAndItemNameAndNewsEnabled(Long userId, String itemName, boolean newsEnabled) {
+        return portfolioItemJpaRepository.findByUserIdAndItemNameAndNewsEnabled(userId, itemName, newsEnabled)
+                .stream()
+                .map(PortfolioItemMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public boolean existsByUserIdAndItemNameAndAssetType(Long userId, String itemName, AssetType assetType) {
         return portfolioItemJpaRepository.existsByUserIdAndItemNameAndAssetType(userId, itemName, assetType.name());
     }

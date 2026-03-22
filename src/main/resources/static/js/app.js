@@ -513,6 +513,42 @@ function dashboard() {
             return isPositiveChange ? 'border-green-500' : 'border-red-500';
         },
 
+        getInterestRateSpreads() {
+            const find = (name) => {
+                const ind = this.ecos.indicators.find(i => i.keystatName === name);
+                return ind ? parseFloat(ind.dataValue) : null;
+            };
+
+            const calc = (a, b) => {
+                if (a === null || b === null || isNaN(a) || isNaN(b)) return null;
+                return Math.round((a - b) * 1000) / 1000;
+            };
+
+            const bond5 = find('국고채수익률(5년)');
+            const bond3 = find('국고채수익률(3년)');
+            const cd91 = find('CD수익률(91일)');
+            const corpBond = find('회사채수익률(3년,AA-)');
+            const loanRate = find('예금은행 대출금리');
+            const depositRate = find('예금은행 수신금리');
+            const callRate = find('콜금리(익일물)');
+            const baseRate = find('한국은행 기준금리');
+
+            return [
+                { name: '장단기 금리차', value: calc(bond5, cd91), desc: '시장 구조 판단', sub: '국고채5년 − CD91일',
+                  description: '양수(+)면 정상적인 우상향 금리 곡선. 0에 가까워지거나 음수(−)면 장단기 금리 역전으로 경기침체 신호' },
+                { name: '중기-단기 금리차', value: calc(bond3, cd91), desc: '금리 기대 방향', sub: '국고채3년 − CD91일',
+                  description: '양수(+)가 클수록 시장이 향후 금리 인상을 예상. 줄어들면 금리 인하 기대가 반영된 것' },
+                { name: '장기 금리 기울기', value: calc(bond5, bond3), desc: '장기 기대 (인플레/성장)', sub: '국고채5년 − 국고채3년',
+                  description: '양수(+)면 장기 인플레이션이나 경제성장 기대가 있다는 의미. 축소되면 장기 성장 기대가 약해지는 것' },
+                { name: '신용 스프레드', value: calc(corpBond, bond3), desc: '시장 리스크 수준', sub: '회사채AA− − 국고채3년',
+                  description: '기업 채권과 국채의 금리 차이. 벌어지면 시장이 기업 부도 위험을 높게 보는 것, 좁으면 안정적' },
+                { name: '예대금리차', value: calc(loanRate, depositRate), desc: '금융 부담 / 은행 구조', sub: '대출금리 − 예금금리',
+                  description: '은행이 예금자에게 주는 이자와 대출자에게 받는 이자의 차이. 클수록 대출자 부담이 크고 은행 수익성이 높음' },
+                { name: '단기 vs 기준금리', value: calc(callRate, baseRate), desc: '유동성 상태', sub: '콜금리 − 기준금리',
+                  description: '콜금리가 기준금리보다 높으면 시중 자금이 부족한 상태, 낮으면 유동성이 풍부한 상태' },
+            ];
+        },
+
         // ==================== Global Methods ====================
         async loadGlobalCategories() {
             try {

@@ -408,6 +408,52 @@
                     </ul>
                 </template>
 
+                <!-- 금리 스프레드 패널 -->
+                <template x-if="ecos.selectedCategory === 'INTEREST_RATE' && ecos.indicators.length > 0">
+                    <div class="mb-6">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-3">금리 스프레드</h3>
+                        <ul class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                            <template x-for="sp in getInterestRateSpreads()" :key="sp.name">
+                                <li>
+                                    <div class="bg-white rounded-lg border p-4 shadow-sm">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <div class="flex items-center gap-1">
+                                                <span class="text-xs font-medium text-gray-500" x-text="sp.name"></span>
+                                                <div class="group/sp relative inline-block">
+                                                    <span class="text-gray-300 hover:text-gray-500 cursor-help text-xs">&#9432;</span>
+                                                    <div class="invisible opacity-0 group-hover/sp:visible group-hover/sp:opacity-100
+                                                                absolute z-10 bottom-full left-0 mb-2
+                                                                px-3 py-2 text-xs text-white bg-gray-800 rounded-lg shadow-lg
+                                                                w-72 max-w-xs transition-opacity duration-200"
+                                                         role="tooltip">
+                                                        <span x-text="sp.description"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <span class="text-xs text-gray-400" x-text="sp.sub"></span>
+                                        </div>
+                                        <p class="text-xl font-bold"
+                                           :class="sp.value === null ? 'text-gray-400'
+                                                  : sp.value > 0 ? 'text-red-500'
+                                                  : sp.value < 0 ? 'text-blue-500'
+                                                  : 'text-gray-700'">
+                                            <template x-if="sp.value !== null">
+                                                <span>
+                                                    <span x-text="sp.value > 0 ? '+' : ''"></span><span x-text="sp.value"></span><span class="text-sm font-normal">%p</span>
+                                                </span>
+                                            </template>
+                                            <template x-if="sp.value === null">
+                                                <span class="text-gray-400">-</span>
+                                            </template>
+                                        </p>
+                                        <p class="mt-1 text-xs text-gray-400" x-text="sp.desc"></p>
+                                    </div>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+
                 <!-- 지표 테이블 -->
                 <template x-if="!ecos.loading && ecos.indicators.length > 0">
                     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">

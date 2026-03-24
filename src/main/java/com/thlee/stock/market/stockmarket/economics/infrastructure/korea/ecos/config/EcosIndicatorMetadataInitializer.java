@@ -52,15 +52,11 @@ public class EcosIndicatorMetadataInitializer implements ApplicationRunner {
                 String className = (String) item.get("class-name");
                 String keystatName = (String) item.get("keystat-name");
                 String description = (String) item.get("description");
-                String direction = (String) item.getOrDefault("positive-direction", "NEUTRAL");
-                boolean keyIndicator = (Boolean) item.getOrDefault("key-indicator", false);
 
                 result.add(new EcosIndicatorMetadata(
                     className,
                     keystatName,
-                    description,
-                    EcosIndicatorMetadata.PositiveDirection.valueOf(direction),
-                    keyIndicator
+                    description
                 ));
             }
             return result;

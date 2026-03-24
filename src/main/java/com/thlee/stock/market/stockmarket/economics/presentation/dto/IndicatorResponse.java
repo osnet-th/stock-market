@@ -13,9 +13,7 @@ public record IndicatorResponse(
     String previousDataValue,
     String cycle,
     String unitName,
-    String description,
-    String positiveDirection,
-    boolean keyIndicator
+    String description
 ) {
 
     public static IndicatorResponse from(KeyStatIndicator indicator,
@@ -27,9 +25,7 @@ public record IndicatorResponse(
             indicator.previousDataValue(),
             indicator.cycle(),
             indicator.unitName(),
-            meta != null ? meta.getDescription() : null,
-            meta != null ? meta.getPositiveDirection().name() : "NEUTRAL",
-            meta != null && meta.isKeyIndicator()
+            meta != null ? meta.getDescription() : null
         );
     }
 }

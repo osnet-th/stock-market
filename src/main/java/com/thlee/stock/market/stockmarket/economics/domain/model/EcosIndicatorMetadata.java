@@ -11,19 +11,13 @@ public class EcosIndicatorMetadata {
     private final String className;
     private final String keystatName;
     private final String description;
-    private final PositiveDirection positiveDirection;
-    private final boolean keyIndicator;
 
     public EcosIndicatorMetadata(String className,
                                   String keystatName,
-                                  String description,
-                                  PositiveDirection positiveDirection,
-                                  boolean keyIndicator) {
+                                  String description) {
         this.className = className;
         this.keystatName = keystatName;
         this.description = description;
-        this.positiveDirection = positiveDirection;
-        this.keyIndicator = keyIndicator;
     }
 
     /**
@@ -31,9 +25,5 @@ public class EcosIndicatorMetadata {
      */
     public String toCompareKey() {
         return className + "::" + keystatName;
-    }
-
-    public enum PositiveDirection {
-        UP, DOWN, NEUTRAL
     }
 }

@@ -1,6 +1,5 @@
 package com.thlee.stock.market.stockmarket.economics.infrastructure.persistence;
 
-import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorMetadata;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -27,26 +26,15 @@ public class EcosIndicatorMetadataEntity {
     @Column(name = "description", length = 500)
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "positive_direction", nullable = false, length = 20)
-    private EcosIndicatorMetadata.PositiveDirection positiveDirection;
-
-    @Column(name = "key_indicator", nullable = false)
-    private boolean keyIndicator;
-
     protected EcosIndicatorMetadataEntity() {
     }
 
     public EcosIndicatorMetadataEntity(String className,
                                         String keystatName,
-                                        String description,
-                                        EcosIndicatorMetadata.PositiveDirection positiveDirection,
-                                        boolean keyIndicator) {
+                                        String description) {
         this.className = className;
         this.keystatName = keystatName;
         this.description = description;
-        this.positiveDirection = positiveDirection;
-        this.keyIndicator = keyIndicator;
     }
 
     /**

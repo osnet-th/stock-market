@@ -11,9 +11,7 @@ public class EcosIndicatorMetadataMapper {
         return new EcosIndicatorMetadata(
             entity.getClassName(),
             entity.getKeystatName(),
-            entity.getDescription(),
-            entity.getPositiveDirection(),
-            entity.isKeyIndicator()
+            entity.getDescription()
         );
     }
 
@@ -21,9 +19,7 @@ public class EcosIndicatorMetadataMapper {
         return new EcosIndicatorMetadataEntity(
             domain.getClassName(),
             domain.getKeystatName(),
-            domain.getDescription(),
-            domain.getPositiveDirection(),
-            domain.isKeyIndicator()
+            domain.getDescription()
         );
     }
 }

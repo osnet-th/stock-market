@@ -6,168 +6,325 @@ ecos:
         - class-name: "시장금리"
           keystat-name: "한국은행 기준금리"
           description: "한국은행이 정하는 기본 금리. 이 금리가 오르면 대출이자가 오르고, 내리면 대출이자가 내려감"
-          positive-direction: DOWN
-          key-indicator: true
+
         - class-name: "시장금리"
           keystat-name: "콜금리(익일물)"
           description: "은행끼리 하루만 빌려줄 때 적용하는 금리. 기준금리가 바뀌면 가장 먼저 움직임"
-          positive-direction: DOWN
-          key-indicator: false
+
         - class-name: "시장금리"
           keystat-name: "KORIBOR(3개월)"
           description: "은행끼리 3개월간 빌려줄 때의 금리. 변동금리 대출 이자를 정할 때 기준이 됨"
-          positive-direction: DOWN
-          key-indicator: false
+
         - class-name: "시장금리"
           keystat-name: "CD수익률(91일)"
           description: "은행이 발행하는 3개월짜리 예금증서의 금리. 주택담보대출 변동금리의 기준으로 많이 쓰임"
-          positive-direction: DOWN
-          key-indicator: true
+
         - class-name: "시장금리"
           keystat-name: "통안증권수익률(364일)"
           description: "한국은행이 발행하는 1년짜리 채권의 금리. 1년 정도 돈을 묶어둘 때 받을 수 있는 수익률 기준"
-          positive-direction: DOWN
-          key-indicator: false
+
         - class-name: "시장금리"
           keystat-name: "국고채수익률(3년)"
           description: "나라에서 발행하는 3년짜리 채권의 금리. 적금·예금 금리와 비교할 때 참고하는 대표 지표"
-          positive-direction: DOWN
-          key-indicator: true
+
         - class-name: "시장금리"
           keystat-name: "국고채수익률(5년)"
           description: "나라에서 발행하는 5년짜리 채권의 금리. 장기 금리 흐름을 볼 때 참고"
-          positive-direction: DOWN
-          key-indicator: false
+
         - class-name: "시장금리"
           keystat-name: "회사채수익률(3년,AA-)"
           description: "신용이 좋은 기업이 발행한 3년짜리 채권의 금리. 국고채보다 높으면 기업 투자심리가 위축된 것"
-          positive-direction: DOWN
-          key-indicator: false
+
         - class-name: "여수신금리"
           keystat-name: "예금은행 수신금리"
           description: "은행에 돈을 맡길 때 받는 평균 이자율. 높을수록 예금·적금 이자를 많이 받음"
-          positive-direction: UP
-          key-indicator: true
+
         - class-name: "여수신금리"
           keystat-name: "예금은행 대출금리"
           description: "은행에서 돈을 빌릴 때 내는 평균 이자율. 높을수록 대출 이자 부담이 큼"
-          positive-direction: DOWN
-          key-indicator: true
+
 
         # === 통화/금융 (MONEY_FINANCE) ===
         - class-name: "통화량"
-          keystat-name: "M2(광의통화)(평잔)"
+          keystat-name: "M1(협의통화, 평잔)"
+          description: "현금과 바로 쓸 수 있는 예금(요구불예금 등)의 합. 실제로 소비·투자에 바로 쓸 수 있는 돈의 규모"
+        - class-name: "통화량"
+          keystat-name: "M2(광의통화, 평잔)"
           description: "시중에 풀린 돈의 총량. 이 수치가 빠르게 늘면 물가가 오를 수 있음"
-          positive-direction: NEUTRAL
-          key-indicator: true
+        - class-name: "통화량"
+          keystat-name: "Lf(평잔)"
+          description: "은행+보험+증권 등 금융기관 전체의 유동성. M2보다 넓은 범위의 돈의 흐름을 보여줌"
+        - class-name: "통화량"
+          keystat-name: "L(말잔)"
+          description: "경제 전체에 풀린 모든 유동성의 총합. 정부·기업 채권까지 포함한 가장 넓은 의미의 돈"
+        - class-name: "예금/대출금"
+          keystat-name: "예금은행총예금(말잔)"
+          description: "은행에 맡겨진 전체 예금 규모. 가계와 기업이 은행에 넣어둔 돈의 총합"
+        - class-name: "예금/대출금"
+          keystat-name: "예금은행대출금(말잔)"
+          description: "은행이 빌려준 전체 대출 규모. 예금 대비 높으면 은행이 외부 차입에 의존하는 상태"
+        - class-name: "예금/대출금"
+          keystat-name: "가계신용"
+          description: "가계가 은행 등에서 빌린 돈의 총액. 빠르게 늘면 가계 부채 부담이 커지는 신호"
+        - class-name: "예금/대출금"
+          keystat-name: "가계대출연체율"
+          description: "가계 대출 중 갚지 못해 연체된 비율. 빠르게 오르면 금융위기 초기 신호"
 
         # === 주식/채권 (STOCK_BOND) ===
         - class-name: "주식"
-          keystat-name: "KOSPI"
-          description: "한국 대표 주가지수. 삼성전자 등 대기업 주식의 전체 흐름을 보여줌"
-          positive-direction: UP
-          key-indicator: true
+          keystat-name: "코스피지수"
+          description: "한국 대형주 시장 전체의 상승·하락 흐름을 보여주는 지표"
         - class-name: "주식"
-          keystat-name: "KOSDAQ"
-          description: "중소·벤처기업 중심 주가지수. IT·바이오 등 성장주 흐름을 보여줌"
-          positive-direction: UP
-          key-indicator: true
+          keystat-name: "코스닥지수"
+          description: "성장주·중소형주 중심 시장의 흐름을 보여주는 지표"
+        - class-name: "주식"
+          keystat-name: "주식거래대금(KOSPI)"
+          description: "코스피 시장에서 하루 동안 거래된 총 금액"
+        - class-name: "주식"
+          keystat-name: "투자자예탁금"
+          description: "투자자들이 증권계좌에 넣어둔 대기 자금 규모"
+        - class-name: "채권"
+          keystat-name: "채권거래대금"
+          description: "채권 시장에서 거래된 총 금액으로 자금 흐름을 나타냄"
+        - class-name: "채권"
+          keystat-name: "국고채발행액"
+          description: "정부가 자금 조달을 위해 발행한 국채의 총 금액"
 
         # === 환율 (EXCHANGE_RATE) ===
         - class-name: "환율"
           keystat-name: "원/달러"
           description: "1달러를 사는 데 필요한 원화. 숫자가 오르면 원화 가치가 떨어진 것, 내리면 원화 가치가 오른 것"
-          positive-direction: DOWN
-          key-indicator: true
+
 
         # === 성장/소득 (GROWTH_INCOME) ===
         - class-name: "성장률"
-          keystat-name: "GDP성장률(전기대비)"
-          description: "우리나라 경제가 지난 분기 대비 얼마나 성장했는지를 나타내는 비율"
-          positive-direction: UP
-          key-indicator: true
+          keystat-name: "경제성장률(실질, 계절조정 전기대비)"
+          description: "일정 기간 동안 경제 규모(GDP)가 얼마나 증가하거나 감소했는지를 나타내는 지표. 0% 이상이면 경제 성장, 미만이면 경제 후퇴"
+        - class-name: "성장률"
+          keystat-name: "민간소비증감률(실질, 계절조정 전기대비)"
+          description: "가계가 소비를 얼마나 늘리거나 줄였는지를 보여주는 지표. 0% 이상이면 소비 증가, 미만이면 소비 위축"
+        - class-name: "성장률"
+          keystat-name: "설비투자증감률(실질, 계절조정 전기대비)"
+          description: "기업이 기계·설비 등에 투자한 금액의 변화율을 나타내는 지표. 0% 이상이면 투자 확대, 미만이면 투자 위축"
+        - class-name: "성장률"
+          keystat-name: "건설투자증감률(실질, 계절조정 전기대비)"
+          description: "건물·인프라 등에 대한 투자 규모의 변화를 나타내는 지표. 0% 이상이면 건설 확대, 미만이면 건설 위축"
+        - class-name: "성장률"
+          keystat-name: "재화의 수출 증감률(실질, 계절조정 전기대비)"
+          description: "해외로 판매된 상품 수출이 얼마나 늘거나 줄었는지를 보여주는 지표. 0% 이상이면 수출 증가, 미만이면 수출 감소"
+        - class-name: "소득"
+          keystat-name: "GDP(명목, 계절조정)"
+          description: "한 나라에서 일정 기간 동안 생산된 재화와 서비스의 총 금액"
+        - class-name: "소득"
+          keystat-name: "1인당GNI"
+          description: "국민 1인당 평균 소득 수준을 나타내는 지표"
+        - class-name: "GDP대비 비율"
+          keystat-name: "총저축률"
+          description: "국민 전체 소득 중 저축으로 남긴 비율. 한국 평균 약 30%대"
+        - class-name: "GDP대비 비율"
+          keystat-name: "국내총투자율"
+          description: "GDP 대비 국내에서 이루어진 총 투자 비율. 한국 평균 약 30%대"
+        - class-name: "GDP대비 비율"
+          keystat-name: "수출입의 대 GNI 비율"
+          description: "국민총소득 대비 수출과 수입이 차지하는 비중"
 
         # === 생산 (PRODUCTION) ===
         - class-name: "생산"
-          keystat-name: "광공업생산지수"
-          description: "공장에서 물건을 얼마나 만들고 있는지를 나타내는 지수. 경기가 좋으면 올라감"
-          positive-direction: UP
-          key-indicator: true
+          keystat-name: "전산업생산지수"
+          description: "경제 전체 산업에서 생산 활동이 얼마나 이루어졌는지를 나타내는 지표"
+        - class-name: "생산"
+          keystat-name: "제조업생산지수"
+          description: "제조업에서 제품 생산이 얼마나 이루어졌는지를 보여주는 지표"
+        - class-name: "생산"
+          keystat-name: "제조업출하지수"
+          description: "생산된 제품이 시장으로 얼마나 출하(판매)되었는지를 나타내는 지표"
+        - class-name: "생산"
+          keystat-name: "제조업재고지수"
+          description: "기업이 보유하고 있는 제품 재고 수준을 나타내는 지표"
+        - class-name: "생산"
+          keystat-name: "제조업가동률지수"
+          description: "공장이나 설비가 실제로 얼마나 가동되고 있는지를 나타내는 지표"
+        - class-name: "생산"
+          keystat-name: "서비스업생산지수"
+          description: "서비스업에서 경제 활동이 얼마나 활발한지를 보여주는 지표"
+        - class-name: "생산"
+          keystat-name: "도소매업생산지수"
+          description: "도매·소매업에서 상품 판매 활동이 얼마나 이루어졌는지를 나타내는 지표"
 
         # === 소비/투자 (CONSUMPTION_INVESTMENT) ===
         - class-name: "소비"
           keystat-name: "소매판매액지수"
-          description: "사람들이 물건을 얼마나 사고 있는지를 나타내는 지수. 소비가 활발하면 올라감"
-          positive-direction: UP
-          key-indicator: true
+          description: "소비자들이 상품을 얼마나 많이 구매했는지를 보여주는 지표"
+        - class-name: "소비"
+          keystat-name: "개인신용카드사용액"
+          description: "개인이 신용카드로 결제한 총 금액으로 소비 수준을 나타내는 지표"
+        - class-name: "소비"
+          keystat-name: "자동차판매액지수"
+          description: "자동차 판매가 얼마나 이루어졌는지를 보여주는 지표"
+        - class-name: "투자"
+          keystat-name: "설비투자지수"
+          description: "기업이 기계·설비 등에 얼마나 투자했는지를 나타내는 지표"
+        - class-name: "투자"
+          keystat-name: "설비용 기계류내수출하지수"
+          description: "국내에서 사용되는 설비용 기계 판매량을 나타내는 지표"
+        - class-name: "투자"
+          keystat-name: "국내기계수주액"
+          description: "기업이 향후 사용할 기계·설비를 얼마나 주문했는지를 나타내는 지표"
+        - class-name: "투자"
+          keystat-name: "건설기성액"
+          description: "실제로 진행된 건설 공사의 금액 규모를 나타내는 지표"
+        - class-name: "투자"
+          keystat-name: "건축허가면적"
+          description: "앞으로 건설될 건물의 허가된 면적 규모를 나타내는 지표"
+        - class-name: "투자"
+          keystat-name: "건설수주액"
+          description: "향후 진행될 건설 프로젝트 계약 금액을 나타내는 지표"
+        - class-name: "투자"
+          keystat-name: "건축착공면적"
+          description: "실제 공사가 시작된 건물의 면적 규모를 나타내는 지표"
 
         # === 물가 (PRICE) ===
         - class-name: "소비자/생산자 물가"
           keystat-name: "소비자물가지수"
-          description: "생활물가가 얼마나 올랐는지를 나타내는 지수. 숫자가 빠르게 오르면 장바구니 부담이 커짐"
-          positive-direction: DOWN
-          key-indicator: true
+          description: "일반 소비자가 구매하는 상품과 서비스의 가격 변동을 나타내는 지표"
+        - class-name: "소비자/생산자 물가"
+          keystat-name: "농산물 및 석유류제외 소비자물가지수"
+          description: "변동성이 큰 농산물과 석유를 제외한 물가 흐름을 보여주는 지표"
+        - class-name: "소비자/생산자 물가"
+          keystat-name: "생활물가지수"
+          description: "일상생활에서 자주 구매하는 품목들의 가격 변화를 나타내는 지표"
+        - class-name: "소비자/생산자 물가"
+          keystat-name: "생산자물가지수"
+          description: "기업이 생산 단계에서 받는 상품 가격의 변화를 나타내는 지표"
+        - class-name: "수출입 물가"
+          keystat-name: "수출물가지수"
+          description: "해외로 판매되는 상품 가격의 변화를 나타내는 지표"
+        - class-name: "수출입 물가"
+          keystat-name: "수입물가지수"
+          description: "해외에서 들여오는 상품 가격의 변화를 나타내는 지표"
 
         # === 고용/노동 (EMPLOYMENT_LABOR) ===
         - class-name: "고용"
           keystat-name: "실업률"
-          description: "일하고 싶은데 일자리를 못 구한 사람의 비율. 낮을수록 고용 상황이 좋음"
-          positive-direction: DOWN
-          key-indicator: true
+          description: "일할 의사가 있지만 일자리를 구하지 못한 사람의 비율. 자연실업률 3~4%, 5% 이상이면 고용 악화 신호"
+        - class-name: "고용"
+          keystat-name: "고용률"
+          description: "전체 인구 중 실제로 일하고 있는 사람의 비율. 60% 이상이면 양호"
+        - class-name: "고용"
+          keystat-name: "경제활동인구"
+          description: "일하고 있거나 일할 의사가 있는 사람의 총 수"
         - class-name: "고용"
           keystat-name: "취업자수"
-          description: "현재 일하고 있는 사람의 수. 많을수록 고용 상황이 좋음"
-          positive-direction: UP
-          key-indicator: true
+          description: "실제로 일하고 있는 사람의 수"
+        - class-name: "노동"
+          keystat-name: "시간당명목임금지수"
+          description: "근로자가 시간당 받는 평균 임금 수준의 변화"
+        - class-name: "노동"
+          keystat-name: "노동생산성지수"
+          description: "노동 투입 대비 얼마나 많은 생산이 이루어졌는지를 나타내는 지표"
+        - class-name: "노동"
+          keystat-name: "단위노동비용지수"
+          description: "생산 단위당 들어가는 노동 비용의 변화를 나타내는 지표"
 
         # === 경기심리 (SENTIMENT) ===
-        - class-name: "심리지표"
-          keystat-name: "소비자심리지수(CSI)"
-          description: "사람들이 경제 상황을 어떻게 느끼는지를 숫자로 표현. 100 이상이면 낙관적, 미만이면 비관적"
-          positive-direction: UP
-          key-indicator: true
         - class-name: "경기순환지표"
-          keystat-name: "경기선행지수 순환변동치"
-          description: "앞으로 경기가 좋아질지 나빠질지 미리 알려주는 지표. 100 위면 호황, 아래면 불황 신호"
-          positive-direction: UP
-          key-indicator: true
+          keystat-name: "동행지수순환변동치"
+          description: "현재 경기 상황이 좋거나 나쁜지를 보여주는 지표. 100 이상이면 경기 확장, 미만이면 경기 수축"
+        - class-name: "경기순환지표"
+          keystat-name: "선행지수순환변동치"
+          description: "앞으로 경기 방향(상승·하락)을 예측하는 지표. 100 이상이면 경기 상승 예고, 미만이면 하락 예고"
+        - class-name: "심리지표"
+          keystat-name: "전산업 기업심리지수실적"
+          description: "기업들이 실제 체감하는 경기 상황을 나타내는 지표. 100 이상이면 긍정적, 미만이면 부정적"
+        - class-name: "심리지표"
+          keystat-name: "소비자심리지수"
+          description: "소비자들이 느끼는 경제 상황과 소비 의지를 나타내는 지표. 100 이상이면 낙관적, 미만이면 비관적"
+        - class-name: "심리지표"
+          keystat-name: "제조업업황실적BSI"
+          description: "제조업 기업들이 체감하는 현재 경기 상태를 나타내는 지표. 100 이상이면 호황, 미만이면 불황"
+        - class-name: "심리지표"
+          keystat-name: "경제심리지수"
+          description: "기업과 소비자의 전반적인 경제 심리를 종합적으로 보여주는 지표. 100 이상이면 낙관적, 미만이면 비관적"
 
         # === 대외경제 (EXTERNAL_ECONOMY) ===
-        - class-name: "통관수출입"
-          keystat-name: "수출(통관기준)"
-          description: "우리나라가 해외에 물건을 판 금액. 수출이 늘면 경제에 좋은 신호"
-          positive-direction: UP
-          key-indicator: true
         - class-name: "국제수지"
           keystat-name: "경상수지"
-          description: "해외와 주고받은 돈의 차이. 플러스면 벌어들인 돈이 더 많은 것, 마이너스면 나간 돈이 더 많은 것"
-          positive-direction: UP
-          key-indicator: true
+          description: "한 나라가 해외와의 거래에서 벌어들인 돈과 지출한 돈의 차이. 양수이면 흑자(벌어들인 돈이 많음), 음수이면 적자"
+        - class-name: "국제수지"
+          keystat-name: "직접투자(자산)"
+          description: "자국 기업이 해외에 투자한 금액"
+        - class-name: "국제수지"
+          keystat-name: "직접투자(부채)"
+          description: "외국인이 자국에 투자한 금액"
+        - class-name: "국제수지"
+          keystat-name: "증권투자(자산)"
+          description: "자국이 해외 주식·채권 등에 투자한 금액"
+        - class-name: "국제수지"
+          keystat-name: "증권투자(부채)"
+          description: "외국인이 자국 주식·채권 등에 투자한 금액"
+        - class-name: "대외채권/채무"
+          keystat-name: "외환보유액"
+          description: "국가가 보유하고 있는 외화 자산 규모"
+        - class-name: "대외채권/채무"
+          keystat-name: "대외채무"
+          description: "해외에 갚아야 할 총 부채 규모"
+        - class-name: "대외채권/채무"
+          keystat-name: "대외채권"
+          description: "해외로부터 받을 수 있는 자산 규모"
+        - class-name: "통관수출입"
+          keystat-name: "수출금액지수"
+          description: "수출 금액의 변화를 나타내는 지표"
+        - class-name: "통관수출입"
+          keystat-name: "수입금액지수"
+          description: "수입 금액의 변화를 나타내는 지표"
+        - class-name: "통관수출입"
+          keystat-name: "순상품교역조건지수"
+          description: "수출 가격 대비 수입 가격의 비율을 나타내는 지표. 100 이상이면 수출에 유리, 미만이면 수입에 불리"
+        - class-name: "통관수출입"
+          keystat-name: "소득교역조건지수"
+          description: "교역조건과 수출량을 반영한 실제 구매력 수준을 나타내는 지표"
 
         # === 기업/가계 (CORPORATE_HOUSEHOLD) ===
         - class-name: "가계"
-          keystat-name: "가계신용(잔액)"
-          description: "가계가 은행 등에서 빌린 돈의 총액. 빠르게 늘면 가계 부채 부담이 커지는 신호"
-          positive-direction: DOWN
-          key-indicator: true
+          keystat-name: "가구당월평균소득"
+          description: "한 가구가 한 달 동안 벌어들이는 평균 소득"
+        - class-name: "가계"
+          keystat-name: "평균소비성향"
+          description: "벌어들인 소득 중 소비에 사용하는 비율. 70~80%대가 정상, 너무 높으면 저축 여력 부족"
+        - class-name: "기업경영지표"
+          keystat-name: "제조업매출액증감률"
+          description: "제조업 기업의 매출이 얼마나 증가하거나 감소했는지를 나타내는 지표. 0% 이상이면 매출 증가, 미만이면 매출 감소"
+        - class-name: "기업경영지표"
+          keystat-name: "제조업매출액세전순이익률"
+          description: "매출 대비 세금 내기 전 순이익의 비율"
+        - class-name: "기업경영지표"
+          keystat-name: "제조업부채비율"
+          description: "기업 자본 대비 부채가 차지하는 비율. 100% 이하면 건전, 200% 이상이면 과다 부채"
+        - class-name: "소득분배지표"
+          keystat-name: "지니계수"
+          description: "소득 분배의 불평등 정도를 나타내는 지표. 0에 가까울수록 평등, 0.4 이상이면 불평등 심각"
+        - class-name: "소득분배지표"
+          keystat-name: "5분위배율"
+          description: "상위 20%와 하위 20% 소득 격차를 나타내는 지표"
 
         # === 부동산 (REAL_ESTATE) ===
         - class-name: "부동산 가격"
           keystat-name: "주택매매가격지수"
-          description: "전국 집값이 오르고 있는지 내리고 있는지를 보여주는 지수"
-          positive-direction: NEUTRAL
-          key-indicator: true
+          description: "주택을 사고파는 가격의 변화를 나타내는 지표"
+        - class-name: "부동산 가격"
+          keystat-name: "주택전세가격지수"
+          description: "전세로 거래되는 주택 가격의 변화를 나타내는 지표"
+        - class-name: "부동산 가격"
+          keystat-name: "지가변동률(전기대비)"
+          description: "토지 가격이 일정 기간 동안 얼마나 상승하거나 하락했는지를 나타내는 지표"
 
         # === 인구 (POPULATION) ===
         - class-name: "인구"
           keystat-name: "총인구"
           description: "대한민국에 살고 있는 전체 인구수"
-          positive-direction: UP
-          key-indicator: true
+
 
         # === 원자재 (COMMODITY) ===
         - class-name: "국제원자재가격"
           keystat-name: "두바이유"
           description: "국제 원유 가격. 오르면 기름값·물가가 올라가고, 내리면 생활비 부담이 줄어듦"
-          positive-direction: DOWN
-          key-indicator: true

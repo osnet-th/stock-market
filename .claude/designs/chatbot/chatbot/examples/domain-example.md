@@ -1,8 +1,9 @@
-# Domain 예시
+# LlmPort 구현 예시
 
 ```java
-// chatbot/domain/service/LlmPort.java
-package com.thlee.stock.market.stockmarket.chatbot.domain.service;
+// chatbot/application/port/LlmPort.java
+// Flux<String> 반환으로 Reactor 의존이 불가피하여 domain이 아닌 application/port에 위치
+package com.thlee.stock.market.stockmarket.chatbot.application.port;
 
 import reactor.core.publisher.Flux;
 

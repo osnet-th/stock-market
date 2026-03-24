@@ -4,7 +4,7 @@
 // chatbot/infrastructure/gemini/GeminiAdapter.java
 package com.thlee.stock.market.stockmarket.chatbot.infrastructure.gemini;
 
-import com.thlee.stock.market.stockmarket.chatbot.domain.service.LlmPort;
+import com.thlee.stock.market.stockmarket.chatbot.application.port.LlmPort;
 import com.thlee.stock.market.stockmarket.chatbot.infrastructure.gemini.config.GeminiProperties;
 import com.thlee.stock.market.stockmarket.chatbot.infrastructure.gemini.dto.GeminiRequest;
 import com.thlee.stock.market.stockmarket.chatbot.infrastructure.gemini.dto.GeminiStreamChunk;

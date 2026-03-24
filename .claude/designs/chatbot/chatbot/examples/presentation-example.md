@@ -24,15 +24,21 @@ public class ChatController {
      * Body: { "message": "내 포트폴리오 분석해줘" }
      * Response: SSE 스트리밍 텍스트
      */
+    /**
+     * POST /api/chat
+     * Body: { "message": "내 포트폴리오 분석해줘" }
+     * Body (재무 분석): { "message": "이 종목 주가 대비 실적 어때?", "financialData": { "ticker": "삼성전자", "currentPrice": 70000, "per": 12.5, "pbr": 1.2 } }
+     * Response: SSE 스트리밍 텍스트
+     */
     @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> chat(
             @AuthenticationPrincipal Long userId,
             @RequestBody ChatMessageRequest request
     ) {
-        return chatService.chat(new ChatRequest(userId, request.message()));
+        return chatService.chat(new ChatRequest(userId, request.message(), request.financialData()));
     }
 
-    public record ChatMessageRequest(String message) {}
+    public record ChatMessageRequest(String message, FinancialData financialData) {}
 }
 ```
 

@@ -2108,8 +2108,28 @@
                                                     <template x-if="getFinancialColumns()">
                                                         <template x-for="col in getFinancialColumns()" :key="col.key">
                                                             <td class="py-2 px-2"
-                                                                :class="isAmountColumn(col.type) ? 'text-right font-mono text-gray-700' : 'text-gray-700'"
-                                                                x-text="formatFinancialCell(row[col.key], col.type)"></td>
+                                                                :class="isAmountColumn(col.type) ? 'text-right font-mono text-gray-700' : 'text-gray-700'">
+                                                                <template x-if="!col.tooltip">
+                                                                    <span x-text="formatFinancialCell(row[col.key], col.type)"></span>
+                                                                </template>
+                                                                <template x-if="col.tooltip">
+                                                                    <span class="inline-flex items-center gap-1">
+                                                                        <span x-text="formatFinancialCell(row[col.key], col.type)"></span>
+                                                                        <template x-if="getFinancialDescription(portfolio.selectedFinancialMenu, row[col.key])">
+                                                                            <div class="group/ftip relative inline-block">
+                                                                                <span class="text-gray-300 hover:text-gray-500 cursor-help text-xs">&#9432;</span>
+                                                                                <div class="invisible opacity-0 group-hover/ftip:visible group-hover/ftip:opacity-100
+                                                                                            absolute z-10 bottom-full left-0 mb-2
+                                                                                            px-3 py-2 text-xs text-white bg-gray-800 rounded-lg shadow-lg
+                                                                                            w-72 max-w-xs transition-opacity duration-200"
+                                                                                     role="tooltip">
+                                                                                    <span x-text="getFinancialDescription(portfolio.selectedFinancialMenu, row[col.key])"></span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </template>
+                                                                    </span>
+                                                                </template>
+                                                            </td>
                                                         </template>
                                                     </template>
                                                     <template x-if="!getFinancialColumns()">

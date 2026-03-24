@@ -12,7 +12,6 @@
 - [ ] `ChatService` 구현 (application)
 - [ ] `ChatController` 구현 (presentation)
 - [ ] `application-global.properties`에 Gemini API 키 설정 추가
-- [ ] Security Config에서 `/api/chat/**` 인증 설정 추가
 
 ## 배경
 
@@ -83,7 +82,8 @@ chatbot/
 
 - `LlmPort` 구현
 - `WebClient`로 `POST /v1beta/models/{model}:streamGenerateContent?key={apiKey}&alt=sse` 호출
-- `bodyToFlux(GeminiStreamChunk.class)`로 스트리밍 수신
+- Gemini `alt=sse` 응답은 `text/event-stream` 형식(`data: {...JSON...}`)이므로 `Accept: text/event-stream` 헤더 필수
+- `bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})` → `ServerSentEvent::data` 추출 → `ObjectMapper`로 `GeminiStreamChunk` 역직렬화
 - chunk에서 텍스트 추출 → `Flux<String>` 반환
 
 [예시 코드](./examples/infrastructure-adapter-example.md)
@@ -125,9 +125,9 @@ chatbot/
 ### ChatController
 위치: `chatbot/presentation/ChatController.java`
 
-- `POST /api/chat`
+- `POST /api/chat?userId={userId}`
 - `produces = MediaType.TEXT_EVENT_STREAM_VALUE`
-- JWT 필터에서 principal이 `Long userId`로 설정되므로 `@AuthenticationPrincipal Long userId`로 추출
+- 기존 프로젝트 패턴에 따라 `@RequestParam Long userId`로 수신
 - `Flux<String>` 반환 → SSE 스트리밍
 
 [예시 코드](./examples/presentation-example.md)
@@ -135,5 +135,6 @@ chatbot/
 ## 주의사항
 
 - Gemini 무료 티어 한도: 분당 15회, 일 1500회 — 초과 시 `429` 에러 발생, 별도 처리 불필요 (그대로 예외 전파)
-- SSE 응답이므로 Security Config에서 CSRF 예외 처리 확인 필요
+- `ProdSecurityConfig`는 `.anyRequest().authenticated()`로 `/api/chat`도 자동 인증 적용, 별도 설정 불필요
+- `GeminiAdapter`는 `ObjectMapper`를 주입받아 SSE `data` 필드를 `GeminiStreamChunk`로 역직렬화
 - `WebFlux`와 `WebMVC`를 함께 사용 중이므로 `WebClient`는 기존 `RestClientConfig` 패턴 참고

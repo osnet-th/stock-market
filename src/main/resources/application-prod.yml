@@ -5,10 +5,12 @@ cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
 spring:
-  # Static Resources - JAR 내부 classpath 사용
+  # Static Resources - 파일 시스템 우선, classpath fallback
   web:
     resources:
-      static-locations: classpath:/static/
+      static-locations: file:src/main/resources/static/,classpath:/static/
+      cache:
+        period: 0
 
   # PostgreSQL Database - 운영 환경 (환경 변수 사용)
   datasource:

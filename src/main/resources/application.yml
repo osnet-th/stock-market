@@ -102,6 +102,12 @@ koreaexim:
     url: https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON
     authkey: ${KOREAEXIM_API_KEY}
 
+# Gemini API (챗봇)
+gemini:
+  api-key: ${GEMINI_API_KEY}
+  model: gemini-2.5-flash
+  base-url: https://generativelanguage.googleapis.com
+
 # DART OpenAPI (전자공시시스템)
 dart:
   api:

@@ -1113,6 +1113,42 @@ function dashboard() {
             return item.investedAmount;
         },
 
+        truncateToTen(value) {
+            return Math.floor(Math.floor(value) / 10) * 10;
+        },
+
+        getMonthsBetween(startDateStr, endDateStr) {
+            var start = new Date(startDateStr);
+            var end = new Date(endDateStr);
+            var months = (end.getFullYear() - start.getFullYear()) * 12
+                         + (end.getMonth() - start.getMonth());
+            if (end.getDate() < start.getDate()) months -= 1;
+            return Math.max(0, months);
+        },
+
+        getExpectedReturn(item) {
+            if (item.assetType !== 'CASH' || !item.cashDetail) return null;
+            if (item.cashDetail.subType === 'CMA') return null;
+            if (!item.cashDetail.interestRate || !item.cashDetail.startDate || !item.cashDetail.maturityDate) return null;
+
+            var principal = item.investedAmount;
+            var rate = item.cashDetail.interestRate / 100;
+            var months = this.getMonthsBetween(item.cashDetail.startDate, item.cashDetail.maturityDate);
+            var grossInterest = Math.floor(principal * rate * (months / 12));
+
+            var totalTax = 0;
+            if (item.cashDetail.taxType === 'GENERAL') {
+                var incomeTax = this.truncateToTen(grossInterest * 0.14);
+                var residentTax = this.truncateToTen(incomeTax * 0.1);
+                totalTax = incomeTax + residentTax;
+            } else if (item.cashDetail.taxType === 'TAX_FAVORED') {
+                totalTax = this.truncateToTen(grossInterest * 0.095);
+            }
+
+            var netInterest = grossInterest - totalTax;
+            return { grossInterest: grossInterest, totalTax: totalTax, netInterest: netInterest, expectedTotal: principal + netInterest };
+        },
+
         getExchangeRate(item) {
             if (item.assetType !== 'STOCK' || !item.stockDetail) return 1;
             // priceCurrency가 KRW이면 이미 원화이므로 환율 적용 불필요
@@ -1361,6 +1397,18 @@ function dashboard() {
                     if (item.fundDetail.subType) fundParts.push(fundSubTypes[item.fundDetail.subType] || item.fundDetail.subType);
                     if (item.fundDetail.managementFee) fundParts.push('보수 ' + item.fundDetail.managementFee + '%');
                     return fundParts.join(' · ');
+                case 'CASH':
+                    if (!item.cashDetail) return item.memo || '';
+                    var cashParts = [];
+                    var cashSubTypes = { DEPOSIT: '예금', SAVINGS: '적금', CMA: 'CMA' };
+                    cashParts.push(cashSubTypes[item.cashDetail.subType] || item.cashDetail.subType);
+                    if (item.cashDetail.interestRate) cashParts.push(item.cashDetail.interestRate + '%');
+                    if (item.cashDetail.maturityDate) cashParts.push('만기 ' + item.cashDetail.maturityDate);
+                    var expectedReturn = this.getExpectedReturn(item);
+                    if (expectedReturn) {
+                        cashParts.push('예상 수령 ' + Format.number(expectedReturn.expectedTotal, 0) + '원');
+                    }
+                    return cashParts.join(' · ');
                 default:
                     return item.memo || '';
             }
@@ -1436,6 +1484,10 @@ function dashboard() {
             this.portfolio.addForm = { region: 'DOMESTIC' };
             this.portfolio.stockSearch = { query: '', results: [], loading: false, selected: null, debounceTimer: null };
 
+            if (type === 'CASH') {
+                this.portfolio.addForm.cashType = 'DEPOSIT';
+                this.portfolio.addForm.taxType = 'GENERAL';
+            }
             if (type === 'GENERAL') {
                 this.portfolio.addForm.assetType = 'CRYPTO';
             }
@@ -1581,6 +1633,19 @@ function dashboard() {
                             memo: form.memo || null,
                             subType: form.subType || 'EQUITY_FUND',
                             managementFee: form.managementFee ? Number(form.managementFee) : null
+                        });
+                        break;
+                    case 'CASH':
+                        await API.addCashItem(userId, {
+                            itemName: form.itemName,
+                            investedAmount: Number(form.investedAmount),
+                            region: form.region,
+                            memo: form.memo || null,
+                            cashType: form.cashType,
+                            interestRate: form.interestRate ? Number(form.interestRate) : null,
+                            startDate: form.startDate || null,
+                            maturityDate: form.cashType !== 'CMA' ? (form.maturityDate || null) : null,
+                            taxType: form.cashType !== 'CMA' ? (form.taxType || null) : null
                         });
                         break;
                     case 'GENERAL':
@@ -1821,6 +1886,15 @@ function dashboard() {
                         form.managementFee = item.fundDetail.managementFee;
                     }
                     break;
+                case 'CASH':
+                    if (item.cashDetail) {
+                        form.cashType = item.cashDetail.subType;
+                        form.interestRate = item.cashDetail.interestRate;
+                        form.startDate = item.cashDetail.startDate;
+                        form.maturityDate = item.cashDetail.maturityDate;
+                        form.taxType = item.cashDetail.taxType;
+                    }
+                    break;
             }
 
             this.portfolio.editForm = form;
@@ -1940,6 +2014,17 @@ function dashboard() {
                             memo: form.memo || null,
                             subType: form.subType || 'EQUITY_FUND',
                             managementFee: form.managementFee ? Number(form.managementFee) : null
+                        });
+                        break;
+                    case 'CASH':
+                        await API.updateCashItem(userId, item.id, {
+                            itemName: form.itemName,
+                            investedAmount: Number(form.investedAmount),
+                            memo: form.memo || null,
+                            interestRate: form.interestRate ? Number(form.interestRate) : null,
+                            startDate: form.startDate || null,
+                            maturityDate: form.cashType !== 'CMA' ? (form.maturityDate || null) : null,
+                            taxType: form.cashType !== 'CMA' ? (form.taxType || null) : null
                         });
                         break;
                     default:

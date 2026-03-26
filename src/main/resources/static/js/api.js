@@ -132,6 +132,10 @@ const API = {
         return this.request('POST', `/api/portfolio/items/fund?userId=${userId}`, body);
     },
 
+    addCashItem(userId, body) {
+        return this.request('POST', `/api/portfolio/items/cash?userId=${userId}`, body);
+    },
+
     addGeneralItem(userId, body) {
         return this.request('POST', `/api/portfolio/items/general?userId=${userId}`, body);
     },
@@ -169,6 +173,10 @@ const API = {
 
     updateFundItem(userId, itemId, body) {
         return this.request('PUT', `/api/portfolio/items/fund/${itemId}?userId=${userId}`, body);
+    },
+
+    updateCashItem(userId, itemId, body) {
+        return this.request('PUT', `/api/portfolio/items/cash/${itemId}?userId=${userId}`, body);
     },
 
     updateGeneralItem(userId, itemId, body) {

@@ -26,6 +26,7 @@ public class PortfolioItem {
     private BondDetail bondDetail;
     private RealEstateDetail realEstateDetail;
     private FundDetail fundDetail;
+    private CashDetail cashDetail;
 
     /**
      * 재구성용 생성자 (Repository에서 조회 시 사용)
@@ -43,7 +44,8 @@ public class PortfolioItem {
                          StockDetail stockDetail,
                          BondDetail bondDetail,
                          RealEstateDetail realEstateDetail,
-                         FundDetail fundDetail) {
+                         FundDetail fundDetail,
+                         CashDetail cashDetail) {
         this.id = id;
         this.userId = userId;
         this.itemName = itemName;
@@ -58,6 +60,7 @@ public class PortfolioItem {
         this.bondDetail = bondDetail;
         this.realEstateDetail = realEstateDetail;
         this.fundDetail = fundDetail;
+        this.cashDetail = cashDetail;
     }
 
     private PortfolioItem(Long userId,
@@ -77,7 +80,7 @@ public class PortfolioItem {
     }
 
     /**
-     * Detail 없는 타입용 (CRYPTO, GOLD, COMMODITY, CASH, OTHER)
+     * Detail 없는 타입용 (CRYPTO, GOLD, COMMODITY, OTHER)
      */
     public static PortfolioItem create(Long userId,
                                        String itemName,
@@ -140,6 +143,20 @@ public class PortfolioItem {
         validateDetail(fundDetail, "fundDetail");
         PortfolioItem item = new PortfolioItem(userId, itemName, AssetType.FUND, investedAmount, region);
         item.fundDetail = fundDetail;
+        return item;
+    }
+
+    /**
+     * 현금성 자산 항목 생성 (예금/적금/CMA)
+     */
+    public static PortfolioItem createWithCash(Long userId,
+                                               String itemName,
+                                               BigDecimal investedAmount,
+                                               Region region,
+                                               CashDetail cashDetail) {
+        validateDetail(cashDetail, "cashDetail");
+        PortfolioItem item = new PortfolioItem(userId, itemName, AssetType.CASH, investedAmount, region);
+        item.cashDetail = cashDetail;
         return item;
     }
 
@@ -313,6 +330,15 @@ public class PortfolioItem {
             throw new IllegalArgumentException("펀드 항목이 아닙니다.");
         }
         this.fundDetail = fundDetail;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateCashDetail(CashDetail cashDetail) {
+        validateDetail(cashDetail, "cashDetail");
+        if (this.assetType != AssetType.CASH) {
+            throw new IllegalArgumentException("현금성 자산 항목이 아닙니다.");
+        }
+        this.cashDetail = cashDetail;
         this.updatedAt = LocalDateTime.now();
     }
 

@@ -87,7 +87,23 @@ public class PortfolioController {
     }
 
     /**
-     * 일반 자산 항목 등록 (CRYPTO, GOLD, COMMODITY, CASH, OTHER)
+     * 현금성 자산 항목 등록 (예금/적금/CMA)
+     */
+    @PostMapping("/items/cash")
+    public ResponseEntity<PortfolioItemResponse> addCashItem(
+            @RequestParam Long userId,
+            @RequestBody CashItemAddRequest request) {
+        PortfolioItemResponse response = portfolioService.addCashItem(
+                userId, request.getItemName(), request.getInvestedAmount(),
+                request.getRegion(), request.getMemo(),
+                request.getCashType(), request.getInterestRate(),
+                request.getStartDate(), request.getMaturityDate(),
+                request.getTaxType());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 일반 자산 항목 등록 (CRYPTO, GOLD, COMMODITY, OTHER)
      */
     @PostMapping("/items/general")
     public ResponseEntity<PortfolioItemResponse> addGeneralItem(
@@ -170,6 +186,22 @@ public class PortfolioController {
                 userId, itemId,
                 request.getItemName(), request.getInvestedAmount(), request.getMemo(),
                 request.getSubType(), request.getManagementFee());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 현금성 자산 항목 수정
+     */
+    @PutMapping("/items/cash/{itemId}")
+    public ResponseEntity<PortfolioItemResponse> updateCashItem(
+            @RequestParam Long userId,
+            @PathVariable Long itemId,
+            @RequestBody CashItemUpdateRequest request) {
+        PortfolioItemResponse response = portfolioService.updateCashItem(
+                userId, itemId,
+                request.getItemName(), request.getInvestedAmount(), request.getMemo(),
+                request.getInterestRate(), request.getStartDate(),
+                request.getMaturityDate(), request.getTaxType());
         return ResponseEntity.ok(response);
     }
 

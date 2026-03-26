@@ -23,6 +23,7 @@ public class PortfolioItemResponse {
     private final BondDetailResponse bondDetail;
     private final RealEstateDetailResponse realEstateDetail;
     private final FundDetailResponse fundDetail;
+    private final CashDetailResponse cashDetail;
     private final Long linkedCashItemId;
 
     private PortfolioItemResponse(Long id, String assetType, String itemName,
@@ -33,6 +34,7 @@ public class PortfolioItemResponse {
                                   BondDetailResponse bondDetail,
                                   RealEstateDetailResponse realEstateDetail,
                                   FundDetailResponse fundDetail,
+                                  CashDetailResponse cashDetail,
                                   Long linkedCashItemId) {
         this.id = id;
         this.assetType = assetType;
@@ -47,6 +49,7 @@ public class PortfolioItemResponse {
         this.bondDetail = bondDetail;
         this.realEstateDetail = realEstateDetail;
         this.fundDetail = fundDetail;
+        this.cashDetail = cashDetail;
         this.linkedCashItemId = linkedCashItemId;
     }
 
@@ -69,6 +72,7 @@ public class PortfolioItemResponse {
                 item.getBondDetail() != null ? BondDetailResponse.from(item.getBondDetail()) : null,
                 item.getRealEstateDetail() != null ? RealEstateDetailResponse.from(item.getRealEstateDetail()) : null,
                 item.getFundDetail() != null ? FundDetailResponse.from(item.getFundDetail()) : null,
+                item.getCashDetail() != null ? CashDetailResponse.from(item.getCashDetail()) : null,
                 linkedCashItemId
         );
     }

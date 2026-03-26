@@ -10,10 +10,12 @@ import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockPurchas
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.CashSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PriceCurrency;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstateSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.StockSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.TaxType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.CashStockLinkRepository;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioItemRepository;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.StockPurchaseHistoryRepository;
@@ -157,12 +159,70 @@ public class PortfolioService {
     }
 
     /**
-     * 일반 자산 항목 등록 (CRYPTO, GOLD, COMMODITY, CASH, OTHER)
+     * 현금성 자산 항목 등록 (예금/적금/CMA)
+     */
+    @Transactional
+    public PortfolioItemResponse addCashItem(Long userId, String itemName, BigDecimal investedAmount,
+                                              String region, String memo,
+                                              String cashType, BigDecimal interestRate,
+                                              LocalDate startDate, LocalDate maturityDate,
+                                              String taxType) {
+        CashDetail detail = new CashDetail(
+                CashSubType.valueOf(cashType),
+                interestRate,
+                startDate,
+                maturityDate,
+                taxType != null ? TaxType.valueOf(taxType) : null
+        );
+        PortfolioItem item = PortfolioItem.createWithCash(
+                userId, itemName, investedAmount, Region.valueOf(region), detail);
+        if (memo != null) {
+            item.updateMemo(memo);
+        }
+        validateDuplicate(userId, item);
+        PortfolioItem saved = portfolioItemRepository.save(item);
+        return PortfolioItemResponse.from(saved);
+    }
+
+    /**
+     * 현금성 자산 항목 수정 (load-modify-save 패턴)
+     */
+    @Transactional
+    public PortfolioItemResponse updateCashItem(Long userId, Long itemId,
+                                                 String itemName, BigDecimal investedAmount, String memo,
+                                                 BigDecimal interestRate, LocalDate startDate,
+                                                 LocalDate maturityDate, String taxType) {
+        PortfolioItem item = findUserItem(userId, itemId);
+        item.updateItemName(itemName);
+        item.updateAmount(investedAmount);
+        item.updateMemo(memo);
+
+        CashSubType subType = item.getCashDetail() != null
+                ? item.getCashDetail().getSubType()
+                : CashSubType.DEPOSIT;
+        CashDetail detail = new CashDetail(
+                subType,
+                interestRate,
+                startDate,
+                maturityDate,
+                taxType != null ? TaxType.valueOf(taxType) : null
+        );
+        item.updateCashDetail(detail);
+        PortfolioItem saved = portfolioItemRepository.save(item);
+        return PortfolioItemResponse.from(saved);
+    }
+
+    /**
+     * 일반 자산 항목 등록 (CRYPTO, GOLD, COMMODITY, OTHER)
+     * CASH는 전용 API(addCashItem)를 사용해야 합니다.
      */
     @Transactional
     public PortfolioItemResponse addGeneralItem(Long userId, String assetType, String itemName,
                                                  BigDecimal investedAmount, String region, String memo) {
         AssetType type = AssetType.valueOf(assetType);
+        if (type == AssetType.CASH) {
+            throw new IllegalArgumentException("현금성 자산은 전용 API(/items/cash)를 사용해 주세요.");
+        }
         PortfolioItem item = PortfolioItem.create(userId, itemName, type, investedAmount, Region.valueOf(region));
         if (memo != null) {
             item.updateMemo(memo);
@@ -482,6 +542,10 @@ public class PortfolioService {
         }
         if (cashItem.getAssetType() != AssetType.CASH) {
             throw new IllegalArgumentException("원화(CASH) 타입이 아닙니다.");
+        }
+        if (cashItem.getCashDetail() != null
+                && cashItem.getCashDetail().getSubType() == CashSubType.SAVINGS) {
+            throw new IllegalArgumentException("적금 항목은 주식 매수 연결이 불가능합니다.");
         }
         return cashItem;
     }

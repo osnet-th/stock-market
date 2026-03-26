@@ -4,10 +4,12 @@ import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.CashSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PriceCurrency;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstateSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.StockSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.TaxType;
 import com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence.*;
 
 /**
@@ -23,6 +25,7 @@ public class PortfolioItemMapper {
         BondDetail bondDetail = null;
         RealEstateDetail realEstateDetail = null;
         FundDetail fundDetail = null;
+        CashDetail cashDetail = null;
 
         if (entity instanceof StockItemEntity stock) {
             stockDetail = new StockDetail(
@@ -55,6 +58,16 @@ public class PortfolioItemMapper {
                     fund.getSubType() != null ? FundSubType.valueOf(fund.getSubType()) : null,
                     fund.getManagementFee()
             );
+        } else if (entity instanceof CashItemEntity cash) {
+            if (cash.getCashType() != null) {
+                cashDetail = new CashDetail(
+                        CashSubType.valueOf(cash.getCashType()),
+                        cash.getInterestRate(),
+                        cash.getStartDate(),
+                        cash.getMaturityDate(),
+                        cash.getTaxType() != null ? TaxType.valueOf(cash.getTaxType()) : null
+                );
+            }
         }
 
         return new PortfolioItem(
@@ -71,7 +84,8 @@ public class PortfolioItemMapper {
                 stockDetail,
                 bondDetail,
                 realEstateDetail,
-                fundDetail
+                fundDetail,
+                cashDetail
         );
     }
 
@@ -141,11 +155,19 @@ public class PortfolioItemMapper {
                     item.getInvestedAmount(), item.isNewsEnabled(), region,
                     item.getMemo(), item.getCreatedAt(), item.getUpdatedAt()
             );
-            case CASH -> new CashItemEntity(
-                    item.getId(), item.getUserId(), item.getItemName(),
-                    item.getInvestedAmount(), item.isNewsEnabled(), region,
-                    item.getMemo(), item.getCreatedAt(), item.getUpdatedAt()
-            );
+            case CASH -> {
+                CashDetail cashDtl = item.getCashDetail();
+                yield new CashItemEntity(
+                        item.getId(), item.getUserId(), item.getItemName(),
+                        item.getInvestedAmount(), item.isNewsEnabled(), region,
+                        item.getMemo(), item.getCreatedAt(), item.getUpdatedAt(),
+                        cashDtl != null ? cashDtl.getSubType().name() : null,
+                        cashDtl != null ? cashDtl.getInterestRate() : null,
+                        cashDtl != null ? cashDtl.getStartDate() : null,
+                        cashDtl != null ? cashDtl.getMaturityDate() : null,
+                        cashDtl != null && cashDtl.getTaxType() != null ? cashDtl.getTaxType().name() : null
+                );
+            }
             case OTHER -> new OtherItemEntity(
                     item.getId(), item.getUserId(), item.getItemName(),
                     item.getInvestedAmount(), item.isNewsEnabled(), region,

@@ -1,4 +1,17 @@
+/**
+ * EcosComponent - ECOS 카테고리/지표, 스프레드 계산 (11종)
+ * 소유 프로퍼티: ecos
+ */
 const EcosComponent = {
+    ecos: {
+        categories: [],
+        selectedCategory: null,
+        indicators: [],
+        loading: false,
+        _requestGeneration: 0,
+        _indicatorMap: {}
+    },
+
     async loadEcosCategories() {
         try {
             this.ecos.categories = await API.getEcosCategories() || [];
@@ -22,6 +35,9 @@ const EcosComponent = {
             const result = await API.getEcosIndicators(this.ecos.selectedCategory) || [];
             if (thisGeneration !== this.ecos._requestGeneration) return;
             this.ecos.indicators = result;
+            const map = {};
+            result.forEach(i => { map[i.keystatName] = i; });
+            this.ecos._indicatorMap = map;
         } catch (e) {
             if (thisGeneration !== this.ecos._requestGeneration) return;
             console.error('ECOS 지표 로드 실패:', e);
@@ -44,9 +60,45 @@ const EcosComponent = {
         );
     },
 
+    getInterestRateSpreads() {
+        const find = (name) => {
+            const ind = this.ecos._indicatorMap[name];
+            return ind ? parseFloat(ind.dataValue) : null;
+        };
+
+        const calc = (a, b) => {
+            if (a === null || b === null || isNaN(a) || isNaN(b)) return null;
+            return Math.round((a - b) * 1000) / 1000;
+        };
+
+        const bond5 = find('국고채수익률(5년)');
+        const bond3 = find('국고채수익률(3년)');
+        const cd91 = find('CD수익률(91일)');
+        const corpBond = find('회사채수익률(3년,AA-)');
+        const loanRate = find('예금은행 대출금리');
+        const depositRate = find('예금은행 수신금리');
+        const callRate = find('콜금리(익일물)');
+        const baseRate = find('한국은행 기준금리');
+
+        return [
+            { name: '장단기 금리차', value: calc(bond5, cd91), desc: '시장 구조 판단', sub: '국고채5년 − CD91일',
+              description: '양수(+)면 정상적인 우상향 금리 곡선. 0에 가까워지거나 음수(−)면 장단기 금리 역전으로 경기침체 신호' },
+            { name: '중기-단기 금리차', value: calc(bond3, cd91), desc: '금리 기대 방향', sub: '국고채3년 − CD91일',
+              description: '양수(+)가 클수록 시장이 향후 금리 인상을 예상. 줄어들면 금리 인하 기대가 반영된 것' },
+            { name: '장기 금리 기울기', value: calc(bond5, bond3), desc: '장기 기대 (인플레/성장)', sub: '국고채5년 − 국고채3년',
+              description: '양수(+)면 장기 인플레이션이나 경제성장 기대가 있다는 의미. 축소되면 장기 성장 기대가 약해지는 것' },
+            { name: '신용 스프레드', value: calc(corpBond, bond3), desc: '시장 리스크 수준', sub: '회사채AA− − 국고채3년',
+              description: '기업 채권과 국채의 금리 차이. 벌어지면 시장이 기업 부도 위험을 높게 보는 것, 좁으면 안정적' },
+            { name: '예대금리차', value: calc(loanRate, depositRate), desc: '금융 부담 / 은행 구조', sub: '대출금리 − 예금금리',
+              description: '은행이 예금자에게 주는 이자와 대출자에게 받는 이자의 차이. 클수록 대출자 부담이 크고 은행 수익성이 높음' },
+            { name: '단기 vs 기준금리', value: calc(callRate, baseRate), desc: '유동성 상태', sub: '콜금리 − 기준금리',
+              description: '콜금리가 기준금리보다 높으면 시중 자금이 부족한 상태, 낮으면 유동성이 풍부한 상태' },
+        ];
+    },
+
     getMoneyFinanceSpreads() {
         const find = (name) => {
-            const ind = this.ecos.indicators.find(i => i.keystatName === name);
+            const ind = this.ecos._indicatorMap[name];
             return ind ? parseFloat(ind.dataValue) : null;
         };
 
@@ -124,7 +176,7 @@ const EcosComponent = {
     },
 
     getStockBondSpreads() {
-        const find = (name) => { const i = this.ecos.indicators.find(x => x.keystatName === name); return i ? parseFloat(i.dataValue) : null; };
+        const find = (name) => { const i = this.ecos._indicatorMap[name]; return i ? parseFloat(i.dataValue) : null; };
         const ratio = (a, b, d=2) => (a === null || b === null || isNaN(a) || isNaN(b) || b === 0) ? null : Math.round((a/b)*Math.pow(10,d))/Math.pow(10,d);
         return [
             { name: '유동성 비율', value: ratio(find('주식거래대금(KOSPI)'), find('투자자예탁금')), unit: '배', sub: '거래대금 ÷ 예탁금', desc: '시장 유동성',
@@ -137,7 +189,7 @@ const EcosComponent = {
     },
 
     getGrowthIncomeSpreads() {
-        const find = (name) => { const i = this.ecos.indicators.find(x => x.keystatName === name); return i ? parseFloat(i.dataValue) : null; };
+        const find = (name) => { const i = this.ecos._indicatorMap[name]; return i ? parseFloat(i.dataValue) : null; };
         const calc = (a, b) => (a === null || b === null || isNaN(a) || isNaN(b)) ? null : Math.round((a-b)*1000)/1000;
         const consumption = find('민간소비증감률(실질, 계절조정 전기대비)'), equipment = find('설비투자증감률(실질, 계절조정 전기대비)'), construction = find('건설투자증감률(실질, 계절조정 전기대비)');
         const domesticSum = (consumption !== null && equipment !== null && construction !== null) ? Math.round((consumption+equipment+construction)*1000)/1000 : null;
@@ -153,7 +205,7 @@ const EcosComponent = {
     },
 
     getProductionSpreads() {
-        const find = (name) => { const i = this.ecos.indicators.find(x => x.keystatName === name); return i ? parseFloat(i.dataValue) : null; };
+        const find = (name) => { const i = this.ecos._indicatorMap[name]; return i ? parseFloat(i.dataValue) : null; };
         const ratio = (a, b, d=3) => (a === null || b === null || isNaN(a) || isNaN(b) || b === 0) ? null : Math.round((a/b)*Math.pow(10,d))/Math.pow(10,d);
         const calc = (a, b) => (a === null || b === null || isNaN(a) || isNaN(b)) ? null : Math.round((a-b)*1000)/1000;
         return [
@@ -169,7 +221,7 @@ const EcosComponent = {
     },
 
     getConsumptionInvestmentSpreads() {
-        const find = (name) => { const i = this.ecos.indicators.find(x => x.keystatName === name); return i ? parseFloat(i.dataValue) : null; };
+        const find = (name) => { const i = this.ecos._indicatorMap[name]; return i ? parseFloat(i.dataValue) : null; };
         const ratio = (a, b, d=3) => (a === null || b === null || isNaN(a) || isNaN(b) || b === 0) ? null : Math.round((a/b)*Math.pow(10,d))/Math.pow(10,d);
         return [
             { name: '내구재 소비 비중', value: ratio(find('자동차판매액지수'), find('소매판매액지수')), unit: '배', sub: '자동차 ÷ 소매판매', desc: '소비 구조',
@@ -184,7 +236,7 @@ const EcosComponent = {
     },
 
     getPriceSpreads() {
-        const find = (name) => { const i = this.ecos.indicators.find(x => x.keystatName === name); return i ? parseFloat(i.dataValue) : null; };
+        const find = (name) => { const i = this.ecos._indicatorMap[name]; return i ? parseFloat(i.dataValue) : null; };
         const calc = (a, b) => (a === null || b === null || isNaN(a) || isNaN(b)) ? null : Math.round((a-b)*1000)/1000;
         const ratio = (a, b, d=3) => (a === null || b === null || isNaN(a) || isNaN(b) || b === 0) ? null : Math.round((a/b)*Math.pow(10,d))/Math.pow(10,d);
         return [
@@ -200,7 +252,7 @@ const EcosComponent = {
     },
 
     getEmploymentLaborSpreads() {
-        const find = (name) => { const i = this.ecos.indicators.find(x => x.keystatName === name); return i ? parseFloat(i.dataValue) : null; };
+        const find = (name) => { const i = this.ecos._indicatorMap[name]; return i ? parseFloat(i.dataValue) : null; };
         const ratio = (a, b, d=3) => (a === null || b === null || isNaN(a) || isNaN(b) || b === 0) ? null : Math.round((a/b)*Math.pow(10,d))/Math.pow(10,d);
         return [
             { name: '실질 취업 비율', value: ratio(find('취업자수'), find('경제활동인구')), unit: '배', sub: '취업자 ÷ 경활인구', desc: '고용 효율',
@@ -213,7 +265,7 @@ const EcosComponent = {
     },
 
     getSentimentSpreads() {
-        const find = (name) => { const i = this.ecos.indicators.find(x => x.keystatName === name); return i ? parseFloat(i.dataValue) : null; };
+        const find = (name) => { const i = this.ecos._indicatorMap[name]; return i ? parseFloat(i.dataValue) : null; };
         const calc = (a, b) => (a === null || b === null || isNaN(a) || isNaN(b)) ? null : Math.round((a-b)*1000)/1000;
         return [
             { name: '경기 방향성', value: calc(find('선행지수순환변동치'), find('동행지수순환변동치')), unit: 'p', sub: '선행 − 동행', desc: '미래 vs 현재',
@@ -226,7 +278,7 @@ const EcosComponent = {
     },
 
     getExternalEconomySpreads() {
-        const find = (name) => { const i = this.ecos.indicators.find(x => x.keystatName === name); return i ? parseFloat(i.dataValue) : null; };
+        const find = (name) => { const i = this.ecos._indicatorMap[name]; return i ? parseFloat(i.dataValue) : null; };
         const calc = (a, b) => (a === null || b === null || isNaN(a) || isNaN(b)) ? null : Math.round((a-b)*1000)/1000;
         const ratio = (a, b, d=3) => (a === null || b === null || isNaN(a) || isNaN(b) || b === 0) ? null : Math.round((a/b)*Math.pow(10,d))/Math.pow(10,d);
         return [
@@ -244,7 +296,7 @@ const EcosComponent = {
     },
 
     getRealEstateSpreads() {
-        const find = (name) => { const i = this.ecos.indicators.find(x => x.keystatName === name); return i ? parseFloat(i.dataValue) : null; };
+        const find = (name) => { const i = this.ecos._indicatorMap[name]; return i ? parseFloat(i.dataValue) : null; };
         const calc = (a, b) => (a === null || b === null || isNaN(a) || isNaN(b)) ? null : Math.round((a-b)*1000)/1000;
         const ratio = (a, b, d=3) => (a === null || b === null || isNaN(a) || isNaN(b) || b === 0) ? null : Math.round((a/b)*Math.pow(10,d))/Math.pow(10,d);
         return [
@@ -256,7 +308,7 @@ const EcosComponent = {
     },
 
     getCorporateHouseholdSpreads() {
-        const find = (name) => { const i = this.ecos.indicators.find(x => x.keystatName === name); return i ? parseFloat(i.dataValue) : null; };
+        const find = (name) => { const i = this.ecos._indicatorMap[name]; return i ? parseFloat(i.dataValue) : null; };
         const ratio = (a, b, d=3) => (a === null || b === null || isNaN(a) || isNaN(b) || b === 0) ? null : Math.round((a/b)*Math.pow(10,d))/Math.pow(10,d);
         const income = find('가구당월평균소득'), propensity = find('평균소비성향');
         const estConsumption = (income !== null && propensity !== null) ? Math.round(income * propensity / 100) : null;

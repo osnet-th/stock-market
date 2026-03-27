@@ -1,7 +1,21 @@
+/**
+ * KeywordComponent - 키워드 CRUD, 필터링
+ *
+ * 소유 프로퍼티: keywords
+ * 메서드: loadKeywords, getFilteredKeywords, addKeyword, toggleKeyword, removeKeyword
+ */
 const KeywordComponent = {
+    keywords: {
+        list: [],
+        filter: 'all',
+        regionFilter: 'all',
+        showAddModal: false,
+        newKeyword: { keyword: '', region: 'DOMESTIC' }
+    },
+
     async loadKeywords() {
         try {
-            var active = this.keywords.filter === 'active' ? true
+            const active = this.keywords.filter === 'active' ? true
                 : this.keywords.filter === 'inactive' ? false : null;
             this.keywords.list = await API.getKeywords(this.auth.userId, active) || [];
         } catch (e) {
@@ -11,21 +25,20 @@ const KeywordComponent = {
     },
 
     getFilteredKeywords() {
-        var list = this.keywords.list;
+        let list = this.keywords.list;
         if (this.keywords.regionFilter !== 'all') {
-            list = list.filter(function(k) { return k.region === this.keywords.regionFilter; }.bind(this));
+            list = list.filter((k) => k.region === this.keywords.regionFilter);
         }
         return list;
     },
 
     async addKeyword() {
-        var kw = this.keywords.newKeyword;
+        const kw = this.keywords.newKeyword;
         if (!kw.keyword.trim()) return;
-
         try {
             await API.registerKeyword(kw.keyword.trim(), this.auth.userId, kw.region);
             this.keywords.showAddModal = false;
-            this.keywords.newKeyword = { keyword: '', region: 'KOREA' };
+            this.keywords.newKeyword = { keyword: '', region: 'DOMESTIC' };
             await this.loadKeywords();
         } catch (e) {
             console.error('키워드 등록 실패:', e);

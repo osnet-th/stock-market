@@ -46,7 +46,7 @@ public class KoreaEximExchangeRateAdapter implements ExchangeRatePort {
      * ECOS 100대 통계의 "환율" 카테고리에서 조회한다.
      */
     private static final Map<String, String> ECOS_CURRENCY_MAP = Map.of(
-        "USD", "원/달러"
+        "USD", "원/달러 환율(종가)"
     );
 
     @Cacheable(cacheManager = "exchangeRateCacheManager", cacheNames = "exchangeRate", key = "#currency")

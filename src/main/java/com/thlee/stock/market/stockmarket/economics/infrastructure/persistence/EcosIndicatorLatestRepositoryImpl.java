@@ -25,6 +25,12 @@ public class EcosIndicatorLatestRepositoryImpl implements EcosIndicatorLatestRep
     }
 
     @Override
+    public Optional<EcosIndicatorLatest> findByClassNameAndKeystatName(String className, String keystatName) {
+        EcosIndicatorLatestEntity.LatestId id = new EcosIndicatorLatestEntity.LatestId(className, keystatName);
+        return jpaRepository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
     public void saveAll(List<EcosIndicatorLatest> latestList) {
         for (EcosIndicatorLatest latest : latestList) {
             EcosIndicatorLatestEntity.LatestId id =

@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.user.infrastructure.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -18,4 +19,6 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, Long> {
      * 닉네임과 전화번호로 사용자 조회
      */
     Optional<UserEntity> findByNicknameAndPhoneNumber(String nickname, String phoneNumber);
+
+    List<UserEntity> findByNotificationEnabled(boolean notificationEnabled);
 }

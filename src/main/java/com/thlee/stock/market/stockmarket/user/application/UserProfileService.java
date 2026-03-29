@@ -6,6 +6,7 @@ import com.thlee.stock.market.stockmarket.user.domain.repository.UserRepository;
 import com.thlee.stock.market.stockmarket.user.domain.service.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 사용자 프로필 조회 서비스
@@ -27,5 +28,24 @@ public class UserProfileService {
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
         return UserProfileResponse.from(user);
+    }
+
+    /**
+     * 알림 설정 토글
+     */
+    @Transactional
+    public void toggleNotification(String token, boolean enabled) {
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        if (enabled) {
+            user.enableNotification();
+        } else {
+            user.disableNotification();
+        }
+
+        userRepository.save(user);
     }
 }

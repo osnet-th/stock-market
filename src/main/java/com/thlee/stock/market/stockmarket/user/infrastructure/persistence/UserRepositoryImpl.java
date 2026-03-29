@@ -69,4 +69,18 @@ public class UserRepositoryImpl implements UserRepository {
                     return UserMapper.toDomain(entity, oauthAccountIds);
                 });
     }
+
+    @Override
+    public List<User> findByNotificationEnabled(boolean enabled) {
+        return userJpaRepository.findByNotificationEnabled(enabled)
+                .stream()
+                .map(entity -> {
+                    List<Long> oauthAccountIds = oauthAccountRepository.findByUserId(entity.getId())
+                            .stream()
+                            .map(oauthAccount -> oauthAccount.getId())
+                            .collect(Collectors.toList());
+                    return UserMapper.toDomain(entity, oauthAccountIds);
+                })
+                .collect(Collectors.toList());
+    }
 }

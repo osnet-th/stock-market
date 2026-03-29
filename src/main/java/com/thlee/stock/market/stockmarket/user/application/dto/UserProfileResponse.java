@@ -10,7 +10,8 @@ public record UserProfileResponse(
         String name,
         String nickname,
         String role,
-        String displayName
+        String displayName,
+        boolean notificationEnabled
 ) {
 
     /**
@@ -26,7 +27,8 @@ public record UserProfileResponse(
                 user.getName(),
                 nicknameValue,
                 user.getRole().name(),
-                displayName
+                displayName,
+                user.isNotificationEnabled()
         );
     }
 

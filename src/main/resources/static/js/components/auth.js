@@ -38,6 +38,7 @@ const AuthComponent = {
             const profile = await API.getMyProfile();
             this.auth.displayName = profile.displayName;
             this.auth.role = profile.role;
+            this.auth.notificationEnabled = profile.notificationEnabled || false;
             localStorage.setItem('displayName', profile.displayName);
             localStorage.setItem('role', profile.role);
         } catch (e) {

@@ -20,6 +20,7 @@ public class User {
     private List<Long> oauthAccountIds;
     private UserStatus status;
     private UserRole role;
+    private boolean notificationEnabled;
     private LocalDateTime createdAt;
     private LocalDateTime deletedAt;
 
@@ -35,6 +36,7 @@ public class User {
      */
     public User(Long id, String name, Nickname nickname, PhoneNumber phoneNumber,
                 List<Long> oauthAccountIds, UserStatus status, UserRole role,
+                boolean notificationEnabled,
                 LocalDateTime createdAt, LocalDateTime deletedAt) {
         this.id = id;
         this.name = name;
@@ -43,6 +45,7 @@ public class User {
         this.oauthAccountIds = oauthAccountIds != null ? new ArrayList<>(oauthAccountIds) : new ArrayList<>();
         this.status = status;
         this.role = role;
+        this.notificationEnabled = notificationEnabled;
         this.createdAt = createdAt;
         this.deletedAt = deletedAt;
     }
@@ -169,5 +172,17 @@ public class User {
 
     public LocalDateTime getDeletedAt() {
         return deletedAt;
+    }
+
+    public boolean isNotificationEnabled() {
+        return notificationEnabled;
+    }
+
+    public void enableNotification() {
+        this.notificationEnabled = true;
+    }
+
+    public void disableNotification() {
+        this.notificationEnabled = false;
     }
 }

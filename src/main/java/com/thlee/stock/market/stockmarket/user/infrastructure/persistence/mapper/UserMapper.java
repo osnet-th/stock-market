@@ -25,6 +25,7 @@ public class UserMapper {
                 user.getPhoneNumber() != null ? user.getPhoneNumber().getValue() : null,
                 user.getStatus().name(),
                 user.getRole().name(),
+                user.isNotificationEnabled(),
                 user.getCreatedAt(),
                 user.getDeletedAt()
         );
@@ -42,6 +43,7 @@ public class UserMapper {
                 oauthAccountIds,
                 UserStatus.valueOf(entity.getStatus()),
                 UserRole.valueOf(entity.getRole()),
+                entity.isNotificationEnabled(),
                 entity.getCreatedAt(),
                 entity.getDeletedAt()
         );

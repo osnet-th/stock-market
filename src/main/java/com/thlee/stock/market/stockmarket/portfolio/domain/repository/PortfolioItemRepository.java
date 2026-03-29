@@ -43,6 +43,11 @@ public interface PortfolioItemRepository {
     boolean existsByUserIdAndItemNameAndAssetType(Long userId, String itemName, AssetType assetType);
 
     /**
+     * 여러 사용자의 포트폴리오 항목 일괄 조회
+     */
+    List<PortfolioItem> findByUserIdIn(List<Long> userIds);
+
+    /**
      * 포트폴리오 항목 삭제
      */
     void delete(PortfolioItem item);

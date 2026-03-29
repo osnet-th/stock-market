@@ -958,10 +958,22 @@
             <div x-show="currentPage === 'portfolio'" x-cloak>
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-xl font-bold text-gray-800">포트폴리오</h2>
-                    <button @click="openAddModal()"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
-                        + 자산 추가
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <!-- 마감 알림 토글 -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-500">마감 알림</span>
+                            <button @click="toggleNotification()"
+                                :class="auth.notificationEnabled ? 'bg-blue-600' : 'bg-gray-300'"
+                                class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors">
+                                <span :class="auth.notificationEnabled ? 'translate-x-5' : 'translate-x-1'"
+                                    class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform"></span>
+                            </button>
+                        </div>
+                        <button @click="openAddModal()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+                            + 자산 추가
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 로딩 -->

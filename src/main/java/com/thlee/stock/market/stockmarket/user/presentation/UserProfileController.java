@@ -4,10 +4,9 @@ import com.thlee.stock.market.stockmarket.user.application.UserProfileService;
 import com.thlee.stock.market.stockmarket.user.application.dto.UserProfileResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 /**
  * 사용자 프로필 관련 HTTP 엔드포인트
@@ -30,5 +29,19 @@ public class UserProfileController {
         String token = authorization.replace("Bearer ", "");
         UserProfileResponse response = userProfileService.getMyProfile(token);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 알림 설정 토글
+     */
+    @PatchMapping("/me/notification")
+    public ResponseEntity<Void> toggleNotification(
+            @RequestHeader("Authorization") String authorization,
+            @RequestBody Map<String, Boolean> body
+    ) {
+        String token = authorization.replace("Bearer ", "");
+        boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
+        userProfileService.toggleNotification(token, enabled);
+        return ResponseEntity.noContent().build();
     }
 }

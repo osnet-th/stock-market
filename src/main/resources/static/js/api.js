@@ -40,6 +40,10 @@ const API = {
         return this.request('GET', '/api/users/me');
     },
 
+    toggleNotification(enabled) {
+        return this.request('PATCH', '/api/users/me/notification', { enabled });
+    },
+
     // Auth
     signup(userId, name, nickname, phoneNumber) {
         return this.request('POST', '/signup', { userId, name, nickname, phoneNumber });

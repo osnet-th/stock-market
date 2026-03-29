@@ -30,6 +30,9 @@ public class UserEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "notification_enabled", nullable = false, columnDefinition = "boolean default false")
+    private boolean notificationEnabled;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -37,13 +40,15 @@ public class UserEntity {
     }
 
     public UserEntity(Long id, String name, String nickname, String phoneNumber,
-                      String status, String role, LocalDateTime createdAt, LocalDateTime deletedAt) {
+                      String status, String role, boolean notificationEnabled,
+                      LocalDateTime createdAt, LocalDateTime deletedAt) {
         this.id = id;
         this.name = name;
         this.nickname = nickname;
         this.phoneNumber = phoneNumber;
         this.status = status;
         this.role = role;
+        this.notificationEnabled = notificationEnabled;
         this.createdAt = createdAt;
         this.deletedAt = deletedAt;
     }
@@ -119,5 +124,13 @@ public class UserEntity {
 
     public void setDeletedAt(LocalDateTime deletedAt) {
         this.deletedAt = deletedAt;
+    }
+
+    public boolean isNotificationEnabled() {
+        return notificationEnabled;
+    }
+
+    public void setNotificationEnabled(boolean notificationEnabled) {
+        this.notificationEnabled = notificationEnabled;
     }
 }

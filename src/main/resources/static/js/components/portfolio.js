@@ -479,6 +479,17 @@ const PortfolioComponent = {
         }
     },
 
+    async toggleNotification() {
+        try {
+            var newValue = !this.auth.notificationEnabled;
+            await API.toggleNotification(newValue);
+            this.auth.notificationEnabled = newValue;
+        } catch (e) {
+            console.error('알림 설정 변경 실패:', e);
+            alert('알림 설정 변경에 실패했습니다.');
+        }
+    },
+
     openAddModal() {
         this.portfolio.selectedAssetType = null;
         this.portfolio.addForm = {};

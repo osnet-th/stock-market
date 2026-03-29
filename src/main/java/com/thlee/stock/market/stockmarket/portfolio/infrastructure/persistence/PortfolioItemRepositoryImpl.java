@@ -63,6 +63,14 @@ public class PortfolioItemRepositoryImpl implements PortfolioItemRepository {
     }
 
     @Override
+    public List<PortfolioItem> findByUserIdIn(List<Long> userIds) {
+        return portfolioItemJpaRepository.findByUserIdIn(userIds)
+                .stream()
+                .map(PortfolioItemMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public void delete(PortfolioItem item) {
         PortfolioItemEntity entity = PortfolioItemMapper.toEntity(item);
         portfolioItemJpaRepository.delete(entity);

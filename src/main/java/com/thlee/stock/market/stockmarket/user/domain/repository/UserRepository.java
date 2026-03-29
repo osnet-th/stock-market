@@ -4,6 +4,7 @@ import com.thlee.stock.market.stockmarket.user.domain.model.Nickname;
 import com.thlee.stock.market.stockmarket.user.domain.model.PhoneNumber;
 import com.thlee.stock.market.stockmarket.user.domain.model.User;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -29,4 +30,9 @@ public interface UserRepository {
      * 닉네임과 전화번호로 사용자 조회
      */
     Optional<User> findByNicknameAndPhoneNumber(Nickname nickname, PhoneNumber phoneNumber);
+
+    /**
+     * 알림 활성화 사용자 목록 조회
+     */
+    List<User> findByNotificationEnabled(boolean enabled);
 }

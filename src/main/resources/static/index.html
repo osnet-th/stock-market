@@ -51,7 +51,7 @@
              x-transition:leave="transition-opacity ease-in duration-150"
              x-transition:leave-start="opacity-100"
              x-transition:leave-end="opacity-0"
-             @click="toggleMobileDrawer()"
+             @click="closeMobileDrawer()"
              class="fixed inset-0 z-40 bg-black/50 lg:hidden"
              x-cloak></div>
 
@@ -64,9 +64,10 @@
                x-transition:leave="transition-transform ease-in duration-150"
                x-transition:leave-start="translate-x-0"
                x-transition:leave-end="-translate-x-full"
-               @keydown.escape.window="mobileDrawerOpen && toggleMobileDrawer()"
+               @keydown.escape.window="closeMobileDrawer()"
                class="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-xl overflow-y-auto overscroll-contain lg:hidden pt-14"
                x-cloak>
+            <!-- ▼ NAV_ITEMS: 데스크탑 사이드바와 동기화 필요 ▼ -->
             <nav class="space-y-1 px-4 py-2">
                 <template x-for="menu in menus" :key="menu.key">
                     <button
@@ -112,6 +113,7 @@
                     </svg>
                 </button>
             </div>
+            <!-- ▼ NAV_ITEMS: 모바일 드로어와 동기화 필요 ▼ -->
             <nav class="space-y-1" :class="sidebarCollapsed ? 'px-1' : 'px-4'">
                 <template x-for="menu in menus" :key="menu.key">
                     <button
@@ -2338,14 +2340,7 @@
          :style="!isMobile && (chat.dragging || chat.dragPos.x !== null)
              ? `left:${chat.dragPos.x}px; top:${chat.dragPos.y}px; right:auto; bottom:auto;`
              : ''"
-         :class="[
-             isMobile
-                 ? 'fixed inset-0 w-full h-dvh rounded-none z-[60]'
-                 : (chat.expanded ? 'w-[600px] h-[700px]' : 'w-96 h-[500px]'),
-             !isMobile && chat.dragPos.x !== null ? 'fixed' : (!isMobile ? 'fixed bottom-24 right-6' : ''),
-             'bg-white shadow-xl border border-gray-200 flex flex-col transition-all duration-200',
-             !isMobile ? 'rounded-xl z-50' : ''
-         ]">
+         :class="chatPanelClasses()">
 
         <!-- 헤더 (데스크탑: 드래그 가능) -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 select-none"

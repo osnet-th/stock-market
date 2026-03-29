@@ -29,6 +29,16 @@ const ChatComponent = {
         }
     },
 
+    chatPanelClasses() {
+        const base = 'bg-white shadow-xl border border-gray-200 flex flex-col transition-all duration-200';
+        if (this.isMobile) {
+            return `fixed inset-0 w-full h-dvh rounded-none z-[60] ${base}`;
+        }
+        const size = this.chat.expanded ? 'w-[600px] h-[700px]' : 'w-96 h-[500px]';
+        const position = this.chat.dragPos.x !== null ? 'fixed' : 'fixed bottom-24 right-6';
+        return `${size} ${position} rounded-xl z-50 ${base}`;
+    },
+
     setChatMode(mode) {
         this.chat.chatMode = mode;
         this.chat.stockCode = null;

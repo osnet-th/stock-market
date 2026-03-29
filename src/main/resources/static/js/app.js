@@ -17,9 +17,7 @@ function dashboard() {
         // ==================== 반응형 상태 ====================
         isMobile: false,
         mobileDrawerOpen: false,
-        _scrollLockCount: 0,
-        _navigating: false,
-        _drawerTransitioning: false,
+        _mqlCleanup: null,
 
         // ==================== 컴포넌트 통합 ====================
         ...AuthComponent,
@@ -40,43 +38,31 @@ function dashboard() {
 
         // ==================== 반응형 메서드 ====================
         toggleMobileDrawer() {
-            if (this._drawerTransitioning) return;
-            this._drawerTransitioning = true;
             this.mobileDrawerOpen = !this.mobileDrawerOpen;
-            if (this.mobileDrawerOpen) this.lockScroll();
-            else this.unlockScroll();
-            setTimeout(() => { this._drawerTransitioning = false; }, 200);
+            document.body.style.overflow = this.mobileDrawerOpen ? 'hidden' : '';
         },
 
-        lockScroll() {
-            this._scrollLockCount++;
-            if (this._scrollLockCount === 1) {
-                document.body.style.overflow = 'hidden';
-            }
-        },
-
-        unlockScroll() {
-            this._scrollLockCount = Math.max(0, this._scrollLockCount - 1);
-            if (this._scrollLockCount === 0) {
+        closeMobileDrawer() {
+            if (this.mobileDrawerOpen) {
+                this.mobileDrawerOpen = false;
                 document.body.style.overflow = '';
             }
         },
 
         async init() {
+            // 중복 초기화 방지
+            if (this._mqlCleanup) return;
+
             // 반응형 breakpoint 감지 (matchMedia 전용 — resize 이벤트 사용 안 함)
             const mql = window.matchMedia('(max-width: 1023px)');
             const handleChange = (e) => {
                 this.isMobile = e.matches;
                 if (!e.matches) {
-                    this.mobileDrawerOpen = false;
-                    // 데스크탑 전환 시 스크롤 잠금 해제
-                    if (this._scrollLockCount > 0) {
-                        this._scrollLockCount = 0;
-                        document.body.style.overflow = '';
-                    }
+                    this.closeMobileDrawer();
                 }
             };
             mql.addEventListener('change', handleChange);
+            this._mqlCleanup = () => mql.removeEventListener('change', handleChange);
             this.isMobile = mql.matches;
 
             this.handleOAuthCallback();
@@ -97,53 +83,42 @@ function dashboard() {
         },
 
         async navigateTo(page) {
-            if (this._navigating) return;
-            this._navigating = true;
+            this.closeMobileDrawer();
 
-            // 모바일 드로어 즉시 닫기
-            if (this.mobileDrawerOpen) {
-                this.mobileDrawerOpen = false;
-                this.unlockScroll();
+            // 포트폴리오에서 떠날 때 Chart.js 인스턴스 정리
+            if (this.currentPage === 'portfolio' && page !== 'portfolio') {
+                if (this.portfolio.chartInstance) {
+                    this.portfolio.chartInstance.destroy();
+                    this.portfolio.chartInstance = null;
+                }
+                if (this.portfolio.financialChartInstance) {
+                    this.portfolio.financialChartInstance.destroy();
+                    this.portfolio.financialChartInstance = null;
+                }
             }
 
-            try {
-                // 포트폴리오에서 떠날 때 Chart.js 인스턴스 정리
-                if (this.currentPage === 'portfolio' && page !== 'portfolio') {
-                    if (this.portfolio.chartInstance) {
-                        this.portfolio.chartInstance.destroy();
-                        this.portfolio.chartInstance = null;
+            this.currentPage = page;
+            switch (page) {
+                case 'home':
+                    await this.loadHomeSummary();
+                    break;
+                case 'keywords':
+                    if (this.checkLoggedIn()) {
+                        await this.loadKeywords();
+                        this.news.selectedKeywordId = null;
+                        this.news.selectedKeywordText = null;
+                        this.news.list = [];
                     }
-                    if (this.portfolio.financialChartInstance) {
-                        this.portfolio.financialChartInstance.destroy();
-                        this.portfolio.financialChartInstance = null;
-                    }
-                }
-
-                this.currentPage = page;
-                switch (page) {
-                    case 'home':
-                        await this.loadHomeSummary();
-                        break;
-                    case 'keywords':
-                        if (this.checkLoggedIn()) {
-                            await this.loadKeywords();
-                            this.news.selectedKeywordId = null;
-                            this.news.selectedKeywordText = null;
-                            this.news.list = [];
-                        }
-                        break;
-                    case 'ecos':
-                        if (this.ecos.categories.length === 0) await this.loadEcosCategories();
-                        break;
-                    case 'global':
-                        if (this.globalData.categories.length === 0) await this.loadGlobalCategories();
-                        break;
-                    case 'portfolio':
-                        await this.loadPortfolio();
-                        break;
-                }
-            } finally {
-                this._navigating = false;
+                    break;
+                case 'ecos':
+                    if (this.ecos.categories.length === 0) await this.loadEcosCategories();
+                    break;
+                case 'global':
+                    if (this.globalData.categories.length === 0) await this.loadGlobalCategories();
+                    break;
+                case 'portfolio':
+                    await this.loadPortfolio();
+                    break;
             }
         }
     };

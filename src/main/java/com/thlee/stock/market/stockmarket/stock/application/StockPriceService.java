@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +34,37 @@ public class StockPriceService {
     public BulkStockPriceResponse getPrices(List<BulkStockPriceRequest.StockPriceItem> stocks) {
         Map<String, StockPriceResponse> prices = new LinkedHashMap<>();
 
+        List<BulkStockPriceRequest.StockPriceItem> domesticStocks = new ArrayList<>();
+        List<BulkStockPriceRequest.StockPriceItem> overseasStocks = new ArrayList<>();
+
         for (BulkStockPriceRequest.StockPriceItem item : stocks) {
+            if (item.getMarketType().isDomestic()) {
+                domesticStocks.add(item);
+            } else {
+                overseasStocks.add(item);
+            }
+        }
+
+        // 국내 주식: 멀티종목 API로 일괄 조회
+        if (!domesticStocks.isEmpty()) {
+            List<String> stockCodes = domesticStocks.stream()
+                .map(BulkStockPriceRequest.StockPriceItem::getStockCode)
+                .toList();
+            Map<String, StockPrice> domesticPrices = stockPricePort.getDomesticPrices(stockCodes);
+            BigDecimal krwRate = exchangeRatePort.getRate("KRW");
+
+            for (BulkStockPriceRequest.StockPriceItem item : domesticStocks) {
+                StockPrice price = domesticPrices.get(item.getStockCode());
+                if (price != null) {
+                    prices.put(item.getStockCode(), StockPriceResponse.from(price, "KRW", krwRate));
+                } else {
+                    prices.put(item.getStockCode(), null);
+                }
+            }
+        }
+
+        // 해외 주식: 기존 개별 조회
+        for (BulkStockPriceRequest.StockPriceItem item : overseasStocks) {
             try {
                 StockPriceResponse response = getPrice(
                         item.getStockCode(),

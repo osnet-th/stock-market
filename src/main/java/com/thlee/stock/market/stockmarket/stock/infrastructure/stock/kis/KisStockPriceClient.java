@@ -1,11 +1,14 @@
 package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis;
 
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticMultiPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOverseasPriceOutput;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * KIS 주식 현재가 조회 클라이언트.
@@ -16,8 +19,10 @@ import org.springframework.stereotype.Component;
 public class KisStockPriceClient {
 
     private static final String DOMESTIC_PRICE_PATH = "/uapi/domestic-stock/v1/quotations/inquire-price";
+    private static final String DOMESTIC_MULTI_PRICE_PATH = "/uapi/domestic-stock/v1/quotations/intstock-multprice";
     private static final String OVERSEAS_PRICE_PATH = "/uapi/overseas-price/v1/quotations/price";
     private static final String DOMESTIC_TR_ID = "FHKST01010100";
+    private static final String DOMESTIC_MULTI_TR_ID = "FHKST11300006";
     private static final String OVERSEAS_TR_ID = "HHDFS00000300";
 
     private final KisApiClient kisApiClient;
@@ -37,6 +42,28 @@ public class KisStockPriceClient {
                 .build(),
             new ParameterizedTypeReference<>() {},
             "국내 현재가 조회 [" + stockCode + "]"
+        );
+    }
+
+    /**
+     * 국내 주식 멀티종목 시세 일괄조회. 최대 30종목.
+     *
+     * @param stockCodes 종목코드 목록 (최대 30개)
+     */
+    public List<KisDomesticMultiPriceOutput> getDomesticMultiPrice(List<String> stockCodes) {
+        return kisApiClient.get(
+            DOMESTIC_MULTI_PRICE_PATH,
+            DOMESTIC_MULTI_TR_ID,
+            uriBuilder -> {
+                for (int i = 0; i < stockCodes.size() && i < 30; i++) {
+                    int idx = i + 1;
+                    uriBuilder.queryParam("FID_COND_MRKT_DIV_CODE_" + idx, "J");
+                    uriBuilder.queryParam("FID_INPUT_ISCD_" + idx, stockCodes.get(i));
+                }
+                return uriBuilder.build();
+            },
+            new ParameterizedTypeReference<>() {},
+            "국내 멀티종목 현재가 조회 [" + stockCodes.size() + "종목]"
         );
     }
 

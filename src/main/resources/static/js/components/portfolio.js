@@ -38,6 +38,7 @@ const PortfolioComponent = {
         financialOptions: null,
         financialResult: null,
         financialLoading: false,
+        _tooltipText: '',
         selectedStockItem: null,
         financialYear: String(new Date().getFullYear()),
         financialReportCode: 'ANNUAL',

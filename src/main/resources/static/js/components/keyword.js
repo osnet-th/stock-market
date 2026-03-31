@@ -10,10 +10,12 @@ const KeywordComponent = {
         filter: 'all',
         regionFilter: 'all',
         showAddModal: false,
-        newKeyword: { keyword: '', region: 'DOMESTIC' }
+        newKeyword: { keyword: '', region: 'DOMESTIC' },
+        loading: false
     },
 
     async loadKeywords() {
+        this.keywords.loading = true;
         try {
             const active = this.keywords.filter === 'active' ? true
                 : this.keywords.filter === 'inactive' ? false : null;
@@ -21,6 +23,8 @@ const KeywordComponent = {
         } catch (e) {
             console.error('키워드 로드 실패:', e);
             this.keywords.list = [];
+        } finally {
+            this.keywords.loading = false;
         }
     },
 

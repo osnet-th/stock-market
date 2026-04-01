@@ -114,6 +114,10 @@ function dashboard() {
                     this.portfolio.financialChartInstance.destroy();
                     this.portfolio.financialChartInstance = null;
                 }
+                if (this.portfolio._secChartInstance) {
+                    this.portfolio._secChartInstance.destroy();
+                    this.portfolio._secChartInstance = null;
+                }
             }
 
             this.currentPage = page;

@@ -314,6 +314,10 @@ const FinancialComponent = {
         this.portfolio.secQuarterlyPeriod = 'annual';
         this.portfolio.secMetricsData = null;
         this.portfolio.secFinancialError = null;
+        if (this.portfolio._secChartInstance) {
+            this.portfolio._secChartInstance.destroy();
+            this.portfolio._secChartInstance = null;
+        }
 
         if (country === 'US') {
             // 해외주식: SEC 4개 탭 메뉴
@@ -331,6 +335,10 @@ const FinancialComponent = {
         if (this.portfolio.financialChartInstance) {
             this.portfolio.financialChartInstance.destroy();
             this.portfolio.financialChartInstance = null;
+        }
+        if (this.portfolio._secChartInstance) {
+            this.portfolio._secChartInstance.destroy();
+            this.portfolio._secChartInstance = null;
         }
         this.portfolio.selectedStockItem = null;
         this.portfolio.selectedFinancialMenu = null;
@@ -589,6 +597,11 @@ const FinancialComponent = {
         } finally {
             if (thisGeneration === this.portfolio._financialRequestGeneration) {
                 this.portfolio.financialLoading = false;
+                if (menuKey !== 'sec-metrics' && this.portfolio.financialResult && this.portfolio.financialResult.length > 0) {
+                    this.$nextTick(() => {
+                        this.renderSecBarChart();
+                    });
+                }
             }
         }
     },
@@ -659,6 +672,162 @@ const FinancialComponent = {
     isSecMenu() {
         const menu = this.portfolio.selectedFinancialMenu;
         return menu && menu.startsWith('sec-');
+    },
+
+    // === SEC 요약 카드 ===
+
+    _secSummaryConfig: {
+        'sec-income': [
+            { label: '매출', labelEn: 'Revenue' },
+            { label: '영업이익', labelEn: 'Operating Income' },
+            { label: '순이익', labelEn: 'Net Income' }
+        ],
+        'sec-balance': [
+            { label: '총자산', labelEn: 'Total Assets' },
+            { label: '총부채', labelEn: 'Total Liabilities' },
+            { label: '자기자본', labelEn: 'Stockholders Equity' }
+        ],
+        'sec-cashflow': [
+            { label: '영업활동 현금흐름', labelEn: 'Operating Cash Flow' },
+            { label: '잉여현금흐름(FCF)', labelEn: 'Free Cash Flow' },
+            { label: '설비투자(CapEx)', labelEn: 'Capital Expenditure' }
+        ]
+    },
+
+    getSecSummaryCards() {
+        const menu = this.portfolio.selectedFinancialMenu;
+        const result = this.portfolio.financialResult;
+        if (!result || result.length === 0) return [];
+
+        const config = this._secSummaryConfig[menu];
+        if (!config) return [];
+
+        // 기간 키 추출 (p2024, p2024Q1 등)
+        const firstRow = result[0];
+        const periodKeys = Object.keys(firstRow).filter(k => k.startsWith('p')).sort().reverse();
+        if (periodKeys.length === 0) return [];
+
+        const latestKey = periodKeys[0];
+        const prevKey = periodKeys.length > 1 ? periodKeys[1] : null;
+
+        const cards = [];
+        for (const cfg of config) {
+            const row = result.find(r => r.label === cfg.label);
+            if (!row) continue;
+
+            const currentRaw = row[latestKey];
+            const prevRaw = prevKey ? row[prevKey] : null;
+            const currentNum = this._parseUsdValue(currentRaw);
+            const prevNum = this._parseUsdValue(prevRaw);
+            const changeRate = (prevNum !== null && prevNum !== 0 && currentNum !== null)
+                ? ((currentNum - prevNum) / Math.abs(prevNum) * 100) : null;
+
+            cards.push({
+                label: cfg.label,
+                value: currentRaw || '-',
+                changeRate: changeRate
+            });
+        }
+        return cards;
+    },
+
+    _parseUsdValue(formatted) {
+        if (!formatted || formatted === '-') return null;
+        const str = String(formatted).replace(/[$,]/g, '');
+        const multipliers = { 'T': 1e12, 'B': 1e9, 'M': 1e6, 'K': 1e3 };
+        const lastChar = str.charAt(str.length - 1);
+        if (multipliers[lastChar]) {
+            return parseFloat(str.slice(0, -1)) * multipliers[lastChar];
+        }
+        const num = parseFloat(str);
+        return isNaN(num) ? null : num;
+    },
+
+    // === SEC 바 차트 ===
+
+    renderSecBarChart() {
+        const canvas = document.getElementById('secBarChart');
+        if (!canvas) return;
+
+        if (this.portfolio._secChartInstance) {
+            this.portfolio._secChartInstance.destroy();
+            this.portfolio._secChartInstance = null;
+        }
+
+        const menu = this.portfolio.selectedFinancialMenu;
+        const result = this.portfolio.financialResult;
+        const config = this._secSummaryConfig[menu];
+        if (!result || result.length === 0 || !config) return;
+
+        // 기간 키 추출
+        const firstRow = result[0];
+        const periodKeys = Object.keys(firstRow).filter(k => k.startsWith('p')).sort();
+
+        const colors = ['#3B82F6', '#93C5FD', '#DBEAFE', '#60A5FA', '#2563EB', '#1D4ED8', '#BFDBFE', '#EFF6FF'];
+        const datasets = periodKeys.map((pk, idx) => {
+            const period = pk.substring(1);
+            const label = period.includes('Q') ? period.replace('Q', ' Q') : period + '년';
+            const data = config.map(cfg => {
+                const row = result.find(r => r.label === cfg.label);
+                return row ? (this._parseUsdValue(row[pk]) || 0) : 0;
+            });
+            return {
+                label: label,
+                data: data,
+                backgroundColor: colors[idx % colors.length],
+                borderRadius: 4
+            };
+        });
+
+        const labels = config.map(cfg => cfg.label);
+
+        this.portfolio._secChartInstance = new Chart(canvas, {
+            type: 'bar',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { usePointStyle: true, pointStyle: 'rect', font: { size: 11 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => ctx.dataset.label + ': ' + Format.usd(ctx.parsed.y)
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => Format.usd(value),
+                            font: { size: 11 }
+                        },
+                        grid: { color: '#F3F4F6' }
+                    },
+                    x: {
+                        ticks: { font: { size: 11 } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    },
+
+    // === SEC 투자지표 카드 ===
+
+    getSecMetricCards() {
+        const metrics = this.portfolio.secMetricsData;
+        if (!metrics || metrics.length === 0) return [];
+
+        return metrics.map(m => ({
+            name: m.name,
+            value: this.formatSecMetricValue(m.value, m.unit),
+            description: m.description,
+            unit: m.unit
+        }));
     },
 
     parseAmount(value) {

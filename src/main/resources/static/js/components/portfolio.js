@@ -78,6 +78,7 @@ const PortfolioComponent = {
         secQuarterlyData: null,
         secQuarterlyPeriod: 'annual',
         secMetricsData: null,
+        _secChartInstance: null,
         secFinancialError: null
     },
 

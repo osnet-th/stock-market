@@ -1816,6 +1816,47 @@
                                 class="px-3 py-1 text-xs rounded-r font-medium transition">분기</button>
                     </div>
 
+                    <!-- SEC 투자지표 카드 -->
+                    <template x-if="isSecMenu() && portfolio.selectedFinancialMenu === 'sec-metrics' && getSecMetricCards().length > 0">
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                            <template x-for="card in getSecMetricCards()" :key="card.name">
+                                <div class="bg-white rounded-lg border border-gray-200 p-3">
+                                    <p class="text-xs text-gray-500 mb-1" x-text="card.name"></p>
+                                    <p class="text-sm font-bold text-gray-800" x-text="card.value"></p>
+                                    <p class="text-xs text-gray-400 mt-0.5 truncate" x-text="card.description"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- SEC 요약 카드 (재무제표 탭) -->
+                    <template x-if="isSecMenu() && portfolio.selectedFinancialMenu !== 'sec-metrics' && portfolio.financialResult && portfolio.financialResult.length > 0 && getSecSummaryCards().length > 0">
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                            <template x-for="card in getSecSummaryCards()" :key="card.label">
+                                <div class="bg-white rounded-lg border border-gray-200 p-3">
+                                    <p class="text-xs text-gray-500 mb-1" x-text="card.label"></p>
+                                    <p class="text-sm font-bold text-gray-800" x-text="card.value"></p>
+                                    <template x-if="card.changeRate !== null">
+                                        <p class="text-xs mt-0.5"
+                                           :class="card.changeRate > 0 ? 'text-red-500' : card.changeRate < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                           x-text="(card.changeRate >= 0 ? '▲ +' : '▼ ') + card.changeRate.toFixed(1) + '%'"></p>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- SEC 바 차트 (재무제표 탭) -->
+                    <template x-if="isSecMenu() && portfolio.selectedFinancialMenu !== 'sec-metrics' && portfolio.financialResult && portfolio.financialResult.length > 0">
+                        <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                            <h4 class="text-xs font-semibold text-gray-500 mb-3"
+                                x-text="portfolio.secQuarterlyPeriod === 'quarterly' ? '주요 재무 추세 (분기별)' : '주요 재무 추세 (연도별)'"></h4>
+                            <div style="height: 250px;">
+                                <canvas id="secBarChart"></canvas>
+                            </div>
+                        </div>
+                    </template>
+
                     <!-- 파라미터 드롭다운 (국내주식 전용 — SEC 메뉴에서는 숨김) -->
                     <div class="flex flex-wrap gap-3 mb-4" x-show="!isSecMenu()">
                         <!-- 연도 -->

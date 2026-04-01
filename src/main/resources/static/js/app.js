@@ -2,7 +2,11 @@
 function dashboard() {
     return {
         // ==================== 코어 상태 ====================
-        currentPage: 'home',
+        currentPage: (() => {
+            const hash = location.hash.replace('#', '');
+            const validPages = ['home', 'keywords', 'ecos', 'global', 'portfolio'];
+            return validPages.includes(hash) ? hash : 'home';
+        })(),
 
         menus: [
             { key: 'home', label: '대시보드', icon: 'home' },
@@ -65,6 +69,16 @@ function dashboard() {
             this._mqlCleanup = () => mql.removeEventListener('change', handleChange);
             this.isMobile = mql.matches;
 
+            // 브라우저 뒤로가기/앞으로가기 대응
+            window.addEventListener('popstate', () => {
+                const hash = location.hash.replace('#', '');
+                const validPages = this.menus.map(m => m.key);
+                const page = validPages.includes(hash) ? hash : 'home';
+                if (this.currentPage !== page) {
+                    this.navigateTo(page);
+                }
+            });
+
             this.handleOAuthCallback();
 
             if (!this.checkLoggedIn()) {
@@ -79,7 +93,12 @@ function dashboard() {
                 return;
             }
 
-            await this.loadHomeSummary();
+            // hash 기반 초기 페이지 로드
+            if (this.currentPage !== 'home') {
+                await this.navigateTo(this.currentPage);
+            } else {
+                await this.loadHomeSummary();
+            }
         },
 
         async navigateTo(page) {
@@ -98,6 +117,7 @@ function dashboard() {
             }
 
             this.currentPage = page;
+            history.pushState(null, '', '#' + page);
             switch (page) {
                 case 'home':
                     await this.loadHomeSummary();

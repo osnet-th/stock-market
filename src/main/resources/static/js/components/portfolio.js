@@ -221,6 +221,28 @@ const PortfolioComponent = {
         return ((currentPrice - avgPrice) / avgPrice * 100);
     },
 
+    getCacheRemainingText(priceData) {
+        if (!priceData || priceData.remainingSeconds === undefined) return '';
+        const remaining = priceData.remainingSeconds;
+        const minutes = Math.floor(remaining / 60);
+        const seconds = remaining % 60;
+        if (remaining <= 0) return '0초 후 갱신';
+        if (remaining < 60) return `${seconds}초 후 갱신`;
+        return `${minutes}분 ${seconds}초 후 갱신`;
+    },
+
+    getCacheAgoText(priceData) {
+        if (!priceData || !priceData.cachedAt) return '';
+        const cachedAt = new Date(priceData.cachedAt);
+        const now = new Date();
+        const diffMs = now - cachedAt;
+        const diffSeconds = Math.floor(diffMs / 1000);
+        const diffMinutes = Math.floor(diffSeconds / 60);
+        const remainSeconds = diffSeconds % 60;
+        if (diffSeconds < 60) return `${diffSeconds}초 전 데이터`;
+        return `${diffMinutes}분 ${remainSeconds}초 전 데이터`;
+    },
+
     getTotalEvalAmount() {
         return this.portfolio.items.reduce((sum, item) => sum + this.getEvalAmount(item), 0);
     },

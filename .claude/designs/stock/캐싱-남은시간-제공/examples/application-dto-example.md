@@ -1,22 +1,70 @@
-package com.thlee.stock.market.stockmarket.stock.application;
+# StockPriceResponse DTO 확장
 
-import com.thlee.stock.market.stockmarket.stock.application.dto.BulkStockPriceResponse;
-import com.thlee.stock.market.stockmarket.stock.application.dto.StockPriceResponse;
-import com.thlee.stock.market.stockmarket.stock.domain.model.CachedStockPrice;
-import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
-import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
-import com.thlee.stock.market.stockmarket.stock.domain.service.ExchangeRatePort;
-import com.thlee.stock.market.stockmarket.stock.domain.service.StockPricePort;
-import com.thlee.stock.market.stockmarket.stock.presentation.dto.BulkStockPriceRequest;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+## StockPriceResponse.java 변경
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+```java
+@Getter
+@RequiredArgsConstructor
+public class StockPriceResponse {
 
+    // ... 기존 필드 유지
+
+    private final String currency;
+    private final BigDecimal exchangeRateValue;
+    private final String currentPriceKrw;
+
+    // 캐시 메타데이터 추가
+    private final String cachedAt;          // ISO 8601 (예: "2026-04-01T07:30:00Z")
+    private final String nextRefreshAt;     // ISO 8601
+    private final long remainingSeconds;    // 갱신까지 남은 초
+
+    // 기존 팩토리 메서드 유지 (하위 호환)
+    public static StockPriceResponse from(StockPrice price) {
+        return from(price, "KRW", BigDecimal.ONE, Instant.now());
+    }
+
+    public static StockPriceResponse from(StockPrice price, String currency, BigDecimal exchangeRate) {
+        return from(price, currency, exchangeRate, Instant.now());
+    }
+
+    // 캐시 정보 포함 팩토리 메서드
+    public static StockPriceResponse from(StockPrice price, String currency, BigDecimal exchangeRate, Instant cachedAt) {
+        String priceKrw = calculatePriceKrw(price.currentPrice(), exchangeRate);
+
+        Duration ttl = Duration.ofMinutes(StockPriceCacheConfig.STOCK_PRICE_CACHE_TTL_MINUTES);
+        Instant nextRefresh = cachedAt.plus(ttl);
+        long remaining = Math.max(0, Duration.between(Instant.now(), nextRefresh).getSeconds());
+
+        return new StockPriceResponse(
+            price.stockCode(),
+            price.currentPrice(),
+            price.previousClose(),
+            price.change(),
+            price.changeSign(),
+            price.changeRate(),
+            price.volume(),
+            price.tradingAmount(),
+            price.high(),
+            price.low(),
+            price.open(),
+            price.marketType().name(),
+            price.exchangeCode().name(),
+            currency,
+            exchangeRate,
+            priceKrw,
+            cachedAt.toString(),
+            nextRefresh.toString(),
+            remaining
+        );
+    }
+
+    // ... calculatePriceKrw 기존 메서드 유지
+}
+```
+
+## StockPriceService.java 변경
+
+```java
 @Service
 @RequiredArgsConstructor
 public class StockPriceService {
@@ -45,7 +93,7 @@ public class StockPriceService {
             }
         }
 
-        // 국내 주식: 멀티종목 API로 일괄 조회
+        // 국내 주식: 캐시 정보 포함 조회
         if (!domesticStocks.isEmpty()) {
             List<String> stockCodes = domesticStocks.stream()
                 .map(BulkStockPriceRequest.StockPriceItem::getStockCode)
@@ -64,14 +112,10 @@ public class StockPriceService {
             }
         }
 
-        // 해외 주식: 기존 개별 조회
+        // 해외 주식: 기존 개별 조회 (캐시 정보 포함)
         for (BulkStockPriceRequest.StockPriceItem item : overseasStocks) {
             try {
-                StockPriceResponse response = getPrice(
-                        item.getStockCode(),
-                        item.getMarketType(),
-                        item.getExchangeCode()
-                );
+                StockPriceResponse response = getPrice(item.getStockCode(), item.getMarketType(), item.getExchangeCode());
                 prices.put(item.getStockCode(), response);
             } catch (Exception e) {
                 prices.put(item.getStockCode(), null);
@@ -81,3 +125,4 @@ public class StockPriceService {
         return new BulkStockPriceResponse(prices);
     }
 }
+```

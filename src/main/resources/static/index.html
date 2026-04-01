@@ -839,6 +839,9 @@
                                                                 <p x-show="getStockPriceSummary(item)" class="text-xs mt-0.5"
                                                                     :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
                                                                     x-text="getStockPriceSummary(item)"></p>
+                                                                <p x-show="item.assetType === 'STOCK' && item.stockDetail && portfolio.stockPrices[item.stockDetail.stockCode]"
+                                                                    class="text-xs text-gray-400 mt-0.5"
+                                                                    x-text="getCacheAgoText(portfolio.stockPrices[item.stockDetail?.stockCode]) + ' | ' + getCacheRemainingText(portfolio.stockPrices[item.stockDetail?.stockCode])"></p>
                                                             </div>
                                                             <div class="flex flex-wrap items-center gap-2">
                                                                 <!-- 키워드 추가/삭제 (현금, ETF 제외) -->
@@ -926,6 +929,9 @@
                                                                 <p x-show="getStockPriceSummary(item)" class="text-xs mt-0.5"
                                                                     :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
                                                                     x-text="getStockPriceSummary(item)"></p>
+                                                                <p x-show="item.assetType === 'STOCK' && item.stockDetail && portfolio.stockPrices[item.stockDetail.stockCode]"
+                                                                    class="text-xs text-gray-400 mt-0.5"
+                                                                    x-text="getCacheAgoText(portfolio.stockPrices[item.stockDetail?.stockCode]) + ' | ' + getCacheRemainingText(portfolio.stockPrices[item.stockDetail?.stockCode])"></p>
                                                             </div>
                                                             <div class="flex flex-wrap items-center gap-2">
                                                                 <button x-show="item.assetType !== 'CASH' && item.stockDetail?.subType !== 'ETF'"

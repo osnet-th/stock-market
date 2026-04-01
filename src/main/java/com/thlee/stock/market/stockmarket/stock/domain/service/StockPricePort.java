@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.stock.domain.service;
 
+import com.thlee.stock.market.stockmarket.stock.domain.model.CachedStockPrice;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
 import com.thlee.stock.market.stockmarket.stock.domain.model.StockPrice;
@@ -21,4 +22,8 @@ public interface StockPricePort {
      * @return 종목코드 → StockPrice 매핑
      */
     Map<String, StockPrice> getDomesticPrices(List<String> stockCodes);
+
+    CachedStockPrice getPriceWithCacheInfo(String stockCode, MarketType marketType, ExchangeCode exchangeCode);
+
+    Map<String, CachedStockPrice> getDomesticPricesWithCacheInfo(List<String> stockCodes);
 }

@@ -7,6 +7,7 @@ const PortfolioComponent = {
         items: [],
         allocation: [],
         loading: false,
+        _initialized: false,
         showAddModal: false,
         showEditModal: false,
         editingItem: null,
@@ -120,6 +121,7 @@ const PortfolioComponent = {
             this.portfolio.allocation = [];
         } finally {
             this.portfolio.loading = false;
+            this.portfolio._initialized = true;
             this.$nextTick(() => {
                 this.renderDonutChart();
             });

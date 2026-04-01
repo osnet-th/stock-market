@@ -731,8 +731,8 @@
 
                 <template x-if="!portfolio.loading">
                     <div>
-                        <!-- 빈 상태 -->
-                        <template x-if="portfolio.items.length === 0">
+                        <!-- 빈 상태 (초기 로드 완료 후에만 표시) -->
+                        <template x-if="portfolio._initialized && portfolio.items.length === 0">
                             <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
                                 <p class="text-gray-400 text-sm mb-4">등록된 자산이 없습니다.</p>
                                 <button @click="openAddModal()"

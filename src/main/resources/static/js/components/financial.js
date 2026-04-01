@@ -454,6 +454,12 @@ const FinancialComponent = {
         this.portfolio.financialAccountFsFilter = '';
         this.portfolio.financialStatementFilter = '';
 
+        // 탭 전환 시 차트 인스턴스 정리
+        if (this.portfolio._secChartInstance) {
+            this.portfolio._secChartInstance.destroy();
+            this.portfolio._secChartInstance = null;
+        }
+
         if (menuKey.startsWith('sec-')) {
             await this.loadSecFinancial(menuKey);
         } else {

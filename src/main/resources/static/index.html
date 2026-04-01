@@ -1752,11 +1752,19 @@
                 <button @click="closeStockDetail()"
                         class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
             </div>
-            <!-- 보유 정보 -->
-            <div class="flex gap-4 text-sm text-gray-600 mt-2">
+            <!-- 보유 정보 (국내) -->
+            <div class="flex gap-4 text-sm text-gray-600 mt-2"
+                 x-show="portfolio.selectedStockItem?.stockDetail?.country === 'KR'">
                 <span>수량: <span class="font-semibold" x-text="Format.number(portfolio.selectedStockItem?.stockDetail?.quantity)"></span>주</span>
                 <span>평단가: <span class="font-semibold" x-text="'&#8361;' + Format.number(portfolio.selectedStockItem?.stockDetail?.avgBuyPrice)"></span></span>
                 <span>투자금: <span class="font-semibold" x-text="'&#8361;' + Format.number(portfolio.selectedStockItem?.investedAmount)"></span></span>
+            </div>
+            <!-- 보유 정보 (해외) -->
+            <div class="flex gap-4 text-sm text-gray-600 mt-2"
+                 x-show="portfolio.selectedStockItem?.stockDetail?.country === 'US'">
+                <span>수량: <span class="font-semibold" x-text="Format.number(portfolio.selectedStockItem?.stockDetail?.quantity)"></span> shares</span>
+                <span>평단가: <span class="font-semibold" x-text="'$' + Format.number(portfolio.selectedStockItem?.stockDetail?.avgBuyPrice)"></span></span>
+                <span>투자금: <span class="font-semibold" x-text="'$' + Format.number(portfolio.selectedStockItem?.investedAmount)"></span></span>
             </div>
         </div>
 
@@ -1778,8 +1786,15 @@
             <!-- 메뉴 선택 시: 파라미터 + 결과 -->
             <template x-if="portfolio.selectedFinancialMenu">
                 <div>
-                    <!-- 파라미터 드롭다운 -->
-                    <div class="flex flex-wrap gap-3 mb-4">
+                    <!-- SEC 에러 메시지 -->
+                    <template x-if="portfolio.secFinancialError">
+                        <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+                            <span x-text="portfolio.secFinancialError"></span>
+                        </div>
+                    </template>
+
+                    <!-- 파라미터 드롭다운 (국내주식 전용 — SEC 메뉴에서는 숨김) -->
+                    <div class="flex flex-wrap gap-3 mb-4" x-show="!isSecMenu()">
                         <!-- 연도 -->
                         <div class="flex items-center gap-2">
                             <label class="text-xs text-gray-500">연도</label>
@@ -1835,6 +1850,16 @@
                             </svg>
                             조회 중...
                         </div>
+                    </div>
+
+                    <!-- SEC 로딩 스피너 (파라미터 영역 밖) -->
+                    <div x-show="isSecMenu() && portfolio.financialLoading"
+                         class="flex items-center justify-center py-6 text-sm text-gray-400">
+                        <svg class="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        SEC 데이터 조회 중...
                     </div>
 
                     <!-- 결과 영역 -->

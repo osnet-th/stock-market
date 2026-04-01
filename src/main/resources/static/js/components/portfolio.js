@@ -57,7 +57,26 @@ const PortfolioComponent = {
             { key: 'lawsuits', label: '소송현황' },
             { key: 'private-fund', label: '사모자금사용' },
             { key: 'public-fund', label: '공모자금사용' }
-        ]
+        ],
+        _krFinancialMenus: [
+            { key: 'accounts', label: '재무계정' },
+            { key: 'indices', label: '재무지표' },
+            { key: 'full-statements', label: '전체재무제표' },
+            { key: 'stock-quantities', label: '주식수량' },
+            { key: 'dividends', label: '배당정보' },
+            { key: 'lawsuits', label: '소송현황' },
+            { key: 'private-fund', label: '사모자금사용' },
+            { key: 'public-fund', label: '공모자금사용' }
+        ],
+        _secFinancialMenus: [
+            { key: 'sec-income', label: '손익계산서' },
+            { key: 'sec-balance', label: '재무상태표' },
+            { key: 'sec-cashflow', label: '현금흐름표' },
+            { key: 'sec-metrics', label: '투자지표' }
+        ],
+        secFinancialData: null,
+        secMetricsData: null,
+        secFinancialError: null
     },
 
     getAssetTypeLabel(type) {

@@ -252,6 +252,15 @@ const API = {
             `/api/stocks/${stockCode}/financial/public-fund-usages?year=${year}&reportCode=${reportCode}`);
     },
 
+    // ==================== SEC Financial (해외주식) ====================
+    getSecFinancialStatements(ticker) {
+        return this.request('GET', `/api/stocks/${ticker}/sec/financial/statements`);
+    },
+
+    getSecInvestmentMetrics(ticker) {
+        return this.request('GET', `/api/stocks/${ticker}/sec/financial/metrics`);
+    },
+
     // ==================== Chat ====================
     async streamChat(userId, message, chatMode, stockCode, onChunk, onDone, onError, signal) {
         try {

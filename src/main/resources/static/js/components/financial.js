@@ -300,15 +300,29 @@ const FinancialComponent = {
 
     async openStockDetail(item) {
         const stockCode = item.stockDetail?.stockCode;
-        if (!stockCode || item.stockDetail?.country !== 'KR' || item.stockDetail?.subType === 'ETF') return;
+        const country = item.stockDetail?.country;
+        if (!stockCode || item.stockDetail?.subType === 'ETF') return;
+
+        // 지원 국가: KR, US. 기타 해외는 미지원
+        if (country !== 'KR' && country !== 'US') return;
 
         this.portfolio.selectedStockItem = item;
-        this.portfolio.financialYear = this.getDefaultYear();
-        this.portfolio.financialReportCode = 'ANNUAL';
         this.portfolio.selectedFinancialMenu = null;
         this.portfolio.financialResult = null;
+        this.portfolio.secFinancialData = null;
+        this.portfolio.secMetricsData = null;
+        this.portfolio.secFinancialError = null;
 
-        await this.loadFinancialOptions();
+        if (country === 'US') {
+            // 해외주식: SEC 4개 탭 메뉴
+            this.portfolio.financialMenus = this.portfolio._secFinancialMenus;
+        } else {
+            // 국내주식: 기존 8개 메뉴
+            this.portfolio.financialMenus = this.portfolio._krFinancialMenus;
+            this.portfolio.financialYear = this.getDefaultYear();
+            this.portfolio.financialReportCode = 'ANNUAL';
+            await this.loadFinancialOptions();
+        }
     },
 
     closeStockDetail() {
@@ -319,10 +333,17 @@ const FinancialComponent = {
         this.portfolio.selectedStockItem = null;
         this.portfolio.selectedFinancialMenu = null;
         this.portfolio.financialResult = null;
+        this.portfolio.secFinancialData = null;
+        this.portfolio.secMetricsData = null;
+        this.portfolio.secFinancialError = null;
+        this.portfolio.financialMenus = this.portfolio._krFinancialMenus;
     },
 
     getFinancialColumns() {
         const menu = this.portfolio.selectedFinancialMenu;
+        if (menu && menu.startsWith('sec-')) {
+            return this.getSecTableColumns(menu);
+        }
         return this.financialColumns[menu] || null;
     },
 
@@ -420,7 +441,12 @@ const FinancialComponent = {
         this.portfolio.financialResult = null;
         this.portfolio.financialAccountFsFilter = '';
         this.portfolio.financialStatementFilter = '';
-        await this.loadSelectedFinancial();
+
+        if (menuKey.startsWith('sec-')) {
+            await this.loadSecFinancial(menuKey);
+        } else {
+            await this.loadSelectedFinancial();
+        }
     },
 
     async onFinancialFilterChange() {
@@ -482,6 +508,134 @@ const FinancialComponent = {
                 }
             }
         }
+    },
+
+    // === SEC (해외주식) 재무제표 ===
+
+    secFinancialColumns: {
+        'sec-income': [
+            { key: 'label', label: '항목', type: 'text' }
+        ],
+        'sec-balance': [
+            { key: 'label', label: '항목', type: 'text' }
+        ],
+        'sec-cashflow': [
+            { key: 'label', label: '항목', type: 'text' }
+        ],
+        'sec-metrics': [
+            { key: 'name', label: '지표', type: 'text' },
+            { key: 'formattedValue', label: '값', type: 'text' },
+            { key: 'description', label: '설명', type: 'text' }
+        ]
+    },
+
+    _secStatementTypeMap: {
+        'sec-income': 'INCOME',
+        'sec-balance': 'BALANCE',
+        'sec-cashflow': 'CASHFLOW'
+    },
+
+    async loadSecFinancial(menuKey) {
+        const ticker = this.portfolio.selectedStockItem?.stockDetail?.stockCode;
+        if (!ticker) return;
+
+        const thisGeneration = ++this.portfolio._financialRequestGeneration;
+        this.portfolio.financialLoading = true;
+        this.portfolio.secFinancialError = null;
+
+        try {
+            if (menuKey === 'sec-metrics') {
+                if (!this.portfolio.secMetricsData) {
+                    this.portfolio.secMetricsData = await API.getSecInvestmentMetrics(ticker);
+                }
+                if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
+                this.portfolio.financialResult = this.portfolio.secMetricsData.map(m => ({
+                    name: m.name,
+                    formattedValue: this.formatSecMetricValue(m.value, m.unit),
+                    description: m.description
+                }));
+            } else {
+                if (!this.portfolio.secFinancialData) {
+                    this.portfolio.secFinancialData = await API.getSecFinancialStatements(ticker);
+                }
+                if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
+
+                const targetType = this._secStatementTypeMap[menuKey];
+                const statement = this.portfolio.secFinancialData.find(s => s.statementType === targetType);
+                if (statement && statement.items) {
+                    this.portfolio.financialResult = this.buildSecTableRows(statement.items);
+                } else {
+                    this.portfolio.financialResult = [];
+                }
+            }
+        } catch (e) {
+            if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
+            console.error('SEC 재무정보 조회 실패:', e);
+            this.portfolio.financialResult = [];
+            this.portfolio.secFinancialError = this.getSecErrorMessage(e);
+        } finally {
+            if (thisGeneration === this.portfolio._financialRequestGeneration) {
+                this.portfolio.financialLoading = false;
+            }
+        }
+    },
+
+    buildSecTableRows(items) {
+        if (!items || items.length === 0) return [];
+
+        // 연도 목록 추출 (첫 항목의 values에서)
+        const years = Object.keys(items[0].values || {}).map(Number).sort((a, b) => b - a);
+
+        return items.map(item => {
+            const row = { label: item.label };
+            for (const year of years) {
+                const val = item.values ? item.values[year] : null;
+                row['y' + year] = val !== null && val !== undefined ? Format.usd(val) : '-';
+            }
+            return row;
+        });
+    },
+
+    getSecTableColumns(menuKey) {
+        if (menuKey === 'sec-metrics') {
+            return this.secFinancialColumns['sec-metrics'];
+        }
+
+        const result = this.portfolio.financialResult;
+        if (!result || result.length === 0) return this.secFinancialColumns[menuKey];
+
+        // 동적으로 연도 컬럼 생성
+        const firstRow = result[0];
+        const cols = [{ key: 'label', label: '항목', type: 'text' }];
+        const yearKeys = Object.keys(firstRow).filter(k => k.startsWith('y')).sort().reverse();
+        for (const yk of yearKeys) {
+            cols.push({ key: yk, label: yk.substring(1) + '년', type: 'text' });
+        }
+        return cols;
+    },
+
+    formatSecMetricValue(value, unit) {
+        if (value === null || value === undefined) return '-';
+        if (unit === '$') return '$' + Format.number(value);
+        if (unit === '%') return Format.percent(value);
+        if (unit === 'x') return Format.multiple(value);
+        return String(value);
+    },
+
+    getSecErrorMessage(error) {
+        const msg = error?.message || '';
+        if (msg.includes('404') || msg.includes('SEC_NOT_FOUND')) {
+            return '해당 종목의 SEC 재무 데이터를 찾을 수 없습니다';
+        }
+        if (msg.includes('429') || msg.includes('RATE_LIMIT')) {
+            return 'SEC 데이터 요청이 제한되었습니다. 잠시 후 다시 시도해주세요';
+        }
+        return 'SEC 데이터 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요';
+    },
+
+    isSecMenu() {
+        const menu = this.portfolio.selectedFinancialMenu;
+        return menu && menu.startsWith('sec-');
     },
 
     parseAmount(value) {

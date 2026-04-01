@@ -431,7 +431,7 @@ flowchart TB
 
 ---
 
-- [ ] **Unit 8: 프론트엔드 통합 (financial.js, api.js, portfolio.js)**
+- [x] **Unit 8: 프론트엔드 통합 (financial.js, api.js, portfolio.js)**
 
 **Goal:** 기존 우측 슬라이드 패널에서 해외주식 재무제표를 표시
 

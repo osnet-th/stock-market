@@ -111,6 +111,43 @@ const Format = {
         return sign + Format.number(abs) + baseUnit;
     },
 
+    usd(value) {
+        if (value === null || value === undefined || value === '') return '-';
+        var num = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
+        if (isNaN(num)) return value;
+
+        var absNum = Math.abs(num);
+        var sign = num < 0 ? '-' : '';
+
+        if (absNum >= 1_000_000_000_000) {
+            return sign + '$' + (absNum / 1_000_000_000_000).toFixed(1) + 'T';
+        }
+        if (absNum >= 1_000_000_000) {
+            return sign + '$' + (absNum / 1_000_000_000).toFixed(1) + 'B';
+        }
+        if (absNum >= 1_000_000) {
+            return sign + '$' + (absNum / 1_000_000).toFixed(1) + 'M';
+        }
+        if (absNum >= 1_000) {
+            return sign + '$' + (absNum / 1_000).toFixed(1) + 'K';
+        }
+        return sign + '$' + Format.number(absNum);
+    },
+
+    percent(value) {
+        if (value === null || value === undefined || value === '') return '-';
+        var num = typeof value === 'number' ? value : parseFloat(value);
+        if (isNaN(num)) return value;
+        return num.toFixed(1) + '%';
+    },
+
+    multiple(value) {
+        if (value === null || value === undefined || value === '') return '-';
+        var num = typeof value === 'number' ? value : parseFloat(value);
+        if (isNaN(num)) return value;
+        return num.toFixed(1) + 'x';
+    },
+
     changeRate(current, previous) {
         if (current === null || previous === null || current === undefined || previous === undefined) return '-';
         const curr = parseFloat(current);

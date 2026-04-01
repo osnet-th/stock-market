@@ -848,8 +848,8 @@
                                                                     class="text-xs font-medium transition"
                                                                     x-text="item.newsEnabled ? '키워드 삭제' : '키워드 추가'">
                                                                 </button>
-                                                                <!-- 재무상세 (국내 주식만) -->
-                                                                <button x-show="item.assetType === 'STOCK' && item.stockDetail?.country === 'KR' && item.stockDetail?.subType !== 'ETF'"
+                                                                <!-- 재무상세 (국내/미국 주식) -->
+                                                                <button x-show="item.assetType === 'STOCK' && (item.stockDetail?.country === 'KR' || item.stockDetail?.country === 'US') && item.stockDetail?.subType !== 'ETF'"
                                                                     @click.stop="openStockDetail(item)"
                                                                     class="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition">재무상세 ▸</button>
                                                                 <!-- 추가 매수 (주식만) -->

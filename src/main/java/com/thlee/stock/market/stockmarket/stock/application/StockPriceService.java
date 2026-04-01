@@ -2,9 +2,9 @@ package com.thlee.stock.market.stockmarket.stock.application;
 
 import com.thlee.stock.market.stockmarket.stock.application.dto.BulkStockPriceResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockPriceResponse;
+import com.thlee.stock.market.stockmarket.stock.domain.model.CachedStockPrice;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
-import com.thlee.stock.market.stockmarket.stock.domain.model.StockPrice;
 import com.thlee.stock.market.stockmarket.stock.domain.service.ExchangeRatePort;
 import com.thlee.stock.market.stockmarket.stock.domain.service.StockPricePort;
 import com.thlee.stock.market.stockmarket.stock.presentation.dto.BulkStockPriceRequest;
@@ -25,10 +25,10 @@ public class StockPriceService {
     private final ExchangeRatePort exchangeRatePort;
 
     public StockPriceResponse getPrice(String stockCode, MarketType marketType, ExchangeCode exchangeCode) {
-        StockPrice price = stockPricePort.getPrice(stockCode, marketType, exchangeCode);
+        CachedStockPrice cached = stockPricePort.getPriceWithCacheInfo(stockCode, marketType, exchangeCode);
         String currency = exchangeCode.getCurrency();
         BigDecimal exchangeRate = exchangeRatePort.getRate(currency);
-        return StockPriceResponse.from(price, currency, exchangeRate);
+        return StockPriceResponse.from(cached.stockPrice(), currency, exchangeRate, cached.cachedAt());
     }
 
     public BulkStockPriceResponse getPrices(List<BulkStockPriceRequest.StockPriceItem> stocks) {
@@ -50,13 +50,14 @@ public class StockPriceService {
             List<String> stockCodes = domesticStocks.stream()
                 .map(BulkStockPriceRequest.StockPriceItem::getStockCode)
                 .toList();
-            Map<String, StockPrice> domesticPrices = stockPricePort.getDomesticPrices(stockCodes);
+            Map<String, CachedStockPrice> domesticPrices = stockPricePort.getDomesticPricesWithCacheInfo(stockCodes);
             BigDecimal krwRate = exchangeRatePort.getRate("KRW");
 
             for (BulkStockPriceRequest.StockPriceItem item : domesticStocks) {
-                StockPrice price = domesticPrices.get(item.getStockCode());
-                if (price != null) {
-                    prices.put(item.getStockCode(), StockPriceResponse.from(price, "KRW", krwRate));
+                CachedStockPrice cached = domesticPrices.get(item.getStockCode());
+                if (cached != null) {
+                    prices.put(item.getStockCode(),
+                        StockPriceResponse.from(cached.stockPrice(), "KRW", krwRate, cached.cachedAt()));
                 } else {
                     prices.put(item.getStockCode(), null);
                 }

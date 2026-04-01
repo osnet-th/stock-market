@@ -12,12 +12,13 @@ import java.util.concurrent.TimeUnit;
 public class StockPriceCacheConfig {
 
     public static final String STOCK_PRICE_CACHE = "stockPrice";
+    public static final long STOCK_PRICE_CACHE_TTL_MINUTES = 30;
 
     @Bean
     public CacheManager stockPriceCacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager(STOCK_PRICE_CACHE);
         cacheManager.setCaffeine(Caffeine.newBuilder()
-            .expireAfterWrite(30, TimeUnit.MINUTES)
+            .expireAfterWrite(STOCK_PRICE_CACHE_TTL_MINUTES, TimeUnit.MINUTES)
             .maximumSize(500));
         return cacheManager;
     }

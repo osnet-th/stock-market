@@ -934,6 +934,10 @@
                                                                     class="text-xs font-medium transition"
                                                                     x-text="item.newsEnabled ? '키워드 삭제' : '키워드 추가'">
                                                                 </button>
+                                                                <!-- 재무상세 (미국 주식) -->
+                                                                <button x-show="item.assetType === 'STOCK' && item.stockDetail?.country === 'US' && item.stockDetail?.subType !== 'ETF'"
+                                                                    @click.stop="openStockDetail(item)"
+                                                                    class="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition">재무상세 ▸</button>
                                                                 <button x-show="item.assetType === 'STOCK'"
                                                                     @click.stop="openPurchaseModal(item)"
                                                                     class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">추가 매수</button>

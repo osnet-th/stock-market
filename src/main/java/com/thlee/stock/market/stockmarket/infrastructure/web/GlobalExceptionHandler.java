@@ -8,6 +8,8 @@ import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.datagokr.ex
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.dto.DartStatusCode;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.exception.DartApiException;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.exception.KisApiException;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecApiException;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecErrorType;
 import com.thlee.stock.market.stockmarket.user.domain.exception.UserDomainException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -54,6 +56,23 @@ public class GlobalExceptionHandler {
                     buildResponse(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", e.getMessage());
             case SYSTEM_MAINTENANCE ->
                     buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", e.getMessage());
+            default ->
+                    buildResponse(HttpStatus.BAD_GATEWAY, "EXTERNAL_API_ERROR", e.getMessage());
+        };
+    }
+
+    /**
+     * SEC EDGAR API 예외 (에러 타입별 HTTP 매핑)
+     */
+    @ExceptionHandler(SecApiException.class)
+    public ResponseEntity<Map<String, Object>> handleSecApi(SecApiException e) {
+        return switch (e.getErrorType()) {
+            case CIK_NOT_FOUND, COMPANY_NOT_FOUND ->
+                    buildResponse(HttpStatus.NOT_FOUND, "SEC_NOT_FOUND", e.getMessage());
+            case RATE_LIMIT_EXCEEDED ->
+                    buildResponse(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", e.getMessage());
+            case API_ERROR ->
+                    buildResponse(HttpStatus.BAD_GATEWAY, "EXTERNAL_API_ERROR", e.getMessage());
             default ->
                     buildResponse(HttpStatus.BAD_GATEWAY, "EXTERNAL_API_ERROR", e.getMessage());
         };

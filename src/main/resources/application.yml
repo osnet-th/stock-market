@@ -131,6 +131,12 @@ dart:
     base-url: https://opendart.fss.or.kr/api
     crtfc-key: ${DART_API_KEY}
 
+# SEC EDGAR API (미국 재무제표)
+sec:
+  api:
+    base-url: https://data.sec.gov
+    user-agent: ${SEC_USER_AGENT:stock-market admin@example.com}
+
 # Scheduler Configuration
 scheduler:
   stock:

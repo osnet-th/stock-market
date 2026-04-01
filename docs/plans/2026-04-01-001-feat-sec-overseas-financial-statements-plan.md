@@ -1,3 +1,4 @@
+
 ---
 title: "feat: SEC EDGAR API 해외주식 재무제표 조회 및 프론트엔드 통합"
 type: feat
@@ -178,7 +179,7 @@ flowchart TB
 
 > **Note:** Unit 4(도메인 모델/포트)는 순수 Java로 인프라 의존성이 없으므로 Unit 1~3과 독립적으로 또는 병렬 진행 가능.
 
-- [ ] **Unit 1: SEC 인프라 설정 (Properties, RestClient, Exception)**
+- [x] **Unit 1: SEC 인프라 설정 (Properties, RestClient, Exception)**
 
 **Goal:** SEC EDGAR API 호출을 위한 기반 인프라 구성
 
@@ -214,7 +215,7 @@ flowchart TB
 
 ---
 
-- [ ] **Unit 2: CIK 매핑 캐시 (SecCikCache)**
+- [x] **Unit 2: CIK 매핑 캐시 (SecCikCache)**
 
 **Goal:** SEC company_tickers.json을 로드하여 티커 → CIK 매핑 캐시 구축
 
@@ -250,7 +251,7 @@ flowchart TB
 
 ---
 
-- [ ] **Unit 3: SEC API 클라이언트 (SecApiClient)**
+- [x] **Unit 3: SEC API 클라이언트 (SecApiClient)**
 
 **Goal:** SEC EDGAR Company Facts API 호출 및 응답 파싱
 
@@ -284,7 +285,7 @@ flowchart TB
 
 ---
 
-- [ ] **Unit 4: 도메인 모델 + 포트 인터페이스**
+- [x] **Unit 4: 도메인 모델 + 포트 인터페이스**
 
 **Goal:** SEC 재무제표 도메인 모델과 포트 인터페이스 정의
 
@@ -314,7 +315,7 @@ flowchart TB
 
 ---
 
-- [ ] **Unit 5: SEC Financial Adapter**
+- [x] **Unit 5: SEC Financial Adapter**
 
 **Goal:** Company Facts 응답을 도메인 모델로 변환하는 핵심 어댑터 구현
 
@@ -360,7 +361,7 @@ flowchart TB
 
 ---
 
-- [ ] **Unit 6: Application Service + Response DTOs**
+- [x] **Unit 6: Application Service + Response DTOs**
 
 **Goal:** SEC 재무제표 서비스 레이어와 응답 DTO 구현
 
@@ -396,7 +397,7 @@ flowchart TB
 
 ---
 
-- [ ] **Unit 7: SEC Financial Controller**
+- [x] **Unit 7: SEC Financial Controller**
 
 **Goal:** SEC 재무제표 REST API 엔드포인트 제공
 

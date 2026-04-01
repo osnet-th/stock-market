@@ -31,9 +31,9 @@
 
 ## 작업 리스트
 
-- [ ] `app.js` - `currentPage` 초기값을 hash에서 복원하도록 변경
-- [ ] `app.js` - `navigateTo()`에서 `location.hash` 업데이트
-- [ ] `app.js` - `init()`에서 hash 기반 초기 페이지 로드 + `popstate` 리스너 등록
+- [x] `app.js` - `currentPage` 초기값을 hash에서 복원하도록 변경
+- [x] `app.js` - `navigateTo()`에서 `location.hash` 업데이트
+- [x] `app.js` - `init()`에서 hash 기반 초기 페이지 로드 + `popstate` 리스너 등록
 
 ## 구현 예시
 

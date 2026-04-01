@@ -4,6 +4,7 @@ import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticMultiPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOverseasPriceOutput;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOvertimePriceOutput;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,8 @@ public class KisStockPriceClient {
     private static final String OVERSEAS_PRICE_PATH = "/uapi/overseas-price/v1/quotations/price";
     private static final String DOMESTIC_TR_ID = "FHKST01010100";
     private static final String DOMESTIC_MULTI_TR_ID = "FHKST11300006";
+    private static final String OVERTIME_PRICE_PATH = "/uapi/domestic-stock/v1/quotations/inquire-overtime-price";
+    private static final String OVERTIME_TR_ID = "FHPST02300000";
     private static final String OVERSEAS_TR_ID = "HHDFS00000300";
 
     private final KisApiClient kisApiClient;
@@ -42,6 +45,24 @@ public class KisStockPriceClient {
                 .build(),
             new ParameterizedTypeReference<>() {},
             "국내 현재가 조회 [" + stockCode + "]"
+        );
+    }
+
+    /**
+     * 국내 주식 시간외 단일가 현재가 조회.
+     *
+     * @param stockCode 종목코드 6자리 (예: 005930)
+     */
+    public KisOvertimePriceOutput getDomesticOvertimePrice(String stockCode) {
+        return kisApiClient.get(
+            OVERTIME_PRICE_PATH,
+            OVERTIME_TR_ID,
+            uriBuilder -> uriBuilder
+                .queryParam("FID_COND_MRKT_DIV_CODE", "J")
+                .queryParam("FID_INPUT_ISCD", stockCode)
+                .build(),
+            new ParameterizedTypeReference<>() {},
+            "국내 시간외 현재가 조회 [" + stockCode + "]"
         );
     }
 

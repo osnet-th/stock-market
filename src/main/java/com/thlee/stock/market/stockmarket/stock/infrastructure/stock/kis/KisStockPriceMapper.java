@@ -6,6 +6,7 @@ import com.thlee.stock.market.stockmarket.stock.domain.model.StockPrice;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticMultiPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOverseasPriceOutput;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOvertimePriceOutput;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -48,6 +49,27 @@ public class KisStockPriceMapper {
             output.getOpenPrice(),
             MarketType.KOSPI,
             ExchangeCode.KRX
+        );
+    }
+
+    public static StockPrice fromOvertime(KisOvertimePriceOutput output,
+                                          String stockCode,
+                                          MarketType marketType,
+                                          ExchangeCode exchangeCode) {
+        return new StockPrice(
+            stockCode,
+            output.getCurrentPrice(),
+            output.getPreviousClose(),
+            output.getChange(),
+            output.getChangeSign(),
+            output.getChangeRate(),
+            output.getVolume(),
+            output.getTradingAmount(),
+            output.getHighPrice(),
+            output.getLowPrice(),
+            output.getOpenPrice(),
+            marketType,
+            exchangeCode
         );
     }
 

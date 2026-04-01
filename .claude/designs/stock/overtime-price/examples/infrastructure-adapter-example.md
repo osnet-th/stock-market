@@ -1,26 +1,12 @@
-package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis;
+# KisStockPriceAdapter 변경 예시
 
-import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
-import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
-import com.thlee.stock.market.stockmarket.stock.domain.model.StockPrice;
-import com.thlee.stock.market.stockmarket.stock.domain.service.StockPricePort;
-import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticMultiPriceOutput;
-import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOvertimePriceOutput;
-import lombok.RequiredArgsConstructor;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Component;
+## 변경 개요
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+- `KisDomesticMarketHours` 의존성 추가
+- `getPrice()`: 시간외 구간이면 시간외 API 호출, 시간외 현재가가 없으면 정규장 폴백
+- `getDomesticPrices()`: 시간외 구간이면 멀티종목 API 대신 개별 조회
 
-/**
- * KIS API를 통한 주식 현재가 조회 어댑터.
- * StockPricePort 구현체.
- */
+```java
 @Component
 public class KisStockPriceAdapter implements StockPricePort {
 
@@ -42,7 +28,8 @@ public class KisStockPriceAdapter implements StockPricePort {
         if (marketType.isDomestic()) {
             return getDomesticPriceByTime(stockCode, marketType, exchangeCode);
         }
-        return KisStockPriceMapper.fromOverseas(priceClient.getOverseasPrice(stockCode, exchangeCode), stockCode, marketType, exchangeCode);
+        return KisStockPriceMapper.fromOverseas(
+            priceClient.getOverseasPrice(stockCode, exchangeCode), stockCode, marketType, exchangeCode);
     }
 
     /**
@@ -55,8 +42,10 @@ public class KisStockPriceAdapter implements StockPricePort {
             if (hasValidOvertimePrice(overtimeOutput)) {
                 return KisStockPriceMapper.fromOvertime(overtimeOutput, stockCode, marketType, exchangeCode);
             }
+            // 시간외 거래 없는 종목 → 정규장 종가로 폴백
         }
-        return KisStockPriceMapper.fromDomestic(priceClient.getDomesticPrice(stockCode), stockCode, marketType, exchangeCode);
+        return KisStockPriceMapper.fromDomestic(
+            priceClient.getDomesticPrice(stockCode), stockCode, marketType, exchangeCode);
     }
 
     private boolean hasValidOvertimePrice(KisOvertimePriceOutput output) {
@@ -71,7 +60,7 @@ public class KisStockPriceAdapter implements StockPricePort {
         Cache cache = stockPriceCacheManager.getCache("stockPrice");
 
         // 캐시 히트 분리
-        List<String> cacheMissCodes = new java.util.ArrayList<>();
+        List<String> cacheMissCodes = new ArrayList<>();
         for (String code : stockCodes) {
             String cacheKey = code + "_" + ExchangeCode.KRX;
             StockPrice cached = cache != null ? cache.get(cacheKey, StockPrice.class) : null;
@@ -93,7 +82,7 @@ public class KisStockPriceAdapter implements StockPricePort {
                 }
             }
         } else {
-            // 정규장: 캐시 미스 종목을 30개씩 분할하여 멀티종목 API 호출
+            // 정규장: 기존 멀티종목 벌크 조회 로직 (변경 없음)
             for (int i = 0; i < cacheMissCodes.size(); i += 30) {
                 List<String> batch = cacheMissCodes.subList(i, Math.min(i + 30, cacheMissCodes.size()));
                 try {
@@ -122,3 +111,4 @@ public class KisStockPriceAdapter implements StockPricePort {
         return result;
     }
 }
+```

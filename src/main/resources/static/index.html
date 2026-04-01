@@ -1803,6 +1803,19 @@
                         </div>
                     </template>
 
+                    <!-- SEC 연간/분기 토글 (투자지표 제외) -->
+                    <div x-show="isSecMenu() && portfolio.selectedFinancialMenu !== 'sec-metrics'"
+                         class="flex gap-1 mb-3">
+                        <button @click="toggleSecPeriod('annual')"
+                                :class="portfolio.secQuarterlyPeriod === 'annual'
+                                    ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
+                                class="px-3 py-1 text-xs rounded-l font-medium transition">연간</button>
+                        <button @click="toggleSecPeriod('quarterly')"
+                                :class="portfolio.secQuarterlyPeriod === 'quarterly'
+                                    ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
+                                class="px-3 py-1 text-xs rounded-r font-medium transition">분기</button>
+                    </div>
+
                     <!-- 파라미터 드롭다운 (국내주식 전용 — SEC 메뉴에서는 숨김) -->
                     <div class="flex flex-wrap gap-3 mb-4" x-show="!isSecMenu()">
                         <!-- 연도 -->

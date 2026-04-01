@@ -29,6 +29,12 @@ public class SecFinancialService {
                 .toList();
     }
 
+    public List<SecFinancialStatementResponse> getQuarterlyFinancialStatements(String ticker) {
+        return secFinancialPort.getQuarterlyFinancialStatements(ticker).stream()
+                .map(SecFinancialStatementResponse::from)
+                .toList();
+    }
+
     public List<SecInvestmentMetricResponse> getInvestmentMetrics(String ticker) {
         List<SecInvestmentMetric> metrics = secFinancialPort.getInvestmentMetrics(ticker);
         List<SecInvestmentMetricResponse> responses = new ArrayList<>(

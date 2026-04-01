@@ -11,7 +11,7 @@ import java.util.Map;
 public class SecFinancialItemResponse {
     private final String label;
     private final String labelEn;
-    private final Map<Integer, Long> values;
+    private final Map<String, Long> values;
 
     public static SecFinancialItemResponse from(SecFinancialItem item) {
         return new SecFinancialItemResponse(

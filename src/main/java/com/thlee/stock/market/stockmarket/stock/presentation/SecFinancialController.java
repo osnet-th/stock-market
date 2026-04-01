@@ -25,6 +25,12 @@ public class SecFinancialController {
         return ResponseEntity.ok(secFinancialService.getFinancialStatements(ticker));
     }
 
+    @GetMapping("/{ticker}/sec/financial/statements/quarterly")
+    public ResponseEntity<List<SecFinancialStatementResponse>> getQuarterlyFinancialStatements(
+            @PathVariable String ticker) {
+        return ResponseEntity.ok(secFinancialService.getQuarterlyFinancialStatements(ticker));
+    }
+
     @GetMapping("/{ticker}/sec/financial/metrics")
     public ResponseEntity<List<SecInvestmentMetricResponse>> getInvestmentMetrics(
             @PathVariable String ticker) {

@@ -16,6 +16,11 @@ public interface SecFinancialPort {
     List<SecFinancialStatement> getFinancialStatements(String ticker);
 
     /**
+     * 분기 재무제표 3종 (10-Q 기반, 최근 8분기)
+     */
+    List<SecFinancialStatement> getQuarterlyFinancialStatements(String ticker);
+
+    /**
      * 투자 지표 조회 (EPS, ROE, 부채비율, 영업이익률 — PER 제외)
      */
     List<SecInvestmentMetric> getInvestmentMetrics(String ticker);

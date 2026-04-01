@@ -35,6 +35,8 @@ public class SecFinancialAdapter implements SecFinancialPort {
             .maximumSize(100)
             .build();
 
+    private static final Set<String> VALID_QUARTERS = Set.of("Q1", "Q2", "Q3", "Q4");
+
     public SecFinancialAdapter(SecApiClient secApiClient, SecCikCache secCikCache) {
         this.secApiClient = secApiClient;
         this.secCikCache = secCikCache;
@@ -48,6 +50,17 @@ public class SecFinancialAdapter implements SecFinancialPort {
                 buildIncomeStatement(parsed),
                 buildBalanceSheet(parsed),
                 buildCashFlowStatement(parsed)
+        );
+    }
+
+    @Override
+    public List<SecFinancialStatement> getQuarterlyFinancialStatements(String ticker) {
+        ParsedCompanyFacts parsed = getParsedFacts(ticker);
+
+        return List.of(
+                buildQuarterlyIncomeStatement(parsed),
+                buildQuarterlyBalanceSheet(parsed),
+                buildQuarterlyCashFlowStatement(parsed)
         );
     }
 
@@ -115,33 +128,55 @@ public class SecFinancialAdapter implements SecFinancialPort {
 
     private ParsedCompanyFacts parseCompanyFacts(SecCompanyFactsResponse response) {
         Map<String, TagData> usGaap = response.getUsGaapFacts();
+
+        // 연간 데이터
         Map<String, Map<Integer, Double>> usdData = new HashMap<>();
         Map<String, Map<Integer, Double>> sharesData = new HashMap<>();
         Set<Integer> allYears = new TreeSet<>(Comparator.reverseOrder());
+
+        // 분기 데이터
+        Map<String, Map<String, Double>> quarterlyUsdData = new HashMap<>();
+        Map<String, Map<String, Double>> quarterlySharesData = new HashMap<>();
+        Set<String> allQuarters = new TreeSet<>(Comparator.reverseOrder());
 
         for (Map.Entry<String, TagData> entry : usGaap.entrySet()) {
             String tag = entry.getKey();
             TagData tagData = entry.getValue();
 
-            // USD 단위 데이터
+            // 연간 USD
             Map<Integer, Double> usdYearValues = extractAnnualValues(tagData.getUsdEntries());
             if (!usdYearValues.isEmpty()) {
                 usdData.put(tag, usdYearValues);
                 allYears.addAll(usdYearValues.keySet());
             }
 
-            // USD/shares 단위 데이터 (EPS 등)
+            // 연간 USD/shares
             Map<Integer, Double> sharesYearValues = extractAnnualValues(tagData.getSharesEntries());
             if (!sharesYearValues.isEmpty()) {
                 sharesData.put(tag, sharesYearValues);
                 allYears.addAll(sharesYearValues.keySet());
             }
+
+            // 분기 USD
+            Map<String, Double> qtrUsdValues = extractQuarterlyValues(tagData.getUsdEntries());
+            if (!qtrUsdValues.isEmpty()) {
+                quarterlyUsdData.put(tag, qtrUsdValues);
+                allQuarters.addAll(qtrUsdValues.keySet());
+            }
+
+            // 분기 USD/shares
+            Map<String, Double> qtrSharesValues = extractQuarterlyValues(tagData.getSharesEntries());
+            if (!qtrSharesValues.isEmpty()) {
+                quarterlySharesData.put(tag, qtrSharesValues);
+                allQuarters.addAll(qtrSharesValues.keySet());
+            }
         }
 
-        // 최근 3개년
         List<Integer> recentYears = allYears.stream().limit(3).toList();
+        List<String> recentQuarters = allQuarters.stream().limit(8).toList();
 
-        return new ParsedCompanyFacts(usdData, sharesData, recentYears);
+        return new ParsedCompanyFacts(usdData, sharesData, recentYears,
+                quarterlyUsdData, quarterlySharesData, recentQuarters);
     }
 
     /**
@@ -154,11 +189,26 @@ public class SecFinancialAdapter implements SecFinancialPort {
                 .collect(Collectors.toMap(
                         e -> e.getFy().intValue(),
                         FactEntry::getVal,
-                        (existing, replacement) -> replacement  // 동일 연도 시 나중 것(최신 filed) 사용
+                        (existing, replacement) -> replacement
                 ));
     }
 
-    // === 재무제표 구성 ===
+    /**
+     * 10-Q 필터로 분기 데이터 추출, 키: "2024Q1" 형식, 중복 분기는 최신 filed 기준
+     */
+    private Map<String, Double> extractQuarterlyValues(List<FactEntry> entries) {
+        return entries.stream()
+                .filter(e -> "10-Q".equals(e.getForm()))
+                .filter(e -> e.getFy() != null && e.getFp() != null && e.getVal() != null)
+                .filter(e -> VALID_QUARTERS.contains(e.getFp()))
+                .collect(Collectors.toMap(
+                        e -> e.getFy().intValue() + e.getFp(),
+                        FactEntry::getVal,
+                        (existing, replacement) -> replacement
+                ));
+    }
+
+    // === 연간 재무제표 구성 ===
 
     private SecFinancialStatement buildIncomeStatement(ParsedCompanyFacts parsed) {
         List<SecFinancialItem> items = new ArrayList<>();
@@ -204,11 +254,86 @@ public class SecFinancialAdapter implements SecFinancialPort {
                 "NetCashProvidedByUsedInFinancingActivitiesContinuingOperations"));
         items.add(buildItem(parsed, "설비투자(CapEx)", "Capital Expenditure",
                 "PaymentsToAcquirePropertyPlantAndEquipment"));
-
-        // Free Cash Flow = 영업CF - CapEx
         items.add(buildFreeCashFlow(parsed));
-
         return new SecFinancialStatement(StatementType.CASHFLOW, items);
+    }
+
+    // === 분기 재무제표 구성 ===
+
+    private SecFinancialStatement buildQuarterlyIncomeStatement(ParsedCompanyFacts parsed) {
+        List<SecFinancialItem> items = new ArrayList<>();
+        items.add(buildQuarterlyItem(parsed, "매출", "Revenue",
+                "Revenues", "RevenueFromContractWithCustomersExcludingAssessedTax"));
+        items.add(buildQuarterlyItem(parsed, "매출원가", "Cost of Revenue",
+                "CostOfGoodsAndServicesSold", "CostOfRevenue"));
+        items.add(buildQuarterlyItem(parsed, "매출총이익", "Gross Profit",
+                "GrossProfit"));
+        items.add(buildQuarterlyItem(parsed, "영업이익", "Operating Income",
+                "OperatingIncomeLoss"));
+        items.add(buildQuarterlyItem(parsed, "순이익", "Net Income",
+                "NetIncomeLoss", "ProfitLoss"));
+        return new SecFinancialStatement(StatementType.INCOME, items);
+    }
+
+    private SecFinancialStatement buildQuarterlyBalanceSheet(ParsedCompanyFacts parsed) {
+        List<SecFinancialItem> items = new ArrayList<>();
+        items.add(buildQuarterlyItem(parsed, "총자산", "Total Assets",
+                "Assets"));
+        items.add(buildQuarterlyItem(parsed, "유동자산", "Current Assets",
+                "AssetsCurrent"));
+        items.add(buildQuarterlyItem(parsed, "총부채", "Total Liabilities",
+                "Liabilities"));
+        items.add(buildQuarterlyItem(parsed, "유동부채", "Current Liabilities",
+                "LiabilitiesCurrent"));
+        items.add(buildQuarterlyItem(parsed, "자기자본", "Stockholders Equity",
+                "StockholdersEquity",
+                "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"));
+        return new SecFinancialStatement(StatementType.BALANCE, items);
+    }
+
+    private SecFinancialStatement buildQuarterlyCashFlowStatement(ParsedCompanyFacts parsed) {
+        List<SecFinancialItem> items = new ArrayList<>();
+        items.add(buildQuarterlyItem(parsed, "영업활동 현금흐름", "Operating Cash Flow",
+                "NetCashProvidedByUsedInOperatingActivities",
+                "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"));
+        items.add(buildQuarterlyItem(parsed, "투자활동 현금흐름", "Investing Cash Flow",
+                "NetCashProvidedByUsedInInvestingActivities",
+                "NetCashProvidedByUsedInInvestingActivitiesContinuingOperations"));
+        items.add(buildQuarterlyItem(parsed, "재무활동 현금흐름", "Financing Cash Flow",
+                "NetCashProvidedByUsedInFinancingActivities",
+                "NetCashProvidedByUsedInFinancingActivitiesContinuingOperations"));
+        items.add(buildQuarterlyItem(parsed, "설비투자(CapEx)", "Capital Expenditure",
+                "PaymentsToAcquirePropertyPlantAndEquipment"));
+        items.add(buildQuarterlyFreeCashFlow(parsed));
+        return new SecFinancialStatement(StatementType.CASHFLOW, items);
+    }
+
+    // === 항목 구성 헬퍼 ===
+
+    private SecFinancialItem buildItem(ParsedCompanyFacts parsed,
+                                       String label, String labelEn, String... tags) {
+        Map<Integer, Double> values = getTagValues(parsed, tags);
+
+        Map<String, Long> yearValues = new LinkedHashMap<>();
+        for (Integer year : parsed.recentYears()) {
+            Double val = values.get(year);
+            yearValues.put(String.valueOf(year), val != null ? Math.round(val) : null);
+        }
+
+        return new SecFinancialItem(label, labelEn, yearValues);
+    }
+
+    private SecFinancialItem buildQuarterlyItem(ParsedCompanyFacts parsed,
+                                                 String label, String labelEn, String... tags) {
+        Map<String, Double> values = getQuarterlyTagValues(parsed, tags);
+
+        Map<String, Long> quarterValues = new LinkedHashMap<>();
+        for (String quarter : parsed.recentQuarters()) {
+            Double val = values.get(quarter);
+            quarterValues.put(quarter, val != null ? Math.round(val) : null);
+        }
+
+        return new SecFinancialItem(label, labelEn, quarterValues);
     }
 
     private SecFinancialItem buildFreeCashFlow(ParsedCompanyFacts parsed) {
@@ -218,38 +343,41 @@ public class SecFinancialAdapter implements SecFinancialPort {
         Map<Integer, Double> capEx = getTagValues(parsed,
                 "PaymentsToAcquirePropertyPlantAndEquipment");
 
-        Map<Integer, Long> fcfValues = new LinkedHashMap<>();
+        Map<String, Long> fcfValues = new LinkedHashMap<>();
         for (Integer year : parsed.recentYears()) {
             Double opCf = operatingCf.get(year);
             Double cap = capEx.get(year);
             if (opCf != null && cap != null) {
-                fcfValues.put(year, Math.round(opCf - cap));
+                fcfValues.put(String.valueOf(year), Math.round(opCf - cap));
             } else {
-                fcfValues.put(year, null);
+                fcfValues.put(String.valueOf(year), null);
             }
         }
         return new SecFinancialItem("잉여현금흐름(FCF)", "Free Cash Flow", fcfValues);
     }
 
-    /**
-     * XBRL 태그에서 항목 구성 (fallback 지원)
-     */
-    private SecFinancialItem buildItem(ParsedCompanyFacts parsed,
-                                       String label, String labelEn, String... tags) {
-        Map<Integer, Double> values = getTagValues(parsed, tags);
+    private SecFinancialItem buildQuarterlyFreeCashFlow(ParsedCompanyFacts parsed) {
+        Map<String, Double> operatingCf = getQuarterlyTagValues(parsed,
+                "NetCashProvidedByUsedInOperatingActivities",
+                "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations");
+        Map<String, Double> capEx = getQuarterlyTagValues(parsed,
+                "PaymentsToAcquirePropertyPlantAndEquipment");
 
-        Map<Integer, Long> yearValues = new LinkedHashMap<>();
-        for (Integer year : parsed.recentYears()) {
-            Double val = values.get(year);
-            yearValues.put(year, val != null ? Math.round(val) : null);
+        Map<String, Long> fcfValues = new LinkedHashMap<>();
+        for (String quarter : parsed.recentQuarters()) {
+            Double opCf = operatingCf.get(quarter);
+            Double cap = capEx.get(quarter);
+            if (opCf != null && cap != null) {
+                fcfValues.put(quarter, Math.round(opCf - cap));
+            } else {
+                fcfValues.put(quarter, null);
+            }
         }
-
-        return new SecFinancialItem(label, labelEn, yearValues);
+        return new SecFinancialItem("잉여현금흐름(FCF)", "Free Cash Flow", fcfValues);
     }
 
-    /**
-     * 태그 fallback으로 값 조회 (USD 단위)
-     */
+    // === 태그 조회 헬퍼 ===
+
     private Map<Integer, Double> getTagValues(ParsedCompanyFacts parsed, String... tags) {
         for (String tag : tags) {
             Map<Integer, Double> values = parsed.usdData().get(tag);
@@ -260,9 +388,16 @@ public class SecFinancialAdapter implements SecFinancialPort {
         return Map.of();
     }
 
-    /**
-     * 최신 연도 값 조회 (USD 단위, fallback 지원)
-     */
+    private Map<String, Double> getQuarterlyTagValues(ParsedCompanyFacts parsed, String... tags) {
+        for (String tag : tags) {
+            Map<String, Double> values = parsed.quarterlyUsdData().get(tag);
+            if (values != null && !values.isEmpty()) {
+                return values;
+            }
+        }
+        return Map.of();
+    }
+
     private Double getLatestValue(ParsedCompanyFacts parsed, String... tags) {
         return getLatestValue(parsed, tags, false);
     }
@@ -276,7 +411,6 @@ public class SecFinancialAdapter implements SecFinancialPort {
             Map<String, Map<Integer, Double>> dataSource = isShares ? parsed.sharesData() : parsed.usdData();
             Map<Integer, Double> values = dataSource.get(tag);
             if (values != null && !values.isEmpty()) {
-                // 최근 연도 값
                 for (Integer year : parsed.recentYears()) {
                     Double val = values.get(year);
                     if (val != null) {
@@ -294,6 +428,9 @@ public class SecFinancialAdapter implements SecFinancialPort {
     record ParsedCompanyFacts(
             Map<String, Map<Integer, Double>> usdData,
             Map<String, Map<Integer, Double>> sharesData,
-            List<Integer> recentYears
+            List<Integer> recentYears,
+            Map<String, Map<String, Double>> quarterlyUsdData,
+            Map<String, Map<String, Double>> quarterlySharesData,
+            List<String> recentQuarters
     ) {}
 }

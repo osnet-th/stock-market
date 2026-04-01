@@ -75,6 +75,8 @@ const PortfolioComponent = {
             { key: 'sec-metrics', label: '투자지표' }
         ],
         secFinancialData: null,
+        secQuarterlyData: null,
+        secQuarterlyPeriod: 'annual',
         secMetricsData: null,
         secFinancialError: null
     },

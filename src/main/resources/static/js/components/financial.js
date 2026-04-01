@@ -310,6 +310,8 @@ const FinancialComponent = {
         this.portfolio.selectedFinancialMenu = null;
         this.portfolio.financialResult = null;
         this.portfolio.secFinancialData = null;
+        this.portfolio.secQuarterlyData = null;
+        this.portfolio.secQuarterlyPeriod = 'annual';
         this.portfolio.secMetricsData = null;
         this.portfolio.secFinancialError = null;
 
@@ -334,6 +336,8 @@ const FinancialComponent = {
         this.portfolio.selectedFinancialMenu = null;
         this.portfolio.financialResult = null;
         this.portfolio.secFinancialData = null;
+        this.portfolio.secQuarterlyData = null;
+        this.portfolio.secQuarterlyPeriod = 'annual';
         this.portfolio.secMetricsData = null;
         this.portfolio.secFinancialError = null;
         this.portfolio.financialMenus = this.portfolio._krFinancialMenus;
@@ -555,17 +559,26 @@ const FinancialComponent = {
                     description: m.description
                 }));
             } else {
-                if (!this.portfolio.secFinancialData) {
-                    this.portfolio.secFinancialData = await API.getSecFinancialStatements(ticker);
-                }
-                if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
+                const isQuarterly = this.portfolio.secQuarterlyPeriod === 'quarterly';
 
-                const targetType = this._secStatementTypeMap[menuKey];
-                const statement = this.portfolio.secFinancialData.find(s => s.statementType === targetType);
-                if (statement && statement.items) {
-                    this.portfolio.financialResult = this.buildSecTableRows(statement.items);
+                if (isQuarterly) {
+                    if (!this.portfolio.secQuarterlyData) {
+                        this.portfolio.secQuarterlyData = await API.getSecQuarterlyStatements(ticker);
+                    }
+                    if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
+                    const targetType = this._secStatementTypeMap[menuKey];
+                    const statement = this.portfolio.secQuarterlyData.find(s => s.statementType === targetType);
+                    this.portfolio.financialResult = statement?.items
+                        ? this.buildSecTableRows(statement.items) : [];
                 } else {
-                    this.portfolio.financialResult = [];
+                    if (!this.portfolio.secFinancialData) {
+                        this.portfolio.secFinancialData = await API.getSecFinancialStatements(ticker);
+                    }
+                    if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
+                    const targetType = this._secStatementTypeMap[menuKey];
+                    const statement = this.portfolio.secFinancialData.find(s => s.statementType === targetType);
+                    this.portfolio.financialResult = statement?.items
+                        ? this.buildSecTableRows(statement.items) : [];
                 }
             }
         } catch (e) {
@@ -580,17 +593,25 @@ const FinancialComponent = {
         }
     },
 
+    async toggleSecPeriod(period) {
+        this.portfolio.secQuarterlyPeriod = period;
+        const menu = this.portfolio.selectedFinancialMenu;
+        if (menu && menu.startsWith('sec-') && menu !== 'sec-metrics') {
+            await this.loadSecFinancial(menu);
+        }
+    },
+
     buildSecTableRows(items) {
         if (!items || items.length === 0) return [];
 
-        // 연도 목록 추출 (첫 항목의 values에서)
-        const years = Object.keys(items[0].values || {}).map(Number).sort((a, b) => b - a);
+        // 키: "2024" (연간) 또는 "2024Q1" (분기)
+        const periods = Object.keys(items[0].values || {}).sort().reverse();
 
         return items.map(item => {
             const row = { label: item.label };
-            for (const year of years) {
-                const val = item.values ? item.values[year] : null;
-                row['y' + year] = val !== null && val !== undefined ? Format.usd(val) : '-';
+            for (const period of periods) {
+                const val = item.values ? item.values[period] : null;
+                row['p' + period] = val !== null && val !== undefined ? Format.usd(val) : '-';
             }
             return row;
         });
@@ -604,12 +625,14 @@ const FinancialComponent = {
         const result = this.portfolio.financialResult;
         if (!result || result.length === 0) return this.secFinancialColumns[menuKey];
 
-        // 동적으로 연도 컬럼 생성
+        // 동적으로 기간 컬럼 생성
         const firstRow = result[0];
         const cols = [{ key: 'label', label: '항목', type: 'text' }];
-        const yearKeys = Object.keys(firstRow).filter(k => k.startsWith('y')).sort().reverse();
-        for (const yk of yearKeys) {
-            cols.push({ key: yk, label: yk.substring(1) + '년', type: 'text' });
+        const periodKeys = Object.keys(firstRow).filter(k => k.startsWith('p')).sort().reverse();
+        for (const pk of periodKeys) {
+            const period = pk.substring(1);
+            const label = period.includes('Q') ? period.replace('Q', ' Q') : period + '년';
+            cols.push({ key: pk, label: label, type: 'text' });
         }
         return cols;
     },

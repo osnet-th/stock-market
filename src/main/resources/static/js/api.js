@@ -257,6 +257,10 @@ const API = {
         return this.request('GET', `/api/stocks/${ticker}/sec/financial/statements`);
     },
 
+    getSecQuarterlyStatements(ticker) {
+        return this.request('GET', `/api/stocks/${ticker}/sec/financial/statements/quarterly`);
+    },
+
     getSecInvestmentMetrics(ticker) {
         return this.request('GET', `/api/stocks/${ticker}/sec/financial/metrics`);
     },

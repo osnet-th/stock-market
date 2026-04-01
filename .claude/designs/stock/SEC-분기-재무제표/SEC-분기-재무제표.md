@@ -74,16 +74,16 @@ SEC 재무제표 탭에 **연간/분기 토글**을 추가한다. 기존 `sec-in
 
 ## 작업 리스트
 
-- [ ] `SecFinancialItem` values 키 타입 변경 (`Integer` → `String`)
-- [ ] `SecFinancialItemResponse` values 키 타입 변경
-- [ ] `SecFinancialAdapter`에 `extractQuarterlyValues()` 추가 및 `ParsedCompanyFacts` 분기 데이터 포함
-- [ ] `SecFinancialAdapter`에 분기 재무제표 구성 메서드 추가
-- [ ] `SecFinancialPort`에 `getQuarterlyFinancialStatements()` 추가
-- [ ] `SecFinancialService`에 `getQuarterlyFinancialStatements()` 추가
-- [ ] `SecFinancialController`에 분기 엔드포인트 추가
-- [ ] 프론트엔드: API 호출 함수 추가 (`api.js`)
-- [ ] 프론트엔드: 연간/분기 토글 UI 및 로직 (`financial.js`, `portfolio.js`, `index.html`)
-- [ ] 기존 연간 코드의 `Map<Integer, Long>` → `Map<String, Long>` 호환성 수정
+- [x] `SecFinancialItem` values 키 타입 변경 (`Integer` → `String`)
+- [x] `SecFinancialItemResponse` values 키 타입 변경
+- [x] `SecFinancialAdapter`에 `extractQuarterlyValues()` 추가 및 `ParsedCompanyFacts` 분기 데이터 포함
+- [x] `SecFinancialAdapter`에 분기 재무제표 구성 메서드 추가
+- [x] `SecFinancialPort`에 `getQuarterlyFinancialStatements()` 추가
+- [x] `SecFinancialService`에 `getQuarterlyFinancialStatements()` 추가
+- [x] `SecFinancialController`에 분기 엔드포인트 추가
+- [x] 프론트엔드: API 호출 함수 추가 (`api.js`)
+- [x] 프론트엔드: 연간/분기 토글 UI 및 로직 (`financial.js`, `portfolio.js`, `index.html`)
+- [x] 기존 연간 코드의 `Map<Integer, Long>` → `Map<String, Long>` 호환성 수정
 
 ## 구현 예시
 

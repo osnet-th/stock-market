@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/stocks")
@@ -35,5 +36,10 @@ public class SecFinancialController {
     public ResponseEntity<List<SecInvestmentMetricResponse>> getInvestmentMetrics(
             @PathVariable String ticker) {
         return ResponseEntity.ok(secFinancialService.getInvestmentMetrics(ticker));
+    }
+
+    @GetMapping("/{ticker}/sec/cik")
+    public ResponseEntity<Map<String, Long>> getCik(@PathVariable String ticker) {
+        return ResponseEntity.ok(Map.of("cik", secFinancialService.getCik(ticker)));
     }
 }

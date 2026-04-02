@@ -1871,17 +1871,28 @@
                         </div>
                     </template>
 
-                    <!-- SEC 연간/분기 토글 (투자지표 제외) -->
-                    <div x-show="isSecMenu() && portfolio.selectedFinancialMenu !== 'sec-metrics'"
-                         class="flex gap-1 mb-3">
-                        <button @click="toggleSecPeriod('annual')"
-                                :class="portfolio.secQuarterlyPeriod === 'annual'
-                                    ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
-                                class="px-3 py-1 text-xs rounded-l font-medium transition">연간</button>
-                        <button @click="toggleSecPeriod('quarterly')"
-                                :class="portfolio.secQuarterlyPeriod === 'quarterly'
-                                    ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
-                                class="px-3 py-1 text-xs rounded-r font-medium transition">분기</button>
+                    <!-- SEC 연간/분기 토글 + EDGAR 링크 -->
+                    <div x-show="isSecMenu()"
+                         class="flex items-center justify-between mb-3">
+                        <div x-show="portfolio.selectedFinancialMenu !== 'sec-metrics'" class="flex gap-1">
+                            <button @click="toggleSecPeriod('annual')"
+                                    :class="portfolio.secQuarterlyPeriod === 'annual'
+                                        ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
+                                    class="px-3 py-1 text-xs rounded-l font-medium transition">연간</button>
+                            <button @click="toggleSecPeriod('quarterly')"
+                                    :class="portfolio.secQuarterlyPeriod === 'quarterly'
+                                        ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
+                                    class="px-3 py-1 text-xs rounded-r font-medium transition">분기</button>
+                        </div>
+                        <a :href="portfolio.secEdgarUrl" x-show="portfolio.secEdgarUrl"
+                           target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                            </svg>
+                            SEC 원본 확인
+                        </a>
                     </div>
 
                     <!-- SEC 투자지표 카드 -->

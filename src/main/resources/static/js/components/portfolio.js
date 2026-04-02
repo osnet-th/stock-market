@@ -80,7 +80,8 @@ const PortfolioComponent = {
         secQuarterlyPeriod: 'annual',
         secMetricsData: null,
         _secChartInstance: null,
-        secFinancialError: null
+        secFinancialError: null,
+        secEdgarUrl: null
     },
 
     getAssetTypeLabel(type) {

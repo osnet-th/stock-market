@@ -35,6 +35,10 @@ public class SecFinancialService {
                 .toList();
     }
 
+    public Long getCik(String ticker) {
+        return secFinancialPort.getCik(ticker);
+    }
+
     public List<SecInvestmentMetricResponse> getInvestmentMetrics(String ticker) {
         List<SecInvestmentMetric> metrics = secFinancialPort.getInvestmentMetrics(ticker);
         List<SecInvestmentMetricResponse> responses = new ArrayList<>(

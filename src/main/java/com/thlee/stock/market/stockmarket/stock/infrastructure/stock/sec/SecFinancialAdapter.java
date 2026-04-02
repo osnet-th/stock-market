@@ -107,6 +107,13 @@ public class SecFinancialAdapter implements SecFinancialPort {
         return metrics;
     }
 
+    @Override
+    public Long getCik(String ticker) {
+        return secCikCache.getCik(ticker)
+                .orElseThrow(() -> new SecApiException(SecErrorType.CIK_NOT_FOUND,
+                        "CIK를 찾을 수 없습니다: " + ticker));
+    }
+
     // === 내부 메서드 ===
 
     private ParsedCompanyFacts getParsedFacts(String ticker) {

@@ -269,6 +269,10 @@ const API = {
         return this.request('GET', `/api/stocks/${ticker}/sec/financial/metrics`);
     },
 
+    getSecCik(ticker) {
+        return this.request('GET', `/api/stocks/${ticker}/sec/cik`);
+    },
+
     // ==================== Chat ====================
     async streamChat(userId, message, chatMode, stockCode, onChunk, onDone, onError, signal) {
         try {

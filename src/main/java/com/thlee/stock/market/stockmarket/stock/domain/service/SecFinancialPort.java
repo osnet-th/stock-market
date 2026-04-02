@@ -24,4 +24,9 @@ public interface SecFinancialPort {
      * 투자 지표 조회 (EPS, ROE, 부채비율, 영업이익률 — PER 제외)
      */
     List<SecInvestmentMetric> getInvestmentMetrics(String ticker);
+
+    /**
+     * 티커에 해당하는 SEC CIK(Central Index Key) 조회
+     */
+    Long getCik(String ticker);
 }

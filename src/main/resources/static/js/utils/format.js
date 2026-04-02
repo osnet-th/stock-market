@@ -120,16 +120,16 @@ const Format = {
         var sign = num < 0 ? '-' : '';
 
         if (absNum >= 1_000_000_000_000) {
-            return sign + '$' + (absNum / 1_000_000_000_000).toFixed(1) + 'T';
+            return sign + '$' + (absNum / 1_000_000_000_000).toFixed(2) + 'T';
         }
         if (absNum >= 1_000_000_000) {
-            return sign + '$' + (absNum / 1_000_000_000).toFixed(1) + 'B';
+            return sign + '$' + (absNum / 1_000_000_000).toFixed(2) + 'B';
         }
         if (absNum >= 1_000_000) {
-            return sign + '$' + (absNum / 1_000_000).toFixed(1) + 'M';
+            return sign + '$' + (absNum / 1_000_000).toFixed(2) + 'M';
         }
         if (absNum >= 1_000) {
-            return sign + '$' + (absNum / 1_000).toFixed(1) + 'K';
+            return sign + '$' + (absNum / 1_000).toFixed(2) + 'K';
         }
         return sign + '$' + Format.number(absNum);
     },

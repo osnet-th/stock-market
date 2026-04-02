@@ -314,6 +314,7 @@ const FinancialComponent = {
         this.portfolio.secQuarterlyPeriod = 'annual';
         this.portfolio.secMetricsData = null;
         this.portfolio.secFinancialError = null;
+        this.portfolio.secEdgarUrl = null;
         if (this.portfolio._secChartInstance) {
             this.portfolio._secChartInstance.destroy();
             this.portfolio._secChartInstance = null;
@@ -348,6 +349,7 @@ const FinancialComponent = {
         this.portfolio.secQuarterlyPeriod = 'annual';
         this.portfolio.secMetricsData = null;
         this.portfolio.secFinancialError = null;
+        this.portfolio.secEdgarUrl = null;
         this.portfolio.financialMenus = this.portfolio._krFinancialMenus;
     },
 
@@ -560,6 +562,18 @@ const FinancialComponent = {
         const thisGeneration = ++this.portfolio._financialRequestGeneration;
         this.portfolio.financialLoading = true;
         this.portfolio.secFinancialError = null;
+
+        // CIK 조회하여 SEC EDGAR URL 생성 (최초 1회)
+        if (!this.portfolio.secEdgarUrl) {
+            try {
+                const result = await API.getSecCik(ticker);
+                const cik = String(result.cik).padStart(10, '0');
+                this.portfolio.secEdgarUrl =
+                    `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${cik}&type=10-K&dateb=&owner=include&count=40`;
+            } catch (e) {
+                console.warn('SEC CIK 조회 실패:', e);
+            }
+        }
 
         try {
             if (menuKey === 'sec-metrics') {

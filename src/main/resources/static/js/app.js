@@ -135,6 +135,7 @@ function dashboard() {
                     }
                     break;
                 case 'ecos':
+                    this.initEcosCharts();
                     if (this.ecos.categories.length === 0) await this.loadEcosCategories();
                     break;
                 case 'global':

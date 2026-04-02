@@ -81,6 +81,10 @@ const API = {
         return this.request('GET', `/api/economics/indicators?category=${category}`);
     },
 
+    getEcosIndicatorHistory(category) {
+        return this.request('GET', `/api/economics/indicators/history?category=${category}`);
+    },
+
     // News
     getNewsByKeyword(keywordId, page, size) {
         page = page || 0;

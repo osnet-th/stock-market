@@ -1200,7 +1200,7 @@
                                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                                 <option value="">연결 안 함</option>
                                                 <template x-for="cash in getCashItems()" :key="cash.id">
-                                                    <option :value="cash.id" x-text="cash.itemName + ' (' + Number(cash.investedAmount).toLocaleString() + '원)'"></option>
+                                                    <option :value="String(cash.id)" x-text="cash.itemName + ' (' + Number(cash.investedAmount).toLocaleString() + '원)'"></option>
                                                 </template>
                                             </select>
                                         </div>
@@ -1388,7 +1388,7 @@
             <div x-show="portfolio.showEditModal" x-cloak
                 class="modal-backdrop fixed inset-0 bg-black/30 flex items-center justify-center z-50">
                 <div class="bg-white rounded-xl p-6 w-[calc(100vw-1.5rem)] sm:w-[480px] max-h-[80dvh] overflow-y-auto shadow-xl"
-                    @click.outside="portfolio.showEditModal = false">
+                    @click.outside="portfolio.showEditModal = false; portfolio.editingItem = null">
 
                     <h3 class="text-lg font-bold text-gray-800 mb-1">자산 수정</h3>
                     <template x-if="portfolio.editingItem">
@@ -1457,7 +1457,7 @@
                                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                                 <option value="">연결 안 함</option>
                                                 <template x-for="cash in getCashItems()" :key="cash.id">
-                                                    <option :value="cash.id" x-text="cash.itemName + ' (' + Number(cash.investedAmount).toLocaleString() + '원)'"></option>
+                                                    <option :value="String(cash.id)" x-text="cash.itemName + ' (' + Number(cash.investedAmount).toLocaleString() + '원)'"></option>
                                                 </template>
                                             </select>
                                         </div>

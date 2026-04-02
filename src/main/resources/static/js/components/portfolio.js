@@ -898,7 +898,7 @@ const PortfolioComponent = {
                     form.priceCurrency = item.stockDetail.priceCurrency || 'KRW';
                     form.investedAmountKrw = item.stockDetail.investedAmountKrw;
                 }
-                form.cashItemId = item.linkedCashItemId || '';
+                form.cashItemId = item.linkedCashItemId != null ? String(item.linkedCashItemId) : '';
                 break;
             case 'BOND':
                 if (item.bondDetail) {
@@ -934,6 +934,11 @@ const PortfolioComponent = {
 
         this.portfolio.editForm = form;
         this.portfolio.showEditModal = true;
+        this.$nextTick(() => {
+            if (item.linkedCashItemId != null) {
+                this.portfolio.editForm.cashItemId = String(item.linkedCashItemId);
+            }
+        });
     },
 
     async searchStockForEdit() {

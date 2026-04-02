@@ -288,7 +288,10 @@ public class PortfolioService {
         handleCashLinkChange(userId, itemId, cashItemId, item, oldInvestedAmount, oldInvestedAmountKrw, oldPriceCurrency, deductOnLink);
 
         PortfolioItem saved = portfolioItemRepository.save(item);
-        return PortfolioItemResponse.from(saved);
+        Long linkedCashItemId = cashStockLinkRepository.findByStockItemId(itemId)
+                .map(CashStockLink::getCashItemId)
+                .orElse(null);
+        return PortfolioItemResponse.from(saved, linkedCashItemId);
     }
 
     /**

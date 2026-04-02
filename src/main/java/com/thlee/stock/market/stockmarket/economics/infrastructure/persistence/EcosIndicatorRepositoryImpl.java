@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Set;
 
 @Repository
 @RequiredArgsConstructor
@@ -31,5 +32,12 @@ public class EcosIndicatorRepositoryImpl implements EcosIndicatorRepository {
     @Override
     public boolean existsAny() {
         return jpaRepository.existsFirstBy();
+    }
+
+    @Override
+    public List<EcosIndicator> findLatestHistoryByClassNames(Set<String> classNames) {
+        return jpaRepository.findLatestHistoryByClassNames(classNames).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 }

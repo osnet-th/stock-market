@@ -1,8 +1,10 @@
 package com.thlee.stock.market.stockmarket.economics.application;
 
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicator;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorCategory;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosKeyStatResult;
 import com.thlee.stock.market.stockmarket.economics.domain.model.KeyStatIndicator;
+import com.thlee.stock.market.stockmarket.economics.domain.repository.EcosIndicatorRepository;
 import com.thlee.stock.market.stockmarket.economics.domain.service.EcosIndicatorPort;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.korea.ecos.config.EcosCacheConfig;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -19,6 +22,7 @@ import java.util.List;
 public class EcosIndicatorService {
 
     private final EcosIndicatorPort ecosIndicatorPort;
+    private final EcosIndicatorRepository ecosIndicatorRepository;
     private final CacheManager ecosCacheManager;
 
     /**
@@ -43,5 +47,14 @@ public class EcosIndicatorService {
         return result.indicators().stream()
             .filter(indicator -> category.contains(indicator.className()))
             .toList();
+    }
+
+    /**
+     * 카테고리별 경제지표 히스토리 조회
+     * DB에서 cycle별 deduplicate된 데이터를 반환
+     */
+    @Transactional(readOnly = true)
+    public List<EcosIndicator> getHistoryByCategory(EcosIndicatorCategory category) {
+        return ecosIndicatorRepository.findLatestHistoryByClassNames(category.getClassNames());
     }
 }

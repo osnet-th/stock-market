@@ -14,7 +14,8 @@ import java.time.LocalDateTime;
     name = "ecos_indicator",
     indexes = {
         @Index(name = "idx_ecos_classname_keystat", columnList = "class_name, keystat_name"),
-        @Index(name = "idx_ecos_snapshot_date", columnList = "snapshot_date")
+        @Index(name = "idx_ecos_snapshot_date", columnList = "snapshot_date"),
+        @Index(name = "idx_ecos_group_snapshot", columnList = "class_name, keystat_name, cycle, snapshot_date DESC")
     }
 )
 @Getter

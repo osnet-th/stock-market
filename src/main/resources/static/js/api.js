@@ -273,6 +273,17 @@ const API = {
         return this.request('GET', `/api/stocks/${ticker}/sec/cik`);
     },
 
+    // ==================== Overseas News (해외뉴스) ====================
+    getOverseasBreakingNews(stockCode, exchangeCode) {
+        return this.request('GET',
+            `/api/overseas-news/breaking?stockCode=${stockCode}&exchangeCode=${exchangeCode}`);
+    },
+
+    getOverseasComprehensiveNews(stockCode, exchangeCode, country, dataDt = '', dataTm = '') {
+        return this.request('GET',
+            `/api/overseas-news/comprehensive?stockCode=${stockCode}&exchangeCode=${exchangeCode}&country=${country}&dataDt=${dataDt}&dataTm=${dataTm}`);
+    },
+
     // ==================== Chat ====================
     async streamChat(userId, message, chatMode, stockCode, onChunk, onDone, onError, signal) {
         try {

@@ -81,7 +81,16 @@ const PortfolioComponent = {
         secMetricsData: null,
         _secChartInstance: null,
         secFinancialError: null,
-        secEdgarUrl: null
+        secEdgarUrl: null,
+        // 해외뉴스 상태
+        _overseasNewsGeneration: 0,
+        _overseasNewsDebounceTimer: null,
+        overseasNews: {
+            selectedItemId: null,
+            activeTab: 'breaking',
+            breaking: { list: [], loading: false, error: null },
+            comprehensive: { list: [], loading: false, error: null, hasMore: false, lastDt: '', lastTm: '' }
+        }
     },
 
     getAssetTypeLabel(type) {
@@ -771,6 +780,121 @@ const PortfolioComponent = {
         }
     },
 
+    // ==================== 해외뉴스 (속보/뉴스종합) ====================
+
+    toggleOverseasNews(item) {
+        const news = this.portfolio.overseasNews;
+
+        // 기존 키워드 뉴스 패널 닫기
+        if (this.portfolio.selectedNewsItemId) {
+            this.portfolio.selectedNewsItemId = null;
+            this.portfolio.selectedNewsKeywordId = null;
+            this.portfolio.news = { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false };
+        }
+
+        // 동일 종목 재클릭 → 토글 닫기
+        if (news.selectedItemId === item.id) {
+            this.portfolio._overseasNewsGeneration++;
+            clearTimeout(this.portfolio._overseasNewsDebounceTimer);
+            news.selectedItemId = null;
+            news.activeTab = 'breaking';
+            news.breaking = { list: [], loading: false, error: null };
+            news.comprehensive = { list: [], loading: false, error: null, hasMore: false, lastDt: '', lastTm: '' };
+            return;
+        }
+
+        // 새 종목 열기
+        this.portfolio._overseasNewsGeneration++;
+        clearTimeout(this.portfolio._overseasNewsDebounceTimer);
+        news.selectedItemId = item.id;
+        news.activeTab = 'breaking';
+        news.breaking = { list: [], loading: false, error: null };
+        news.comprehensive = { list: [], loading: false, error: null, hasMore: false, lastDt: '', lastTm: '' };
+        this._overseasNewsItem = item;
+        this.loadOverseasNews('breaking');
+    },
+
+    switchOverseasNewsTab(tab) {
+        const news = this.portfolio.overseasNews;
+        news.activeTab = tab;
+
+        clearTimeout(this.portfolio._overseasNewsDebounceTimer);
+        this.portfolio._overseasNewsDebounceTimer = setTimeout(() => {
+            this.loadOverseasNews(tab);
+        }, 200);
+    },
+
+    async loadOverseasNews(tab) {
+        const item = this._overseasNewsItem;
+        if (!item || !item.stockDetail) return;
+
+        const gen = ++this.portfolio._overseasNewsGeneration;
+        const tabState = this.portfolio.overseasNews[tab];
+        tabState.loading = true;
+        tabState.error = null;
+        tabState.list = [];
+        if (tab === 'comprehensive') {
+            tabState.hasMore = false;
+            tabState.lastDt = '';
+            tabState.lastTm = '';
+        }
+
+        try {
+            const { stockCode, exchangeCode, country } = item.stockDetail;
+            let result;
+
+            if (tab === 'breaking') {
+                result = await API.getOverseasBreakingNews(stockCode, exchangeCode);
+                if (gen !== this.portfolio._overseasNewsGeneration) return;
+                tabState.list = result || [];
+            } else {
+                result = await API.getOverseasComprehensiveNews(stockCode, exchangeCode, country);
+                if (gen !== this.portfolio._overseasNewsGeneration) return;
+                tabState.list = result.items || [];
+                tabState.hasMore = result.hasMore || false;
+                tabState.lastDt = result.lastDataDt || '';
+                tabState.lastTm = result.lastDataTm || '';
+            }
+        } catch (e) {
+            if (gen !== this.portfolio._overseasNewsGeneration) return;
+            tabState.error = '뉴스를 불러올 수 없습니다';
+            console.error('해외뉴스 로드 실패:', e);
+        } finally {
+            if (gen === this.portfolio._overseasNewsGeneration) {
+                tabState.loading = false;
+            }
+        }
+    },
+
+    async loadMoreOverseasNews() {
+        const news = this.portfolio.overseasNews;
+        const tabState = news.comprehensive;
+        const item = this._overseasNewsItem;
+        if (!item || !item.stockDetail || !tabState.hasMore) return;
+
+        const gen = ++this.portfolio._overseasNewsGeneration;
+        tabState.loading = true;
+
+        try {
+            const { stockCode, exchangeCode, country } = item.stockDetail;
+            const result = await API.getOverseasComprehensiveNews(
+                stockCode, exchangeCode, country, tabState.lastDt, tabState.lastTm);
+            if (gen !== this.portfolio._overseasNewsGeneration) return;
+            tabState.list = [...tabState.list, ...(result.items || [])];
+            tabState.hasMore = result.hasMore || false;
+            tabState.lastDt = result.lastDataDt || '';
+            tabState.lastTm = result.lastDataTm || '';
+        } catch (e) {
+            if (gen !== this.portfolio._overseasNewsGeneration) return;
+            tabState.error = '추가 뉴스를 불러올 수 없습니다';
+            console.error('해외뉴스 추가 로드 실패:', e);
+        } finally {
+            if (gen === this.portfolio._overseasNewsGeneration) {
+                tabState.loading = false;
+            }
+        }
+    },
+
     async openPurchaseModal(item) {
         this.portfolio.purchaseItem = item;
         this.portfolio.purchaseForm = { quantity: '', purchasePrice: '' };
@@ -935,11 +1059,6 @@ const PortfolioComponent = {
 
         this.portfolio.editForm = form;
         this.portfolio.showEditModal = true;
-        setTimeout(() => {
-            if (item.linkedCashItemId != null) {
-                this.portfolio.editForm.cashItemId = String(item.linkedCashItemId);
-            }
-        }, 0);
     },
 
     async searchStockForEdit() {

@@ -984,7 +984,7 @@
                                                         <div @click="item.newsEnabled ? selectPortfolioNewsItem(item) : null"
                                                             class="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 transition"
                                                             :class="item.newsEnabled ? 'hover:bg-gray-50 cursor-pointer' : ''"
-                                                            :style="portfolio.selectedNewsItemId === item.id ? 'background-color: rgb(240 253 244)' : ''">
+                                                            :style="portfolio.selectedNewsItemId === item.id ? 'background-color: rgb(240 253 244)' : portfolio.overseasNews.selectedItemId === item.id ? 'background-color: rgb(255 247 237)' : ''">
                                                             <div>
                                                                 <div class="flex flex-wrap items-center gap-2">
                                                                     <span class="text-sm font-medium text-gray-800" x-text="item.itemName"></span>
@@ -1008,6 +1008,10 @@
                                                                     class="text-xs font-medium transition"
                                                                     x-text="item.newsEnabled ? '키워드 삭제' : '키워드 추가'">
                                                                 </button>
+                                                                <!-- 속보 (해외주식) -->
+                                                                <button @click.stop="toggleOverseasNews(item)"
+                                                                    class="text-xs font-medium transition"
+                                                                    :class="portfolio.overseasNews.selectedItemId === item.id ? 'text-orange-600 hover:text-orange-800' : 'text-orange-400 hover:text-orange-600'">속보</button>
                                                                 <!-- 재무상세 (미국 주식) -->
                                                                 <button x-show="item.assetType === 'STOCK' && item.stockDetail?.country === 'US' && item.stockDetail?.subType !== 'ETF'"
                                                                     @click.stop="openStockDetail(item)"
@@ -1021,7 +1025,74 @@
                                                                     class="text-xs text-red-500 hover:text-red-700 font-medium transition">삭제</button>
                                                             </div>
                                                         </div>
-                                                        <!-- 뉴스 목록 -->
+                                                        <!-- 해외뉴스 패널 (속보/뉴스종합) -->
+                                                        <div x-show="portfolio.overseasNews.selectedItemId === item.id" class="bg-gray-50 border-t border-gray-100">
+                                                            <!-- 탭 헤더 -->
+                                                            <div class="px-5 py-2 flex items-center gap-3 border-b border-gray-100">
+                                                                <button @click.stop="switchOverseasNewsTab('breaking')"
+                                                                    class="text-xs font-medium px-3 py-1 rounded-lg transition"
+                                                                    :class="portfolio.overseasNews.activeTab === 'breaking' ? 'bg-orange-100 text-orange-700' : 'text-gray-500 hover:bg-gray-200'">해외속보</button>
+                                                                <button @click.stop="switchOverseasNewsTab('comprehensive')"
+                                                                    class="text-xs font-medium px-3 py-1 rounded-lg transition"
+                                                                    :class="portfolio.overseasNews.activeTab === 'comprehensive' ? 'bg-orange-100 text-orange-700' : 'text-gray-500 hover:bg-gray-200'">해외뉴스종합</button>
+                                                            </div>
+                                                            <!-- 해외속보 탭 -->
+                                                            <template x-if="portfolio.overseasNews.activeTab === 'breaking'">
+                                                                <div>
+                                                                    <div x-show="portfolio.overseasNews.breaking.loading" class="px-5 py-4 text-center text-sm text-gray-400">속보 로딩 중...</div>
+                                                                    <div x-show="portfolio.overseasNews.breaking.error" class="px-5 py-4 text-center">
+                                                                        <p class="text-sm text-red-500" x-text="portfolio.overseasNews.breaking.error"></p>
+                                                                        <button @click.stop="loadOverseasNews('breaking')" class="text-xs text-blue-600 hover:text-blue-800 mt-1">다시 시도</button>
+                                                                    </div>
+                                                                    <div x-show="!portfolio.overseasNews.breaking.loading && !portfolio.overseasNews.breaking.error && portfolio.overseasNews.breaking.list.length === 0"
+                                                                        class="px-5 py-4 text-center text-sm text-gray-400">속보가 없습니다.</div>
+                                                                    <template x-for="(newsItem, idx) in portfolio.overseasNews.breaking.list" :key="'brk-' + idx">
+                                                                        <div class="block px-5 py-3 border-b border-gray-100 last:border-b-0">
+                                                                            <p class="text-sm text-gray-800 font-medium" x-text="newsItem.title"></p>
+                                                                            <div class="flex items-center gap-2 mt-1">
+                                                                                <span class="text-xs text-gray-400" x-text="newsItem.source || ''"></span>
+                                                                                <span class="text-xs text-gray-300" x-text="newsItem.dateTime || ''"></span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+                                                            <!-- 해외뉴스종합 탭 -->
+                                                            <template x-if="portfolio.overseasNews.activeTab === 'comprehensive'">
+                                                                <div>
+                                                                    <div x-show="portfolio.overseasNews.comprehensive.loading && portfolio.overseasNews.comprehensive.list.length === 0"
+                                                                        class="px-5 py-4 text-center text-sm text-gray-400">뉴스 로딩 중...</div>
+                                                                    <div x-show="portfolio.overseasNews.comprehensive.error" class="px-5 py-4 text-center">
+                                                                        <p class="text-sm text-red-500" x-text="portfolio.overseasNews.comprehensive.error"></p>
+                                                                        <button @click.stop="loadOverseasNews('comprehensive')" class="text-xs text-blue-600 hover:text-blue-800 mt-1">다시 시도</button>
+                                                                    </div>
+                                                                    <div x-show="!portfolio.overseasNews.comprehensive.loading && !portfolio.overseasNews.comprehensive.error && portfolio.overseasNews.comprehensive.list.length === 0"
+                                                                        class="px-5 py-4 text-center text-sm text-gray-400">뉴스가 없습니다.</div>
+                                                                    <template x-for="(newsItem, idx) in portfolio.overseasNews.comprehensive.list" :key="'cmp-' + idx">
+                                                                        <div class="block px-5 py-3 border-b border-gray-100 last:border-b-0">
+                                                                            <p class="text-sm text-gray-800 font-medium" x-text="newsItem.title"></p>
+                                                                            <div class="flex flex-wrap items-center gap-2 mt-1">
+                                                                                <span x-show="newsItem.className" class="text-xs text-orange-500" x-text="newsItem.className"></span>
+                                                                                <span class="text-xs text-gray-400" x-text="newsItem.source || ''"></span>
+                                                                                <span x-show="newsItem.stockName" class="text-xs text-gray-400" x-text="newsItem.stockName"></span>
+                                                                                <span class="text-xs text-gray-300" x-text="newsItem.dateTime || ''"></span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </template>
+                                                                    <!-- 더보기 버튼 -->
+                                                                    <div x-show="portfolio.overseasNews.comprehensive.hasMore"
+                                                                        class="px-5 py-3 flex items-center justify-center border-t border-gray-100">
+                                                                        <button @click.stop="loadMoreOverseasNews()"
+                                                                            :disabled="portfolio.overseasNews.comprehensive.loading"
+                                                                            class="text-xs font-medium px-4 py-1.5 rounded-lg transition"
+                                                                            :class="portfolio.overseasNews.comprehensive.loading ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-orange-100 text-orange-700 hover:bg-orange-200'"
+                                                                            x-text="portfolio.overseasNews.comprehensive.loading ? '로딩 중...' : '더보기'">
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                        <!-- 키워드 뉴스 목록 -->
                                                         <div x-show="portfolio.selectedNewsItemId === item.id" class="bg-gray-50 border-t border-gray-100">
                                                             <div class="px-5 py-2 flex items-center justify-between border-b border-gray-100">
                                                                 <span class="text-xs text-gray-500" x-text="'뉴스 ' + portfolio.news.totalElements + '건'"></span>
@@ -1454,6 +1525,7 @@
                                         <div class="col-span-3" x-show="getCashItems().length > 0">
                                             <label class="block text-sm text-gray-600 mb-1">연결 현금 자산</label>
                                             <select x-model="portfolio.editForm.cashItemId"
+                                                x-effect="if(portfolio.editForm.cashItemId) { $el.value = portfolio.editForm.cashItemId }"
                                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                                 <option value="">연결 안 함</option>
                                                 <template x-for="cash in getCashItems()" :key="cash.id">

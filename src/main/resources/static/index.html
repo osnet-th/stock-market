@@ -904,6 +904,9 @@
                                                                         x-text="Format.number(getEvalAmount(item), 0) + '원'"></span>
                                                                 </div>
                                                                 <p class="text-xs text-gray-400 mt-0.5" x-text="getItemSummary(item)"></p>
+                                                                <p x-show="item.assetType === 'STOCK'" class="text-xs mt-0.5"
+                                                                    :class="item.linkedCashItemId ? 'text-amber-600' : 'text-gray-300'"
+                                                                    x-text="getLinkedCashName(item) ? getLinkedCashName(item) + ' 연결' : '계좌 미연결'"></p>
                                                                 <p x-show="getStockPriceSummary(item)" class="text-xs mt-0.5"
                                                                     :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
                                                                     x-text="getStockPriceSummary(item)"></p>
@@ -994,6 +997,9 @@
                                                                         x-text="Format.number(getEvalAmount(item), 0) + '원'"></span>
                                                                 </div>
                                                                 <p class="text-xs text-gray-400 mt-0.5" x-text="getItemSummary(item)"></p>
+                                                                <p x-show="item.assetType === 'STOCK'" class="text-xs mt-0.5"
+                                                                    :class="item.linkedCashItemId ? 'text-amber-600' : 'text-gray-300'"
+                                                                    x-text="getLinkedCashName(item) ? getLinkedCashName(item) + ' 연결' : '계좌 미연결'"></p>
                                                                 <p x-show="getStockPriceSummary(item)" class="text-xs mt-0.5"
                                                                     :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
                                                                     x-text="getStockPriceSummary(item)"></p>

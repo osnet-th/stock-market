@@ -600,6 +600,12 @@ const PortfolioComponent = {
         });
     },
 
+    getLinkedCashName(item) {
+        if (!item.linkedCashItemId) return null;
+        const cash = this.portfolio.items.find(i => i.id === item.linkedCashItemId);
+        return cash ? cash.itemName : null;
+    },
+
     getCurrencyByExchangeCode(exchangeCode) {
         const mapping = {
             KRX: 'KRW',

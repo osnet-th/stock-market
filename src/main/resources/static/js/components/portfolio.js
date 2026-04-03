@@ -935,11 +935,11 @@ const PortfolioComponent = {
 
         this.portfolio.editForm = form;
         this.portfolio.showEditModal = true;
-        this.$nextTick(() => {
+        setTimeout(() => {
             if (item.linkedCashItemId != null) {
                 this.portfolio.editForm.cashItemId = String(item.linkedCashItemId);
             }
-        });
+        }, 0);
     },
 
     async searchStockForEdit() {

@@ -98,7 +98,8 @@ public class SecFinancialAdapter implements SecFinancialPort {
         // 영업이익률
         Double operatingIncome = getLatestValue(parsed, "OperatingIncomeLoss");
         Double revenue = getLatestValue(parsed, "Revenues",
-                "RevenueFromContractWithCustomersExcludingAssessedTax");
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                "SalesRevenueNet", "SalesRevenueGoodsNet", "SalesRevenueServicesNet");
         Double operatingMargin = (operatingIncome != null && revenue != null && revenue != 0)
                 ? Math.round(operatingIncome / revenue * 10000.0) / 100.0 : null;
         metrics.add(new SecInvestmentMetric("영업이익률", operatingMargin, "%",
@@ -220,7 +221,8 @@ public class SecFinancialAdapter implements SecFinancialPort {
     private SecFinancialStatement buildIncomeStatement(ParsedCompanyFacts parsed) {
         List<SecFinancialItem> items = new ArrayList<>();
         items.add(buildItem(parsed, "매출", "Revenue",
-                "Revenues", "RevenueFromContractWithCustomersExcludingAssessedTax"));
+                "Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax",
+                "SalesRevenueNet", "SalesRevenueGoodsNet", "SalesRevenueServicesNet"));
         items.add(buildItem(parsed, "매출원가", "Cost of Revenue",
                 "CostOfGoodsAndServicesSold", "CostOfRevenue"));
         items.add(buildItem(parsed, "매출총이익", "Gross Profit",
@@ -270,7 +272,8 @@ public class SecFinancialAdapter implements SecFinancialPort {
     private SecFinancialStatement buildQuarterlyIncomeStatement(ParsedCompanyFacts parsed) {
         List<SecFinancialItem> items = new ArrayList<>();
         items.add(buildQuarterlyItem(parsed, "매출", "Revenue",
-                "Revenues", "RevenueFromContractWithCustomersExcludingAssessedTax"));
+                "Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax",
+                "SalesRevenueNet", "SalesRevenueGoodsNet", "SalesRevenueServicesNet"));
         items.add(buildQuarterlyItem(parsed, "매출원가", "Cost of Revenue",
                 "CostOfGoodsAndServicesSold", "CostOfRevenue"));
         items.add(buildQuarterlyItem(parsed, "매출총이익", "Gross Profit",

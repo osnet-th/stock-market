@@ -637,7 +637,7 @@ const FinancialComponent = {
     buildSecTableRows(items) {
         if (!items || items.length === 0) return [];
 
-        // 키: "2024" (연간) 또는 "2024Q1" (분기)
+        // 키: "2024" (연간) 또는 "2024Q1" (분기) - 내림차순 (최신 → 이전)
         const periods = Object.keys(items[0].values || {}).sort().reverse();
 
         return items.map(item => {
@@ -658,7 +658,7 @@ const FinancialComponent = {
         const result = this.portfolio.financialResult;
         if (!result || result.length === 0) return this.secFinancialColumns[menuKey];
 
-        // 동적으로 기간 컬럼 생성
+        // 동적으로 기간 컬럼 생성 - 내림차순 (최신 → 이전)
         const firstRow = result[0];
         const cols = [{ key: 'label', label: '항목', type: 'text' }];
         const periodKeys = Object.keys(firstRow).filter(k => k.startsWith('p')).sort().reverse();
@@ -779,9 +779,9 @@ const FinancialComponent = {
         const config = this._secSummaryConfig[menu];
         if (!result || result.length === 0 || !config) return;
 
-        // 기간 키 추출
+        // 기간 키 추출 - 내림차순 (최신 → 이전, 테이블과 동일)
         const firstRow = result[0];
-        const periodKeys = Object.keys(firstRow).filter(k => k.startsWith('p')).sort();
+        const periodKeys = Object.keys(firstRow).filter(k => k.startsWith('p')).sort().reverse();
 
         const colors = ['#3B82F6', '#93C5FD', '#DBEAFE', '#60A5FA', '#2563EB', '#1D4ED8', '#BFDBFE', '#EFF6FF'];
         const datasets = periodKeys.map((pk, idx) => {

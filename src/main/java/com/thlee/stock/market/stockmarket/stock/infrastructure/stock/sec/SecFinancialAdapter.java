@@ -165,15 +165,17 @@ public class SecFinancialAdapter implements SecFinancialPort {
                 allYears.addAll(sharesYearValues.keySet());
             }
 
-            // 분기 USD
+            // 분기 USD (10-Q + 10-K fp="Q4", FY Fallback)
             Map<String, Double> qtrUsdValues = extractQuarterlyValues(tagData.getUsdEntries());
+            fillQ4Fallback(qtrUsdValues, usdYearValues, tagData.getUsdEntries());
             if (!qtrUsdValues.isEmpty()) {
                 quarterlyUsdData.put(tag, qtrUsdValues);
                 allQuarters.addAll(qtrUsdValues.keySet());
             }
 
-            // 분기 USD/shares
+            // 분기 USD/shares (10-Q + 10-K fp="Q4", FY Fallback)
             Map<String, Double> qtrSharesValues = extractQuarterlyValues(tagData.getSharesEntries());
+            fillQ4Fallback(qtrSharesValues, sharesYearValues, tagData.getSharesEntries());
             if (!qtrSharesValues.isEmpty()) {
                 quarterlySharesData.put(tag, qtrSharesValues);
                 allQuarters.addAll(qtrSharesValues.keySet());
@@ -202,11 +204,12 @@ public class SecFinancialAdapter implements SecFinancialPort {
     }
 
     /**
-     * 10-Q 필터로 분기 데이터 추출, 키: "2024Q1" 형식, 중복 분기는 최신 filed 기준
+     * 10-Q + 10-K(fp="Q4") 필터로 분기 데이터 추출, 키: "2024Q1" 형식, 중복 분기는 최신 filed 기준
      */
     private Map<String, Double> extractQuarterlyValues(List<FactEntry> entries) {
         return entries.stream()
-                .filter(e -> "10-Q".equals(e.getForm()))
+                .filter(e -> "10-Q".equals(e.getForm())
+                        || ("10-K".equals(e.getForm()) && "Q4".equals(e.getFp())))
                 .filter(e -> e.getFy() != null && e.getFp() != null && e.getVal() != null)
                 .filter(e -> VALID_QUARTERS.contains(e.getFp()))
                 .collect(Collectors.toMap(
@@ -316,6 +319,71 @@ public class SecFinancialAdapter implements SecFinancialPort {
                 "PaymentsToAcquirePropertyPlantAndEquipment"));
         items.add(buildQuarterlyFreeCashFlow(parsed));
         return new SecFinancialStatement(StatementType.CASHFLOW, items);
+    }
+
+    /**
+     * 2순위 Fallback: 연간(FY) 데이터로 Q4 계산.
+     * - 시점 데이터 (대차대조표, start==null): Q4 = FY
+     * - 기간 데이터 (손익/현금흐름, start!=null): Q4 = FY - 누적Q3
+     *   (누적Q3 = start가 FY start와 동일한 Q3 엔트리, 즉 9개월 YTD 값)
+     */
+    private void fillQ4Fallback(Map<String, Double> quarterlyValues,
+                                 Map<Integer, Double> annualValues,
+                                 List<FactEntry> entries) {
+        if (annualValues == null || annualValues.isEmpty()) {
+            return;
+        }
+
+        boolean isPointInTime = entries.stream()
+                .filter(e -> "10-K".equals(e.getForm()) && "FY".equals(e.getFp()))
+                .anyMatch(e -> e.getStart() == null);
+
+        // 기간 데이터용: FY 엔트리의 start 날짜를 연도별로 수집 (누적 Q3 매칭용)
+        Map<Integer, String> fyStartByYear = isPointInTime ? Map.of() : entries.stream()
+                .filter(e -> "10-K".equals(e.getForm()) && "FY".equals(e.getFp()))
+                .filter(e -> e.getFy() != null && e.getStart() != null)
+                .collect(Collectors.toMap(
+                        e -> e.getFy().intValue(),
+                        FactEntry::getStart,
+                        (existing, replacement) -> replacement
+                ));
+
+        for (Map.Entry<Integer, Double> annualEntry : annualValues.entrySet()) {
+            int year = annualEntry.getKey();
+            String q4Key = year + "Q4";
+
+            if (quarterlyValues.containsKey(q4Key)) {
+                continue;
+            }
+
+            Double fyValue = annualEntry.getValue();
+            if (fyValue == null) {
+                continue;
+            }
+
+            if (isPointInTime) {
+                quarterlyValues.put(q4Key, fyValue);
+            } else {
+                // Q4 = FY - 누적Q3 (start가 FY start와 동일한 9개월 YTD 값)
+                String fyStart = fyStartByYear.get(year);
+                if (fyStart == null) {
+                    continue;
+                }
+
+                Double cumulativeQ3 = entries.stream()
+                        .filter(e -> "10-Q".equals(e.getForm()) && "Q3".equals(e.getFp()))
+                        .filter(e -> e.getFy() != null && e.getFy().intValue() == year)
+                        .filter(e -> fyStart.equals(e.getStart()))
+                        .filter(e -> e.getVal() != null)
+                        .map(FactEntry::getVal)
+                        .reduce((first, second) -> second)
+                        .orElse(null);
+
+                if (cumulativeQ3 != null) {
+                    quarterlyValues.put(q4Key, fyValue - cumulativeQ3);
+                }
+            }
+        }
     }
 
     // === 항목 구성 헬퍼 ===

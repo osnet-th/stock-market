@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.chatbot.infrastructure.gemini;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thlee.stock.market.stockmarket.chatbot.application.dto.ChatMessage;
 import com.thlee.stock.market.stockmarket.chatbot.application.port.LlmPort;
 import com.thlee.stock.market.stockmarket.chatbot.infrastructure.gemini.config.GeminiProperties;
 import com.thlee.stock.market.stockmarket.chatbot.infrastructure.gemini.dto.GeminiRequest;
@@ -13,6 +14,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -26,15 +28,21 @@ public class GeminiAdapter implements LlmPort {
     private final ObjectMapper objectMapper;
 
     @Override
-    public Flux<String> stream(String systemPrompt, String userMessage) {
+    public Flux<String> stream(String systemPrompt, List<ChatMessage> messages) {
         String path = "/v1beta/models/{model}:streamGenerateContent?key={apiKey}&alt=sse";
 
-        log.info("[Gemini] 요청 시작 - model: {}, userMessage: {}", properties.getModel(), userMessage);
+        String lastUserMessage = messages.stream()
+                .filter(m -> "user".equals(m.role()))
+                .reduce((first, second) -> second)
+                .map(ChatMessage::content)
+                .orElse("");
+        log.info("[Gemini] 요청 시작 - model: {}, userMessage: {}, historySize: {}",
+                properties.getModel(), lastUserMessage, messages.size());
 
         return geminiWebClient.post()
                 .uri(path, properties.getModel(), properties.getApiKey())
                 .accept(MediaType.TEXT_EVENT_STREAM)
-                .bodyValue(GeminiRequest.of(systemPrompt, userMessage))
+                .bodyValue(GeminiRequest.of(systemPrompt, messages))
                 .retrieve()
                 .bodyToFlux(org.springframework.core.io.buffer.DataBuffer.class)
                 .doOnSubscribe(s -> log.info("[Gemini] Flux 구독 시작"))

@@ -285,12 +285,12 @@ const API = {
     },
 
     // ==================== Chat ====================
-    async streamChat(userId, message, chatMode, stockCode, onChunk, onDone, onError, signal) {
+    async streamChat(userId, message, chatMode, stockCode, indicatorCategory, messages, onChunk, onDone, onError, signal) {
         try {
             const response = await fetch(`${this.baseUrl}/api/chat?userId=${userId}`, {
                 method: 'POST',
                 headers: this.getHeaders(),
-                body: JSON.stringify({ message, chatMode, stockCode }),
+                body: JSON.stringify({ message, chatMode, stockCode, indicatorCategory, messages }),
                 signal: signal
             });
 

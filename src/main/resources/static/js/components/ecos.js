@@ -66,6 +66,30 @@ const EcosComponent = {
         if (this.ecos.viewMode === 'chart') {
             await this.loadEcosHistory();
         }
+        // ECONOMIC 모드로 챗봇이 열려 있으면 대화 초기화 + 카테고리 갱신
+        if (this.chat.chatMode === 'ECONOMIC' && this.chat.isOpen) {
+            if (this.chat._abortController) {
+                this.chat._abortController.abort();
+            }
+            this.chat.messages = [];
+            this.chat.indicatorCategory = categoryName;
+            this.chat.isLoading = false;
+        }
+    },
+
+    openEcosChat() {
+        if (this.chat._abortController) {
+            this.chat._abortController.abort();
+        }
+        this.chat.chatMode = 'ECONOMIC';
+        this.chat.indicatorCategory = this.ecos.selectedCategory;
+        this.chat.messages = [];
+        this.chat.inputText = '';
+        this.chat.isLoading = false;
+        this.chat.stockCode = null;
+        this.chat.stockName = null;
+        this.chat.isOpen = true;
+        this.chat.dragPos = { x: null, y: null };
     },
 
     async switchEcosViewMode(mode) {

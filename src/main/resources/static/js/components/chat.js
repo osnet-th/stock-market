@@ -11,6 +11,7 @@ const ChatComponent = {
         stockName: null,
         stockSearchQuery: '',
         stockSearchResults: [],
+        indicatorCategory: null,
         messages: [],
         inputText: '',
         isLoading: false,
@@ -45,6 +46,7 @@ const ChatComponent = {
         this.chat.stockName = null;
         this.chat.stockSearchQuery = '';
         this.chat.stockSearchResults = [];
+        this.chat.indicatorCategory = null;
     },
 
     async searchChatStocks() {
@@ -72,16 +74,32 @@ const ChatComponent = {
         this.chat.stockName = null;
     },
 
+    collectChatHistory() {
+        const MAX_HISTORY_MESSAGES = 20; // 10턴 = 20개 메시지
+        const history = this.chat.messages
+            .filter(m => m.content && m.content.trim())
+            .map(m => ({ role: m.role === 'assistant' ? 'model' : m.role, content: m.content }));
+        // 마지막 빈 assistant 메시지 제외 (아직 스트리밍 중인 경우)
+        if (history.length > MAX_HISTORY_MESSAGES) {
+            return history.slice(history.length - MAX_HISTORY_MESSAGES);
+        }
+        return history;
+    },
+
     async sendChatMessage() {
         const text = this.chat.inputText.trim();
         if (!text || this.chat.isLoading) return;
         if (this.chat.chatMode === 'FINANCIAL' && !this.chat.stockCode) return;
+        if (this.chat.chatMode === 'ECONOMIC' && !this.chat.indicatorCategory) return;
 
         if (this.chat._abortController) {
             this.chat._abortController.abort();
         }
         const abortController = new AbortController();
         this.chat._abortController = abortController;
+
+        // 이전 대화 히스토리 수집 (현재 메시지 제외 — 백엔드가 append)
+        const history = this.collectChatHistory();
 
         this.chat.messages.push({ role: 'user', content: text });
         this.chat.inputText = '';
@@ -97,6 +115,8 @@ const ChatComponent = {
             text,
             this.chat.chatMode,
             this.chat.stockCode,
+            this.chat.indicatorCategory,
+            history,
             (chunk) => {
                 if (abortController.signal.aborted) return;
                 this.chat.messages[assistantIdx].content += chunk;

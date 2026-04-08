@@ -104,6 +104,15 @@ function dashboard() {
         async navigateTo(page) {
             this.closeMobileDrawer();
 
+            // 페이지 이동 시 채팅 닫기 + 스트리밍 중단
+            if (this.chat.isOpen) {
+                if (this.chat._abortController) {
+                    this.chat._abortController.abort();
+                }
+                this.chat.isOpen = false;
+                this.chat.isLoading = false;
+            }
+
             // 포트폴리오에서 떠날 때 Chart.js 인스턴스 정리
             if (this.currentPage === 'portfolio' && page !== 'portfolio') {
                 if (this.portfolio.chartInstance) {

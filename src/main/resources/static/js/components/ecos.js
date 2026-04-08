@@ -77,21 +77,6 @@ const EcosComponent = {
         }
     },
 
-    openEcosChat() {
-        if (this.chat._abortController) {
-            this.chat._abortController.abort();
-        }
-        this.chat.chatMode = 'ECONOMIC';
-        this.chat.indicatorCategory = this.ecos.selectedCategory;
-        this.chat.messages = [];
-        this.chat.inputText = '';
-        this.chat.isLoading = false;
-        this.chat.stockCode = null;
-        this.chat.stockName = null;
-        this.chat.isOpen = true;
-        this.chat.dragPos = { x: null, y: null };
-    },
-
     async switchEcosViewMode(mode) {
         this.ecos.viewMode = mode;
         if (mode === 'chart') {

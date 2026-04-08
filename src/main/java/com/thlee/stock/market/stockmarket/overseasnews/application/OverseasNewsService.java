@@ -31,6 +31,9 @@ public class OverseasNewsService {
     public List<BreakingNewsResponse> getBreakingNews(String stockCode, String exchangeCode) {
         try {
             List<KisBreakingNewsOutput> outputs = kisOverseasNewsClient.getBreakingNews(stockCode, exchangeCode);
+            if (outputs == null) {
+                return List.of();
+            }
 
             return outputs.stream()
                 .map(output -> BreakingNewsResponse.builder()
@@ -58,6 +61,14 @@ public class OverseasNewsService {
                 kisOverseasNewsClient.getComprehensiveNews(stockCode, exchangeCode, countryCode, dataDt, dataTm);
 
             List<KisNewsOutput> outputs = result.getData();
+            if (outputs == null) {
+                return ComprehensiveNewsResponse.builder()
+                    .items(List.of())
+                    .hasMore(false)
+                    .lastDataDt("")
+                    .lastDataTm("")
+                    .build();
+            }
 
             List<ComprehensiveNewsResponse.NewsItem> items = outputs.stream()
                 .map(output -> ComprehensiveNewsResponse.NewsItem.builder()

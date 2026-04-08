@@ -40,7 +40,12 @@ public class KisOverseasNewsClient {
             uriBuilder -> uriBuilder
                 .queryParam("FID_NEWS_OFER_ENTP_CODE", "0")
                 .queryParam("FID_COND_SCR_DIV_CODE", "11801")
+                .queryParam("FID_COND_MRKT_CLS_CODE", "00")
                 .queryParam("FID_INPUT_ISCD", stockCode)
+                .queryParam("FID_INPUT_DATE_1", "")
+                .queryParam("FID_INPUT_HOUR_1", "")
+                .queryParam("FID_RANK_SORT_CLS_CODE", "")
+                .queryParam("FID_INPUT_SRNO", "")
                 .queryParam("FID_TITL_CNTT", "")
                 .build(),
             new ParameterizedTypeReference<>() {},
@@ -71,6 +76,8 @@ public class KisOverseasNewsClient {
             COMPREHENSIVE_NEWS_TR_ID,
             trCont,
             uriBuilder -> uriBuilder
+                .queryParam("INFO_GB", "")
+                .queryParam("CLASS_CD", "")
                 .queryParam("NATION_CD", countryCode)
                 .queryParam("EXCHANGE_CD", exchangeCode)
                 .queryParam("SYMB", stockCode)

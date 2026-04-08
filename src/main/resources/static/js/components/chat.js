@@ -24,6 +24,22 @@ const ChatComponent = {
     toggleChat() {
         this.chat.isOpen = !this.chat.isOpen;
         if (this.chat.isOpen) {
+            // 현재 페이지에 맞는 모드로 초기화
+            const modeMap = { ecos: 'ECONOMIC', portfolio: 'PORTFOLIO' };
+            const targetMode = modeMap[this.currentPage] || 'PORTFOLIO';
+
+            if (this.chat._abortController) {
+                this.chat._abortController.abort();
+            }
+            this.chat.chatMode = targetMode;
+            this.chat.messages = [];
+            this.chat.inputText = '';
+            this.chat.isLoading = false;
+            this.chat.stockCode = null;
+            this.chat.stockName = null;
+            this.chat.stockSearchQuery = '';
+            this.chat.stockSearchResults = [];
+            this.chat.indicatorCategory = targetMode === 'ECONOMIC' ? this.ecos?.selectedCategory : null;
             this.chat.dragPos = { x: null, y: null };
         } else if (this.chat._cleanupDrag) {
             this.chat._cleanupDrag();

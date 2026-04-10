@@ -1,0 +1,106 @@
+global:
+  indicator:
+    metadata:
+      indicators:
+        # === 무역/GDP (TRADE_GDP) ===
+        - indicator-type: "BALANCE_OF_TRADE"
+          description: "무역수지"
+
+        - indicator-type: "GDP_ANNUAL_GROWTH_RATE"
+          description: "GDP 성장률"
+
+        - indicator-type: "GDP"
+          description: "GDP (총생산)"
+
+        - indicator-type: "GDP_FROM_AGRICULTURE"
+          description: "GDP 농업"
+
+        - indicator-type: "GDP_FROM_CONSTRUCTION"
+          description: "GDP 건설업"
+
+        - indicator-type: "GDP_FROM_MANUFACTURING"
+          description: "GDP 제조업"
+
+        - indicator-type: "GDP_FROM_MINING"
+          description: "GDP 광업"
+
+        - indicator-type: "GDP_FROM_PUBLIC_ADMINISTRATION"
+          description: "GDP 공공행정"
+
+        - indicator-type: "GDP_FROM_SERVICES"
+          description: "GDP 서비스업"
+
+        - indicator-type: "GDP_FROM_TRANSPORT"
+          description: "GDP 운송업"
+
+        - indicator-type: "GDP_FROM_UTILITIES"
+          description: "GDP 유틸리티"
+
+        # === 고용 (EMPLOYMENT) ===
+        - indicator-type: "UNEMPLOYMENT_RATE"
+          description: "실업률"
+
+        - indicator-type: "WAGE_GROWTH"
+          description: "임금 상승률"
+
+        - indicator-type: "EMPLOYMENT_CHANGE"
+          description: "고용 변화"
+
+        # === 물가/소비 (PRICE_CONSUMPTION) ===
+        - indicator-type: "PRODUCER_PRICES"
+          description: "생산자 물가 지수"
+
+        - indicator-type: "CONSUMER_PRICE_INDEX"
+          description: "소비자 물가 지수"
+
+        - indicator-type: "CORE_CONSUMER_PRICES"
+          description: "핵심 소비자 물가 지수"
+
+        - indicator-type: "RETAIL_SALES_MOM"
+          description: "월간 소매 판매"
+
+        # === 금리/금융 (RATE_FINANCE) ===
+        - indicator-type: "INTEREST_RATE"
+          description: "기준 금리"
+
+        - indicator-type: "CENTRAL_BANK_BALANCE_SHEET"
+          description: "중앙 은행 대차 대조표"
+
+        - indicator-type: "GOLD_RESERVES"
+          description: "황금 보유"
+
+        # === 신뢰/선행 지수 (CONFIDENCE_LEADING) ===
+        - indicator-type: "LEADING_ECONOMIC_INDEX"
+          description: "경기선행지수"
+
+        - indicator-type: "CONSUMER_CONFIDENCE"
+          description: "소비자 신뢰 지수"
+
+        - indicator-type: "BUSINESS_CONFIDENCE"
+          description: "기업 신뢰 지수"
+
+        # === PMI/산업 (PMI_INDUSTRY) ===
+        - indicator-type: "MANUFACTURING_PMI"
+          description: "제조업 PMI"
+
+        - indicator-type: "SERVICES_PMI"
+          description: "서비스업 PMI"
+
+        - indicator-type: "INDUSTRIAL_PRODUCTION_MOM"
+          description: "산업 생산"
+
+        # === 재정/국가 (FISCAL_STATE) ===
+        - indicator-type: "GOVERNMENT_DEBT"
+          description: "정부 부채"
+
+        - indicator-type: "GOVERNMENT_REVENUES"
+          description: "재정 수입"
+
+        - indicator-type: "FISCAL_EXPENDITURE"
+          description: "재정 지출"
+
+        - indicator-type: "CURRENT_ACCOUNT"
+          description: "경상 수지"
+
+        - indicator-type: "MILITARY_EXPENDITURE"
+          description: "군사비 지출"

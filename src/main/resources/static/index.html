@@ -469,7 +469,7 @@
                                                 <span class="text-sm font-semibold text-gray-700" x-text="sp.name"></span>
                                                 <button type="button"
                                                         @click="ecos._tooltipText = sp.description"
-                                                        class="text-gray-300 hover:text-gray-500 cursor-help text-xs">&#9432;</button>
+                                                        class="text-gray-300 hover:text-gray-500 cursor-pointer text-xs">&#9432;</button>
                                             </div>
                                             <p class="text-[11px] text-gray-400 mt-0.5" x-text="sp.sub"></p>
                                         </div>
@@ -626,7 +626,7 @@
                                                         <template x-if="ind.description">
                                                             <button type="button"
                                                                     @click="ecos._tooltipText = ind.description"
-                                                                    class="text-gray-300 hover:text-gray-500 cursor-help text-xs">&#9432;</button>
+                                                                    class="text-gray-300 hover:text-gray-500 cursor-pointer text-xs">&#9432;</button>
                                                         </template>
                                                     </div>
                                                 </td>
@@ -1873,6 +1873,7 @@
     <!-- ==================== 재무 상세 슬라이드 패널 ==================== -->
     <!-- 오버레이 -->
     <div x-show="portfolio.selectedStockItem"
+         x-cloak
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -1885,6 +1886,7 @@
 
     <!-- 슬라이드 패널 본체 -->
     <div x-show="portfolio.selectedStockItem"
+         x-cloak
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="translate-x-full"
          x-transition:enter-end="translate-x-0"
@@ -2210,7 +2212,7 @@
                                                                         <template x-if="getFinancialDescription(portfolio.selectedFinancialMenu, row[col.key])">
                                                                             <button type="button"
                                                                                     @click="portfolio._tooltipText = getFinancialDescription(portfolio.selectedFinancialMenu, row[col.key])"
-                                                                                    class="text-gray-300 hover:text-gray-500 cursor-help text-xs">&#9432;</button>
+                                                                                    class="text-gray-300 hover:text-gray-500 cursor-pointer text-xs">&#9432;</button>
                                                                         </template>
                                                                     </span>
                                                                 </template>

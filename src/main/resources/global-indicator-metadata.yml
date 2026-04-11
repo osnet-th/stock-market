@@ -59,6 +59,15 @@ global:
         - indicator-type: "RETAIL_SALES_MOM"
           description: "월간 소매 판매"
 
+        - indicator-type: "INFLATION_RATE"
+          description: "물가상승률"
+
+        - indicator-type: "INFLATION_EXPECTATIONS"
+          description: "인플레이션 기대 예상치"
+
+        - indicator-type: "INFLATION_RATE_MOM"
+          description: "인플레이션(월간)"
+
         # === 금리/금융 (RATE_FINANCE) ===
         - indicator-type: "INTEREST_RATE"
           description: "기준 금리"
@@ -68,6 +77,12 @@ global:
 
         - indicator-type: "GOLD_RESERVES"
           description: "황금 보유"
+
+        - indicator-type: "LENDING_RATE"
+          description: "대출금리"
+
+        - indicator-type: "INTERBANK_RATE"
+          description: "은행간 금리"
 
         # === 신뢰/선행 지수 (CONFIDENCE_LEADING) ===
         - indicator-type: "LEADING_ECONOMIC_INDEX"
@@ -102,5 +117,18 @@ global:
         - indicator-type: "CURRENT_ACCOUNT"
           description: "경상 수지"
 
-        - indicator-type: "MILITARY_EXPENDITURE"
-          description: "군사비 지출"
+        - indicator-type: "FOREIGN_EXCHANGE_RESERVES"
+          description: "외환 보유고"
+
+        # === 통화량 (MONEY_SUPPLY) ===
+        - indicator-type: "MONEY_SUPPLY_M0"
+          description: "1개월 미만 통화 공급량"
+
+        - indicator-type: "MONEY_SUPPLY_M1"
+          description: "1개월 통화공급량"
+
+        - indicator-type: "MONEY_SUPPLY_M2"
+          description: "2개월 통화 공급량"
+
+        - indicator-type: "MONEY_SUPPLY_M3"
+          description: "3개월 통화공급량"

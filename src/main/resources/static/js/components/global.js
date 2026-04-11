@@ -27,10 +27,15 @@ const GLOBAL_INDICATOR_DESCRIPTIONS = {
     'CONSUMER_PRICE_INDEX': '높으면 인플레이션 압력. 중앙은행 금리 인상 근거',
     'CORE_CONSUMER_PRICES': '식품·에너지 제외. 기조적 인플레이션 추세 파악용',
     'RETAIL_SALES_MOM': '양수면 소비 확대. 내수 경기 체감 지표',
+    'INFLATION_RATE': '높으면 화폐가치 하락. 중앙은행 금리 인상 압력',
+    'INFLATION_EXPECTATIONS': '미래 물가 전망. 높으면 선제적 긴축 가능성',
+    'INFLATION_RATE_MOM': '전월 대비 물가 변동. 단기 인플레이션 추세 파악용',
     // 금리/금융
     'INTEREST_RATE': '높으면 긴축(경기 과열 억제), 낮으면 완화(경기 부양)',
     'CENTRAL_BANK_BALANCE_SHEET': '증가면 양적완화(유동성 공급), 감소면 긴축(유동성 회수)',
     'GOLD_RESERVES': '외환보유 안전자산. 증가 시 불확실성 대비 강화 신호',
+    'LENDING_RATE': '은행 대출 기준금리. 높으면 차입 비용 증가, 경기 위축 요인',
+    'INTERBANK_RATE': '은행 간 단기 자금 거래 금리. 유동성 상황 직접 반영',
     // 신뢰/선행 지수
     'LEADING_ECONOMIC_INDEX': '100 이상이면 향후 경기 확장 예상, 미만이면 둔화 예상',
     'CONSUMER_CONFIDENCE': '높으면 소비 심리 낙관. 소비 지출 확대 기대',
@@ -44,7 +49,12 @@ const GLOBAL_INDICATOR_DESCRIPTIONS = {
     'GOVERNMENT_REVENUES': '세수 규모. 경기 호황 시 증가, 침체 시 감소',
     'FISCAL_EXPENDITURE': '높으면 재정정책 확장. GDP 대비 비율로 판단',
     'CURRENT_ACCOUNT': '양수면 해외 소득 초과(흑자), 음수면 적자',
-    'MILITARY_EXPENDITURE': 'GDP 대비 비율로 판단. 지정학적 리스크 간접 지표',
+    'FOREIGN_EXCHANGE_RESERVES': '외화 자산 보유량. 높을수록 통화 안정성·대외 신인도 강화',
+    // 통화량
+    'MONEY_SUPPLY_M0': '현금 통화. 중앙은행이 직접 공급한 본원통화',
+    'MONEY_SUPPLY_M1': '협의 통화. 현금 + 요구불예금. 즉시 사용 가능한 유동성',
+    'MONEY_SUPPLY_M2': '광의 통화. M1 + 정기예금 등. 실질적 유동성 지표',
+    'MONEY_SUPPLY_M3': '총유동성. M2 + 비은행 금융상품. 전체 통화량 파악용',
 };
 
 const GlobalComponent = {

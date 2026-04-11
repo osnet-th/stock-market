@@ -439,6 +439,18 @@
                     </div>
                 </template>
 
+                <!-- 지표 설명 (클릭 시 표시) -->
+                <template x-if="ecos._tooltipText">
+                    <div class="mb-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 flex items-start gap-2">
+                        <svg class="w-4 h-4 text-slate-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-xs text-slate-600 leading-relaxed flex-1" x-text="ecos._tooltipText"></p>
+                        <button @click="ecos._tooltipText = ''"
+                                class="text-slate-400 hover:text-slate-600 text-sm shrink-0">&times;</button>
+                    </div>
+                </template>
+
                 <!-- ===== 스프레드 분석 (통합 렌더링) ===== -->
                 <template x-if="getCurrentSpreads().length > 0">
                     <div>
@@ -455,16 +467,9 @@
                                         <div class="mb-2">
                                             <div class="flex items-center gap-1.5">
                                                 <span class="text-sm font-semibold text-gray-700" x-text="sp.name"></span>
-                                                <div class="group/tt relative inline-block">
-                                                    <span class="text-gray-300 hover:text-gray-500 cursor-help text-xs">&#9432;</span>
-                                                    <div class="invisible opacity-0 group-hover/tt:visible group-hover/tt:opacity-100
-                                                                absolute z-10 bottom-full left-0 mb-2
-                                                                px-3 py-2 text-xs text-white bg-gray-800 rounded-lg shadow-lg
-                                                                w-72 max-w-xs transition-opacity duration-200"
-                                                         role="tooltip">
-                                                        <span x-text="sp.description"></span>
-                                                    </div>
-                                                </div>
+                                                <button type="button"
+                                                        @click="ecos._tooltipText = sp.description"
+                                                        class="text-gray-300 hover:text-gray-500 cursor-help text-xs">&#9432;</button>
                                             </div>
                                             <p class="text-[11px] text-gray-400 mt-0.5" x-text="sp.sub"></p>
                                         </div>
@@ -619,16 +624,9 @@
                                                     <div class="flex items-center gap-1">
                                                         <span x-text="ind.keystatName"></span>
                                                         <template x-if="ind.description">
-                                                            <div class="group/tip relative inline-block">
-                                                                <span class="text-gray-300 hover:text-gray-500 cursor-help text-xs">&#9432;</span>
-                                                                <div class="invisible opacity-0 group-hover/tip:visible group-hover/tip:opacity-100
-                                                                            absolute z-10 bottom-full left-0 mb-2
-                                                                            px-3 py-2 text-xs text-white bg-gray-800 rounded-lg shadow-lg
-                                                                            w-72 max-w-xs transition-opacity duration-200"
-                                                                     role="tooltip">
-                                                                    <span x-text="ind.description"></span>
-                                                                </div>
-                                                            </div>
+                                                            <button type="button"
+                                                                    @click="ecos._tooltipText = ind.description"
+                                                                    class="text-gray-300 hover:text-gray-500 cursor-help text-xs">&#9432;</button>
                                                         </template>
                                                     </div>
                                                 </td>

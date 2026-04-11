@@ -15,6 +15,7 @@ const EcosComponent = {
         _historyGeneration: 0,
         _indicatorMap: {},
         _historyCache: {},
+        _tooltipText: '',
     },
 
     initEcosCharts() {

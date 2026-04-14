@@ -12,4 +12,6 @@ public class FundItemAddRequest {
     private String memo;
     private String subType;
     private BigDecimal managementFee;
+    private BigDecimal monthlyDepositAmount;
+    private Integer depositDay;
 }

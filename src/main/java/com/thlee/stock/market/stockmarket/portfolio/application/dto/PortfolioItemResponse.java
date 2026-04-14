@@ -25,6 +25,8 @@ public class PortfolioItemResponse {
     private final FundDetailResponse fundDetail;
     private final CashDetailResponse cashDetail;
     private final Long linkedCashItemId;
+    private final Boolean depositOverdue;
+    private final BigDecimal expectedMaturityAmount;
 
     private PortfolioItemResponse(Long id, String assetType, String itemName,
                                   BigDecimal investedAmount, boolean newsEnabled,
@@ -35,7 +37,9 @@ public class PortfolioItemResponse {
                                   RealEstateDetailResponse realEstateDetail,
                                   FundDetailResponse fundDetail,
                                   CashDetailResponse cashDetail,
-                                  Long linkedCashItemId) {
+                                  Long linkedCashItemId,
+                                  Boolean depositOverdue,
+                                  BigDecimal expectedMaturityAmount) {
         this.id = id;
         this.assetType = assetType;
         this.itemName = itemName;
@@ -51,13 +55,20 @@ public class PortfolioItemResponse {
         this.fundDetail = fundDetail;
         this.cashDetail = cashDetail;
         this.linkedCashItemId = linkedCashItemId;
+        this.depositOverdue = depositOverdue;
+        this.expectedMaturityAmount = expectedMaturityAmount;
     }
 
     public static PortfolioItemResponse from(PortfolioItem item) {
-        return from(item, null);
+        return from(item, null, null, null);
     }
 
     public static PortfolioItemResponse from(PortfolioItem item, Long linkedCashItemId) {
+        return from(item, linkedCashItemId, null, null);
+    }
+
+    public static PortfolioItemResponse from(PortfolioItem item, Long linkedCashItemId,
+                                              Boolean depositOverdue, BigDecimal expectedMaturityAmount) {
         return new PortfolioItemResponse(
                 item.getId(),
                 item.getAssetType().name(),
@@ -73,7 +84,9 @@ public class PortfolioItemResponse {
                 item.getRealEstateDetail() != null ? RealEstateDetailResponse.from(item.getRealEstateDetail()) : null,
                 item.getFundDetail() != null ? FundDetailResponse.from(item.getFundDetail()) : null,
                 item.getCashDetail() != null ? CashDetailResponse.from(item.getCashDetail()) : null,
-                linkedCashItemId
+                linkedCashItemId,
+                depositOverdue,
+                expectedMaturityAmount
         );
     }
 }

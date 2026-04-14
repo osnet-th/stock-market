@@ -14,16 +14,30 @@ public class CashDetail {
     private final LocalDate startDate;
     private final LocalDate maturityDate;
     private final TaxType taxType;
+    private final BigDecimal monthlyDepositAmount;
+    private final Integer depositDay;
 
     public CashDetail(CashSubType subType,
                       BigDecimal interestRate,
                       LocalDate startDate,
                       LocalDate maturityDate,
                       TaxType taxType) {
+        this(subType, interestRate, startDate, maturityDate, taxType, null, null);
+    }
+
+    public CashDetail(CashSubType subType,
+                      BigDecimal interestRate,
+                      LocalDate startDate,
+                      LocalDate maturityDate,
+                      TaxType taxType,
+                      BigDecimal monthlyDepositAmount,
+                      Integer depositDay) {
         this.subType = subType;
         this.interestRate = interestRate;
         this.startDate = startDate;
         this.maturityDate = maturityDate;
         this.taxType = taxType;
+        this.monthlyDepositAmount = monthlyDepositAmount;
+        this.depositDay = depositDay;
     }
 }

@@ -56,7 +56,9 @@ public class PortfolioItemMapper {
         } else if (entity instanceof FundItemEntity fund) {
             fundDetail = new FundDetail(
                     fund.getSubType() != null ? FundSubType.valueOf(fund.getSubType()) : null,
-                    fund.getManagementFee()
+                    fund.getManagementFee(),
+                    fund.getMonthlyDepositAmount(),
+                    fund.getDepositDay()
             );
         } else if (entity instanceof CashItemEntity cash) {
             if (cash.getCashType() != null) {
@@ -65,7 +67,9 @@ public class PortfolioItemMapper {
                         cash.getInterestRate(),
                         cash.getStartDate(),
                         cash.getMaturityDate(),
-                        cash.getTaxType() != null ? TaxType.valueOf(cash.getTaxType()) : null
+                        cash.getTaxType() != null ? TaxType.valueOf(cash.getTaxType()) : null,
+                        cash.getMonthlyDepositAmount(),
+                        cash.getDepositDay()
                 );
             }
         }
@@ -137,7 +141,9 @@ public class PortfolioItemMapper {
                         item.getInvestedAmount(), item.isNewsEnabled(), region,
                         item.getMemo(), item.getCreatedAt(), item.getUpdatedAt(),
                         detail.getSubType() != null ? detail.getSubType().name() : null,
-                        detail.getManagementFee()
+                        detail.getManagementFee(),
+                        detail.getMonthlyDepositAmount(),
+                        detail.getDepositDay()
                 );
             }
             case CRYPTO -> new CryptoItemEntity(
@@ -165,7 +171,9 @@ public class PortfolioItemMapper {
                         cashDtl != null ? cashDtl.getInterestRate() : null,
                         cashDtl != null ? cashDtl.getStartDate() : null,
                         cashDtl != null ? cashDtl.getMaturityDate() : null,
-                        cashDtl != null && cashDtl.getTaxType() != null ? cashDtl.getTaxType().name() : null
+                        cashDtl != null && cashDtl.getTaxType() != null ? cashDtl.getTaxType().name() : null,
+                        cashDtl != null ? cashDtl.getMonthlyDepositAmount() : null,
+                        cashDtl != null ? cashDtl.getDepositDay() : null
                 );
             }
             case OTHER -> new OtherItemEntity(

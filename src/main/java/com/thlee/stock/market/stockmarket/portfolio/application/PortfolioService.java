@@ -5,6 +5,7 @@ import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.model.UserKeyword;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
 import com.thlee.stock.market.stockmarket.news.domain.repository.UserKeywordRepository;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.DepositHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockPurchaseHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
@@ -17,6 +18,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstat
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.StockSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.TaxType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.CashStockLinkRepository;
+import com.thlee.stock.market.stockmarket.portfolio.domain.repository.DepositHistoryRepository;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioItemRepository;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.StockPurchaseHistoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +26,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -39,6 +43,7 @@ public class PortfolioService {
 
     private final PortfolioItemRepository portfolioItemRepository;
     private final StockPurchaseHistoryRepository purchaseHistoryRepository;
+    private final DepositHistoryRepository depositHistoryRepository;
     private final CashStockLinkRepository cashStockLinkRepository;
     private final KeywordService keywordService;
     private final KeywordRepository keywordRepository;
@@ -143,10 +148,13 @@ public class PortfolioService {
     @Transactional
     public PortfolioItemResponse addFundItem(Long userId, String itemName, BigDecimal investedAmount,
                                               String region, String memo,
-                                              String subType, BigDecimal managementFee) {
+                                              String subType, BigDecimal managementFee,
+                                              BigDecimal monthlyDepositAmount, Integer depositDay) {
         FundDetail detail = new FundDetail(
                 subType != null ? FundSubType.valueOf(subType) : null,
-                managementFee
+                managementFee,
+                monthlyDepositAmount,
+                depositDay
         );
         PortfolioItem item = PortfolioItem.createWithFund(
                 userId, itemName, investedAmount, Region.valueOf(region), detail);
@@ -166,13 +174,16 @@ public class PortfolioService {
                                               String region, String memo,
                                               String cashType, BigDecimal interestRate,
                                               LocalDate startDate, LocalDate maturityDate,
-                                              String taxType) {
+                                              String taxType,
+                                              BigDecimal monthlyDepositAmount, Integer depositDay) {
         CashDetail detail = new CashDetail(
                 CashSubType.valueOf(cashType),
                 interestRate,
                 startDate,
                 maturityDate,
-                taxType != null ? TaxType.valueOf(taxType) : null
+                taxType != null ? TaxType.valueOf(taxType) : null,
+                monthlyDepositAmount,
+                depositDay
         );
         PortfolioItem item = PortfolioItem.createWithCash(
                 userId, itemName, investedAmount, Region.valueOf(region), detail);
@@ -191,7 +202,8 @@ public class PortfolioService {
     public PortfolioItemResponse updateCashItem(Long userId, Long itemId,
                                                  String itemName, BigDecimal investedAmount, String memo,
                                                  BigDecimal interestRate, LocalDate startDate,
-                                                 LocalDate maturityDate, String taxType) {
+                                                 LocalDate maturityDate, String taxType,
+                                                 BigDecimal monthlyDepositAmount, Integer depositDay) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
@@ -205,7 +217,9 @@ public class PortfolioService {
                 interestRate,
                 startDate,
                 maturityDate,
-                taxType != null ? TaxType.valueOf(taxType) : null
+                taxType != null ? TaxType.valueOf(taxType) : null,
+                monthlyDepositAmount,
+                depositDay
         );
         item.updateCashDetail(detail);
         PortfolioItem saved = portfolioItemRepository.save(item);
@@ -251,9 +265,55 @@ public class PortfolioService {
         }
 
         Map<Long, Long> finalLinkMap = linkMap;
-        return items.stream()
-                .map(item -> PortfolioItemResponse.from(item, finalLinkMap.get(item.getId())))
+
+        // CASH/FUND 항목의 미납 여부 + 만기 예상 금액 배치 계산 (단일 쿼리)
+        List<Long> depositTargetIds = items.stream()
+                .filter(i -> i.getAssetType() == AssetType.CASH || i.getAssetType() == AssetType.FUND)
+                .map(PortfolioItem::getId)
                 .collect(Collectors.toList());
+
+        Map<Long, List<DepositHistory>> depositMap = Map.of();
+        if (!depositTargetIds.isEmpty()) {
+            depositMap = depositHistoryRepository.findByPortfolioItemIdIn(depositTargetIds)
+                    .stream()
+                    .collect(Collectors.groupingBy(DepositHistory::getPortfolioItemId));
+        }
+
+        Map<Long, List<DepositHistory>> finalDepositMap = depositMap;
+        LocalDate today = LocalDate.now();
+        return items.stream()
+                .map(item -> {
+                    Long linkedId = finalLinkMap.get(item.getId());
+                    List<DepositHistory> deposits = finalDepositMap.get(item.getId());
+                    Boolean overdue = null;
+                    BigDecimal maturityAmount = null;
+
+                    if (deposits != null) {
+                        overdue = isDepositOverdue(item, deposits, today);
+                        if (item.getAssetType() == AssetType.CASH && item.getCashDetail() != null) {
+                            maturityAmount = calculateMaturityAmount(item);
+                        }
+                    }
+
+                    return PortfolioItemResponse.from(item, linkedId, overdue, maturityAmount);
+                })
+                .collect(Collectors.toList());
+    }
+
+    private BigDecimal calculateMaturityAmount(PortfolioItem item) {
+        CashDetail cashDetail = item.getCashDetail();
+        if (cashDetail.getInterestRate() == null || cashDetail.getStartDate() == null
+                || cashDetail.getMaturityDate() == null) {
+            return null;
+        }
+        BigDecimal totalDeposited = item.getInvestedAmount();
+        long days = ChronoUnit.DAYS.between(cashDetail.getStartDate(), cashDetail.getMaturityDate());
+        BigDecimal years = BigDecimal.valueOf(days).divide(BigDecimal.valueOf(365), 10, RoundingMode.HALF_UP);
+        BigDecimal interest = totalDeposited
+                .multiply(cashDetail.getInterestRate())
+                .multiply(years)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        return totalDeposited.add(interest);
     }
 
     /**
@@ -375,14 +435,17 @@ public class PortfolioService {
     @Transactional
     public PortfolioItemResponse updateFundItem(Long userId, Long itemId,
                                                  String itemName, BigDecimal investedAmount, String memo,
-                                                 String subType, BigDecimal managementFee) {
+                                                 String subType, BigDecimal managementFee,
+                                                 BigDecimal monthlyDepositAmount, Integer depositDay) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
         item.updateMemo(memo);
         FundDetail detail = new FundDetail(
                 subType != null ? FundSubType.valueOf(subType) : null,
-                managementFee
+                managementFee,
+                monthlyDepositAmount,
+                depositDay
         );
         item.updateFundDetail(detail);
         PortfolioItem saved = portfolioItemRepository.save(item);
@@ -504,8 +567,144 @@ public class PortfolioService {
         return PortfolioItemResponse.from(saved);
     }
 
+    // ──────────────────────────────────────────────────────────────────
+    // 납입 이력 CRUD
+    // ───────────────���──────────────────────────────────────────────────
+
     /**
-     * 항목 삭제 + 매수이력 삭제 + 관련 뉴스 출처 매핑 삭제 + orphan 뉴스 정리
+     * 납입 추가 + investedAmount 재계산
+     */
+    @Transactional
+    public DepositHistoryResponse addDeposit(Long userId, Long itemId,
+                                              LocalDate depositDate, BigDecimal amount,
+                                              BigDecimal units, String memo) {
+        PortfolioItem item = findUserItem(userId, itemId);
+        validateDepositTarget(item);
+
+        DepositHistory history = DepositHistory.create(itemId, depositDate, amount, units, memo);
+        DepositHistory saved = depositHistoryRepository.save(history);
+
+        recalculateInvestedAmountFromDeposits(item, itemId);
+        portfolioItemRepository.save(item);
+
+        return DepositHistoryResponse.from(saved);
+    }
+
+    /**
+     * 납입 이력 조회
+     */
+    public List<DepositHistoryResponse> getDepositHistories(Long userId, Long itemId) {
+        findUserItem(userId, itemId); // 권한 검증
+        return depositHistoryRepository.findByPortfolioItemId(itemId).stream()
+                .map(DepositHistoryResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 납입 수정 + investedAmount 재계산
+     */
+    @Transactional
+    public DepositHistoryResponse updateDeposit(Long userId, Long itemId, Long historyId,
+                                                 LocalDate depositDate, BigDecimal amount,
+                                                 BigDecimal units, String memo) {
+        PortfolioItem item = findUserItem(userId, itemId);
+
+        DepositHistory history = depositHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new IllegalArgumentException("납입 이력을 찾을 수 없습니다."));
+        if (!history.getPortfolioItemId().equals(itemId)) {
+            throw new IllegalArgumentException("해당 항목의 납입 이력이 아���니다.");
+        }
+
+        history.update(depositDate, amount, units, memo);
+        DepositHistory saved = depositHistoryRepository.save(history);
+
+        recalculateInvestedAmountFromDeposits(item, itemId);
+        portfolioItemRepository.save(item);
+
+        return DepositHistoryResponse.from(saved);
+    }
+
+    /**
+     * 납입 삭제 + investedAmount 재계산
+     */
+    @Transactional
+    public void deleteDeposit(Long userId, Long itemId, Long historyId) {
+        PortfolioItem item = findUserItem(userId, itemId);
+
+        DepositHistory history = depositHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new IllegalArgumentException("납입 이력을 ����� 수 없습니다."));
+        if (!history.getPortfolioItemId().equals(itemId)) {
+            throw new IllegalArgumentException("해당 항목의 납입 이력이 아닙니다.");
+        }
+
+        depositHistoryRepository.delete(history);
+
+        recalculateInvestedAmountFromDeposits(item, itemId);
+        portfolioItemRepository.save(item);
+    }
+
+    /**
+     * 만기 예상 금액 계산 (단리 기반, 조회 시 계산)
+     */
+    public BigDecimal calculateExpectedMaturityAmount(Long userId, Long itemId) {
+        PortfolioItem item = findUserItem(userId, itemId);
+        if (item.getAssetType() != AssetType.CASH || item.getCashDetail() == null) {
+            return null;
+        }
+        return calculateMaturityAmount(item);
+    }
+
+    /**
+     * 미납 여부 판정
+     * 자동납입 설정이 있고, 당월 납입일이 지났는데 당월 납입 기록이 없으면 미납
+     */
+    /**
+     * 미납 여부 판정
+     * 자동납입 설정이 있고, 기준일 기준 당월 납입일이 지났는데 당월 납입 기록이 없으면 미납
+     */
+    public boolean isDepositOverdue(PortfolioItem item, List<DepositHistory> histories, LocalDate referenceDate) {
+        Integer depositDay = null;
+        if (item.getAssetType() == AssetType.CASH && item.getCashDetail() != null) {
+            depositDay = item.getCashDetail().getDepositDay();
+        } else if (item.getAssetType() == AssetType.FUND && item.getFundDetail() != null) {
+            depositDay = item.getFundDetail().getDepositDay();
+        }
+
+        if (depositDay == null) {
+            return false;
+        }
+
+        int lastDayOfMonth = referenceDate.lengthOfMonth();
+        int effectiveDay = Math.min(depositDay, lastDayOfMonth);
+        LocalDate depositDueDate = referenceDate.withDayOfMonth(effectiveDay);
+
+        // 납입일 다음날부터 미납 처리
+        if (!referenceDate.isAfter(depositDueDate)) {
+            return false;
+        }
+
+        LocalDate monthStart = referenceDate.withDayOfMonth(1);
+        return histories.stream()
+                .noneMatch(h -> !h.getDepositDate().isBefore(monthStart)
+                        && !h.getDepositDate().isAfter(referenceDate));
+    }
+
+    private void validateDepositTarget(PortfolioItem item) {
+        if (item.getAssetType() != AssetType.CASH && item.getAssetType() != AssetType.FUND) {
+            throw new IllegalArgumentException("납입 이력은 현금성 자산(예금/적금/CMA) 또는 펀드만 등록��� 수 있습니다.");
+        }
+    }
+
+    private void recalculateInvestedAmountFromDeposits(PortfolioItem item, Long itemId) {
+        List<DepositHistory> histories = depositHistoryRepository.findByPortfolioItemId(itemId);
+        if (histories.isEmpty()) {
+            return;
+        }
+        item.recalculateFromDepositHistories(histories);
+    }
+
+    /**
+     * 항목 삭제 + ��수이력 삭제 + 관련 뉴스 출처 매핑 삭제 + orphan 뉴스 정리
      */
     @Transactional
     public void deleteItem(Long userId, Long itemId, boolean restoreCash, BigDecimal restoreAmount) {
@@ -520,6 +719,7 @@ public class PortfolioService {
         }
 
         purchaseHistoryRepository.deleteByPortfolioItemId(itemId);
+        depositHistoryRepository.deleteByPortfolioItemId(itemId);
 
         // 뉴스 활성화 상태였으면 구독 해제
         if (item.isNewsEnabled()) {

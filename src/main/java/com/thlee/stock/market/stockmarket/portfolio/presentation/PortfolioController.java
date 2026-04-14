@@ -3,9 +3,11 @@ package com.thlee.stock.market.stockmarket.portfolio.presentation;
 import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioAllocationService;
 import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioService;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.AllocationResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.DepositHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockPurchaseHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.presentation.dto.*;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -82,7 +84,8 @@ public class PortfolioController {
         PortfolioItemResponse response = portfolioService.addFundItem(
                 userId, request.getItemName(), request.getInvestedAmount(),
                 request.getRegion(), request.getMemo(),
-                request.getSubType(), request.getManagementFee());
+                request.getSubType(), request.getManagementFee(),
+                request.getMonthlyDepositAmount(), request.getDepositDay());
         return ResponseEntity.ok(response);
     }
 
@@ -98,7 +101,8 @@ public class PortfolioController {
                 request.getRegion(), request.getMemo(),
                 request.getCashType(), request.getInterestRate(),
                 request.getStartDate(), request.getMaturityDate(),
-                request.getTaxType());
+                request.getTaxType(),
+                request.getMonthlyDepositAmount(), request.getDepositDay());
         return ResponseEntity.ok(response);
     }
 
@@ -185,7 +189,8 @@ public class PortfolioController {
         PortfolioItemResponse response = portfolioService.updateFundItem(
                 userId, itemId,
                 request.getItemName(), request.getInvestedAmount(), request.getMemo(),
-                request.getSubType(), request.getManagementFee());
+                request.getSubType(), request.getManagementFee(),
+                request.getMonthlyDepositAmount(), request.getDepositDay());
         return ResponseEntity.ok(response);
     }
 
@@ -201,7 +206,8 @@ public class PortfolioController {
                 userId, itemId,
                 request.getItemName(), request.getInvestedAmount(), request.getMemo(),
                 request.getInterestRate(), request.getStartDate(),
-                request.getMaturityDate(), request.getTaxType());
+                request.getMaturityDate(), request.getTaxType(),
+                request.getMonthlyDepositAmount(), request.getDepositDay());
         return ResponseEntity.ok(response);
     }
 
@@ -270,6 +276,74 @@ public class PortfolioController {
             @PathVariable Long historyId) {
         portfolioService.deletePurchaseHistory(userId, itemId, historyId);
         return ResponseEntity.noContent().build();
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // 납입 이력 API
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * 납입 추가
+     */
+    @PostMapping("/items/{itemId}/deposits")
+    public ResponseEntity<DepositHistoryResponse> addDeposit(
+            @RequestParam Long userId,
+            @PathVariable Long itemId,
+            @Valid @RequestBody DepositRequest request) {
+        DepositHistoryResponse response = portfolioService.addDeposit(
+                userId, itemId, request.getDepositDate(), request.getAmount(),
+                request.getUnits(), request.getMemo());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 납입 이력 조회
+     */
+    @GetMapping("/items/{itemId}/deposits")
+    public ResponseEntity<List<DepositHistoryResponse>> getDepositHistories(
+            @RequestParam Long userId,
+            @PathVariable Long itemId) {
+        List<DepositHistoryResponse> responses = portfolioService.getDepositHistories(userId, itemId);
+        return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * 납입 수정
+     */
+    @PutMapping("/items/{itemId}/deposits/{historyId}")
+    public ResponseEntity<DepositHistoryResponse> updateDeposit(
+            @RequestParam Long userId,
+            @PathVariable Long itemId,
+            @PathVariable Long historyId,
+            @Valid @RequestBody DepositRequest request) {
+        DepositHistoryResponse response = portfolioService.updateDeposit(
+                userId, itemId, historyId,
+                request.getDepositDate(), request.getAmount(),
+                request.getUnits(), request.getMemo());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 납입 삭제
+     */
+    @DeleteMapping("/items/{itemId}/deposits/{historyId}")
+    public ResponseEntity<Void> deleteDeposit(
+            @RequestParam Long userId,
+            @PathVariable Long itemId,
+            @PathVariable Long historyId) {
+        portfolioService.deleteDeposit(userId, itemId, historyId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 만기 예상 금액 조회
+     */
+    @GetMapping("/items/{itemId}/expected-maturity")
+    public ResponseEntity<BigDecimal> getExpectedMaturityAmount(
+            @RequestParam Long userId,
+            @PathVariable Long itemId) {
+        BigDecimal amount = portfolioService.calculateExpectedMaturityAmount(userId, itemId);
+        return ResponseEntity.ok(amount);
     }
 
     /**

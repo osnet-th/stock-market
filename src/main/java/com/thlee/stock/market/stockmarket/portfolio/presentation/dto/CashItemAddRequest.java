@@ -16,4 +16,6 @@ public class CashItemAddRequest {
     private LocalDate startDate;
     private LocalDate maturityDate;
     private String taxType;
+    private BigDecimal monthlyDepositAmount;
+    private Integer depositDay;
 }

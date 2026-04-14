@@ -166,6 +166,27 @@ const API = {
         return this.request('DELETE', `/api/portfolio/items/stock/${itemId}/purchases/${historyId}?userId=${userId}`);
     },
 
+    // 납입 이력
+    addDeposit(userId, itemId, body) {
+        return this.request('POST', `/api/portfolio/items/${itemId}/deposits?userId=${userId}`, body);
+    },
+
+    getDepositHistories(userId, itemId) {
+        return this.request('GET', `/api/portfolio/items/${itemId}/deposits?userId=${userId}`);
+    },
+
+    updateDeposit(userId, itemId, historyId, body) {
+        return this.request('PUT', `/api/portfolio/items/${itemId}/deposits/${historyId}?userId=${userId}`, body);
+    },
+
+    deleteDeposit(userId, itemId, historyId) {
+        return this.request('DELETE', `/api/portfolio/items/${itemId}/deposits/${historyId}?userId=${userId}`);
+    },
+
+    getExpectedMaturityAmount(userId, itemId) {
+        return this.request('GET', `/api/portfolio/items/${itemId}/expected-maturity?userId=${userId}`);
+    },
+
     // 수정 (타입별)
     updateStockItem(userId, itemId, body) {
         return this.request('PUT', `/api/portfolio/items/stock/${itemId}?userId=${userId}`, body);

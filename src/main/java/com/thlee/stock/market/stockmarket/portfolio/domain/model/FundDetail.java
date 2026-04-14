@@ -9,10 +9,21 @@ import java.math.BigDecimal;
 public class FundDetail {
     private final FundSubType subType;
     private final BigDecimal managementFee;
+    private final BigDecimal monthlyDepositAmount;
+    private final Integer depositDay;
 
     public FundDetail(FundSubType subType,
                       BigDecimal managementFee) {
+        this(subType, managementFee, null, null);
+    }
+
+    public FundDetail(FundSubType subType,
+                      BigDecimal managementFee,
+                      BigDecimal monthlyDepositAmount,
+                      Integer depositDay) {
         this.subType = subType;
         this.managementFee = managementFee;
+        this.monthlyDepositAmount = monthlyDepositAmount;
+        this.depositDay = depositDay;
     }
 }

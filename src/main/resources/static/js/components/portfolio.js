@@ -30,6 +30,12 @@ const PortfolioComponent = {
         purchaseHistories: [],
         editingHistory: null,
         editHistoryForm: { quantity: '', purchasePrice: '', purchasedAt: '', memo: '' },
+        showDepositModal: false,
+        depositItem: null,
+        depositForm: { depositDate: '', amount: '', units: '', memo: '' },
+        depositHistories: [],
+        editingDeposit: null,
+        editDepositForm: { depositDate: '', amount: '', units: '', memo: '' },
         selectedNewsItemId: null,
         news: { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false },
         collectingItemId: null,
@@ -463,6 +469,8 @@ const PortfolioComponent = {
                 const fundSubTypes = { EQUITY_FUND: '주식형', BOND_FUND: '채권형', MIXED_FUND: '혼합형' };
                 if (item.fundDetail.subType) fundParts.push(fundSubTypes[item.fundDetail.subType] || item.fundDetail.subType);
                 if (item.fundDetail.managementFee) fundParts.push('보수 ' + item.fundDetail.managementFee + '%');
+                if (item.fundDetail.monthlyDepositAmount) fundParts.push('월 ' + Format.number(item.fundDetail.monthlyDepositAmount, 0) + '원');
+                if (item.depositOverdue) fundParts.push('⚠ 미납');
                 return fundParts.join(' · ');
             case 'CASH':
                 if (!item.cashDetail) return item.memo || '';
@@ -471,9 +479,15 @@ const PortfolioComponent = {
                 cashParts.push(cashSubTypes[item.cashDetail.subType] || item.cashDetail.subType);
                 if (item.cashDetail.interestRate) cashParts.push(item.cashDetail.interestRate + '%');
                 if (item.cashDetail.maturityDate) cashParts.push('만기 ' + item.cashDetail.maturityDate);
-                const expectedReturn = this.getExpectedReturn(item);
-                if (expectedReturn) {
-                    cashParts.push('예상 수령 ' + Format.number(expectedReturn.expectedTotal, 0) + '원');
+                if (item.cashDetail.monthlyDepositAmount) cashParts.push('월 ' + Format.number(item.cashDetail.monthlyDepositAmount, 0) + '원');
+                if (item.depositOverdue) cashParts.push('⚠ 미납');
+                if (item.expectedMaturityAmount) {
+                    cashParts.push('만기 예상 ' + Format.number(item.expectedMaturityAmount, 0) + '원');
+                } else {
+                    const expectedReturn = this.getExpectedReturn(item);
+                    if (expectedReturn) {
+                        cashParts.push('예상 수령 ' + Format.number(expectedReturn.expectedTotal, 0) + '원');
+                    }
                 }
                 return cashParts.join(' · ');
             default:
@@ -697,7 +711,9 @@ const PortfolioComponent = {
                     await API.addFundItem(userId, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount), region: form.region,
                         memo: form.memo || null, subType: form.subType || 'EQUITY_FUND',
-                        managementFee: form.managementFee ? Number(form.managementFee) : null
+                        managementFee: form.managementFee ? Number(form.managementFee) : null,
+                        monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
+                        depositDay: form.depositDay ? Number(form.depositDay) : null
                     });
                     break;
                 case 'CASH':
@@ -707,7 +723,9 @@ const PortfolioComponent = {
                         interestRate: form.interestRate ? Number(form.interestRate) : null,
                         startDate: form.startDate || null,
                         maturityDate: form.cashType !== 'CMA' ? (form.maturityDate || null) : null,
-                        taxType: form.cashType !== 'CMA' ? (form.taxType || null) : null
+                        taxType: form.cashType !== 'CMA' ? (form.taxType || null) : null,
+                        monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
+                        depositDay: form.depositDay ? Number(form.depositDay) : null
                     });
                     break;
                 case 'GENERAL':
@@ -1050,6 +1068,8 @@ const PortfolioComponent = {
                 if (item.fundDetail) {
                     form.subType = item.fundDetail.subType;
                     form.managementFee = item.fundDetail.managementFee;
+                    form.monthlyDepositAmount = item.fundDetail.monthlyDepositAmount;
+                    form.depositDay = item.fundDetail.depositDay;
                 }
                 break;
             case 'CASH':
@@ -1059,6 +1079,8 @@ const PortfolioComponent = {
                     form.startDate = item.cashDetail.startDate;
                     form.maturityDate = item.cashDetail.maturityDate;
                     form.taxType = item.cashDetail.taxType;
+                    form.monthlyDepositAmount = item.cashDetail.monthlyDepositAmount;
+                    form.depositDay = item.cashDetail.depositDay;
                 }
                 break;
         }
@@ -1167,7 +1189,9 @@ const PortfolioComponent = {
                     await API.updateFundItem(userId, item.id, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount),
                         memo: form.memo || null, subType: form.subType || 'EQUITY_FUND',
-                        managementFee: form.managementFee ? Number(form.managementFee) : null
+                        managementFee: form.managementFee ? Number(form.managementFee) : null,
+                        monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
+                        depositDay: form.depositDay ? Number(form.depositDay) : null
                     });
                     break;
                 case 'CASH':
@@ -1177,7 +1201,9 @@ const PortfolioComponent = {
                         interestRate: form.interestRate ? Number(form.interestRate) : null,
                         startDate: form.startDate || null,
                         maturityDate: form.cashType !== 'CMA' ? (form.maturityDate || null) : null,
-                        taxType: form.cashType !== 'CMA' ? (form.taxType || null) : null
+                        taxType: form.cashType !== 'CMA' ? (form.taxType || null) : null,
+                        monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
+                        depositDay: form.depositDay ? Number(form.depositDay) : null
                     });
                     break;
                 default:
@@ -1194,5 +1220,113 @@ const PortfolioComponent = {
             console.error('자산 수정 실패:', e);
             alert('수정에 실패했습니다.');
         }
+    },
+
+    // ──────────────────────────────────────────────────────────────────
+    // 납입 이력 CRUD
+    // ──────────────────────────────────────────────────────────────────
+
+    isDepositTarget(item) {
+        return item && (item.assetType === 'CASH' || item.assetType === 'FUND');
+    },
+
+    async openDepositModal(item) {
+        this.portfolio.depositItem = item;
+        this.portfolio.depositForm = { depositDate: new Date().toISOString().split('T')[0], amount: '', units: '', memo: '' };
+        this.portfolio.depositHistories = [];
+        this.portfolio.editingDeposit = null;
+        this.portfolio.showDepositModal = true;
+        await this.loadDepositHistories(item.id);
+    },
+
+    async loadDepositHistories(itemId) {
+        try {
+            this.portfolio.depositHistories = await API.getDepositHistories(this.auth.userId, itemId) || [];
+        } catch (e) {
+            console.error('납입이력 조회 실패:', e);
+            this.portfolio.depositHistories = [];
+        }
+    },
+
+    async submitDeposit() {
+        const form = this.portfolio.depositForm;
+        const item = this.portfolio.depositItem;
+
+        if (!form.amount || Number(form.amount) <= 0) {
+            alert('납입 금액을 입력해주세요.');
+            return;
+        }
+
+        try {
+            await API.addDeposit(this.auth.userId, item.id, {
+                depositDate: form.depositDate || null,
+                amount: Number(form.amount),
+                units: form.units ? Number(form.units) : null,
+                memo: form.memo || null
+            });
+            this.portfolio.depositForm = { depositDate: new Date().toISOString().split('T')[0], amount: '', units: '', memo: '' };
+            await this.loadDepositHistories(item.id);
+            await this.loadPortfolio();
+        } catch (e) {
+            console.error('납입 추가 실패:', e);
+            alert('납입 추가에 실패했습니다.');
+        }
+    },
+
+    startEditDeposit(history) {
+        this.portfolio.editingDeposit = history.id;
+        this.portfolio.editDepositForm = {
+            depositDate: history.depositDate || '',
+            amount: history.amount,
+            units: history.units || '',
+            memo: history.memo || ''
+        };
+    },
+
+    cancelEditDeposit() {
+        this.portfolio.editingDeposit = null;
+    },
+
+    async submitEditDeposit(historyId) {
+        const form = this.portfolio.editDepositForm;
+        const item = this.portfolio.depositItem;
+
+        if (!form.amount || Number(form.amount) <= 0) {
+            alert('납입 금액을 입력해주세요.');
+            return;
+        }
+
+        try {
+            await API.updateDeposit(this.auth.userId, item.id, historyId, {
+                depositDate: form.depositDate || null,
+                amount: Number(form.amount),
+                units: form.units ? Number(form.units) : null,
+                memo: form.memo || null
+            });
+            this.portfolio.editingDeposit = null;
+            await this.loadDepositHistories(item.id);
+            await this.loadPortfolio();
+        } catch (e) {
+            console.error('납입이력 수정 실패:', e);
+            alert('납입이력 수정에 실패했습니다.');
+        }
+    },
+
+    async deleteDeposit(historyId) {
+        if (!confirm('이 납입 이력을 삭제하시겠습니까?\n삭제 후 투자금액이 재계산됩니다.')) return;
+        const item = this.portfolio.depositItem;
+
+        try {
+            await API.deleteDeposit(this.auth.userId, item.id, historyId);
+            await this.loadDepositHistories(item.id);
+            await this.loadPortfolio();
+        } catch (e) {
+            console.error('납입이력 삭제 실패:', e);
+            alert(e.message || '납입이력 삭제에 실패했습니다.');
+        }
+    },
+
+    getDepositTotal() {
+        return this.portfolio.depositHistories.reduce((sum, h) => sum + (h.amount || 0), 0);
     }
 };

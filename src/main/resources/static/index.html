@@ -928,6 +928,10 @@
                                                                 <button x-show="item.assetType === 'STOCK'"
                                                                     @click.stop="openPurchaseModal(item)"
                                                                     class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">추가 매수</button>
+ㄷㅏ                                                                <!-- 납입 (현금성/펀드만) -->
+                                                                <button x-show="isDepositTarget(item)"
+                                                                    @click.stop="openDepositModal(item)"
+                                                                    class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">납입</button>
                                                                 <!-- 수정 -->
                                                                 <button @click.stop="openEditModal(item)"
                                                                     class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
@@ -1023,6 +1027,9 @@
                                                                 <button x-show="item.assetType === 'STOCK'"
                                                                     @click.stop="openPurchaseModal(item)"
                                                                     class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">추가 매수</button>
+                                                                <button x-show="isDepositTarget(item)"
+                                                                    @click.stop="openDepositModal(item)"
+                                                                    class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">납입</button>
                                                                 <button @click.stop="openEditModal(item)"
                                                                     class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
                                                                 <button @click.stop="deleteItem(item.id)"
@@ -1356,6 +1363,21 @@
                                             <input type="number" step="0.01" x-model="portfolio.addForm.managementFee" placeholder="0.00"
                                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                         </div>
+                                        <!-- 자동납입 설정 -->
+                                        <div class="flex gap-3">
+                                            <div class="w-2/3">
+                                                <label class="block text-sm text-gray-600 mb-1">월 납입액</label>
+                                                <input type="number" x-model="portfolio.addForm.monthlyDepositAmount"
+                                                    placeholder="월 자동납입 금액" min="0"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </div>
+                                            <div class="w-1/3">
+                                                <label class="block text-sm text-gray-600 mb-1">납입일</label>
+                                                <input type="number" x-model="portfolio.addForm.depositDay"
+                                                    placeholder="일" min="1" max="31"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </div>
+                                        </div>
                                     </div>
                                 </template>
 
@@ -1395,6 +1417,21 @@
                                                 <option value="TAX_FREE">비과세</option>
                                                 <option value="TAX_FAVORED">세금우대 (9.5%)</option>
                                             </select>
+                                        </div>
+                                        <!-- 자동납입 설정 -->
+                                        <div class="flex gap-3">
+                                            <div class="w-2/3">
+                                                <label class="block text-sm text-gray-600 mb-1">월 납입액</label>
+                                                <input type="number" x-model="portfolio.addForm.monthlyDepositAmount"
+                                                    placeholder="월 자동납입 금액" min="0"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </div>
+                                            <div class="w-1/3">
+                                                <label class="block text-sm text-gray-600 mb-1">납입일</label>
+                                                <input type="number" x-model="portfolio.addForm.depositDay"
+                                                    placeholder="일" min="1" max="31"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </div>
                                         </div>
                                     </div>
                                 </template>
@@ -1615,6 +1652,21 @@
                                         <input type="number" step="0.01" x-model="portfolio.editForm.managementFee" placeholder="0.00"
                                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     </div>
+                                    <!-- 자동납입 설정 -->
+                                    <div class="flex gap-3">
+                                        <div class="w-2/3">
+                                            <label class="block text-sm text-gray-600 mb-1">월 납입액</label>
+                                            <input type="number" x-model="portfolio.editForm.monthlyDepositAmount"
+                                                placeholder="월 자동납입 금액" min="0"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                        <div class="w-1/3">
+                                            <label class="block text-sm text-gray-600 mb-1">납입일</label>
+                                            <input type="number" x-model="portfolio.editForm.depositDay"
+                                                placeholder="일" min="1" max="31"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                    </div>
                                 </div>
                             </template>
 
@@ -1653,6 +1705,21 @@
                                             <option value="TAX_FREE">비과세</option>
                                             <option value="TAX_FAVORED">세금우대 (9.5%)</option>
                                         </select>
+                                    </div>
+                                    <!-- 자동납입 설정 -->
+                                    <div class="flex gap-3">
+                                        <div class="w-2/3">
+                                            <label class="block text-sm text-gray-600 mb-1">월 납입액</label>
+                                            <input type="number" x-model="portfolio.editForm.monthlyDepositAmount"
+                                                placeholder="월 자동납입 금액" min="0"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                        <div class="w-1/3">
+                                            <label class="block text-sm text-gray-600 mb-1">납입일</label>
+                                            <input type="number" x-model="portfolio.editForm.depositDay"
+                                                placeholder="일" min="1" max="31"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
                                     </div>
                                 </div>
                             </template>
@@ -1863,6 +1930,148 @@
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">취소</button>
                         <button @click="submitPurchase()"
                             class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition">추가 매수</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 납입 이력 모달 -->
+            <div x-show="portfolio.showDepositModal" x-cloak
+                class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
+                    @click.outside="portfolio.showDepositModal = false">
+
+                    <h3 class="text-lg font-bold text-gray-900 mb-1">납입 이력</h3>
+                    <p class="text-sm text-gray-500 mb-4" x-text="portfolio.depositItem ? portfolio.depositItem.itemName : ''"></p>
+
+                    <!-- 현재 납입 정보 -->
+                    <template x-if="portfolio.depositItem">
+                        <div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600 space-y-1">
+                            <div class="flex justify-between">
+                                <span>총 납입 금액</span>
+                                <span class="font-medium text-gray-800" x-text="Format.number(portfolio.depositItem.investedAmount, 0) + '원'"></span>
+                            </div>
+                            <template x-if="portfolio.depositItem.depositOverdue">
+                                <div class="flex items-center gap-1 text-amber-600">
+                                    <span>⚠</span>
+                                    <span class="font-medium">이번 달 납입이 필요합니다</span>
+                                </div>
+                            </template>
+                            <template x-if="portfolio.depositItem.expectedMaturityAmount">
+                                <div class="flex justify-between">
+                                    <span>만기 예상 금액</span>
+                                    <span class="font-medium text-emerald-700" x-text="Format.number(portfolio.depositItem.expectedMaturityAmount, 0) + '원'"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- 납입 추가 입력 -->
+                    <div class="space-y-3">
+                        <div class="flex gap-2">
+                            <div class="w-1/2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">납입일</label>
+                                <input type="date" x-model="portfolio.depositForm.depositDate"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            </div>
+                            <div class="w-1/2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">납입 금액</label>
+                                <input type="number" x-model="portfolio.depositForm.amount"
+                                    placeholder="금액" min="1"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            </div>
+                        </div>
+                        <template x-if="portfolio.depositItem && portfolio.depositItem.assetType === 'FUND'">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">취득 좌수 (선택)</label>
+                                <input type="number" x-model="portfolio.depositForm.units"
+                                    placeholder="좌수" min="0" step="0.000001"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            </div>
+                        </template>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">메모 (선택)</label>
+                            <input type="text" x-model="portfolio.depositForm.memo"
+                                placeholder="메모" maxlength="200"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                        </div>
+                    </div>
+
+                    <!-- 납입 이력 목록 -->
+                    <template x-if="portfolio.depositHistories.length > 0">
+                        <div class="mt-4">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-2">
+                                납입 이력
+                                <span class="text-gray-400 font-normal" x-text="'(' + portfolio.depositHistories.length + '건, 합계 ' + Format.number(getDepositTotal(), 0) + '원)'"></span>
+                            </h4>
+                            <div class="space-y-2 max-h-48 overflow-y-auto">
+                                <template x-for="h in portfolio.depositHistories" :key="h.id">
+                                    <div class="bg-gray-50 rounded-lg p-3 text-sm">
+                                        <!-- 보기 모드 -->
+                                        <template x-if="portfolio.editingDeposit !== h.id">
+                                            <div>
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <span class="font-medium text-gray-800"
+                                                            x-text="Format.number(h.amount, 0) + '원'"></span>
+                                                        <template x-if="h.units">
+                                                            <span class="text-gray-500 ml-1"
+                                                                x-text="'(' + h.units + '좌)'"></span>
+                                                        </template>
+                                                    </div>
+                                                    <div class="flex gap-2">
+                                                        <button @click.stop="startEditDeposit(h)"
+                                                            class="text-xs text-blue-600 hover:text-blue-800">수정</button>
+                                                        <button @click.stop="deleteDeposit(h.id)"
+                                                            class="text-xs text-red-500 hover:text-red-700">삭제</button>
+                                                    </div>
+                                                </div>
+                                                <div class="flex gap-3 mt-1 text-xs text-gray-400">
+                                                    <span x-show="h.depositDate" x-text="h.depositDate"></span>
+                                                    <span x-show="h.memo" x-text="h.memo"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <!-- 수정 모드 -->
+                                        <template x-if="portfolio.editingDeposit === h.id">
+                                            <div class="space-y-2">
+                                                <div class="flex gap-2">
+                                                    <input type="date" x-model="portfolio.editDepositForm.depositDate"
+                                                        class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                    <input type="number" x-model="portfolio.editDepositForm.amount"
+                                                        placeholder="금액" min="1"
+                                                        class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    <template x-if="portfolio.depositItem && portfolio.depositItem.assetType === 'FUND'">
+                                                        <input type="number" x-model="portfolio.editDepositForm.units"
+                                                            placeholder="좌수" step="0.000001"
+                                                            class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                    </template>
+                                                    <input type="text" x-model="portfolio.editDepositForm.memo"
+                                                        placeholder="메모" maxlength="200"
+                                                        class="border border-gray-300 rounded px-2 py-1 text-sm"
+                                                        :class="portfolio.depositItem && portfolio.depositItem.assetType === 'FUND' ? 'w-1/2' : 'w-full'">
+                                                </div>
+                                                <div class="flex justify-end gap-2">
+                                                    <button @click.stop="cancelEditDeposit()"
+                                                        class="text-xs text-gray-500 hover:text-gray-700">취소</button>
+                                                    <button @click.stop="submitEditDeposit(h.id)"
+                                                        class="text-xs text-blue-600 hover:text-blue-800 font-medium">저장</button>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- 버튼 -->
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button @click="portfolio.showDepositModal = false"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">닫기</button>
+                        <button @click="submitDeposit()"
+                            class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition">납입 추가</button>
                     </div>
                 </div>
             </div>

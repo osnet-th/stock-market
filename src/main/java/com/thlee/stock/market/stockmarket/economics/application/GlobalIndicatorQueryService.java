@@ -2,9 +2,12 @@ package com.thlee.stock.market.stockmarket.economics.application;
 
 import com.thlee.stock.market.stockmarket.economics.domain.model.CountryIndicatorSnapshot;
 import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalEconomicIndicatorType;
+import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalIndicator;
 import com.thlee.stock.market.stockmarket.economics.domain.model.IndicatorCategory;
+import com.thlee.stock.market.stockmarket.economics.domain.repository.GlobalIndicatorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
@@ -17,6 +20,7 @@ import java.util.stream.Collectors;
 public class GlobalIndicatorQueryService {
 
     private final GlobalIndicatorCacheService globalIndicatorCacheService;
+    private final GlobalIndicatorRepository globalIndicatorRepository;
 
     public List<CountryIndicatorSnapshot> getIndicator(GlobalEconomicIndicatorType indicatorType) {
         return globalIndicatorCacheService.getIndicator(indicatorType);
@@ -42,5 +46,13 @@ public class GlobalIndicatorQueryService {
 
     public void evictAll() {
         globalIndicatorCacheService.evictAll();
+    }
+
+    /**
+     * 지표타입별 히스토리 조회 (cycle별 최신 snapshot만 반환)
+     */
+    @Transactional(readOnly = true)
+    public List<GlobalIndicator> getHistoryByIndicatorType(GlobalEconomicIndicatorType indicatorType) {
+        return globalIndicatorRepository.findLatestHistoryByIndicatorType(indicatorType);
     }
 }

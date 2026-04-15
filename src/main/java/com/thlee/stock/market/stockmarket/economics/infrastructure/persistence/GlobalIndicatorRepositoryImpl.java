@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.economics.infrastructure.persistence;
 
+import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalEconomicIndicatorType;
 import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalIndicator;
 import com.thlee.stock.market.stockmarket.economics.domain.repository.GlobalIndicatorRepository;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.persistence.mapper.GlobalIndicatorMapper;
@@ -31,5 +32,12 @@ public class GlobalIndicatorRepositoryImpl implements GlobalIndicatorRepository 
     @Override
     public boolean existsAny() {
         return jpaRepository.existsFirstBy();
+    }
+
+    @Override
+    public List<GlobalIndicator> findLatestHistoryByIndicatorType(GlobalEconomicIndicatorType indicatorType) {
+        return jpaRepository.findLatestHistoryByIndicatorType(indicatorType.name()).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 }

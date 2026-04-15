@@ -719,42 +719,96 @@
                             </template>
                         </div>
 
-                        <!-- 국가 데이터 테이블 -->
-                        <div class="bg-white rounded-b-xl border border-gray-200 overflow-hidden">
-                            <div class="overflow-x-auto">
-                                <table class="data-table w-full text-sm">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="text-left py-3 px-4 text-gray-600 font-semibold">국가</th>
-                                            <th class="text-right py-3 px-4 text-gray-600 font-semibold">최신값</th>
-                                            <th class="text-right py-3 px-4 text-gray-600 font-semibold">이전값</th>
-                                            <th class="text-center py-3 px-4 text-gray-600 font-semibold">변화</th>
-                                            <th class="text-right py-3 px-4 text-gray-600 font-semibold">변화율</th>
-                                            <th class="text-left py-3 px-4 text-gray-600 font-semibold">단위</th>
-                                            <th class="text-left py-3 px-4 text-gray-600 font-semibold">참고</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-for="country in globalData.indicatorData.countries" :key="country.countryName">
-                                            <tr class="border-b border-gray-100">
-                                                <td class="py-3 px-4 text-gray-800 font-medium" x-text="country.countryName"></td>
-                                                <td class="py-3 px-4 text-right font-mono text-gray-800 font-medium" x-text="Format.number(country.lastValue)"></td>
-                                                <td class="py-3 px-4 text-right font-mono text-gray-500" x-text="Format.number(country.previousValue)"></td>
-                                                <td class="py-3 px-4 text-center text-base">
-                                                    <span :class="getChangeInfo(country.lastValue, country.previousValue).className"
-                                                        x-text="getChangeInfo(country.lastValue, country.previousValue).symbol"></span>
-                                                </td>
-                                                <td class="py-3 px-4 text-right font-mono text-xs"
-                                                    :class="getChangeInfo(country.lastValue, country.previousValue).className"
-                                                    x-text="Format.changeRate(country.lastValue, country.previousValue)"></td>
-                                                <td class="py-3 px-4 text-gray-500" x-text="country.unit"></td>
-                                                <td class="py-3 px-4 text-gray-400 text-xs" x-text="country.reference || '-'"></td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
+                        <!-- 뷰 모드 토글 -->
+                        <div class="bg-white border-x border-gray-200 px-5 py-3">
+                            <div class="flex items-center gap-4">
+                                <span class="text-sm font-medium text-gray-600">보기 방식</span>
+                                <div class="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+                                    <button @click="switchGlobalViewMode('table')"
+                                            :class="globalData.viewMode === 'table' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'"
+                                            class="px-3 py-1.5 text-xs font-medium rounded-md transition-all">
+                                        표 보기
+                                    </button>
+                                    <button @click="switchGlobalViewMode('chart')"
+                                            :class="globalData.viewMode === 'chart' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'"
+                                            class="px-3 py-1.5 text-xs font-medium rounded-md transition-all">
+                                        그래프 보기
+                                    </button>
+                                </div>
                             </div>
                         </div>
+
+                        <!-- ===== 차트 뷰 ===== -->
+                        <template x-if="globalData.viewMode === 'chart'">
+                            <div class="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden">
+                                <!-- 차트 로딩 -->
+                                <template x-if="globalData.historyLoading">
+                                    <div class="p-6 animate-pulse">
+                                        <div class="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
+                                        <div class="h-72 bg-gray-100 rounded"></div>
+                                    </div>
+                                </template>
+
+                                <!-- 차트 -->
+                                <template x-if="!globalData.historyLoading && globalData.historyData && globalData.historyData.countries && globalData.historyData.countries.length > 0">
+                                    <div class="p-6">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="text-sm font-semibold text-gray-800" x-text="globalData.historyData.displayName"></h4>
+                                            <span class="text-xs text-gray-400" x-text="globalData.historyData.unit"></span>
+                                        </div>
+                                        <div class="h-80">
+                                            <canvas id="global-history-chart"></canvas>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- 히스토리 없음 -->
+                                <template x-if="!globalData.historyLoading && (!globalData.historyData || !globalData.historyData.countries || globalData.historyData.countries.length === 0)">
+                                    <div class="p-8 text-center text-gray-400 text-sm">
+                                        히스토리 데이터가 없습니다.
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- ===== 테이블 뷰 ===== -->
+                        <template x-if="globalData.viewMode === 'table'">
+                            <div class="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden">
+                                <div class="overflow-x-auto">
+                                    <table class="data-table w-full text-sm">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">국가</th>
+                                                <th class="text-right py-3 px-4 text-gray-600 font-semibold">최신값</th>
+                                                <th class="text-right py-3 px-4 text-gray-600 font-semibold">이전값</th>
+                                                <th class="text-center py-3 px-4 text-gray-600 font-semibold">변화</th>
+                                                <th class="text-right py-3 px-4 text-gray-600 font-semibold">변화율</th>
+                                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">단위</th>
+                                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">참고</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="country in globalData.indicatorData.countries" :key="country.countryName">
+                                                <tr class="border-b border-gray-100">
+                                                    <td class="py-3 px-4 text-gray-800 font-medium" x-text="country.countryName"></td>
+                                                    <td class="py-3 px-4 text-right font-mono text-gray-800 font-medium" x-text="Format.number(country.lastValue)"></td>
+                                                    <td class="py-3 px-4 text-right font-mono text-gray-500" x-text="Format.number(country.previousValue)"></td>
+                                                    <td class="py-3 px-4 text-center text-base">
+                                                        <span :class="getChangeInfo(country.lastValue, country.previousValue).className"
+                                                            x-text="getChangeInfo(country.lastValue, country.previousValue).symbol"></span>
+                                                    </td>
+                                                    <td class="py-3 px-4 text-right font-mono text-xs"
+                                                        :class="getChangeInfo(country.lastValue, country.previousValue).className"
+                                                        x-text="Format.changeRate(country.lastValue, country.previousValue)"></td>
+                                                    <td class="py-3 px-4 text-gray-500" x-text="country.unit"></td>
+                                                    <td class="py-3 px-4 text-gray-400 text-xs" x-text="country.reference || '-'"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </template>
 
@@ -928,7 +982,7 @@
                                                                 <button x-show="item.assetType === 'STOCK'"
                                                                     @click.stop="openPurchaseModal(item)"
                                                                     class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">추가 매수</button>
-ㄷㅏ                                                                <!-- 납입 (현금성/펀드만) -->
+                                                                <!-- 납입 (현금성/펀드만) -->
                                                                 <button x-show="isDepositTarget(item)"
                                                                     @click.stop="openDepositModal(item)"
                                                                     class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">납입</button>

@@ -57,6 +57,13 @@ const GLOBAL_INDICATOR_DESCRIPTIONS = {
     'MONEY_SUPPLY_M3': '총유동성. M2 + 비은행 금융상품. 전체 통화량 파악용',
 };
 
+const COUNTRY_COLORS = [
+    '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+    '#EC4899', '#06B6D4', '#F97316', '#84CC16', '#6366F1',
+    '#14B8A6', '#E11D48', '#0EA5E9', '#A855F7', '#D97706',
+    '#059669', '#DC2626', '#7C3AED', '#2563EB', '#CA8A04'
+];
+
 const GlobalComponent = {
     globalData: {
         categories: [],
@@ -64,7 +71,18 @@ const GlobalComponent = {
         selectedIndicator: null,
         indicatorData: null,
         loading: false,
-        _requestGeneration: 0
+        viewMode: 'table',
+        historyData: null,
+        historyLoading: false,
+        _requestGeneration: 0,
+        _historyGeneration: 0,
+        _historyCache: {}
+    },
+
+    initGlobalCharts() {
+        Object.defineProperty(this.globalData, '_chartInstances', {
+            value: new Map(), writable: true, enumerable: false
+        });
     },
 
     async loadGlobalCategories() {
@@ -87,6 +105,7 @@ const GlobalComponent = {
         this.globalData.selectedCategory = categoryKey;
         this.globalData.selectedIndicator = null;
         this.globalData.indicatorData = null;
+        this.destroyGlobalCharts();
         const cat = this.globalData.categories.find((c) => c.key === categoryKey);
         if (cat && cat.indicators && cat.indicators.length > 0) {
             await this.selectGlobalIndicator(cat.indicators[0].key);
@@ -112,6 +131,150 @@ const GlobalComponent = {
                 this.globalData.loading = false;
             }
         }
+
+        if (this.globalData.viewMode === 'chart') {
+            await this.loadGlobalHistory();
+        }
+    },
+
+    async switchGlobalViewMode(mode) {
+        this.globalData.viewMode = mode;
+        if (mode === 'chart') {
+            await this.loadGlobalHistory();
+        } else {
+            this.destroyGlobalCharts();
+        }
+    },
+
+    async loadGlobalHistory() {
+        if (!this.globalData.selectedIndicator) return;
+
+        const cached = this.globalData._historyCache[this.globalData.selectedIndicator];
+        if (cached) {
+            this.globalData.historyData = cached;
+            this.$nextTick(() => this.renderGlobalCharts());
+            return;
+        }
+
+        const thisGeneration = ++this.globalData._historyGeneration;
+        this.globalData.historyLoading = true;
+
+        try {
+            const result = await API.getGlobalIndicatorHistory(this.globalData.selectedIndicator);
+            if (thisGeneration !== this.globalData._historyGeneration) return;
+            this.globalData.historyData = result;
+
+            // LRU 캐시: 최대 5개 지표타입
+            const cacheKeys = Object.keys(this.globalData._historyCache);
+            if (cacheKeys.length >= 5) {
+                delete this.globalData._historyCache[cacheKeys[0]];
+            }
+            this.globalData._historyCache[this.globalData.selectedIndicator] = result;
+
+            this.$nextTick(() => this.renderGlobalCharts());
+        } catch (e) {
+            if (thisGeneration !== this.globalData._historyGeneration) return;
+            console.error('글로벌 히스토리 로드 실패:', e);
+            this.globalData.historyData = null;
+        } finally {
+            if (thisGeneration === this.globalData._historyGeneration) {
+                this.globalData.historyLoading = false;
+            }
+        }
+    },
+
+    renderGlobalCharts() {
+        this.destroyGlobalCharts();
+        if (!this.globalData._chartInstances) this.initGlobalCharts();
+
+        const data = this.globalData.historyData;
+        if (!data || !data.countries || data.countries.length === 0) return;
+
+        // 모든 국가의 cycle을 합쳐서 유니크한 라벨 생성
+        const allCycles = new Set();
+        data.countries.forEach(country => {
+            country.history.forEach(h => allCycles.add(h.cycle));
+        });
+        const labels = [...allCycles];
+
+        const canvasId = 'global-history-chart';
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        const datasets = data.countries.map((country, idx) => {
+            // cycle → dataValue 매핑
+            const valueMap = {};
+            country.history.forEach(h => { valueMap[h.cycle] = h.dataValue; });
+
+            return {
+                label: country.countryName,
+                data: labels.map(cycle => {
+                    const raw = valueMap[cycle];
+                    if (!raw) return null;
+                    const v = parseFloat(raw.replace(/,/g, ''));
+                    return isNaN(v) ? null : v;
+                }),
+                borderColor: COUNTRY_COLORS[idx % COUNTRY_COLORS.length],
+                borderWidth: 1.5,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                tension: 0.3,
+                fill: false,
+                spanGaps: false
+            };
+        });
+
+        const chart = new Chart(canvas, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                animation: false,
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 8,
+                            font: { size: 10 }
+                        }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: (ctx) => {
+                                const val = ctx.parsed.y;
+                                return val !== null
+                                    ? `${ctx.dataset.label}: ${val} ${data.unit || ''}`
+                                    : `${ctx.dataset.label}: 데이터 없음`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 10, font: { size: 10 } },
+                        grid: { display: false }
+                    },
+                    y: {
+                        display: true,
+                        ticks: { maxTicksLimit: 6, font: { size: 10 } }
+                    }
+                }
+            }
+        });
+        this.globalData._chartInstances.set(canvasId, chart);
+    },
+
+    destroyGlobalCharts() {
+        if (!this.globalData._chartInstances) return;
+        this.globalData._chartInstances.forEach(chart => chart.destroy());
+        this.globalData._chartInstances.clear();
     },
 
     getCurrentCategoryIndicators() {

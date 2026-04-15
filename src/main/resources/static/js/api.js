@@ -109,6 +109,10 @@ const API = {
         return this.request('GET', `/api/economics/global-indicators/categories/${category}`);
     },
 
+    getGlobalIndicatorHistory(indicatorType) {
+        return this.request('GET', `/api/economics/global-indicators/${indicatorType}/history`);
+    },
+
     // ==================== Stock Search ====================
     searchStocks(name) {
         return this.request('GET', `/api/stocks/search?name=${encodeURIComponent(name)}`);

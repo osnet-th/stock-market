@@ -190,85 +190,65 @@ const GlobalComponent = {
         const data = this.globalData.historyData;
         if (!data || !data.countries || data.countries.length === 0) return;
 
-        // 모든 국가의 cycle을 합쳐서 유니크한 라벨 생성
-        const allCycles = new Set();
-        data.countries.forEach(country => {
-            country.history.forEach(h => allCycles.add(h.cycle));
-        });
-        const labels = [...allCycles];
+        data.countries.forEach((country, idx) => {
+            if (country.history.length < 2) return;
 
-        const canvasId = 'global-history-chart';
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) return;
+            const canvasId = 'global-chart-' + country.countryName.replace(/[^a-zA-Z0-9가-힣]/g, '_');
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
 
-        const datasets = data.countries.map((country, idx) => {
-            // cycle → dataValue 매핑
-            const valueMap = {};
-            country.history.forEach(h => { valueMap[h.cycle] = h.dataValue; });
-
-            return {
-                label: country.countryName,
-                data: labels.map(cycle => {
-                    const raw = valueMap[cycle];
-                    if (!raw) return null;
-                    const v = parseFloat(raw.replace(/,/g, ''));
-                    return isNaN(v) ? null : v;
-                }),
-                borderColor: COUNTRY_COLORS[idx % COUNTRY_COLORS.length],
-                borderWidth: 1.5,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                tension: 0.3,
-                fill: false,
-                spanGaps: false
-            };
-        });
-
-        const chart = new Chart(canvas, {
-            type: 'line',
-            data: { labels, datasets },
-            options: {
-                animation: false,
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'bottom',
-                        labels: {
-                            boxWidth: 12,
-                            padding: 8,
-                            font: { size: 10 }
-                        }
-                    },
-                    tooltip: {
-                        enabled: true,
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: (ctx) => {
-                                const val = ctx.parsed.y;
-                                return val !== null
-                                    ? `${ctx.dataset.label}: ${val} ${data.unit || ''}`
-                                    : `${ctx.dataset.label}: 데이터 없음`;
+            const chart = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: country.history.map(h => h.cycle),
+                    datasets: [{
+                        data: country.history.map(h => {
+                            if (!h.dataValue) return null;
+                            const v = parseFloat(h.dataValue.replace(/,/g, ''));
+                            return isNaN(v) ? null : v;
+                        }),
+                        borderColor: COUNTRY_COLORS[idx % COUNTRY_COLORS.length],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        tension: 0.3,
+                        fill: false,
+                        spanGaps: false
+                    }]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: (ctx) => {
+                                    const val = ctx.parsed.y;
+                                    return val !== null ? `${val} ${data.unit || ''}` : '데이터 없음';
+                                }
                             }
                         }
-                    }
-                },
-                scales: {
-                    x: {
-                        display: true,
-                        ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 10, font: { size: 10 } },
-                        grid: { display: false }
                     },
-                    y: {
-                        display: true,
-                        ticks: { maxTicksLimit: 6, font: { size: 10 } }
+                    scales: {
+                        x: {
+                            display: true,
+                            ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 8, font: { size: 10 } },
+                            grid: { display: false }
+                        },
+                        y: {
+                            display: true,
+                            ticks: { maxTicksLimit: 5, font: { size: 10 } }
+                        }
                     }
                 }
-            }
+            });
+            this.globalData._chartInstances.set(canvasId, chart);
         });
-        this.globalData._chartInstances.set(canvasId, chart);
     },
 
     destroyGlobalCharts() {

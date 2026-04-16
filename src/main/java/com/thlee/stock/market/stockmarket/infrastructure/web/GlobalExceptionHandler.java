@@ -11,6 +11,8 @@ import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.excepti
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecApiException;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecErrorType;
 import com.thlee.stock.market.stockmarket.user.domain.exception.UserDomainException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -28,6 +31,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
         return buildResponse(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage());
+    }
+
+    /**
+     * 데이터 무결성 위반 (UNIQUE 제약 충돌 등 동시성 이슈)
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        return buildResponse(HttpStatus.CONFLICT, "CONFLICT",
+                "요청이 동시성 충돌로 처리되지 않았습니다. 다시 시도해주세요.");
     }
 
     /**
@@ -98,6 +110,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception e) {
+        log.error("unhandled exception: {}", e.toString(), e);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "서버 내부 오류가 발생했습니다.");
     }
 

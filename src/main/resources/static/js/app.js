@@ -4,7 +4,7 @@ function dashboard() {
         // ==================== 코어 상태 ====================
         currentPage: (() => {
             const hash = location.hash.replace('#', '');
-            const validPages = ['home', 'keywords', 'ecos', 'global', 'portfolio'];
+            const validPages = ['home', 'keywords', 'ecos', 'global', 'portfolio', 'salary'];
             return validPages.includes(hash) ? hash : 'home';
         })(),
 
@@ -13,7 +13,8 @@ function dashboard() {
             { key: 'keywords', label: '키워드', icon: 'tag' },
             { key: 'ecos', label: '국내 경제지표', icon: 'chart' },
             { key: 'global', label: '글로벌 경제지표', icon: 'globe' },
-            { key: 'portfolio', label: '포트폴리오', icon: 'portfolio' }
+            { key: 'portfolio', label: '포트폴리오', icon: 'portfolio' },
+            { key: 'salary', label: '월급 사용 비율', icon: 'wallet' }
         ],
 
         sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
@@ -34,6 +35,7 @@ function dashboard() {
         ...FinancialComponent,
         ...ChatComponent,
         ...FavoriteComponent,
+        ...SalaryComponent,
 
         // ==================== 코어 메서드 ====================
         toggleSidebar() {
@@ -132,6 +134,11 @@ function dashboard() {
                 }
             }
 
+            // 월급 사용 비율에서 떠날 때 Chart.js 인스턴스 정리
+            if (this.currentPage === 'salary' && page !== 'salary') {
+                this.destroySalaryCharts();
+            }
+
             this.currentPage = page;
             history.pushState(null, '', '#' + page);
             switch (page) {
@@ -155,6 +162,9 @@ function dashboard() {
                     break;
                 case 'portfolio':
                     await this.loadPortfolio();
+                    break;
+                case 'salary':
+                    await this.loadSalaryInitial();
                     break;
             }
         }

@@ -25,6 +25,12 @@ spring:
         jdbc:
           batch_size: 1000
 
+  # Jackson: Spring Boot 4 + Jackson 3의 기본 동작으로 충분하므로 별도 설정 없음.
+  # - YearMonth는 JavaTimeModule 기본 등록으로 "2026-04" ISO 문자열로 직렬화됨
+  # - BigDecimal은 기본적으로 toPlainString 사용 (과학적 표기 회피)
+  # (Jackson 3에서 SerializationFeature.WRITE_DATES_AS_TIMESTAMPS가 이동/제거되어
+  #  spring.jackson.serialization 하위 속성으로 바인딩 실패)
+
   # Scheduler Configuration
   task:
     scheduling:

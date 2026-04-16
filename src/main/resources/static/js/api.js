@@ -9,12 +9,13 @@ const API = {
         };
     },
 
-    async request(method, url, body = null) {
+    async request(method, url, body = null, { signal } = {}) {
         const options = {
             method,
             headers: this.getHeaders(),
         };
         if (body) options.body = JSON.stringify(body);
+        if (signal) options.signal = signal;
 
         const response = await fetch(`${this.baseUrl}${url}`, options);
 
@@ -379,5 +380,34 @@ const API = {
         } catch (error) {
             onError(error);
         }
+    },
+
+    // ==================== Salary Usage Ratio ====================
+    getSalaryMonthly(userId, yearMonth, options = {}) {
+        return this.request('GET', `/api/salary/monthly/${yearMonth}?userId=${userId}`, null, options);
+    },
+
+    getSalaryTrend(userId, months = 12, options = {}) {
+        return this.request('GET', `/api/salary/trend?userId=${userId}&months=${months}`, null, options);
+    },
+
+    getSalaryAvailableMonths(userId, options = {}) {
+        return this.request('GET', `/api/salary/months?userId=${userId}`, null, options);
+    },
+
+    upsertSalaryIncome(userId, yearMonth, amount) {
+        return this.request('PUT', `/api/salary/income/${yearMonth}?userId=${userId}`, { amount });
+    },
+
+    upsertSalarySpending(userId, yearMonth, category, amount, memo) {
+        return this.request('PUT', `/api/salary/spending/${yearMonth}/${category}?userId=${userId}`, { amount, memo });
+    },
+
+    deleteSalaryIncome(userId, yearMonth) {
+        return this.request('DELETE', `/api/salary/income/${yearMonth}?userId=${userId}`);
+    },
+
+    deleteSalarySpending(userId, yearMonth, category) {
+        return this.request('DELETE', `/api/salary/spending/${yearMonth}/${category}?userId=${userId}`);
     }
 };

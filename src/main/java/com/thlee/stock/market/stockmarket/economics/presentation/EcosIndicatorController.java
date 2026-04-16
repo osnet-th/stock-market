@@ -2,14 +2,18 @@ package com.thlee.stock.market.stockmarket.economics.presentation;
 
 import com.thlee.stock.market.stockmarket.economics.application.EcosIndicatorMetadataService;
 import com.thlee.stock.market.stockmarket.economics.application.EcosIndicatorService;
+import com.thlee.stock.market.stockmarket.economics.application.GlobalIndicatorQueryService;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicator;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorCategory;
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorLatest;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorMetadata;
+import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalIndicatorLatest;
 import com.thlee.stock.market.stockmarket.economics.domain.model.KeyStatIndicator;
 import com.thlee.stock.market.stockmarket.economics.presentation.dto.CategoryResponse;
 import com.thlee.stock.market.stockmarket.economics.presentation.dto.HistoryPoint;
 import com.thlee.stock.market.stockmarket.economics.presentation.dto.IndicatorHistoryResponse;
 import com.thlee.stock.market.stockmarket.economics.presentation.dto.IndicatorResponse;
+import com.thlee.stock.market.stockmarket.economics.presentation.dto.RecentUpdateResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +36,7 @@ public class EcosIndicatorController {
 
     private final EcosIndicatorService ecosIndicatorService;
     private final EcosIndicatorMetadataService metadataService;
+    private final GlobalIndicatorQueryService globalIndicatorQueryService;
 
     /**
      * 카테고리별 경제지표 조회
@@ -101,6 +106,22 @@ public class EcosIndicatorController {
                     );
                 })
                 .toList();
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 최근 업데이트된 경제지표 조회 (ECOS + Global 통합, 최근 7일)
+     */
+    @GetMapping("/recent-updates")
+    public ResponseEntity<RecentUpdateResponse> getRecentUpdates() {
+        List<EcosIndicatorLatest> ecosUpdates = ecosIndicatorService.findRecentlyUpdated();
+        List<GlobalIndicatorLatest> globalUpdates = globalIndicatorQueryService.findRecentlyUpdated();
+
+        RecentUpdateResponse response = new RecentUpdateResponse(
+            ecosUpdates.stream().map(RecentUpdateResponse.EcosUpdate::from).toList(),
+            globalUpdates.stream().map(RecentUpdateResponse.GlobalUpdate::from).toList()
+        );
 
         return ResponseEntity.ok(response);
     }

@@ -31,6 +31,13 @@ public class EcosIndicatorLatestRepositoryImpl implements EcosIndicatorLatestRep
     }
 
     @Override
+    public List<EcosIndicatorLatest> findRecentlyUpdated(LocalDateTime after) {
+        return jpaRepository.findByUpdatedAtAfterOrderByUpdatedAtDesc(after).stream()
+            .map(mapper::toDomain)
+            .toList();
+    }
+
+    @Override
     public void saveAll(List<EcosIndicatorLatest> latestList) {
         for (EcosIndicatorLatest latest : latestList) {
             EcosIndicatorLatestEntity.LatestId id =
@@ -42,7 +49,10 @@ public class EcosIndicatorLatestRepositoryImpl implements EcosIndicatorLatestRep
                 EcosIndicatorLatestEntity entity = existing.get();
                 boolean cycleChanged = latest.getCycle() != null
                     && !latest.getCycle().equals(entity.getCycle());
-                entity.update(latest.getDataValue(), latest.getCycle(), cycleChanged, LocalDateTime.now());
+                LocalDateTime updatedAt = cycleChanged
+                    ? LocalDateTime.now()
+                    : entity.getUpdatedAt();
+                entity.update(latest.getDataValue(), latest.getCycle(), cycleChanged, updatedAt);
             } else {
                 jpaRepository.save(mapper.toEntity(latest));
             }

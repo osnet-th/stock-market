@@ -9,16 +9,22 @@ const HomeComponent = {
         domesticKeywordCount: 0,
         internationalKeywordCount: 0,
         ecosCategories: [],
-        globalCategories: []
+        globalCategories: [],
+        enrichedFavorites: null,
+        recentUpdates: null,
+        dashboardLoading: false,
     },
 
     async loadHomeSummary() {
+        this.homeSummary.dashboardLoading = true;
         try {
             const results = await Promise.allSettled([
                 this.checkLoggedIn() ? API.getKeywords(this.auth.userId) : Promise.resolve(null),
                 API.getEcosCategories(),
                 API.getGlobalCategories(),
-                this.checkLoggedIn() ? API.getPortfolioItems(this.auth.userId) : Promise.resolve(null)
+                this.checkLoggedIn() ? API.getPortfolioItems(this.auth.userId) : Promise.resolve(null),
+                this.checkLoggedIn() ? API.getEnrichedFavorites() : Promise.resolve(null),
+                API.getRecentUpdates()
             ]);
 
             // 키워드
@@ -55,8 +61,55 @@ const HomeComponent = {
                     .map(label => label + ' ' + typeCounts[label] + '건')
                     .join(' · ');
             }
+
+            // 관심 지표 (enriched)
+            if (results[4].status === 'fulfilled' && results[4].value) {
+                this.homeSummary.enrichedFavorites = results[4].value;
+            }
+
+            // 최근 업데이트
+            if (results[5].status === 'fulfilled' && results[5].value) {
+                this.homeSummary.recentUpdates = results[5].value;
+            }
         } catch (e) {
             console.error('홈 요약 로드 실패:', e);
+        } finally {
+            this.homeSummary.dashboardLoading = false;
+        }
+    },
+
+    /**
+     * 대시보드: 국내 영역 표시 여부
+     */
+    hasEcosDashboardContent() {
+        const hasUpdates = this.homeSummary.recentUpdates?.ecos?.length > 0;
+        const hasFavorites = this.homeSummary.enrichedFavorites?.ecos?.length > 0;
+        return hasUpdates || hasFavorites;
+    },
+
+    /**
+     * 대시보드: 글로벌 영역 표시 여부
+     */
+    hasGlobalDashboardContent() {
+        const hasUpdates = this.homeSummary.recentUpdates?.global?.length > 0;
+        const hasFavorites = this.homeSummary.enrichedFavorites?.global?.length > 0;
+        return hasUpdates || hasFavorites;
+    },
+
+    /**
+     * 관심 지표 해제 후 대시보드 카드 즉시 제거
+     */
+    async removeDashboardFavorite(sourceType, indicatorCode) {
+        await this.toggleFavorite(sourceType, indicatorCode);
+        // enrichedFavorites에서도 즉시 제거
+        if (this.homeSummary.enrichedFavorites) {
+            if (sourceType === 'ECOS') {
+                this.homeSummary.enrichedFavorites.ecos =
+                    this.homeSummary.enrichedFavorites.ecos.filter(f => f.indicatorCode !== indicatorCode);
+            } else {
+                this.homeSummary.enrichedFavorites.global =
+                    this.homeSummary.enrichedFavorites.global.filter(f => f.indicatorCode !== indicatorCode);
+            }
         }
     }
 };

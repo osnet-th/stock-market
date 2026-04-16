@@ -18,4 +18,9 @@ public interface GlobalIndicatorLatestRepository {
      * 최신값 일괄 UPSERT (countryName + indicatorType 기준)
      */
     void saveAll(List<GlobalIndicatorLatest> latestList);
+
+    /**
+     * 최근 업데이트된 지표 조회 (updatedAt 기준, 최신순)
+     */
+    List<GlobalIndicatorLatest> findRecentlyUpdated(java.time.LocalDateTime after);
 }

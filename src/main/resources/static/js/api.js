@@ -113,6 +113,27 @@ const API = {
         return this.request('GET', `/api/economics/global-indicators/${indicatorType}/history`);
     },
 
+    // ==================== Favorites ====================
+    getFavorites() {
+        return this.request('GET', '/api/favorites');
+    },
+
+    addFavorite(sourceType, indicatorCode) {
+        return this.request('POST', '/api/favorites', { sourceType, indicatorCode });
+    },
+
+    deleteFavorite(sourceType, indicatorCode) {
+        return this.request('DELETE', `/api/favorites?sourceType=${sourceType}&indicatorCode=${encodeURIComponent(indicatorCode)}`);
+    },
+
+    getEnrichedFavorites() {
+        return this.request('GET', '/api/favorites/enriched');
+    },
+
+    getRecentUpdates() {
+        return this.request('GET', '/api/economics/indicators/recent-updates');
+    },
+
     // ==================== Stock Search ====================
     searchStocks(name) {
         return this.request('GET', `/api/stocks/search?name=${encodeURIComponent(name)}`);

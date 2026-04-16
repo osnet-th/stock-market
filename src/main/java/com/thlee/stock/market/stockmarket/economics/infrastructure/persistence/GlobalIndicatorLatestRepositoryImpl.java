@@ -25,6 +25,13 @@ public class GlobalIndicatorLatestRepositoryImpl implements GlobalIndicatorLates
     }
 
     @Override
+    public List<GlobalIndicatorLatest> findRecentlyUpdated(LocalDateTime after) {
+        return jpaRepository.findByUpdatedAtAfterOrderByUpdatedAtDesc(after).stream()
+            .map(mapper::toDomain)
+            .toList();
+    }
+
+    @Override
     public void saveAll(List<GlobalIndicatorLatest> latestList) {
         for (GlobalIndicatorLatest latest : latestList) {
             GlobalIndicatorLatestEntity.LatestId id =
@@ -36,12 +43,15 @@ public class GlobalIndicatorLatestRepositoryImpl implements GlobalIndicatorLates
                 GlobalIndicatorLatestEntity entity = existing.get();
                 boolean cycleChanged = latest.getCycle() != null
                     && !latest.getCycle().equals(entity.getCycle());
+                LocalDateTime updatedAt = cycleChanged
+                    ? LocalDateTime.now()
+                    : entity.getUpdatedAt();
                 entity.update(
                     latest.getDataValue(),
                     latest.getCycle(),
                     latest.getUnit(),
                     cycleChanged,
-                    LocalDateTime.now()
+                    updatedAt
                 );
             } else {
                 jpaRepository.save(mapper.toEntity(latest));

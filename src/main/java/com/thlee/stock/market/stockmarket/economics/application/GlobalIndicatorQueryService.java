@@ -3,12 +3,15 @@ package com.thlee.stock.market.stockmarket.economics.application;
 import com.thlee.stock.market.stockmarket.economics.domain.model.CountryIndicatorSnapshot;
 import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalEconomicIndicatorType;
 import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalIndicator;
+import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalIndicatorLatest;
 import com.thlee.stock.market.stockmarket.economics.domain.model.IndicatorCategory;
+import com.thlee.stock.market.stockmarket.economics.domain.repository.GlobalIndicatorLatestRepository;
 import com.thlee.stock.market.stockmarket.economics.domain.repository.GlobalIndicatorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +24,7 @@ public class GlobalIndicatorQueryService {
 
     private final GlobalIndicatorCacheService globalIndicatorCacheService;
     private final GlobalIndicatorRepository globalIndicatorRepository;
+    private final GlobalIndicatorLatestRepository globalIndicatorLatestRepository;
 
     public List<CountryIndicatorSnapshot> getIndicator(GlobalEconomicIndicatorType indicatorType) {
         return globalIndicatorCacheService.getIndicator(indicatorType);
@@ -54,5 +58,21 @@ public class GlobalIndicatorQueryService {
     @Transactional(readOnly = true)
     public List<GlobalIndicator> getHistoryByIndicatorType(GlobalEconomicIndicatorType indicatorType) {
         return globalIndicatorRepository.findLatestHistoryByIndicatorType(indicatorType);
+    }
+
+    /**
+     * 전체 최신값 조회 (관심 지표 enrichment용)
+     */
+    @Transactional(readOnly = true)
+    public List<GlobalIndicatorLatest> findAllLatest() {
+        return globalIndicatorLatestRepository.findAll();
+    }
+
+    /**
+     * 최근 업데이트된 지표 조회 (최근 7일)
+     */
+    @Transactional(readOnly = true)
+    public List<GlobalIndicatorLatest> findRecentlyUpdated() {
+        return globalIndicatorLatestRepository.findRecentlyUpdated(LocalDateTime.now().minusDays(7));
     }
 }

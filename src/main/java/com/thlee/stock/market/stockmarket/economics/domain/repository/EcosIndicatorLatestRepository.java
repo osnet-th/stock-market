@@ -24,4 +24,9 @@ public interface EcosIndicatorLatestRepository {
      * 최신값 일괄 UPSERT (className + keystatName 기준)
      */
     void saveAll(List<EcosIndicatorLatest> latestList);
+
+    /**
+     * 최근 업데이트된 지표 조회 (updatedAt 기준, 최신순)
+     */
+    List<EcosIndicatorLatest> findRecentlyUpdated(java.time.LocalDateTime after);
 }

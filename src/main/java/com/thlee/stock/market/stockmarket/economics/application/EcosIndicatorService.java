@@ -2,8 +2,10 @@ package com.thlee.stock.market.stockmarket.economics.application;
 
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicator;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorCategory;
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorLatest;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosKeyStatResult;
 import com.thlee.stock.market.stockmarket.economics.domain.model.KeyStatIndicator;
+import com.thlee.stock.market.stockmarket.economics.domain.repository.EcosIndicatorLatestRepository;
 import com.thlee.stock.market.stockmarket.economics.domain.repository.EcosIndicatorRepository;
 import com.thlee.stock.market.stockmarket.economics.domain.service.EcosIndicatorPort;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.korea.ecos.config.EcosCacheConfig;
@@ -14,6 +16,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -23,6 +26,7 @@ public class EcosIndicatorService {
 
     private final EcosIndicatorPort ecosIndicatorPort;
     private final EcosIndicatorRepository ecosIndicatorRepository;
+    private final EcosIndicatorLatestRepository ecosIndicatorLatestRepository;
     private final CacheManager ecosCacheManager;
 
     /**
@@ -56,5 +60,21 @@ public class EcosIndicatorService {
     @Transactional(readOnly = true)
     public List<EcosIndicator> getHistoryByCategory(EcosIndicatorCategory category) {
         return ecosIndicatorRepository.findLatestHistoryByClassNames(category.getClassNames());
+    }
+
+    /**
+     * 전체 최신값 조회 (관심 지표 enrichment용)
+     */
+    @Transactional(readOnly = true)
+    public List<EcosIndicatorLatest> findAllLatest() {
+        return ecosIndicatorLatestRepository.findAll();
+    }
+
+    /**
+     * 최근 업데이트된 지표 조회 (최근 7일)
+     */
+    @Transactional(readOnly = true)
+    public List<EcosIndicatorLatest> findRecentlyUpdated() {
+        return ecosIndicatorLatestRepository.findRecentlyUpdated(LocalDateTime.now().minusDays(7));
     }
 }

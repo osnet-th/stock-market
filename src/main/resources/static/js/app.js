@@ -33,6 +33,7 @@ function dashboard() {
         ...PortfolioComponent,
         ...FinancialComponent,
         ...ChatComponent,
+        ...FavoriteComponent,
 
         // ==================== 코어 메서드 ====================
         toggleSidebar() {
@@ -87,6 +88,8 @@ function dashboard() {
             }
 
             await this.loadMyProfile();
+            this.initFavorites();
+            this.loadFavorites();
 
             if (this.auth.role === 'SIGNING_USER') {
                 window.location.href = '/signup.html';

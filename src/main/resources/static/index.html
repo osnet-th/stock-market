@@ -193,7 +193,163 @@
                     </div>
                 </div>
 
-                <!-- 국내 경제지표 카테고리 -->
+                <!-- ===== 국내 경제지표 영역 ===== -->
+                <template x-if="hasEcosDashboardContent()">
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <span class="text-xl">&#127472;&#127479;</span> 국내 경제지표
+                        </h3>
+
+                        <!-- 최신 업데이트 요약 -->
+                        <template x-if="homeSummary.recentUpdates?.ecos?.length > 0">
+                            <div class="bg-blue-50 rounded-xl p-4 mb-4">
+                                <p class="text-xs text-blue-600 font-semibold mb-2">최근 업데이트</p>
+                                <div class="flex flex-wrap gap-3">
+                                    <template x-for="item in homeSummary.recentUpdates.ecos.slice(0, 5)" :key="item.keystatName">
+                                        <div class="bg-white rounded-lg px-3 py-2 border border-blue-100 text-sm">
+                                            <span class="text-gray-600" x-text="item.keystatName"></span>
+                                            <span class="font-mono-num font-medium text-gray-800 ml-1" x-text="item.dataValue"></span>
+                                            <span class="text-xs text-gray-400 ml-1" x-text="item.cycle"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- 관심 지표 슬라이드 -->
+                        <template x-if="homeSummary.enrichedFavorites?.ecos?.length > 0">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-sm font-semibold text-gray-600 flex items-center gap-1">
+                                        <span class="text-yellow-400">&#9733;</span> 관심 지표
+                                    </p>
+                                    <div class="flex gap-1">
+                                        <button @click="scrollFavorites(-1, 'ecos-fav-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9664;</button>
+                                        <button @click="scrollFavorites(1, 'ecos-fav-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9654;</button>
+                                    </div>
+                                </div>
+                                <div id="ecos-fav-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
+                                    <template x-for="card in homeSummary.enrichedFavorites.ecos" :key="card.indicatorCode">
+                                        <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
+                                            <div class="spread-card rounded-xl p-4 shadow-sm relative"
+                                                 :class="card.hasData ? 'status-normal' : ''">
+                                                <!-- 해제 버튼 -->
+                                                <button @click="removeDashboardFavorite('ECOS', card.indicatorCode)"
+                                                        class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
+                                                <div class="mb-2 pr-6">
+                                                    <span class="text-sm font-semibold text-gray-700" x-text="card.keystatName"></span>
+                                                    <p class="text-[11px] text-gray-400 mt-0.5" x-text="card.className"></p>
+                                                </div>
+                                                <template x-if="card.hasData">
+                                                    <div class="flex items-end justify-between">
+                                                        <p class="text-2xl font-bold font-mono-num leading-none text-gray-800">
+                                                            <span x-text="card.dataValue"></span>
+                                                        </p>
+                                                        <template x-if="card.previousDataValue">
+                                                            <span class="text-xs font-mono-num"
+                                                                  :class="Format.change(card.dataValue, card.previousDataValue).className">
+                                                                <span x-text="Format.change(card.dataValue, card.previousDataValue).symbol"></span>
+                                                                <span x-text="Format.changeRate(card.dataValue, card.previousDataValue)"></span>
+                                                            </span>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="!card.hasData">
+                                                    <p class="text-gray-300 text-sm">데이터 없음</p>
+                                                </template>
+                                                <template x-if="card.cycle">
+                                                    <p class="text-[10px] text-gray-400 mt-2" x-text="card.cycle"></p>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- ===== 글로벌 경제지표 영역 ===== -->
+                <template x-if="hasGlobalDashboardContent()">
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <span class="text-xl">&#127758;</span> 글로벌 경제지표
+                        </h3>
+
+                        <!-- 최신 업데이트 요약 -->
+                        <template x-if="homeSummary.recentUpdates?.global?.length > 0">
+                            <div class="bg-emerald-50 rounded-xl p-4 mb-4">
+                                <p class="text-xs text-emerald-600 font-semibold mb-2">최근 업데이트</p>
+                                <div class="flex flex-wrap gap-3">
+                                    <template x-for="item in homeSummary.recentUpdates.global.slice(0, 5)" :key="item.countryName + item.indicatorType">
+                                        <div class="bg-white rounded-lg px-3 py-2 border border-emerald-100 text-sm">
+                                            <span class="text-gray-600" x-text="item.countryName"></span>
+                                            <span class="text-gray-400 text-xs ml-0.5" x-text="item.indicatorType.replace(/_/g, ' ')"></span>
+                                            <span class="font-mono-num font-medium text-gray-800 ml-1" x-text="item.dataValue"></span>
+                                            <span class="text-xs text-gray-400 ml-0.5" x-text="item.unit"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- 관심 지표 슬라이드 -->
+                        <template x-if="homeSummary.enrichedFavorites?.global?.length > 0">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-sm font-semibold text-gray-600 flex items-center gap-1">
+                                        <span class="text-yellow-400">&#9733;</span> 관심 지표
+                                    </p>
+                                    <div class="flex gap-1">
+                                        <button @click="scrollFavorites(-1, 'global-fav-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9664;</button>
+                                        <button @click="scrollFavorites(1, 'global-fav-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9654;</button>
+                                    </div>
+                                </div>
+                                <div id="global-fav-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
+                                    <template x-for="card in homeSummary.enrichedFavorites.global" :key="card.indicatorCode">
+                                        <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
+                                            <div class="spread-card rounded-xl p-4 shadow-sm relative"
+                                                 :class="card.hasData ? 'status-normal' : ''">
+                                                <!-- 해제 버튼 -->
+                                                <button @click="removeDashboardFavorite('GLOBAL', card.indicatorCode)"
+                                                        class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
+                                                <div class="mb-2 pr-6">
+                                                    <span class="text-sm font-semibold text-gray-700" x-text="card.countryName"></span>
+                                                    <p class="text-[11px] text-gray-400 mt-0.5" x-text="card.indicatorType.replace(/_/g, ' ')"></p>
+                                                </div>
+                                                <template x-if="card.hasData">
+                                                    <div class="flex items-end justify-between">
+                                                        <p class="text-2xl font-bold font-mono-num leading-none text-gray-800">
+                                                            <span x-text="card.dataValue"></span>
+                                                            <span class="text-sm font-normal text-gray-400 ml-0.5" x-text="card.unit"></span>
+                                                        </p>
+                                                        <template x-if="card.previousDataValue">
+                                                            <span class="text-xs font-mono-num"
+                                                                  :class="Format.change(card.dataValue, card.previousDataValue).className">
+                                                                <span x-text="Format.change(card.dataValue, card.previousDataValue).symbol"></span>
+                                                                <span x-text="Format.changeRate(card.dataValue, card.previousDataValue)"></span>
+                                                            </span>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="!card.hasData">
+                                                    <p class="text-gray-300 text-sm">데이터 없음</p>
+                                                </template>
+                                                <template x-if="card.cycle">
+                                                    <p class="text-[10px] text-gray-400 mt-2" x-text="card.cycle"></p>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
             </div>
 
             <!-- ========== KEYWORDS ========== -->
@@ -604,11 +760,24 @@
                 <template x-if="!ecos.loading && ecos.viewMode === 'table' && ecos.indicators.length > 0">
                     <div>
                         <div class="ecos-section-title">원시 지표</div>
+
+                        <!-- 원시 지표 설명 (클릭 시 표시) -->
+                        <template x-if="ecos._rawTooltipText">
+                            <div class="mb-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 flex items-start gap-2">
+                                <svg class="w-4 h-4 text-slate-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <p class="text-xs text-slate-600 leading-relaxed flex-1" x-text="ecos._rawTooltipText"></p>
+                                <button @click="ecos._rawTooltipText = ''"
+                                        class="text-slate-400 hover:text-slate-600 text-sm shrink-0">&times;</button>
+                            </div>
+                        </template>
                         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                             <div class="overflow-x-auto">
                                 <table class="data-table w-full text-sm">
                                     <thead class="bg-gray-50">
                                         <tr>
+                                            <th class="w-8"></th>
                                             <th class="text-left py-3 px-4 text-gray-600 font-semibold">분류</th>
                                             <th class="text-left py-3 px-4 text-gray-600 font-semibold">지표명</th>
                                             <th class="text-right py-3 px-4 text-gray-600 font-semibold">값</th>
@@ -619,13 +788,20 @@
                                     <tbody>
                                         <template x-for="(ind, idx) in getEcosSortedIndicators()" :key="ind.keystatName">
                                             <tr class="border-b border-gray-100">
+                                                <td class="py-3 px-2 text-center w-8">
+                                                    <button @click="toggleFavorite('ECOS', ecosIndicatorCode(ind))"
+                                                            class="text-lg cursor-pointer hover:scale-110 transition-transform"
+                                                            :class="isFavorited('ECOS', ecosIndicatorCode(ind)) ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'">
+                                                        <span x-text="isFavorited('ECOS', ecosIndicatorCode(ind)) ? '★' : '☆'"></span>
+                                                    </button>
+                                                </td>
                                                 <td class="py-3 px-4 text-gray-600" x-text="ind.className"></td>
                                                 <td class="py-3 px-4 text-gray-800 font-medium">
                                                     <div class="flex items-center gap-1">
                                                         <span x-text="ind.keystatName"></span>
                                                         <template x-if="ind.description">
                                                             <button type="button"
-                                                                    @click="ecos._tooltipText = ind.description"
+                                                                    @click="ecos._rawTooltipText = ind.description"
                                                                     class="text-gray-300 hover:text-gray-500 cursor-pointer text-xs">&#9432;</button>
                                                         </template>
                                                     </div>
@@ -793,6 +969,7 @@
                                     <table class="data-table w-full text-sm">
                                         <thead class="bg-gray-50">
                                             <tr>
+                                                <th class="w-8"></th>
                                                 <th class="text-left py-3 px-4 text-gray-600 font-semibold">국가</th>
                                                 <th class="text-right py-3 px-4 text-gray-600 font-semibold">최신값</th>
                                                 <th class="text-right py-3 px-4 text-gray-600 font-semibold">이전값</th>
@@ -805,6 +982,13 @@
                                         <tbody>
                                             <template x-for="country in globalData.indicatorData.countries" :key="country.countryName">
                                                 <tr class="border-b border-gray-100">
+                                                    <td class="py-3 px-2 text-center w-8">
+                                                        <button @click="toggleFavorite('GLOBAL', globalIndicatorCode(country.countryName, globalData.selectedIndicator))"
+                                                                class="text-lg cursor-pointer hover:scale-110 transition-transform"
+                                                                :class="isFavorited('GLOBAL', globalIndicatorCode(country.countryName, globalData.selectedIndicator)) ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'">
+                                                            <span x-text="isFavorited('GLOBAL', globalIndicatorCode(country.countryName, globalData.selectedIndicator)) ? '★' : '☆'"></span>
+                                                        </button>
+                                                    </td>
                                                     <td class="py-3 px-4 text-gray-800 font-medium" x-text="country.countryName"></td>
                                                     <td class="py-3 px-4 text-right font-mono text-gray-800 font-medium" x-text="Format.number(country.lastValue)"></td>
                                                     <td class="py-3 px-4 text-right font-mono text-gray-500" x-text="Format.number(country.previousValue)"></td>
@@ -2708,6 +2892,7 @@
     <script src="/js/components/portfolio.js"></script>
     <script src="/js/components/financial.js"></script>
     <script src="/js/components/chat.js"></script>
+    <script src="/js/components/favorite.js"></script>
 
     <!-- 메인 앱 (컴포넌트 통합) -->
     <script src="/js/app.js"></script>

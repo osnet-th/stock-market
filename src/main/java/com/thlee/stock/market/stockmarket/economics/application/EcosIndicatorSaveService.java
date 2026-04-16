@@ -123,13 +123,17 @@ public class EcosIndicatorSaveService {
                         ? (cycleChanged ? existing.getDataValue() : existing.getPreviousDataValue())
                         : null;
 
+                    LocalDateTime updatedAt = cycleChanged || existing == null
+                        ? LocalDateTime.now()
+                        : existing.getUpdatedAt();
+
                     return new EcosIndicatorLatest(
                         indicator.className(),
                         indicator.keystatName(),
                         indicator.dataValue(),
                         previousDataValue,
                         indicator.cycle(),
-                        LocalDateTime.now()
+                        updatedAt
                     );
                 })
                 .toList();

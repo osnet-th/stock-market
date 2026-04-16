@@ -16,6 +16,7 @@ const EcosComponent = {
         _indicatorMap: {},
         _historyCache: {},
         _tooltipText: '',
+        _rawTooltipText: '',
     },
 
     initEcosCharts() {
@@ -63,6 +64,8 @@ const EcosComponent = {
 
     async selectEcosCategory(categoryName) {
         this.ecos.selectedCategory = categoryName;
+        this.ecos._tooltipText = '';
+        this.ecos._rawTooltipText = '';
         await this.loadEcosIndicators();
         if (this.ecos.viewMode === 'chart') {
             await this.loadEcosHistory();

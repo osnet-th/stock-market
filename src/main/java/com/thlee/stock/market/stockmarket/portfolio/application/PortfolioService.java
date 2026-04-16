@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -581,10 +582,21 @@ public class PortfolioService {
         PortfolioItem item = findUserItem(userId, itemId);
         validateDepositTarget(item);
 
+        List<DepositHistory> histories = new ArrayList<>(depositHistoryRepository.findByPortfolioItemId(itemId));
+        if (histories.isEmpty()) {
+            BigDecimal existingAmount = item.getInvestedAmount();
+            if (existingAmount != null && existingAmount.compareTo(BigDecimal.ZERO) > 0) {
+                DepositHistory initial = DepositHistory.create(
+                        itemId, resolveInitialDepositDate(item), existingAmount, null, "기존 납입분");
+                histories.add(depositHistoryRepository.save(initial));
+            }
+        }
+
         DepositHistory history = DepositHistory.create(itemId, depositDate, amount, units, memo);
         DepositHistory saved = depositHistoryRepository.save(history);
+        histories.add(saved);
 
-        recalculateInvestedAmountFromDeposits(item, itemId);
+        item.recalculateFromDepositHistories(histories);
         portfolioItemRepository.save(item);
 
         return DepositHistoryResponse.from(saved);
@@ -693,6 +705,15 @@ public class PortfolioService {
         if (item.getAssetType() != AssetType.CASH && item.getAssetType() != AssetType.FUND) {
             throw new IllegalArgumentException("납입 이력은 현금성 자산(예금/적금/CMA) 또는 펀드만 등록��� 수 있습니다.");
         }
+    }
+
+    private LocalDate resolveInitialDepositDate(PortfolioItem item) {
+        if (item.getAssetType() == AssetType.CASH
+                && item.getCashDetail() != null
+                && item.getCashDetail().getStartDate() != null) {
+            return item.getCashDetail().getStartDate();
+        }
+        return LocalDate.now();
     }
 
     private void recalculateInvestedAmountFromDeposits(PortfolioItem item, Long itemId) {

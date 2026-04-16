@@ -1248,6 +1248,13 @@ const PortfolioComponent = {
         }
     },
 
+    refreshDepositItem() {
+        const current = this.portfolio.depositItem;
+        if (!current) return;
+        const fresh = this.portfolio.items.find((i) => i.id === current.id);
+        if (fresh) this.portfolio.depositItem = fresh;
+    },
+
     async submitDeposit() {
         const form = this.portfolio.depositForm;
         const item = this.portfolio.depositItem;
@@ -1267,6 +1274,7 @@ const PortfolioComponent = {
             this.portfolio.depositForm = { depositDate: new Date().toISOString().split('T')[0], amount: '', units: '', memo: '' };
             await this.loadDepositHistories(item.id);
             await this.loadPortfolio();
+            this.refreshDepositItem();
         } catch (e) {
             console.error('납입 추가 실패:', e);
             alert('납입 추가에 실패했습니다.');
@@ -1306,6 +1314,7 @@ const PortfolioComponent = {
             this.portfolio.editingDeposit = null;
             await this.loadDepositHistories(item.id);
             await this.loadPortfolio();
+            this.refreshDepositItem();
         } catch (e) {
             console.error('납입이력 수정 실패:', e);
             alert('납입이력 수정에 실패했습니다.');
@@ -1320,6 +1329,7 @@ const PortfolioComponent = {
             await API.deleteDeposit(this.auth.userId, item.id, historyId);
             await this.loadDepositHistories(item.id);
             await this.loadPortfolio();
+            this.refreshDepositItem();
         } catch (e) {
             console.error('납입이력 삭제 실패:', e);
             alert(e.message || '납입이력 삭제에 실패했습니다.');

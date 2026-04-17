@@ -18,7 +18,13 @@ const ChatComponent = {
         dragging: false,
         dragPos: { x: null, y: null },
         dragOffset: { x: 0, y: 0 },
-        _abortController: null
+        _abortController: null,
+        analysisTaskLabels: {
+            UNDERVALUATION: '저평가/고평가 판단',
+            TREND_SUMMARY: '실적 추세 요약',
+            RISK_DIAGNOSIS: '리스크 요인 진단',
+            INVESTMENT_OPINION: '투자 적정성 의견'
+        }
     },
 
     toggleChat() {
@@ -90,6 +96,17 @@ const ChatComponent = {
         this.chat.stockName = null;
     },
 
+    canRequestAnalysis() {
+        return this.chat.chatMode === 'FINANCIAL'
+            && !!this.chat.stockCode
+            && !this.chat.isLoading;
+    },
+
+    requestAnalysis(task) {
+        if (!this.canRequestAnalysis()) return;
+        this.sendChatMessage({ message: '', analysisTask: task });
+    },
+
     collectChatHistory() {
         const MAX_HISTORY_MESSAGES = 20; // 10턴 = 20개 메시지
         const history = this.chat.messages
@@ -102,11 +119,20 @@ const ChatComponent = {
         return history;
     },
 
-    async sendChatMessage() {
-        const text = this.chat.inputText.trim();
-        if (!text || this.chat.isLoading) return;
-        if (this.chat.chatMode === 'FINANCIAL' && !this.chat.stockCode) return;
-        if (this.chat.chatMode === 'ECONOMIC' && !this.chat.indicatorCategory) return;
+    async sendChatMessage(options = {}) {
+        if (this.chat.isLoading) return;
+
+        const analysisTask = options.analysisTask || null;
+        const explicitMessage = Object.prototype.hasOwnProperty.call(options, 'message');
+        const rawText = explicitMessage ? (options.message || '') : this.chat.inputText.trim();
+
+        if (this.chat.chatMode === 'FINANCIAL') {
+            if (!this.chat.stockCode) return;
+            if (!analysisTask) return;
+        } else {
+            if (!rawText) return;
+            if (this.chat.chatMode === 'ECONOMIC' && !this.chat.indicatorCategory) return;
+        }
 
         if (this.chat._abortController) {
             this.chat._abortController.abort();
@@ -114,11 +140,16 @@ const ChatComponent = {
         const abortController = new AbortController();
         this.chat._abortController = abortController;
 
-        // 이전 대화 히스토리 수집 (현재 메시지 제외 — 백엔드가 append)
         const history = this.collectChatHistory();
 
-        this.chat.messages.push({ role: 'user', content: text });
-        this.chat.inputText = '';
+        const displayText = analysisTask
+            ? `[분석 요청] ${this.chat.analysisTaskLabels[analysisTask] || analysisTask}`
+            : rawText;
+        this.chat.messages.push({ role: 'user', content: displayText });
+
+        if (!explicitMessage) {
+            this.chat.inputText = '';
+        }
         this.chat.isLoading = true;
 
         this.chat.messages.push({ role: 'assistant', content: '' });
@@ -128,10 +159,11 @@ const ChatComponent = {
 
         await API.streamChat(
             this.auth.userId,
-            text,
+            rawText,
             this.chat.chatMode,
             this.chat.stockCode,
             this.chat.indicatorCategory,
+            analysisTask,
             history,
             (chunk) => {
                 if (abortController.signal.aborted) return;

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -46,6 +47,18 @@ public class KisStockMasterCache {
         return allStocks.stream()
             .filter(stock -> matchesKeyword(stock, lowerKeyword))
             .toList();
+    }
+
+    /**
+     * 종목코드 정확일치 조회
+     */
+    public Optional<KisMasterStock> findByCode(String stockCode) {
+        if (stockCode == null || stockCode.isBlank()) {
+            return Optional.empty();
+        }
+        return getAllStocks().stream()
+            .filter(stock -> stockCode.equals(stock.getStockCode()))
+            .findFirst();
     }
 
     private boolean matchesKeyword(KisMasterStock stock, String lowerKeyword) {

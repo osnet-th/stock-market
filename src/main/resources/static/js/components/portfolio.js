@@ -122,6 +122,16 @@ const PortfolioComponent = {
             this.portfolio.items = results[0] || [];
             this.portfolio.allocation = results[1] || [];
 
+            this.portfolio.items
+                .filter((item) => item.assetType === 'STOCK' && !item.stockDetail)
+                .forEach((item) => {
+                    console.warn('STOCK item without stockDetail', {
+                        id: item.id,
+                        itemName: item.itemName,
+                        assetType: item.assetType
+                    });
+                });
+
             await this.loadStockPrices();
 
             const sections = {};
@@ -301,7 +311,7 @@ const PortfolioComponent = {
     },
 
     getOverseasStocks() {
-        return this.portfolio.items.filter((item) => item.assetType === 'STOCK' && item.stockDetail?.country !== 'KR');
+        return this.portfolio.items.filter((item) => item.assetType === 'STOCK' && item.stockDetail && item.stockDetail.country !== 'KR');
     },
 
     getTotalInvested() {
@@ -919,7 +929,24 @@ const PortfolioComponent = {
         }
     },
 
+    closePurchaseModal() {
+        this.portfolio.showPurchaseModal = false;
+        this.portfolio.purchaseItem = null;
+        this.portfolio.purchaseForm = { quantity: '', purchasePrice: '' };
+        this.portfolio.purchaseHistories = [];
+        this.portfolio.editingHistory = null;
+        this.portfolio.editHistoryForm = { quantity: '', purchasePrice: '', purchasedAt: '', memo: '' };
+    },
+
     async openPurchaseModal(item) {
+        if (!item || !item.stockDetail) {
+            console.warn('Cannot open purchase modal without stockDetail', {
+                id: item?.id,
+                itemName: item?.itemName,
+                assetType: item?.assetType
+            });
+            return;
+        }
         this.portfolio.purchaseItem = item;
         this.portfolio.purchaseForm = { quantity: '', purchasePrice: '' };
         this.portfolio.purchaseHistories = [];

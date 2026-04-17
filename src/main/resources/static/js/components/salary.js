@@ -327,8 +327,7 @@ const SalaryComponent = {
 
     /**
      * x-if가 canvas를 DOM에 mount하고 Alpine $refs가 업데이트될 때까지 기다린 후 render.
-     * 단일 $nextTick으로 부족한 케이스(중첩 x-if, reactive chain 깊이)를 방어.
-     * target: 'monthly' = 도넛+바, 'trend' = 라인
+     * $nextTick + requestAnimationFrame 2단계로 충분 (3단 fallback에서 축소).
      */
     scheduleSalaryChartRender(target) {
         const getCanvas = () => this.$refs && this.$refs[
@@ -339,20 +338,10 @@ const SalaryComponent = {
             else this.renderTrendChart();
         };
 
-        // 1차 시도: 다음 Alpine 업데이트 사이클
         this.$nextTick(() => {
             if (getCanvas()) { run(); return; }
-            // 2차 시도: 브라우저 다음 paint 직전 (x-if DOM mount 완료 보장)
             requestAnimationFrame(() => {
-                if (getCanvas()) { run(); return; }
-                // 3차 시도: 마이크로태스크 1개 더
-                requestAnimationFrame(() => {
-                    if (!getCanvas()) {
-                        console.warn('[salary] canvas not mounted after retries:', target);
-                        return;
-                    }
-                    run();
-                });
+                if (getCanvas()) run();
             });
         });
     },

@@ -2,7 +2,9 @@ package com.thlee.stock.market.stockmarket.stock.application;
 
 import com.thlee.stock.market.stockmarket.stock.application.dto.*;
 import com.thlee.stock.market.stockmarket.stock.domain.service.StockFinancialPort;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.config.FinancialIndicesCacheConfig;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,6 +22,11 @@ public class StockFinancialService {
                 .toList();
     }
 
+    @Cacheable(
+        cacheNames = FinancialIndicesCacheConfig.FINANCIAL_INDICES_CACHE,
+        cacheManager = FinancialIndicesCacheConfig.CACHE_MANAGER_NAME,
+        key = "#stockCode + '-' + #year + '-' + #reportCode + '-' + #indexClassCode"
+    )
     public List<FinancialIndexResponse> getFinancialIndices(String stockCode, String year, String reportCode, String indexClassCode) {
         return stockFinancialPort.getFinancialIndices(stockCode, year, reportCode, indexClassCode)
                 .stream()

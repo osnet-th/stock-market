@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 @Primary
 @Component
@@ -23,6 +24,11 @@ public class KisStockAdapter implements StockPort {
         return masterStocks.stream()
             .map(this::toDomainModel)
             .toList();
+    }
+
+    @Override
+    public Optional<Stock> findByCode(String stockCode) {
+        return stockMasterCache.findByCode(stockCode).map(this::toDomainModel);
     }
 
     private Stock toDomainModel(KisMasterStock master) {

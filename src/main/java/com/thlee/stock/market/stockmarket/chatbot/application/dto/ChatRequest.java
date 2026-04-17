@@ -8,5 +8,6 @@ public record ChatRequest(
         ChatMode chatMode,
         String stockCode,
         String indicatorCategory,
+        AnalysisTask analysisTask,
         List<ChatMessage> messages
 ) {}

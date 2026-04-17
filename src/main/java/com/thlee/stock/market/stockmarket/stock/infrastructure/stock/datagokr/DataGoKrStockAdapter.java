@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -42,5 +43,26 @@ public class DataGoKrStockAdapter implements StockPort {
         ));
 
         return new ArrayList<>(uniqueStocks.values());
+    }
+
+    @Override
+    public Optional<Stock> findByCode(String stockCode) {
+        if (stockCode == null || stockCode.isBlank()) {
+            return Optional.empty();
+        }
+        DataGoKrStockResponse response = apiClient.searchByName(stockCode);
+        if (!response.isSuccess()) {
+            return Optional.empty();
+        }
+        return response.getItemList().stream()
+            .filter(item -> stockCode.equals(item.getSrtnCd()))
+            .findFirst()
+            .map(item -> new Stock(
+                item.getSrtnCd(),
+                item.getItmsNm(),
+                null,
+                MarketType.valueOf(item.getMrktCtg()),
+                ExchangeCode.KRX
+            ));
     }
 }

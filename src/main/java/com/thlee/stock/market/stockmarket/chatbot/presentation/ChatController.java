@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.chatbot.presentation;
 
 import com.thlee.stock.market.stockmarket.chatbot.application.ChatService;
+import com.thlee.stock.market.stockmarket.chatbot.application.dto.AnalysisTask;
 import com.thlee.stock.market.stockmarket.chatbot.application.dto.ChatMessage;
 import com.thlee.stock.market.stockmarket.chatbot.application.dto.ChatMode;
 import com.thlee.stock.market.stockmarket.chatbot.application.dto.ChatRequest;
@@ -33,6 +34,7 @@ public class ChatController {
                 request.chatMode(),
                 request.stockCode(),
                 request.indicatorCategory(),
+                request.analysisTask(),
                 request.messages()
         ));
     }
@@ -42,6 +44,7 @@ public class ChatController {
             ChatMode chatMode,
             String stockCode,
             String indicatorCategory,
+            AnalysisTask analysisTask,
             List<ChatMessage> messages
     ) {}
 }

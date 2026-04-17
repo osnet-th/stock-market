@@ -332,12 +332,12 @@ const API = {
     },
 
     // ==================== Chat ====================
-    async streamChat(userId, message, chatMode, stockCode, indicatorCategory, messages, onChunk, onDone, onError, signal) {
+    async streamChat(userId, message, chatMode, stockCode, indicatorCategory, analysisTask, messages, onChunk, onDone, onError, signal) {
         try {
             const response = await fetch(`${this.baseUrl}/api/chat?userId=${userId}`, {
                 method: 'POST',
                 headers: this.getHeaders(),
-                body: JSON.stringify({ message, chatMode, stockCode, indicatorCategory, messages }),
+                body: JSON.stringify({ message, chatMode, stockCode, indicatorCategory, analysisTask, messages }),
                 signal: signal
             });
 
@@ -363,16 +363,25 @@ const API = {
                 if (done) break;
 
                 buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop();
 
-                for (const line of lines) {
-                    if (line.startsWith('data:')) {
-                        const text = line.substring(5);
-                        if (text.trim()) {
-                            onChunk(text);
+                const events = buffer.split('\n\n');
+                buffer = events.pop();
+
+                for (const event of events) {
+                    if (!event) continue;
+
+                    const dataLines = [];
+                    for (const line of event.split('\n')) {
+                        if (line.startsWith('data:')) {
+                            let part = line.substring(5);
+                            if (part.startsWith(' ')) part = part.substring(1);
+                            dataLines.push(part);
                         }
                     }
+
+                    if (dataLines.length === 0) continue;
+
+                    onChunk(dataLines.join('\n'));
                 }
             }
 

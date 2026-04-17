@@ -1,7 +1,6 @@
 package com.thlee.stock.market.stockmarket.salary.presentation;
 
 import com.thlee.stock.market.stockmarket.salary.application.SalaryService;
-import com.thlee.stock.market.stockmarket.salary.application.SalaryTrendService;
 import com.thlee.stock.market.stockmarket.salary.application.dto.MonthlySalaryResponse;
 import com.thlee.stock.market.stockmarket.salary.application.dto.SalaryTrendResponse;
 import com.thlee.stock.market.stockmarket.salary.application.dto.UpsertResultResponse;
@@ -37,7 +36,6 @@ import java.util.List;
 public class SalaryController {
 
     private final SalaryService salaryService;
-    private final SalaryTrendService salaryTrendService;
 
     /** 특정 월의 월급 사용 현황 (상속 적용). */
     @GetMapping("/monthly/{yearMonth}")
@@ -52,7 +50,7 @@ public class SalaryController {
     public ResponseEntity<SalaryTrendResponse> getTrend(
             @RequestParam Long userId,
             @RequestParam(defaultValue = "12") int months) {
-        return ResponseEntity.ok(salaryTrendService.getTrend(userId, months));
+        return ResponseEntity.ok(salaryService.getTrend(userId, months));
     }
 
     /** 변경 레코드가 존재하는 월 목록 (드롭다운 기준). */

@@ -4,6 +4,7 @@ import com.thlee.stock.market.stockmarket.salary.domain.model.SpendingConfig;
 import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
 import com.thlee.stock.market.stockmarket.salary.domain.repository.SpendingConfigRepository;
 import com.thlee.stock.market.stockmarket.salary.infrastructure.persistence.mapper.SpendingConfigMapper;
+import com.thlee.stock.market.stockmarket.salary.infrastructure.persistence.mapper.YearMonthConverter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -29,14 +30,14 @@ public class SpendingConfigRepositoryImpl implements SpendingConfigRepository {
             Long userId, SpendingCategory category, YearMonth yearMonth) {
         return jpaRepository
                 .findByUserIdAndCategoryAndEffectiveFromMonth(
-                        userId, category, SpendingConfigMapper.toLocalDate(yearMonth))
+                        userId, category, YearMonthConverter.toLocalDate(yearMonth))
                 .map(SpendingConfigMapper::toDomain);
     }
 
     @Override
     public List<SpendingConfig> findEffectiveAsOf(Long userId, YearMonth targetMonth) {
         return jpaRepository
-                .findEffectiveAsOf(userId, SpendingConfigMapper.toLocalDate(targetMonth)).stream()
+                .findEffectiveAsOf(userId, YearMonthConverter.toLocalDate(targetMonth)).stream()
                 .map(SpendingConfigMapper::toDomain)
                 .collect(Collectors.toList());
     }
@@ -44,7 +45,7 @@ public class SpendingConfigRepositoryImpl implements SpendingConfigRepository {
     @Override
     public List<SpendingConfig> findAllUpTo(Long userId, YearMonth endMonth) {
         return jpaRepository
-                .findAllUpTo(userId, SpendingConfigMapper.toLocalDate(endMonth)).stream()
+                .findAllUpTo(userId, YearMonthConverter.toLocalDate(endMonth)).stream()
                 .map(SpendingConfigMapper::toDomain)
                 .collect(Collectors.toList());
     }
@@ -52,7 +53,7 @@ public class SpendingConfigRepositoryImpl implements SpendingConfigRepository {
     @Override
     public List<YearMonth> findDistinctMonths(Long userId) {
         return jpaRepository.findDistinctMonths(userId).stream()
-                .map(SpendingConfigMapper::toYearMonth)
+                .map(YearMonthConverter::toYearMonth)
                 .collect(Collectors.toList());
     }
 
@@ -60,6 +61,6 @@ public class SpendingConfigRepositoryImpl implements SpendingConfigRepository {
     public void deleteByUserIdAndCategoryAndEffectiveFromMonth(
             Long userId, SpendingCategory category, YearMonth yearMonth) {
         jpaRepository.deleteByUserIdAndCategoryAndEffectiveFromMonth(
-                userId, category, SpendingConfigMapper.toLocalDate(yearMonth));
+                userId, category, YearMonthConverter.toLocalDate(yearMonth));
     }
 }

@@ -4,13 +4,14 @@ function dashboard() {
         // ==================== 코어 상태 ====================
         currentPage: (() => {
             const hash = location.hash.replace('#', '');
-            const validPages = ['home', 'keywords', 'ecos', 'global', 'portfolio', 'salary'];
+            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'salary'];
             return validPages.includes(hash) ? hash : 'home';
         })(),
 
         menus: [
             { key: 'home', label: '대시보드', icon: 'home' },
             { key: 'keywords', label: '키워드', icon: 'tag' },
+            { key: 'news-search', label: '뉴스 검색', icon: 'search' },
             { key: 'ecos', label: '국내 경제지표', icon: 'chart' },
             { key: 'global', label: '글로벌 경제지표', icon: 'globe' },
             { key: 'portfolio', label: '포트폴리오', icon: 'portfolio' },
@@ -29,6 +30,7 @@ function dashboard() {
         ...HomeComponent,
         ...KeywordComponent,
         ...NewsComponent,
+        ...NewsSearchComponent,
         ...EcosComponent,
         ...GlobalComponent,
         ...PortfolioComponent,
@@ -152,6 +154,8 @@ function dashboard() {
                         this.news.selectedKeywordText = null;
                         this.news.list = [];
                     }
+                    break;
+                case 'news-search':
                     break;
                 case 'ecos':
                     this.initEcosCharts();

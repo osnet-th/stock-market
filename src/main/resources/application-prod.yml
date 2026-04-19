@@ -38,6 +38,11 @@ spring:
         format_sql: false
         use_sql_comments: false
 
+# Elasticsearch - 운영 환경 (Docker Compose 내부 통신)
+spring:
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://elasticsearch:9200}
+
 # JWT Configuration - 운영 환경 (환경 변수 필수)
 jwt:
   secret: ${JWT_SECRET}

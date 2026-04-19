@@ -97,6 +97,16 @@ const API = {
         return this.request('POST', '/api/news/collect', { keywordId: keywordId, keyword: keyword, region: region });
     },
 
+    searchNews(query, startDate, endDate, region, page, size) {
+        let url = '/api/news/search?query=' + encodeURIComponent(query);
+        url += '&page=' + (page || 0);
+        url += '&size=' + (size || 20);
+        if (startDate) url += '&startDate=' + startDate;
+        if (endDate) url += '&endDate=' + endDate;
+        if (region) url += '&region=' + region;
+        return this.request('GET', url);
+    },
+
     // Global Indicators
     getGlobalCategories() {
         return this.request('GET', '/api/economics/global-indicators/categories');

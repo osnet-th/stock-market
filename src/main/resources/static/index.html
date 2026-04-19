@@ -85,6 +85,9 @@
                             <template x-if="menu.icon === 'tag'">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" /></svg>
                             </template>
+                            <template x-if="menu.icon === 'search'">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            </template>
                             <template x-if="menu.icon === 'chart'">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                             </template>
@@ -134,6 +137,9 @@
                             </template>
                             <template x-if="menu.icon === 'tag'">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" /></svg>
+                            </template>
+                            <template x-if="menu.icon === 'search'">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                             </template>
                             <template x-if="menu.icon === 'chart'">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
@@ -562,6 +568,106 @@
                                 class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">등록</button>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- ========== NEWS SEARCH ========== -->
+            <div x-show="currentPage === 'news-search'" x-cloak class="font-pretendard">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">뉴스 검색</h2>
+
+                <!-- 검색 영역 -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+                    <div class="flex flex-col gap-3">
+                        <!-- 검색창 -->
+                        <div class="flex gap-2">
+                            <input type="text"
+                                   x-model="newsSearch.query"
+                                   @keydown.enter="searchNews()"
+                                   placeholder="검색어를 입력하세요 (예: 삼성전자, AI, 반도체)"
+                                   class="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            <button @click="searchNews()"
+                                    :disabled="newsSearch.loading || !newsSearch.query.trim()"
+                                    class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+                                검색
+                            </button>
+                        </div>
+
+                        <!-- 필터 -->
+                        <div class="flex flex-wrap gap-3 items-center text-sm">
+                            <div class="flex items-center gap-1.5">
+                                <label class="text-gray-500">기간</label>
+                                <input type="date" x-model="newsSearch.startDate"
+                                       class="px-2 py-1.5 border border-gray-300 rounded-md text-sm">
+                                <span class="text-gray-400">~</span>
+                                <input type="date" x-model="newsSearch.endDate"
+                                       class="px-2 py-1.5 border border-gray-300 rounded-md text-sm">
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <label class="text-gray-500">지역</label>
+                                <select x-model="newsSearch.region"
+                                        class="px-2 py-1.5 border border-gray-300 rounded-md text-sm">
+                                    <option value="">전체</option>
+                                    <option value="DOMESTIC">국내</option>
+                                    <option value="INTERNATIONAL">해외</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 로딩 -->
+                <div x-show="newsSearch.loading" class="flex justify-center py-12">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+
+                <!-- 검색 결과 -->
+                <div x-show="!newsSearch.loading && newsSearch.searched">
+                    <!-- 결과 건수 -->
+                    <div x-show="newsSearch.totalElements > 0" class="text-sm text-gray-500 mb-3">
+                        총 <span x-text="newsSearch.totalElements" class="font-medium text-gray-700"></span>건
+                    </div>
+
+                    <!-- 결과 없음 -->
+                    <div x-show="newsSearch.list.length === 0" class="text-center py-12 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        <p>검색 결과가 없습니다</p>
+                    </div>
+
+                    <!-- 뉴스 카드 리스트 -->
+                    <div class="space-y-3">
+                        <template x-for="item in newsSearch.list" :key="item.originalUrl">
+                            <a :href="item.originalUrl" target="_blank" rel="noopener noreferrer"
+                               class="block bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md hover:border-blue-200 transition-all">
+                                <h3 x-text="item.title" class="text-sm font-medium text-gray-800 mb-2 line-clamp-2"></h3>
+                                <div class="flex items-center gap-3 text-xs text-gray-400">
+                                    <span x-text="item.publishedAt ? item.publishedAt.substring(0, 10) : ''"></span>
+                                </div>
+                            </a>
+                        </template>
+                    </div>
+
+                    <!-- 페이지네이션 -->
+                    <div x-show="newsSearch.totalPages > 1" class="flex justify-center items-center gap-4 mt-6">
+                        <button @click="loadNewsSearchPage(newsSearch.page - 1)"
+                                :disabled="newsSearch.page <= 0"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                            이전
+                        </button>
+                        <span class="text-sm text-gray-600">
+                            <span x-text="newsSearch.page + 1"></span> / <span x-text="newsSearch.totalPages"></span>
+                        </span>
+                        <button @click="loadNewsSearchPage(newsSearch.page + 1)"
+                                :disabled="newsSearch.page >= newsSearch.totalPages - 1"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                            다음
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 초기 상태 (검색 전) -->
+                <div x-show="!newsSearch.loading && !newsSearch.searched" class="text-center py-16 text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    <p class="text-sm">키워드를 입력하여 뉴스를 검색하세요</p>
                 </div>
             </div>
 
@@ -3117,6 +3223,7 @@
     <script src="/js/components/home.js"></script>
     <script src="/js/components/keyword.js"></script>
     <script src="/js/components/news.js"></script>
+    <script src="/js/components/news-search.js"></script>
     <script src="/js/components/ecos.js"></script>
     <script src="/js/components/global.js"></script>
     <script src="/js/components/portfolio.js"></script>

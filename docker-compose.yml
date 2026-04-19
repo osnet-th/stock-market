@@ -25,6 +25,22 @@ services:
     expose:
       - "80"
 
+  elasticsearch:
+    build:
+      context: .
+      dockerfile: Dockerfile.elasticsearch
+    container_name: hubth-elasticsearch
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    expose:
+      - "9200"
+    mem_limit: 3g
+
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: hubth-cloudflared
@@ -36,3 +52,6 @@ services:
       - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
       - /home/thlee/.cloudflared/f865f55e-4fe3-474f-859d-a0d2cd562fc0.json:/etc/cloudflared/f865f55e-4fe3-474f-859d-a0d2cd562fc0.json:ro
       - /home/thlee/.cloudflared/cert.pem:/etc/cloudflared/cert.pem:ro
+
+volumes:
+  es-data:

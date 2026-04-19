@@ -73,6 +73,17 @@ public class NewsRepositoryImpl implements NewsRepository {
     }
 
     @Override
+    public PageResult<News> findAll(int page, int size) {
+        Page<NewsEntity> entityPage = newsJpaRepository.findAll(PageRequest.of(page, size));
+
+        List<News> newsList = entityPage.getContent().stream()
+                .map(NewsMapper::toDomain)
+                .collect(Collectors.toList());
+
+        return new PageResult<>(newsList, page, size, entityPage.getTotalElements());
+    }
+
+    @Override
     public void deleteByKeywordId(Long keywordId) {
         newsJpaRepository.deleteByKeywordId(keywordId);
     }

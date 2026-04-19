@@ -65,7 +65,10 @@ public class ProdSecurityConfig {
                 // Actuator health 엔드포인트는 permitAll
                 .requestMatchers("/actuator/health").permitAll()
 
-                // 나머지 요청은 인증 필요
+                // 뉴스 검색 엔드포인트는 permitAll
+                .requestMatchers("/api/news/search").permitAll()
+
+                // 나머지 요청은 인증 필요 (백필 포함)
                 .anyRequest().authenticated()
             )
 

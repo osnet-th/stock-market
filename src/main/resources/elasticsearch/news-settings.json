@@ -1,0 +1,44 @@
+{
+  "analysis": {
+    "tokenizer": {
+      "nori_custom": {
+        "type": "nori_tokenizer",
+        "decompound_mode": "mixed",
+        "discard_punctuation": true,
+        "user_dictionary_rules": [
+          "삼성전자 삼성 전자",
+          "SK하이닉스 SK 하이닉스",
+          "LG에너지솔루션 LG 에너지 솔루션",
+          "현대자동차 현대 자동차",
+          "코스피",
+          "코스닥",
+          "나스닥",
+          "ETF"
+        ]
+      }
+    },
+    "filter": {
+      "nori_posfilter": {
+        "type": "nori_part_of_speech",
+        "stoptags": [
+          "E", "IC", "J", "MAG", "MAJ", "MM",
+          "SP", "SSC", "SSO", "SC", "SE",
+          "XPN", "XSA", "XSN", "XSV",
+          "UNA", "NA", "VSV"
+        ]
+      }
+    },
+    "analyzer": {
+      "korean_analyzer": {
+        "type": "custom",
+        "tokenizer": "nori_custom",
+        "filter": [
+          "nori_readingform",
+          "lowercase",
+          "nori_posfilter",
+          "nori_number"
+        ]
+      }
+    }
+  }
+}

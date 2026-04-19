@@ -5,7 +5,9 @@ import com.thlee.stock.market.stockmarket.news.application.dto.NewsDto;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsSaveRequest;
 import com.thlee.stock.market.stockmarket.news.domain.model.News;
 import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
+import com.thlee.stock.market.stockmarket.news.domain.service.NewsIndexPort;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -19,12 +21,14 @@ import java.util.List;
 /**
  * 뉴스 저장 유스케이스 서비스
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NewsSaveService {
 
     private final NewsRepository newsRepository;
     private final PlatformTransactionManager transactionManager;
+    private final NewsIndexPort newsIndexPort;
 
     @Value("${spring.jpa.properties.hibernate.jdbc.batch_size:1000}")
     private int batchSize;
@@ -58,21 +62,27 @@ public class NewsSaveService {
             TransactionTemplate template = new TransactionTemplate(transactionManager);
             template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-            NewsBatchSaveResult result = template.execute(status -> saveChunk(chunk));
-            if (result != null) {
-                success += result.getSuccessCount();
-                ignored += result.getIgnoredCount();
-                failed += result.getFailedCount();
+            ChunkSaveResult chunkResult = template.execute(status -> saveChunk(chunk));
+            if (chunkResult != null) {
+                success += chunkResult.result().getSuccessCount();
+                ignored += chunkResult.result().getIgnoredCount();
+                failed += chunkResult.result().getFailedCount();
+
+                // ES 인덱싱은 트랜잭션 밖에서 수행
+                if (!chunkResult.insertedNews().isEmpty()) {
+                    newsIndexPort.indexAll(chunkResult.insertedNews());
+                }
             }
         }
 
         return new NewsBatchSaveResult(success, ignored, failed);
     }
 
-    private NewsBatchSaveResult saveChunk(List<NewsSaveRequest> chunk) {
+    private ChunkSaveResult saveChunk(List<NewsSaveRequest> chunk) {
         int success = 0;
         int ignored = 0;
         int failed = 0;
+        List<News> insertedNews = new ArrayList<>();
 
         for (NewsSaveRequest request : chunk) {
             try {
@@ -88,16 +98,20 @@ public class NewsSaveService {
                 boolean inserted = newsRepository.insertIgnoreDuplicate(news);
                 if (inserted) {
                     success++;
+                    insertedNews.add(news);
                 } else {
                     ignored++;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                log.warn("뉴스 저장 실패: {}", e.getMessage());
                 failed++;
             }
         }
 
-        return new NewsBatchSaveResult(success, ignored, failed);
+        return new ChunkSaveResult(new NewsBatchSaveResult(success, ignored, failed), insertedNews);
+    }
+
+    private record ChunkSaveResult(NewsBatchSaveResult result, List<News> insertedNews) {
     }
 
     private List<List<NewsSaveRequest>> splitByBatchSize(List<NewsSaveRequest> requests, int size) {

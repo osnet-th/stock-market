@@ -16,6 +16,8 @@ public interface NewsRepository {
 
     PageResult<News> findByKeywordId(Long keywordId, int page, int size);
 
+    PageResult<News> findAll(int page, int size);
+
     void deleteByKeywordId(Long keywordId);
 
     void deleteByIds(List<Long> ids);

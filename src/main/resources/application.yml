@@ -31,6 +31,12 @@ spring:
   # (Jackson 3에서 SerializationFeature.WRITE_DATES_AS_TIMESTAMPS가 이동/제거되어
   #  spring.jackson.serialization 하위 속성으로 바인딩 실패)
 
+  # Elasticsearch Configuration
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    connection-timeout: 3s
+    socket-timeout: 5s
+
   # Scheduler Configuration
   task:
     scheduling:
@@ -180,3 +186,6 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  health:
+    elasticsearch:
+      enabled: false

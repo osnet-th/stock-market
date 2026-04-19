@@ -1,15 +1,6 @@
-package com.thlee.stock.market.stockmarket.chatbot.application;
+# ChatService 수정 예시
 
-import com.thlee.stock.market.stockmarket.chatbot.application.dto.ChatMessage;
-import com.thlee.stock.market.stockmarket.chatbot.application.dto.ChatRequest;
-import com.thlee.stock.market.stockmarket.chatbot.application.port.LlmPort;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-
-import java.util.ArrayList;
-import java.util.List;
-
+```java
 @Service
 @RequiredArgsConstructor
 public class ChatService {
@@ -27,6 +18,7 @@ public class ChatService {
                     .forEach(allMessages::add);
         }
 
+        // 분석 요청 시 빈 message 대신 분석 작업 설명을 사용자 메시지로 사용
         String userMessage = resolveUserMessage(request);
         allMessages.add(new ChatMessage("user", userMessage));
 
@@ -34,12 +26,17 @@ public class ChatService {
     }
 
     private String resolveUserMessage(ChatRequest request) {
+        // 사용자가 직접 입력한 메시지가 있으면 그대로 사용
         if (request.message() != null && !request.message().isBlank()) {
             return request.message();
         }
+
+        // 분석 작업이 지정된 경우 작업에 맞는 기본 메시지 생성
         if (request.analysisTask() != null) {
             return request.analysisTask().toUserMessage();
         }
+
         return "";
     }
 }
+```

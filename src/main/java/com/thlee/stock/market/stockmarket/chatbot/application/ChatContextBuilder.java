@@ -97,19 +97,33 @@ public class ChatContextBuilder {
 
     private String assembleFacts(String stockCode, AnalysisTask task) {
         StringBuilder sb = new StringBuilder();
-        int currentYear = LocalDate.now().getYear();
+        int effectiveYear = resolveEffectiveYear(stockCode);
 
         for (FinancialCategory category : task.categories()) {
             switch (category) {
-                case ACCOUNT -> appendAccounts(sb, stockCode, currentYear);
-                case PROFITABILITY -> appendIndicesAcrossYears(sb, "수익성 지표", stockCode, currentYear, "M210000");
-                case STABILITY -> appendIndicesAcrossYears(sb, "안정성 지표", stockCode, currentYear, "M220000");
-                case GROWTH -> appendIndicesAcrossYears(sb, "성장성 지표", stockCode, currentYear, "M230000");
-                case ACTIVITY -> appendIndicesAcrossYears(sb, "활동성 지표", stockCode, currentYear, "M240000");
+                case ACCOUNT -> appendAccounts(sb, stockCode, effectiveYear);
+                case PROFITABILITY -> appendIndicesAcrossYears(sb, "수익성 지표", stockCode, effectiveYear, "M210000");
+                case STABILITY -> appendIndicesAcrossYears(sb, "안정성 지표", stockCode, effectiveYear, "M220000");
+                case GROWTH -> appendIndicesAcrossYears(sb, "성장성 지표", stockCode, effectiveYear, "M230000");
+                case ACTIVITY -> appendIndicesAcrossYears(sb, "활동성 지표", stockCode, effectiveYear, "M240000");
                 case VALUATION -> appendValuation(sb, stockCode);
             }
         }
         return sb.toString();
+    }
+
+    private int resolveEffectiveYear(String stockCode) {
+        int currentYear = LocalDate.now().getYear();
+        try {
+            List<FinancialAccountResponse> accounts = stockFinancialService.getFinancialAccounts(
+                    stockCode, String.valueOf(currentYear), REPORT_CODE_ANNUAL);
+            if (!accounts.isEmpty()) {
+                return currentYear;
+            }
+        } catch (Exception e) {
+            log.debug("당해연도 재무계정 조회 실패, 전년도 시도: stockCode={}, year={}", stockCode, currentYear);
+        }
+        return currentYear - 1;
     }
 
     private void appendAccounts(StringBuilder sb, String stockCode, int currentYear) {

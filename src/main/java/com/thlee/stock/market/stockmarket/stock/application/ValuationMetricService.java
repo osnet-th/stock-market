@@ -33,7 +33,7 @@ public class ValuationMetricService {
 
     public ValuationMetricResponse calculate(String stockCode) {
         List<String> warnings = new ArrayList<>();
-        String year = String.valueOf(LocalDate.now().getYear());
+        String year = resolveEffectiveYear(stockCode, warnings);
 
         List<FinancialAccountResponse> accounts = safeGetAccounts(stockCode, year, warnings);
         String termName = accounts.stream()
@@ -63,6 +63,20 @@ public class ValuationMetricService {
             price,
             warnings
         );
+    }
+
+    private String resolveEffectiveYear(String stockCode, List<String> warnings) {
+        int currentYear = LocalDate.now().getYear();
+        try {
+            List<FinancialAccountResponse> accounts = stockFinancialService.getFinancialAccounts(
+                    stockCode, String.valueOf(currentYear), REPORT_CODE_ANNUAL);
+            if (!accounts.isEmpty()) {
+                return String.valueOf(currentYear);
+            }
+        } catch (Exception e) {
+            log.debug("당해연도 재무계정 조회 실패, 전년도 시도: stockCode={}, year={}", stockCode, currentYear);
+        }
+        return String.valueOf(currentYear - 1);
     }
 
     private List<FinancialAccountResponse> safeGetAccounts(String stockCode, String year, List<String> warnings) {

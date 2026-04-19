@@ -8,28 +8,38 @@
 
 ## 프로젝트 정보
 
-- 멀티 모듈 Gradle 프로젝트
-- 주요 모듈: hub, ground, lens, tableau, operation, common, common-spring
+- 단일 모듈 Gradle 프로젝트 (Spring Boot)
+- 한국/해외 주식 포트폴리오 관리 및 분석 플랫폼
+- 주요 도메인: stock, portfolio, chatbot, economics, news, overseasnews, favorite, salary, notification, user
 
-## 모듈 목적
+## 문서화된 솔루션
 
-- **common**: 공유 도메인 모델, 열거형, DTO, 큐/이벤트 인프라 (Spring 의존성 없음)
-- **common-spring**: JWT 보안, JPA/MyBatis 구성, Flyway, RestTemplate, 비동기 큐 컨슈머
-- **operation**: Quartz 스케줄러, DBCP 관리, 백업, 서버 생명주기 (Spring XML 빈 구성)
-- **hub**: 중앙 오케스트레이션, WebSocket 메시징, 이벤트 기반 비동기 처리
-- **ground**: 외부 DB 연결 관리, 메타데이터 조회, 테이블/컬럼 정보 수집
-- **lens**: 데이터 분석/시각화 (Freemarker, WebFlux, Caffeine 캐싱)
-- **tableau**: Tableau 플랫폼 통합 (GraphQL API, 자격증명 캐싱)
+`docs/solutions/` — 과거 해결된 문제(버그, 베스트 프랙티스, 워크플로우 패턴)를 카테고리별로 정리한 문서. YAML 프론트매터(`module`, `tags`, `problem_type`)로 검색 가능. 구현이나 디버깅 시 관련 영역의 기존 솔루션을 참고할 수 있음.
+
+## 도메인 목적
+
+- **stock**: 종목 정보 관리, DART 재무제표/지표 조회, KIS 주가 조회, 가치��가 계산
+- **portfolio**: 사용자 포트폴리오 관리, 자산 배분, 수익률 추적
+- **chatbot**: AI 챗봇 (Gemini API), 포트폴리오/재무/경제 분석 대화
+- **economics**: 한국은행 ECOS 경제지표, 글로벌 경제지표 (Trading Economics 스크래핑)
+- **news**: ��내 뉴스 (네이버 API, Google RSS), 종목별 뉴스 수집
+- **overseasnews**: 해외 뉴스 (GNews, NewsAPI)
+- **favorite**: 관심 지표 대시보드
+- **salary**: 월급 사용 비율 관리
+- **notification**: 이메일 알림 (Gmail SMTP)
+- **user**: 사용자 인증, 카카오 OAuth, JWT 토큰 관리
 
 ## 기술 스택
 
-- **Java 17**, Spring Boot 3 (Jakarta EE, javax 아님)
-- **ORM**: JPA + MyBatis + Flyway
-- **보안**: JWT (Stateless, Bearer 토큰), BCrypt, 역할 기반 접근 제어
-- **DB**: MariaDB, HikariCP
-- **비동기**: Quartz, ThreadPoolTaskExecutor, Spring Retry
+- **Java 21**, Spring Boot 4 (Jakarta EE)
+- **ORM**: JPA + QueryDSL
+- **보안**: JWT (Stateless, Bearer 토큰), 카카오 OAuth, Spring Security
+- **DB**: PostgreSQL
+- **비동기**: Spring Scheduler, WebFlux (Gemini API 스트리밍)
 - **캐싱**: Caffeine
-- **빌드**: Gradle 8.x, ProGuard 난독화
+- **빌드**: Gradle, Docker + Nginx + Cloudflare Tunnel 배포
+- **외부 API**: DART, KIS, Finnhub, ECOS, Naver/GNews/NewsAPI, Gemini, 한국수출입은행
+- **프론트엔드**: Alpine.js + Tailwind CSS (서버 사이드 렌더링, static resources)
 
 ---
 
@@ -37,46 +47,33 @@
 
 ## 빌드
 
-- Gradle 멀티 모듈 빌드
-- Java 17 컴파일
-- ProGuard 난독화 적용
-- Tomcat 배포 환경
-- 상세 절차: [build-module.md](MODULE_BUILDE_GUIDE.md) 참조
+- 단일 모듈 Gradle 빌드
+- Java 21 컴파일
+- Docker + Nginx + Cloudflare Tunnel 배포
+- `./gradlew bootJar`로 빌드, `docker-compose up`으로 배포
 
 ---
 
 # 🔧 Section 3: 인프라 구성
 
-## 모듈 간 통신
+## 외부 API 통신
 
-모듈은 `RestTemplate`을 사용하여 REST로 통신:
-- 연결 타임아웃: 3초
-- 읽기 타임아웃: 5초
-- 요청/응답 추적을 위한 로깅 인터셉터
+- **RestClient (Spring 7)**: DART, KIS, ECOS, 뉴스 API 등 동기 HTTP 호출
+- **WebClient (WebFlux)**: Gemini API SSE 스트리밍 전용
+- 환경변수(`.env`)로 API 키 관리
 
 ## DB 전략
 
-코드베이스는 JPA와 MyBatis를 모두 사용합니다:
-
-**JPA/Hibernate**:
-- 연관관계를 사용하지 않으며, ID 기반 참조만 허용
-- 자동 DDL 생성
-
-**MyBatis**:
-- 복잡한 쿼리 및 저장 프로시저
-- XML 기반 SQL 매핑
-- 공통 매퍼 패턴을 사용한 자동 스캔 매퍼
-
-둘 다 MariaDB 방언으로 구성됨.
-
-## 메시징 (WebSocket, 비동기 큐)
-
-### WebSocket (Hub 모듈)
-커스텀 큐 → `WebSocketConsumer` → `WebSocketClientSender` → 클라이언트 브로드캐스트 (엔드포인트: `/ws/**`)
+**JPA + QueryDSL** 단일 ORM 사용:
+- Entity는 연관관계 없이 ID 기반 참조만 허용
+- PostgreSQL 방언
+- `hibernate.jdbc.batch_size=1000`
+- `open-in-view: false`
 
 ## 구성 관리
 
-모든 모듈은 `${dataworks.home}/config/application-global.properties`에서 JWT, DB 자격 증명, DBCP 연결 풀, 보안 URL, 로그 설정을 가져옵니다.
+- `application.yml` + `.env` 파일로 외부 API 키, DB 접속 정보, JWT 설정 등 관리
+- 프로파일: `dev` (기본)
 
 ---
 
@@ -184,13 +181,6 @@ TaskCreate 사용 시 다음 규칙을 준수:
 
 ---
 
-## 로깅
-
-- dataworks-common 모듈에 있는 BigxLogger 를 사용하여 로깅
-- private static final BigxLogger log = BigxLogger.create(Class.class); 를 명시적으로 선언하여 log.info(), log.verbose() 처럼 사용
-
----
-
 ## 테스트 코드 가이드
 
 ### 코드 구현 원칙
@@ -220,11 +210,11 @@ TaskCreate 사용 시 다음 규칙을 준수:
 
 ## 성능 최적화
 
-- **DB 쿼리**: JPA 배치 조회, MyBatis resultMap 활용, 페이징 필수, batch_size=1000
+- **DB 쿼리**: JPA 배치 조회, QueryDSL 활용, 페이징 필수, batch_size=1000
 - **캐싱**: Caffeine 적극 활용, TTL 설정, 캐시 무효화 처리
-- **비동기**: 외부 API/대량 처리 비동기화, ThreadPoolTaskExecutor 설정, Spring Retry
-- **API**: DTO 최소화, 대용량 스트리밍/페이징, 타임아웃 준수 (연결 3초, 읽기 5초)
-- **연결 풀**: HikariCP 제한, 커넥션 누수 방지, DBCP 모니터링
+- **비동기**: 외부 API/대량 처리 비동기화, Spring Scheduler 활용
+- **API**: DTO 최소화, 대용량 스트리밍/페이징
+- **연결 풀**: HikariCP 제한, 커넥션 누수 방지
 - **로깅**: verbose 로그 지양, 대용량 데이터 요약, 로그 레벨 적절히 설정
 
 ---

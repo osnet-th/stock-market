@@ -38,8 +38,7 @@ spring:
         format_sql: false
         use_sql_comments: false
 
-# Elasticsearch - 운영 환경 (Docker Compose 내부 통신)
-spring:
+  # Elasticsearch - 운영 환경 (Docker Compose 내부 통신)
   elasticsearch:
     uris: ${ELASTICSEARCH_URIS:http://elasticsearch:9200}
 

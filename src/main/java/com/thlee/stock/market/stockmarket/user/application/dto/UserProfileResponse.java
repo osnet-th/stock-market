@@ -11,14 +11,18 @@ public record UserProfileResponse(
         String nickname,
         String role,
         String displayName,
-        boolean notificationEnabled
+        boolean notificationEnabled,
+        boolean admin
 ) {
 
     /**
      * User 엔티티로부터 응답 생성
      * 표시 우선순위: nickname > name > "사용자 {id}"
+     *
+     * @param admin 운영자 화이트리스트({@code app.logging.admin.user-ids}) 포함 여부.
+     *              프론트 메뉴 조건부 렌더링 용도.
      */
-    public static UserProfileResponse from(User user) {
+    public static UserProfileResponse from(User user, boolean admin) {
         String nicknameValue = user.getNickname() != null ? user.getNickname().getValue() : null;
         String displayName = resolveDisplayName(user, nicknameValue);
 
@@ -28,7 +32,8 @@ public record UserProfileResponse(
                 nicknameValue,
                 user.getRole().name(),
                 displayName,
-                user.isNotificationEnabled()
+                user.isNotificationEnabled(),
+                admin
         );
     }
 

@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.portfolio.application;
 
+import com.thlee.stock.market.stockmarket.logging.application.DomainEventLogger;
 import com.thlee.stock.market.stockmarket.news.application.KeywordService;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.model.UserKeyword;
@@ -30,6 +31,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -49,6 +51,7 @@ public class PortfolioService {
     private final KeywordService keywordService;
     private final KeywordRepository keywordRepository;
     private final UserKeywordRepository userKeywordRepository;
+    private final DomainEventLogger domainEventLogger;
 
     /**
      * 주식 항목 등록 (investedAmount = quantity × purchasePrice 자동 계산)
@@ -97,6 +100,7 @@ public class PortfolioService {
             portfolioItemRepository.save(cashItem);
         }
 
+        publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -119,6 +123,7 @@ public class PortfolioService {
         }
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -140,6 +145,7 @@ public class PortfolioService {
         }
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -164,6 +170,7 @@ public class PortfolioService {
         }
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -193,6 +200,7 @@ public class PortfolioService {
         }
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -224,6 +232,7 @@ public class PortfolioService {
         );
         item.updateCashDetail(detail);
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_UPDATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -244,6 +253,7 @@ public class PortfolioService {
         }
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -352,6 +362,7 @@ public class PortfolioService {
         Long linkedCashItemId = cashStockLinkRepository.findByStockItemId(itemId)
                 .map(CashStockLink::getCashItemId)
                 .orElse(null);
+        publishItemEvent("PORTFOLIO_ITEM_UPDATED", userId, saved);
         return PortfolioItemResponse.from(saved, linkedCashItemId);
     }
 
@@ -386,6 +397,8 @@ public class PortfolioService {
         item.recalculateFromPurchaseHistories(histories);
 
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishPurchaseEvent("PORTFOLIO_STOCK_PURCHASE_ADDED", userId, itemId,
+                history.getId(), quantity, purchasePrice);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -407,6 +420,7 @@ public class PortfolioService {
         );
         item.updateBondDetail(detail);
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_UPDATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -427,6 +441,7 @@ public class PortfolioService {
         );
         item.updateRealEstateDetail(detail);
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_UPDATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -450,6 +465,7 @@ public class PortfolioService {
         );
         item.updateFundDetail(detail);
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_UPDATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -464,6 +480,7 @@ public class PortfolioService {
         item.updateAmount(investedAmount);
         item.updateMemo(memo);
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_UPDATED", userId, saved);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -530,6 +547,8 @@ public class PortfolioService {
         adjustCashForAmountChange(itemId, oldAmount, item.getInvestedAmount());
 
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishPurchaseEvent("PORTFOLIO_STOCK_PURCHASE_UPDATED", userId, itemId,
+                historyId, quantity, purchasePrice);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -565,6 +584,8 @@ public class PortfolioService {
         adjustCashForAmountChange(itemId, oldAmount, item.getInvestedAmount());
 
         PortfolioItem saved = portfolioItemRepository.save(item);
+        publishPurchaseEvent("PORTFOLIO_STOCK_PURCHASE_DELETED", userId, itemId,
+                historyId, null, null);
         return PortfolioItemResponse.from(saved);
     }
 
@@ -599,6 +620,7 @@ public class PortfolioService {
         item.recalculateFromDepositHistories(histories);
         portfolioItemRepository.save(item);
 
+        publishDepositEvent("PORTFOLIO_DEPOSIT_ADDED", userId, itemId, saved.getId(), amount);
         return DepositHistoryResponse.from(saved);
     }
 
@@ -633,6 +655,7 @@ public class PortfolioService {
         recalculateInvestedAmountFromDeposits(item, itemId);
         portfolioItemRepository.save(item);
 
+        publishDepositEvent("PORTFOLIO_DEPOSIT_UPDATED", userId, itemId, historyId, amount);
         return DepositHistoryResponse.from(saved);
     }
 
@@ -653,6 +676,8 @@ public class PortfolioService {
 
         recalculateInvestedAmountFromDeposits(item, itemId);
         portfolioItemRepository.save(item);
+
+        publishDepositEvent("PORTFOLIO_DEPOSIT_DELETED", userId, itemId, historyId, null);
     }
 
     /**
@@ -749,6 +774,7 @@ public class PortfolioService {
         }
 
         portfolioItemRepository.delete(item);
+        publishItemEvent("PORTFOLIO_ITEM_DELETED", userId, item);
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -927,6 +953,48 @@ public class PortfolioService {
             }
             cashStockLinkRepository.deleteByStockItemId(stockItem.getId());
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // 비즈니스 이벤트 로깅 헬퍼 (Elasticsearch app-business-* 인덱스로 적재)
+    // 개인 메모는 포함하지 않음 (Plan GDPR/PIPA 규약 §6)
+    // ──────────────────────────────────────────────────────────────────
+
+    private void publishItemEvent(String eventType, Long userId, PortfolioItem item) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("itemId", item.getId());
+        payload.put("assetType", item.getAssetType() != null ? item.getAssetType().name() : null);
+        payload.put("investedAmount", item.getInvestedAmount());
+        domainEventLogger.logBusiness(eventType, userId, payload);
+    }
+
+    private void publishPurchaseEvent(String eventType, Long userId, Long itemId, Long historyId,
+                                       Integer quantity, BigDecimal purchasePrice) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("itemId", itemId);
+        if (historyId != null) {
+            payload.put("historyId", historyId);
+        }
+        if (quantity != null) {
+            payload.put("quantity", quantity);
+        }
+        if (purchasePrice != null) {
+            payload.put("purchasePrice", purchasePrice);
+        }
+        domainEventLogger.logBusiness(eventType, userId, payload);
+    }
+
+    private void publishDepositEvent(String eventType, Long userId, Long itemId,
+                                      Long historyId, BigDecimal amount) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("itemId", itemId);
+        if (historyId != null) {
+            payload.put("historyId", historyId);
+        }
+        if (amount != null) {
+            payload.put("amount", amount);
+        }
+        domainEventLogger.logBusiness(eventType, userId, payload);
     }
 
     private void validateDuplicate(Long userId, PortfolioItem item) {

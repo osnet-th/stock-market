@@ -1,5 +1,9 @@
 package com.thlee.stock.market.stockmarket.infrastructure.security.config;
 
+import com.thlee.stock.market.stockmarket.infrastructure.security.jwt.JwtAuthenticationFilter;
+import com.thlee.stock.market.stockmarket.logging.infrastructure.filter.RequestIdFilter;
+import com.thlee.stock.market.stockmarket.user.domain.service.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -8,11 +12,16 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 @Profile("dev")
+@RequiredArgsConstructor
 public class DevSecurityConfig {
+
+    private final RequestIdFilter requestIdFilter;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -37,7 +46,17 @@ public class DevSecurityConfig {
             .httpBasic(AbstractHttpConfigurer::disable)
 
             // formLogin 비활성화
-            .formLogin(AbstractHttpConfigurer::disable);
+            .formLogin(AbstractHttpConfigurer::disable)
+
+            // JWT 필터 등록 — 토큰이 있으면 SecurityContext 에 Authentication 세팅.
+            // dev 의 permitAll 정책은 유지하되, 운영자 경로(AdminGuardInterceptor) 에서 principal 필요.
+            .addFilterBefore(
+                new JwtAuthenticationFilter(jwtTokenProvider),
+                UsernamePasswordAuthenticationFilter.class
+            )
+
+            // RequestId 필터 — JwtAuthenticationFilter 앞단에서 requestId 확정
+            .addFilterBefore(requestIdFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

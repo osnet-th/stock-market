@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.thlee.stock.market.stockmarket.logging.application.LoggingContext;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.config.SecProperties;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.dto.SecCompanyTicker;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecApiException;
@@ -40,6 +41,12 @@ public class SecCikCache {
 
     @Scheduled(fixedRate = 23, timeUnit = TimeUnit.HOURS)
     public void refreshCache() {
+        try (var ctx = LoggingContext.forScheduler("sec-cik-refresh")) {
+            doRefresh();
+        }
+    }
+
+    private void doRefresh() {
         try {
             String json = restClient.get()
                     .uri("https://www.sec.gov/files/company_tickers.json")

@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.thlee.stock.market.stockmarket.logging.application.LoggingContext;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.dto.DartCorpCode;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.exception.DartApiException;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,12 @@ public class DartCorpCodeCache {
 
     @Scheduled(fixedRate = 23, timeUnit = TimeUnit.HOURS)
     public void refreshCache() {
+        try (var ctx = LoggingContext.forScheduler("dart-corpcode-refresh")) {
+            doRefresh();
+        }
+    }
+
+    private void doRefresh() {
         try {
             List<DartCorpCode> corpCodes = dartApiClient.downloadCorpCodes();
 

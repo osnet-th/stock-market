@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.notification.infrastructure.scheduler;
 
+import com.thlee.stock.market.stockmarket.logging.application.LoggingContext;
 import com.thlee.stock.market.stockmarket.notification.application.PortfolioNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,12 +20,14 @@ public class PortfolioNotificationScheduler {
 
     @Scheduled(cron = "${batch.schedule.portfolio-notification-cron:0 30 15 * * MON-FRI}", zone = "Asia/Seoul")
     public void sendMarketCloseNotification() {
-        log.info("포트폴리오 마감 알림 배치 시작");
-        try {
-            int successCount = portfolioNotificationService.sendMarketCloseNotifications();
-            log.info("포트폴리오 마감 알림 배치 완료: 발송 {}건", successCount);
-        } catch (Exception e) {
-            log.error("포트폴리오 마감 알림 배치 실패", e);
+        try (var ctx = LoggingContext.forScheduler("portfolio-notification")) {
+            log.info("포트폴리오 마감 알림 배치 시작");
+            try {
+                int successCount = portfolioNotificationService.sendMarketCloseNotifications();
+                log.info("포트폴리오 마감 알림 배치 완료: 발송 {}건", successCount);
+            } catch (Exception e) {
+                log.error("포트폴리오 마감 알림 배치 실패", e);
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.news.infrastructure.scheduler;
 
+import com.thlee.stock.market.stockmarket.logging.application.LoggingContext;
 import com.thlee.stock.market.stockmarket.news.application.KeywordNewsBatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,6 +17,8 @@ public class KeywordNewsBatchScheduler {
 
     @Scheduled(cron =  "${batch.schedule.economics-sync-cron:0 0 * * * *}")
     public void scheduleKeywordNewsBatch() {
-        keywordNewsBatchService.executeKeywordNewsBatch();
+        try (var ctx = LoggingContext.forScheduler("keyword-news-batch")) {
+            keywordNewsBatchService.executeKeywordNewsBatch();
+        }
     }
 }

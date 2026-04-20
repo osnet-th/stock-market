@@ -9,7 +9,8 @@ const AuthComponent = {
         token: localStorage.getItem('accessToken'),
         userId: localStorage.getItem('userId'),
         role: localStorage.getItem('role'),
-        displayName: localStorage.getItem('displayName')
+        displayName: localStorage.getItem('displayName'),
+        isAdmin: false
     },
 
     checkLoggedIn() {
@@ -39,6 +40,7 @@ const AuthComponent = {
             this.auth.displayName = profile.displayName;
             this.auth.role = profile.role;
             this.auth.notificationEnabled = profile.notificationEnabled || false;
+            this.auth.isAdmin = profile.admin === true;
             localStorage.setItem('displayName', profile.displayName);
             localStorage.setItem('role', profile.role);
         } catch (e) {

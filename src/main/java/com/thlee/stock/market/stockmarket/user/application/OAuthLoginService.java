@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.user.application;
 
+import com.thlee.stock.market.stockmarket.logging.application.DomainEventLogger;
 import com.thlee.stock.market.stockmarket.user.application.dto.AccountConnectionRequest;
 import com.thlee.stock.market.stockmarket.user.application.dto.OAuthLoginRequest;
 import com.thlee.stock.market.stockmarket.user.application.dto.OAuthLoginResponse;
@@ -13,6 +14,8 @@ import com.thlee.stock.market.stockmarket.user.domain.service.OAuthConnectionSer
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -27,6 +30,7 @@ public class OAuthLoginService {
     private final OAuthConnectionService oauthConnectionService;
     private final JwtTokenProvider jwtTokenProvider;
     private final KakaoOAuthService kakaoOAuthService;
+    private final DomainEventLogger domainEventLogger;
 
     /**
      * OAuth 로그인 처리
@@ -106,6 +110,12 @@ public class OAuthLoginService {
 
         // role이 USER로 변경된 새 Access Token 발급
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getRole());
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("userId", user.getId());
+        payload.put("role", String.valueOf(user.getRole()));
+        payload.put("nicknameLen", request.nickname() != null ? request.nickname().length() : 0);
+        domainEventLogger.logBusiness("USER_SIGNUP_COMPLETED", user.getId(), payload);
 
         return new SignupCompleteResponse(accessToken);
     }

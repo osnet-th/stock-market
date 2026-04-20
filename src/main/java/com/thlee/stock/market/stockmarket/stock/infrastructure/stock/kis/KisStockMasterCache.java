@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.thlee.stock.market.stockmarket.logging.application.LoggingContext;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisMasterStock;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -34,7 +35,9 @@ public class KisStockMasterCache {
      */
     @Scheduled(fixedRate = 23, timeUnit = TimeUnit.HOURS)
     public void refreshCache() {
-        loadAndCacheStocks();
+        try (var ctx = LoggingContext.forScheduler("kis-stock-master-refresh")) {
+            loadAndCacheStocks();
+        }
     }
 
     /**

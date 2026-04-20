@@ -47,6 +47,13 @@ public class ApplicationLogDocument {
     @Field(type = FieldType.Integer)
     private Integer originalSize;
 
+    // 검색 필터 지원용 최상위 프로젝션 필드 (payload 내부는 enabled=false 라 직접 검색 불가)
+    @Field(type = FieldType.Integer)
+    private Integer status;
+
+    @Field(type = FieldType.Keyword)
+    private String exceptionClass;
+
     protected ApplicationLogDocument() {
     }
 
@@ -57,7 +64,9 @@ public class ApplicationLogDocument {
                                   String requestId,
                                   Map<String, Object> payload,
                                   boolean truncated,
-                                  Integer originalSize) {
+                                  Integer originalSize,
+                                  Integer status,
+                                  String exceptionClass) {
         this.id = id;
         this.timestamp = timestamp;
         this.domain = domain;
@@ -66,5 +75,7 @@ public class ApplicationLogDocument {
         this.payload = payload;
         this.truncated = truncated;
         this.originalSize = originalSize;
+        this.status = status;
+        this.exceptionClass = exceptionClass;
     }
 }

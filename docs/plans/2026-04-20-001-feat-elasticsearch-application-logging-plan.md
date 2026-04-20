@@ -491,7 +491,7 @@ public final class LogSanitizer {
 
 **목표**: 기동 가능한 스켈레톤 완성 + 단건 로그 1건 적재 확인.
 
-- [x] `spring-boot-starter-aop` 의존성 추가 (`build.gradle`)
+- [x] `spring-boot-starter-aspectj` 의존성 추가 (`build.gradle`) — Spring Boot 4에서 `aop` starter가 `aspectj`로 이름 변경
 - [x] `logging/` 패키지 스켈레톤 (simplified 구조)
 - [x] `RequestIdFilter` 구현 + Prod/Dev SecurityConfig 둘 다에 `addFilterBefore(..., JwtAuthenticationFilter.class)`
 - [x] `@EnableAsync` + `LogAsyncConfig` — `logIndexerExecutor` + **`ContextPropagatingTaskDecorator`** + `AsyncUncaughtExceptionHandler`
@@ -519,20 +519,20 @@ public final class LogSanitizer {
 - [x] `GlobalExceptionHandler`에 `ApplicationEventPublisher.publishEvent(errorLogEvent)` 삽입 — AOP 누락분 이중 수집
 - [x] **`LogBatchBuffer` — 5초/500건/5MB flush** (ES 8.x `BulkIngester` 또는 Spring Data ES `bulkIndex()` 버퍼링)
 - [x] Controller에 `@LogAudit` 점진 적용 (운영자 API부터 → 전체 확산) — Aspect pointcut 이 `@within(@RestController)` 로 자동 적용
-- [ ] 챗봇 응답 저장, 포트폴리오 생성/수정, 사용자 회원가입 등 핵심 비즈니스 이벤트 `DomainEventLogger` 호출 추가
+- [x] 챗봇 응답 저장, 포트폴리오 생성/수정, 사용자 회원가입 등 핵심 비즈니스 이벤트 `DomainEventLogger` 호출 추가
 - [ ] Integration test: 단일 요청 → 동일 requestId 3개 인덱스 적재 확인 (testcontainers)
-- [ ] `/actuator/metrics/log.ingestion.dropped` Micrometer counter 노출
+- [x] `/actuator/metrics/log.ingestion.dropped` Micrometer counter 노출
 
 #### Phase 3: Retention & Reliability (장기 운영성) — 개인 프로젝트 규모
 
 **목표**: 30일 운영해도 디스크/로그 유실 없음.
 
-- [ ] `LogIndexScheduler` 통합 클래스 — cleanup + precreate
-- [ ] 크론은 `application.yml`의 `scheduler.logging.cleanup.cron`, `scheduler.logging.precreate.cron`로 externalize (기존 `KeywordNewsBatchScheduler` 패턴과 일치)
-- [ ] 현재 월 제외 로직 (삭제 대상 필터링), exact index name만 DELETE
-- [ ] ES 장애 복원력: indexer 예외 catch → 로컬 WARN + drop 카운터
-- [ ] **Graceful shutdown drain**: `@PreDestroy`에서 `LogBatchBuffer.flushRemaining()` + 10초 대기
-- [ ] 스케줄러 컨텍스트: `LoggingContext.forScheduler("keyword-news-batch")` 등 기존 스케줄러에 적용
+- [x] `LogIndexScheduler` 통합 클래스 — cleanup + precreate
+- [x] 크론은 `application.yml`의 `scheduler.logging.cleanup.cron`, `scheduler.logging.precreate.cron`로 externalize (기존 `KeywordNewsBatchScheduler` 패턴과 일치)
+- [x] 현재 월 제외 로직 (삭제 대상 필터링), exact index name만 DELETE
+- [x] ES 장애 복원력: indexer 예외 catch → 로컬 WARN + drop 카운터 (LogEventListener/LogBatchBuffer 양쪽 경로에서 `log.ingestion.dropped` 증가)
+- [x] **Graceful shutdown drain**: `@PreDestroy`에서 `LogBatchBuffer.flushRemaining()` + 10초 대기
+- [x] 스케줄러 컨텍스트: `LoggingContext.forScheduler("keyword-news-batch")` 등 기존 스케줄러에 적용
 
 **연기 (Future Considerations로 이동)**:
 - ~~`/actuator/health` JVM heap degraded 연동~~ — 개인 프로젝트엔 health를 감시하는 오케스트레이터 없음. 운영자 페이지 배지로 대체
@@ -542,16 +542,16 @@ public final class LogSanitizer {
 
 **목표**: 브라우저로 로그 조회/집계/다운로드. **개인 단일 관리자(태형님)** 전제.
 
-- [ ] `AdminProperties` + `@Validated` + `@ConfigurationProperties` — bind 실패 시 기동 실패
-- [ ] `AdminGuardInterceptor` (userId from `Authentication` principal only) + `WebMvcConfigurer` 등록
-- [ ] Meta-audit — **기존 async 경로 재사용** (개인 프로젝트이므로 별도 sync 분리는 YAGNI)
-- [ ] `LogElasticsearchSearcher` (NativeQuery — news 패턴 재사용), `search_after` 페이징
-- [ ] `LogSearchService` + Caffeine 60s 집계 캐시
-- [ ] `AdminLogController` — 검색 / 집계 / 디스크 / 다운로드 통합
-- [ ] 다운로드 filename 서버 생성 (`logs-{domain}-{yyyyMMddHHmmss}.json`), `X-Content-Type-Options: nosniff`
-- [ ] `index.html`에 `/#/admin/logs` x-if 섹션 + Alpine.js `x-text` 사용 (`x-html` 금지)
-- [ ] `js/components/admin-logs.js` — 필터(300ms debounce) / 목록 / 차트 / 모달 / 디스크 배지
-- [ ] 403 응답 처리: "관리자 권한 필요" 화면
+- [x] `AdminProperties` + `@Validated` + `@ConfigurationProperties` — bind 실패 시 기동 실패
+- [x] `AdminGuardInterceptor` (userId from `Authentication` principal only) + `WebMvcConfigurer` 등록
+- [x] Meta-audit — **기존 async 경로 재사용** (개인 프로젝트이므로 별도 sync 분리는 YAGNI)
+- [x] `LogElasticsearchSearcher` (NativeQuery — news 패턴 재사용), `search_after` 페이징
+- [x] `LogSearchService` + Caffeine 60s 집계 캐시
+- [x] `AdminLogController` — 검색 / 집계 / 디스크 / 다운로드 통합
+- [x] 다운로드 filename 서버 생성 (`logs-{domain}-{yyyyMMddHHmmss}.json`), `X-Content-Type-Options: nosniff`
+- [x] `index.html`에 `/#/admin/logs` x-if 섹션 + Alpine.js `x-text` 사용 (`x-html` 금지)
+- [x] `js/components/admin-logs.js` — 필터(300ms debounce) / 목록 / 차트 / 모달 / 디스크 배지
+- [x] 403 응답 처리: "관리자 권한 필요" 화면
 
 **연기 (Future Considerations로 이동)**:
 - ~~Bucket4j rate limit~~ — 단일 관리자이므로 자기 자신에 대한 DoS 방어는 의미 희석

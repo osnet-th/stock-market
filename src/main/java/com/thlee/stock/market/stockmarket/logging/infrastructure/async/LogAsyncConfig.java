@@ -34,18 +34,21 @@ public class LogAsyncConfig implements AsyncConfigurer {
 
     public static final String EXECUTOR_BEAN_NAME = "logIndexerExecutor";
     public static final String DROPPED_METRIC_NAME = "log.ingestion.dropped";
+    public static final String DROPPED_COUNTER_BEAN_NAME = "logIngestionDroppedCounter";
 
-    private final MeterRegistry meterRegistry;
-
-    public LogAsyncConfig(MeterRegistry meterRegistry) {
-        this.meterRegistry = meterRegistry;
+    /**
+     * 로그 유실 카운터 — rejection, sanitize 실패, ES bulkIndex 실패 등 모든 drop 경로에서 공유.
+     */
+    @Bean(name = DROPPED_COUNTER_BEAN_NAME)
+    public Counter logIngestionDroppedCounter(MeterRegistry meterRegistry) {
+        return Counter.builder(DROPPED_METRIC_NAME)
+                .description("로그 인덱싱 과정에서 rejection/sanitize/flush 실패로 유실된 로그 건수")
+                .register(meterRegistry);
     }
 
     @Bean(name = EXECUTOR_BEAN_NAME)
-    public ThreadPoolTaskExecutor logIndexerExecutor() {
-        Counter droppedCounter = Counter.builder(DROPPED_METRIC_NAME)
-                .description("로그 인덱싱 큐 포화/거절로 유실된 로그 건수")
-                .register(meterRegistry);
+    public ThreadPoolTaskExecutor logIndexerExecutor(Counter logIngestionDroppedCounter) {
+        Counter droppedCounter = logIngestionDroppedCounter;
 
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);

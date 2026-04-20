@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.economics.infrastructure.scheduler;
 
 import com.thlee.stock.market.stockmarket.economics.application.EcosIndicatorSaveService;
+import com.thlee.stock.market.stockmarket.logging.application.LoggingContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,12 +19,14 @@ public class EcosIndicatorBatchScheduler {
      */
     @Scheduled(cron = "${ecos.batch.cron:0 0 7 * * *}")
     public void saveIndicatorSnapshot() {
-        log.info("ECOS 경제지표 배치 저장 시작");
-        try {
-            int savedCount = ecosIndicatorSaveService.fetchAndSave();
-            log.info("ECOS 경제지표 배치 저장 완료: {}건", savedCount);
-        } catch (Exception e) {
-            log.error("ECOS 경제지표 배치 저장 실패", e);
+        try (var ctx = LoggingContext.forScheduler("ecos-indicator-batch")) {
+            log.info("ECOS 경제지표 배치 저장 시작");
+            try {
+                int savedCount = ecosIndicatorSaveService.fetchAndSave();
+                log.info("ECOS 경제지표 배치 저장 완료: {}건", savedCount);
+            } catch (Exception e) {
+                log.error("ECOS 경제지표 배치 저장 실패", e);
+            }
         }
     }
 }

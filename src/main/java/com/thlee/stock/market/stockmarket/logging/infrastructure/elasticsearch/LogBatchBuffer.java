@@ -1,11 +1,14 @@
 package com.thlee.stock.market.stockmarket.logging.infrastructure.elasticsearch;
 
 import com.thlee.stock.market.stockmarket.logging.domain.model.ApplicationLog;
+import com.thlee.stock.market.stockmarket.logging.infrastructure.async.LogAsyncConfig;
 import com.thlee.stock.market.stockmarket.logging.infrastructure.elasticsearch.document.ApplicationLogDocument;
 import com.thlee.stock.market.stockmarket.logging.infrastructure.elasticsearch.mapper.LogDocumentMapper;
+import io.micrometer.core.instrument.Counter;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
 import org.springframework.data.elasticsearch.core.query.IndexQuery;
@@ -13,6 +16,7 @@ import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,9 +46,14 @@ public class LogBatchBuffer {
     private static final int MAX_ITEMS = 500;
     private static final int MAX_BYTES = 5 * 1024 * 1024;    // 5MB
     private static final long FLUSH_INTERVAL_MS = 5_000L;
+    private static final Duration SHUTDOWN_DRAIN_TIMEOUT = Duration.ofSeconds(10);
+    private static final long SHUTDOWN_POLL_INTERVAL_MS = 50L;
 
     private final ElasticsearchOperations elasticsearchOperations;
     private final LogMonthlyIndexNameResolver indexNameResolver;
+
+    @Qualifier(LogAsyncConfig.DROPPED_COUNTER_BEAN_NAME)
+    private final Counter logIngestionDroppedCounter;
 
     private final Object lock = new Object();
     private List<ApplicationLog> buffer = new ArrayList<>();
@@ -81,18 +90,49 @@ public class LogBatchBuffer {
 
     /**
      * 앱 종료 시 잔여 버퍼 flush. @PreDestroy 훅.
+     *
+     * 최대 {@value #SHUTDOWN_DRAIN_TIMEOUT} (초 단위, 내부 상수)까지 반복 drain 하여
+     * shutdown 중 async 리스너가 새로 enqueue 하는 건도 포착한다. 타임아웃 이후에는
+     * 잔여 건을 유실 감수 (best-effort at-most-once).
      */
     @PreDestroy
     public void drainOnShutdown() {
-        List<ApplicationLog> toFlush;
-        synchronized (lock) {
-            if (buffer.isEmpty()) {
+        long deadline = System.nanoTime() + SHUTDOWN_DRAIN_TIMEOUT.toNanos();
+        int totalFlushed = 0;
+
+        while (System.nanoTime() < deadline) {
+            List<ApplicationLog> toFlush;
+            synchronized (lock) {
+                if (buffer.isEmpty()) {
+                    break;
+                }
+                toFlush = swapOut();
+            }
+            totalFlushed += toFlush.size();
+            log.info("LogBatchBuffer shutdown drain 진행: 이번 {}건 (누적 {}건)",
+                    toFlush.size(), totalFlushed);
+            flush(toFlush);
+
+            // 진행 중 async 리스너가 뒤이어 enqueue 할 수 있도록 짧게 양보
+            try {
+                Thread.sleep(SHUTDOWN_POLL_INTERVAL_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("LogBatchBuffer drain 인터럽트, 즉시 종료 (누적 {}건 flush 완료)", totalFlushed);
                 return;
             }
-            toFlush = swapOut();
         }
-        log.info("LogBatchBuffer shutdown drain: {}건", toFlush.size());
-        flush(toFlush);
+
+        int remaining;
+        synchronized (lock) {
+            remaining = buffer.size();
+        }
+        if (remaining > 0) {
+            log.warn("LogBatchBuffer drain 타임아웃({}s): {}건 유실 감수 (누적 {}건 flush 완료)",
+                    SHUTDOWN_DRAIN_TIMEOUT.toSeconds(), remaining, totalFlushed);
+        } else if (totalFlushed > 0) {
+            log.info("LogBatchBuffer shutdown drain 완료: 누적 {}건", totalFlushed);
+        }
     }
 
     private List<ApplicationLog> swapOut() {
@@ -114,6 +154,7 @@ public class LogBatchBuffer {
                         .build();
                 grouped.computeIfAbsent(indexName, k -> new ArrayList<>()).add(query);
             } catch (Exception e) {
+                logIngestionDroppedCounter.increment();
                 LogBatchBuffer.log.warn("로그 문서 매핑 실패, 드롭: requestId={}, err={}",
                         log.requestId(), e.getMessage());
             }
@@ -122,6 +163,7 @@ public class LogBatchBuffer {
             try {
                 elasticsearchOperations.bulkIndex(entry.getValue(), IndexCoordinates.of(entry.getKey()));
             } catch (Exception e) {
+                logIngestionDroppedCounter.increment(entry.getValue().size());
                 LogBatchBuffer.log.warn("ES bulkIndex 실패 (index={}, 건수={}): {}",
                         entry.getKey(), entry.getValue().size(), e.getMessage());
             }

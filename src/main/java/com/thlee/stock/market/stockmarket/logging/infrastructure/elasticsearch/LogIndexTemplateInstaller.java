@@ -92,13 +92,15 @@ public class LogIndexTemplateInstaller {
         String mappingJson = """
                 {
                   "properties": {
-                    "timestamp":    { "type": "date", "format": "strict_date_time" },
-                    "domain":       { "type": "keyword" },
-                    "userId":       { "type": "long" },
-                    "requestId":    { "type": "keyword" },
-                    "payload":      { "type": "object", "enabled": false },
-                    "truncated":    { "type": "boolean" },
-                    "originalSize": { "type": "integer" }
+                    "timestamp":      { "type": "date", "format": "strict_date_time" },
+                    "domain":         { "type": "keyword" },
+                    "userId":         { "type": "long" },
+                    "requestId":      { "type": "keyword" },
+                    "payload":        { "type": "object", "enabled": false },
+                    "truncated":      { "type": "boolean" },
+                    "originalSize":   { "type": "integer" },
+                    "status":         { "type": "integer" },
+                    "exceptionClass": { "type": "keyword" }
                   }
                 }
                 """;

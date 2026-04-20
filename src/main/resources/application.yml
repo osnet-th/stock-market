@@ -159,6 +159,21 @@ scheduler:
     update:
       enabled: true
       cron: 0 0 */1 * * *
+  logging:
+    # 만료 월 인덱스 삭제 (직전월까지 유지, 그 이전은 DELETE)
+    cleanup:
+      cron: 0 0 3 * * *
+    # 다음달 월 인덱스 pre-create (존재 시 noop)
+    precreate:
+      cron: 0 55 23 * * *
+
+# Application-scoped Configuration
+app:
+  logging:
+    admin:
+      # 관리자 userId 화이트리스트. 빈 값 = 전면 차단 (fail-close).
+      # .env: ADMIN_USER_IDS=1,2,3 형식 (쉼표 구분 Long)
+      user-ids: ${ADMIN_USER_IDS:}
 
 # Economics API
 economics:

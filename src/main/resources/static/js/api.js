@@ -428,5 +428,62 @@ const API = {
 
     deleteSalarySpending(userId, yearMonth, category) {
         return this.request('DELETE', `/api/salary/spending/${yearMonth}/${category}?userId=${userId}`);
+    },
+
+    // ==================== Admin Logs (관리자 전용) ====================
+    searchAdminLogs(domain, params = {}) {
+        const qs = this._buildLogQuery(params);
+        return this.request('GET', `/api/admin/logs/${domain}${qs}`);
+    },
+
+    aggregateAdminLogs(domain, { from, to } = {}) {
+        const qs = this._buildLogQuery({ from, to });
+        return this.request('GET', `/api/admin/logs/${domain}/aggregations${qs}`);
+    },
+
+    getAdminLogsDiskUsage() {
+        return this.request('GET', '/api/admin/logs/disk-usage');
+    },
+
+    async downloadAdminLogs(domain, params = {}) {
+        const qs = this._buildLogQuery(params);
+        const token = localStorage.getItem('accessToken');
+        const response = await fetch(`${this.baseUrl}/api/admin/logs/${domain}/download${qs}`, {
+            method: 'GET',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if (response.status === 403) {
+            throw new Error('FORBIDDEN');
+        }
+        if (!response.ok) {
+            throw new Error(`Download failed: ${response.status}`);
+        }
+        const blob = await response.blob();
+        const disposition = response.headers.get('Content-Disposition') || '';
+        const match = /filename="?([^"]+)"?/.exec(disposition);
+        const filename = match ? match[1] : `logs-${domain}.json`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    },
+
+    _buildLogQuery(params) {
+        const entries = Object.entries(params)
+            .filter(([, v]) => v !== undefined && v !== null && v !== '');
+        if (entries.length === 0) return '';
+        const parts = [];
+        for (const [key, value] of entries) {
+            if (Array.isArray(value)) {
+                value.forEach(v => parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(v)}`));
+            } else {
+                parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+            }
+        }
+        return '?' + parts.join('&');
     }
 };

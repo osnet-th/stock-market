@@ -5,8 +5,10 @@ import com.thlee.stock.market.stockmarket.logging.domain.model.ApplicationLog;
 import com.thlee.stock.market.stockmarket.logging.domain.model.LogDomain;
 import com.thlee.stock.market.stockmarket.logging.domain.service.LogIndexPort;
 import com.thlee.stock.market.stockmarket.logging.domain.service.LogSanitizer;
+import io.micrometer.core.instrument.Counter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -35,6 +37,9 @@ public class LogEventListener {
 
     private final LogIndexPort logIndexPort;
     private final LogSanitizer logSanitizer;
+
+    @Qualifier(LogAsyncConfig.DROPPED_COUNTER_BEAN_NAME)
+    private final Counter logIngestionDroppedCounter;
 
     @Async(LogAsyncConfig.EXECUTOR_BEAN_NAME)
     @EventListener
@@ -66,6 +71,7 @@ public class LogEventListener {
         try {
             logIndexPort.save(toSave);
         } catch (Exception e) {
+            logIngestionDroppedCounter.increment();
             log.warn("Log 인덱싱 실패, drop. requestId={}, domain={}, err={}",
                     event.requestId(), event.domain(), e.getMessage());
         }

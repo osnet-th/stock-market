@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.infrastructure.security.config;
 
 import com.thlee.stock.market.stockmarket.infrastructure.security.jwt.JwtAuthenticationEntryPoint;
 import com.thlee.stock.market.stockmarket.infrastructure.security.jwt.JwtAuthenticationFilter;
+import com.thlee.stock.market.stockmarket.logging.infrastructure.filter.RequestIdFilter;
 import com.thlee.stock.market.stockmarket.user.domain.service.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +30,7 @@ public class ProdSecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final RequestIdFilter requestIdFilter;
 
     @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
@@ -82,7 +84,10 @@ public class ProdSecurityConfig {
             .addFilterBefore(
                 new JwtAuthenticationFilter(jwtTokenProvider),
                 UsernamePasswordAuthenticationFilter.class
-            );
+            )
+
+            // RequestId 필터 — JwtAuthenticationFilter 앞단에서 requestId 확정
+            .addFilterBefore(requestIdFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

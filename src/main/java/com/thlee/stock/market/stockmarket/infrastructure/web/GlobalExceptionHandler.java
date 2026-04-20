@@ -3,6 +3,9 @@ package com.thlee.stock.market.stockmarket.infrastructure.web;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradingeconomics.exception.TradingEconomicsFetchException;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradingeconomics.exception.TradingEconomicsParseException;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.korea.ecos.exception.EcosApiException;
+import com.thlee.stock.market.stockmarket.logging.application.event.ApplicationLogEvent;
+import com.thlee.stock.market.stockmarket.logging.domain.model.LogDomain;
+import com.thlee.stock.market.stockmarket.logging.infrastructure.filter.RequestIdFilter;
 import com.thlee.stock.market.stockmarket.news.infrastructure.infrastructure.common.NewsApiException;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.datagokr.exception.DataGoKrApiException;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.dart.dto.DartStatusCode;
@@ -11,25 +14,39 @@ import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.excepti
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecApiException;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecErrorType;
 import com.thlee.stock.market.stockmarket.user.domain.exception.UserDomainException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private static final String UNKNOWN_REQUEST_ID = "unknown";
+
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 비즈니스 검증 실패 (잘못된 파라미터, 도메인 규칙 위반)
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
+        publishError(e);
         return buildResponse(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage());
     }
 
@@ -38,6 +55,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        publishError(e);
         return buildResponse(HttpStatus.CONFLICT, "CONFLICT",
                 "요청이 동시성 충돌로 처리되지 않았습니다. 다시 시도해주세요.");
     }
@@ -47,6 +65,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(UserDomainException.class)
     public ResponseEntity<Map<String, Object>> handleUserDomain(UserDomainException e) {
+        publishError(e);
         return buildResponse(HttpStatus.BAD_REQUEST, "DOMAIN_ERROR", e.getMessage());
     }
 
@@ -55,6 +74,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DartApiException.class)
     public ResponseEntity<Map<String, Object>> handleDartApi(DartApiException e) {
+        publishError(e);
         DartStatusCode statusCode = e.getStatusCode();
 
         if (statusCode == null) {
@@ -78,6 +98,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(SecApiException.class)
     public ResponseEntity<Map<String, Object>> handleSecApi(SecApiException e) {
+        publishError(e);
         return switch (e.getErrorType()) {
             case CIK_NOT_FOUND, COMPANY_NOT_FOUND ->
                     buildResponse(HttpStatus.NOT_FOUND, "SEC_NOT_FOUND", e.getMessage());
@@ -102,6 +123,7 @@ public class GlobalExceptionHandler {
             TradingEconomicsParseException.class
     })
     public ResponseEntity<Map<String, Object>> handleExternalApi(RuntimeException e) {
+        publishError(e);
         return buildResponse(HttpStatus.BAD_GATEWAY, "EXTERNAL_API_ERROR", e.getMessage());
     }
 
@@ -111,6 +133,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception e) {
         log.error("unhandled exception: {}", e.toString(), e);
+        publishError(e);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "서버 내부 오류가 발생했습니다.");
     }
 
@@ -120,5 +143,52 @@ public class GlobalExceptionHandler {
                 "message", message,
                 "timestamp", LocalDateTime.now().toString()
         ));
+    }
+
+    /**
+     * AOP 누락 경로 대비 이중 수집 — 예외를 ERROR 이벤트로 발행.
+     * ES 문서 ID 는 {requestId}-{exceptionClass} 로 강제되어 AOP 적재분과 자연 dedup.
+     * 로깅 실패가 본 기능을 막지 않도록 모든 예외 삼킴.
+     */
+    private void publishError(Exception e) {
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("exceptionClass", e.getClass().getName());
+            payload.put("message", String.valueOf(e.getMessage()));
+            payload.put("source", "GlobalExceptionHandler");
+            payload.put("stackTrace", renderStack(e));
+
+            eventPublisher.publishEvent(new ApplicationLogEvent(
+                    LogDomain.ERROR,
+                    Instant.now(),
+                    currentUserId(),
+                    currentRequestId(),
+                    payload
+            ));
+        } catch (Exception publishingFailure) {
+            log.warn("ERROR 이벤트 발행 실패: {}", publishingFailure.getMessage());
+        }
+    }
+
+    private Long currentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            return null;
+        }
+        return auth.getPrincipal() instanceof Long id ? id : null;
+    }
+
+    private String currentRequestId() {
+        String id = MDC.get(RequestIdFilter.MDC_KEY);
+        return id != null ? id : UNKNOWN_REQUEST_ID;
+    }
+
+    private String renderStack(Throwable t) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(t.getClass().getName()).append(": ").append(t.getMessage()).append('\n');
+        for (StackTraceElement el : t.getStackTrace()) {
+            sb.append("\tat ").append(el).append('\n');
+        }
+        return sb.toString();
     }
 }

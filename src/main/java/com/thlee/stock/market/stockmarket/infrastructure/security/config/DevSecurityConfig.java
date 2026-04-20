@@ -1,5 +1,7 @@
 package com.thlee.stock.market.stockmarket.infrastructure.security.config;
 
+import com.thlee.stock.market.stockmarket.logging.infrastructure.filter.RequestIdFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -8,11 +10,15 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 @Profile("dev")
+@RequiredArgsConstructor
 public class DevSecurityConfig {
+
+    private final RequestIdFilter requestIdFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -37,7 +43,10 @@ public class DevSecurityConfig {
             .httpBasic(AbstractHttpConfigurer::disable)
 
             // formLogin 비활성화
-            .formLogin(AbstractHttpConfigurer::disable);
+            .formLogin(AbstractHttpConfigurer::disable)
+
+            // RequestId 필터 — MDC/응답헤더에 requestId 확정 (dev 환경에서도 유용)
+            .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

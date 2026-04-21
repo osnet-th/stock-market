@@ -165,6 +165,8 @@ const AdminLogsComponent = {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
+                resizeDelay: 120,
                 plugins: { legend: { display: false } },
                 onClick: (evt, elements) => {
                     if (!elements || elements.length === 0) return;

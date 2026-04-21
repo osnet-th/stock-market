@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.logging.infrastructure.elasticsearch.document;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.DateFormat;
@@ -21,6 +22,7 @@ import java.util.Map;
  */
 @Document(indexName = "app-log")
 @Getter
+@JsonIgnoreProperties(ignoreUnknown = true)   // Spring Data ES 가 write 시 삽입하는 "_class" 필드 무시
 public class ApplicationLogDocument {
 
     @Id

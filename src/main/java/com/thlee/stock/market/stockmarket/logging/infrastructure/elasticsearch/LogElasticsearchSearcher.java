@@ -61,7 +61,8 @@ public class LogElasticsearchSearcher {
                     .size(size)
                     .timeout(ES_TIMEOUT_SEC + "s")
                     .sort(so -> so.field(f -> f.field("timestamp").order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)))
-                    .sort(so -> so.field(f -> f.field("_id").order(co.elastic.clients.elasticsearch._types.SortOrder.Asc)))
+                    // tie-breaker: _id 정렬은 ES 9 에서 fielddata 비활성이라 실패 → _doc 기반 안정 정렬로 변경
+                    .sort(so -> so.field(f -> f.field("_doc").order(co.elastic.clients.elasticsearch._types.SortOrder.Asc)))
                     .trackTotalHits(t -> t.enabled(true))
                     .allowNoIndices(true)
                     .ignoreUnavailable(true);

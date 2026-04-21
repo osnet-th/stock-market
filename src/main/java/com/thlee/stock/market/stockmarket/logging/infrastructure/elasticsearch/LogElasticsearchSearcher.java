@@ -73,7 +73,11 @@ public class LogElasticsearchSearcher {
                 .withSort(SortOptions.of(so -> so.field(f -> f.field("_doc").order(SortOrder.Asc))))
                 .withTrackTotalHits(true);
         if (req.searchAfter() != null && !req.searchAfter().isEmpty()) {
-            qb.withSearchAfter(new ArrayList<>(req.searchAfter()));
+            // 프론트는 쿼리스트링에 값을 모두 String 으로 직렬화해 보내지만 ES sort value 는
+            // timestamp(long) + _doc(integer) 타입이라 숫자로 복원해야 정확히 매칭됨.
+            qb.withSearchAfter(req.searchAfter().stream()
+                    .map(LogElasticsearchSearcher::coerceSearchAfterValue)
+                    .toList());
         }
 
         SearchHits<ApplicationLogDocument> searchHits = elasticsearchOperations.search(
@@ -226,6 +230,30 @@ public class LogElasticsearchSearcher {
                 doc.isTruncated(),
                 doc.getOriginalSize()
         );
+    }
+
+    /**
+     * 쿼리스트링으로 String 형태로 전달된 searchAfter 값을 원본 타입으로 복원.
+     * 숫자로 완전 파싱되면 Long/Double, 아니면 원본 String 유지.
+     */
+    private static Object coerceSearchAfterValue(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number) {
+            return raw;
+        }
+        String s = raw.toString();
+        try {
+            return Long.parseLong(s);
+        } catch (NumberFormatException notLong) {
+            // fallthrough
+        }
+        try {
+            return Double.parseDouble(s);
+        } catch (NumberFormatException notDouble) {
+            return s;
+        }
     }
 
     private static long parseLong(String value) {

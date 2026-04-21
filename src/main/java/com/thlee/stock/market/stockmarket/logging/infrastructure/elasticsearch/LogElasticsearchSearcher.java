@@ -1,6 +1,8 @@
 package com.thlee.stock.market.stockmarket.logging.infrastructure.elasticsearch;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.SortOptions;
+import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
 import co.elastic.clients.elasticsearch._types.aggregations.CalendarInterval;
 import co.elastic.clients.elasticsearch._types.aggregations.DateHistogramBucket;
@@ -18,6 +20,12 @@ import com.thlee.stock.market.stockmarket.logging.presentation.dto.LogSearchRequ
 import com.thlee.stock.market.stockmarket.logging.presentation.dto.LogSearchResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
+import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -49,46 +57,42 @@ public class LogElasticsearchSearcher {
     private static final long DAY_HISTOGRAM_THRESHOLD_DAYS = 31L;
 
     private final ElasticsearchClient elasticsearchClient;
+    private final ElasticsearchOperations elasticsearchOperations;
 
     public LogSearchResponse search(LogSearchRequest req) throws Exception {
         String indexPattern = indexPattern(req.domain());
         Query query = buildQuery(req);
         int size = req.size();
 
-        var searchReq = co.elastic.clients.elasticsearch.core.SearchRequest.of(s -> {
-            var b = s.index(indexPattern)
-                    .query(query)
-                    .size(size)
-                    .timeout(ES_TIMEOUT_SEC + "s")
-                    .sort(so -> so.field(f -> f.field("timestamp").order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)))
-                    // tie-breaker: _id 정렬은 ES 9 에서 fielddata 비활성이라 실패 → _doc 기반 안정 정렬로 변경
-                    .sort(so -> so.field(f -> f.field("_doc").order(co.elastic.clients.elasticsearch._types.SortOrder.Asc)))
-                    .trackTotalHits(t -> t.enabled(true))
-                    .allowNoIndices(true)
-                    .ignoreUnavailable(true);
-            if (req.searchAfter() != null && !req.searchAfter().isEmpty()) {
-                b.searchAfter(req.searchAfter().stream()
-                        .map(LogElasticsearchSearcher::toFieldValue)
-                        .toList());
-            }
-            return b;
-        });
+        // News 모듈과 동일 패턴: ElasticsearchOperations 사용 — Spring Data ES 가 저장 시 삽입하는
+        // "_class" type hint 를 올바르게 처리. raw ElasticsearchClient 로 역직렬화하면 "Failed to decode response" 실패.
+        NativeQueryBuilder qb = NativeQuery.builder()
+                .withQuery(query)
+                .withMaxResults(size)
+                .withSort(SortOptions.of(so -> so.field(f -> f.field("timestamp").order(SortOrder.Desc))))
+                .withSort(SortOptions.of(so -> so.field(f -> f.field("_doc").order(SortOrder.Asc))))
+                .withTrackTotalHits(true);
+        if (req.searchAfter() != null && !req.searchAfter().isEmpty()) {
+            qb.withSearchAfter(new ArrayList<>(req.searchAfter()));
+        }
 
-        SearchResponse<ApplicationLogDocument> resp = elasticsearchClient.search(searchReq, ApplicationLogDocument.class);
+        SearchHits<ApplicationLogDocument> searchHits = elasticsearchOperations.search(
+                qb.build(),
+                ApplicationLogDocument.class,
+                IndexCoordinates.of(indexPattern)
+        );
 
         List<LogSearchResponse.Item> items = new ArrayList<>();
         List<Object> nextSearchAfter = null;
-        var hits = resp.hits().hits();
-        for (var hit : hits) {
-            ApplicationLogDocument doc = hit.source();
+        for (SearchHit<ApplicationLogDocument> hit : searchHits.getSearchHits()) {
+            ApplicationLogDocument doc = hit.getContent();
             if (doc == null) {
                 continue;
             }
-            items.add(toItem(hit.id(), doc));
-            nextSearchAfter = hit.sort().stream().map(LogElasticsearchSearcher::fromFieldValue).toList();
+            items.add(toItem(hit.getId(), doc));
+            nextSearchAfter = hit.getSortValues();
         }
-        long total = resp.hits().total() != null ? resp.hits().total().value() : 0L;
-        // 마지막 페이지(조회된 건수 < size)면 커서 제거
+        long total = searchHits.getTotalHits();
         if (items.size() < size) {
             nextSearchAfter = null;
         }
@@ -222,29 +226,6 @@ public class LogElasticsearchSearcher {
                 doc.isTruncated(),
                 doc.getOriginalSize()
         );
-    }
-
-    private static co.elastic.clients.elasticsearch._types.FieldValue toFieldValue(Object raw) {
-        if (raw instanceof Number n) {
-            return co.elastic.clients.elasticsearch._types.FieldValue.of(n.longValue());
-        }
-        if (raw instanceof String s) {
-            return co.elastic.clients.elasticsearch._types.FieldValue.of(s);
-        }
-        if (raw instanceof Boolean b) {
-            return co.elastic.clients.elasticsearch._types.FieldValue.of(b);
-        }
-        return co.elastic.clients.elasticsearch._types.FieldValue.of(String.valueOf(raw));
-    }
-
-    private static Object fromFieldValue(co.elastic.clients.elasticsearch._types.FieldValue fv) {
-        return switch (fv._kind()) {
-            case Long -> fv.longValue();
-            case Double -> fv.doubleValue();
-            case String -> fv.stringValue();
-            case Boolean -> fv.booleanValue();
-            default -> fv._toJsonString();
-        };
     }
 
     private static long parseLong(String value) {

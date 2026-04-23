@@ -1,7 +1,8 @@
 package com.thlee.stock.market.stockmarket.favorite.presentation.dto;
 
+import com.thlee.stock.market.stockmarket.economics.domain.model.CountryIndicatorSnapshot;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorLatest;
-import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalIndicatorLatest;
+import com.thlee.stock.market.stockmarket.economics.domain.model.IndicatorValue;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedEcosFavorite;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedFavorites;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedGlobalFavorite;
@@ -65,28 +66,47 @@ public record EnrichedFavoriteResponse(
         String previousDataValue,
         String cycle,
         String unit,
-        boolean hasData
+        boolean hasData,
+        boolean failed,
+        String failureReason,
+        boolean refreshable
     ) {
         public static GlobalItem from(EnrichedGlobalFavorite enriched) {
-            GlobalIndicatorLatest latest = enriched.latest();
-            if (latest == null) {
-                String[] parts = enriched.favorite().getIndicatorCode().split("::", 2);
+            String[] parts = enriched.favorite().getIndicatorCode().split("::", 2);
+            String parsedCountry = parts.length > 0 ? parts[0] : "";
+            String parsedType = parts.length > 1 ? parts[1] : "";
+
+            if (enriched.isFailed()) {
                 return new GlobalItem(
                     enriched.favorite().getIndicatorCode(),
-                    parts.length > 0 ? parts[0] : "",
-                    parts.length > 1 ? parts[1] : "",
-                    null, null, null, null, false
+                    parsedCountry, parsedType,
+                    null, null, null, null,
+                    false, true, enriched.failureReason(), enriched.refreshable()
                 );
             }
+
+            CountryIndicatorSnapshot snap = enriched.snapshot();
+            if (snap == null) {
+                return new GlobalItem(
+                    enriched.favorite().getIndicatorCode(),
+                    parsedCountry, parsedType,
+                    null, null, null, null,
+                    false, false, null, true
+                );
+            }
+
+            IndicatorValue last = snap.getLastValue();
+            IndicatorValue prev = snap.getPreviousValue();
             return new GlobalItem(
                 enriched.favorite().getIndicatorCode(),
-                latest.getCountryName(),
-                latest.getIndicatorType().name(),
-                latest.getDataValue(),
-                latest.getPreviousDataValue(),
-                latest.getCycle(),
-                latest.getUnit(),
-                true
+                snap.getCountryName(),
+                snap.getIndicatorType().name(),
+                last != null ? last.getRawText() : null,
+                prev != null ? prev.getRawText() : null,
+                snap.getReferenceText(),
+                last != null ? last.getUnit() : null,
+                last != null,
+                false, null, true
             );
         }
     }

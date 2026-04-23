@@ -141,6 +141,10 @@ const API = {
         return this.request('GET', '/api/favorites/enriched');
     },
 
+    refreshGlobalIndicator(indicatorType) {
+        return this.request('POST', `/api/favorites/global/refresh/${indicatorType}`);
+    },
+
     getRecentUpdates() {
         return this.request('GET', '/api/economics/indicators/recent-updates');
     },

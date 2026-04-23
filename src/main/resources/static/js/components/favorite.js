@@ -98,5 +98,50 @@ const FavoriteComponent = {
         const container = document.getElementById(containerId);
         if (!container) return;
         container.scrollBy({ left: direction * 320, behavior: 'smooth' });
+    },
+
+    /**
+     * 글로벌 관심 지표 카드 단일 재조회.
+     * 동일 카드 연타는 refreshing 플래그로 방지.
+     * 성공 응답은 동일 indicatorType 을 가진 모든 카드(여러 국가)의 값을 갱신한다.
+     */
+    async refreshGlobal(card) {
+        if (!card || card.refreshing) return;
+        if (card.failed && !card.refreshable) return;
+
+        card.refreshing = true;
+        try {
+            const response = await API.refreshGlobalIndicator(card.indicatorType);
+            const items = (response && response.items) || [];
+            const itemMap = {};
+            items.forEach(item => { itemMap[item.indicatorCode] = item; });
+
+            const globals = this.homeSummary?.enrichedFavorites?.global;
+            if (Array.isArray(globals)) {
+                for (let i = 0; i < globals.length; i++) {
+                    const fresh = itemMap[globals[i].indicatorCode];
+                    if (fresh) {
+                        globals[i] = { ...fresh, refreshing: false };
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('관심 지표 재조회 실패:', e);
+            card.refreshing = false;
+            alert('재조회에 실패했어요. 잠시 후 다시 시도해주세요');
+        }
+    },
+
+    /**
+     * 카드 failureReason 을 사람 친화 메시지로 변환.
+     */
+    globalFailureMessage(card) {
+        if (!card || !card.failed) return '';
+        switch (card.failureReason) {
+            case 'FETCH': return '실시간 조회 실패 (네트워크). 잠시 후 재조회해주세요';
+            case 'PARSE': return '데이터 구조 변경으로 조회 실패. 관리자 확인이 필요해요';
+            case 'INVALID_CODE': return '알 수 없는 지표 코드입니다. 관심 지표에서 제거해주세요';
+            default: return '실시간 조회 실패. 잠시 후 재조회해주세요';
+        }
     }
 };

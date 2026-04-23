@@ -331,15 +331,26 @@
                                     <template x-for="card in homeSummary.enrichedFavorites.global" :key="card.indicatorCode">
                                         <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
                                             <div class="spread-card rounded-xl p-4 shadow-sm relative"
-                                                 :class="card.hasData ? 'status-normal' : ''">
+                                                 :class="!card.failed && card.hasData ? 'status-normal' : ''">
                                                 <!-- 해제 버튼 -->
                                                 <button @click="removeDashboardFavorite('GLOBAL', card.indicatorCode)"
                                                         class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
-                                                <div class="mb-2 pr-6">
+                                                <!-- 재조회 버튼: 실시간 조회 실패 시 표시 -->
+                                                <template x-if="card.failed">
+                                                    <button @click="refreshGlobal(card)"
+                                                            :disabled="!card.refreshable || card.refreshing"
+                                                            :title="card.refreshable ? '다시 조회' : '현재 재조회로 해결되지 않는 실패입니다'"
+                                                            class="absolute top-2 right-9 text-gray-500 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed cursor-pointer text-base"
+                                                            :class="card.refreshing ? 'animate-spin' : ''">&#10227;</button>
+                                                </template>
+                                                <div class="mb-2 pr-16">
                                                     <span class="text-sm font-semibold text-gray-700" x-text="card.countryName"></span>
                                                     <p class="text-[11px] text-gray-400 mt-0.5" x-text="card.indicatorType.replace(/_/g, ' ')"></p>
                                                 </div>
-                                                <template x-if="card.hasData">
+                                                <template x-if="card.failed">
+                                                    <p class="text-red-400 text-sm" x-text="globalFailureMessage(card)"></p>
+                                                </template>
+                                                <template x-if="!card.failed && card.hasData">
                                                     <div class="flex items-end justify-between">
                                                         <p class="text-2xl font-bold font-mono-num leading-none text-gray-800">
                                                             <span x-text="card.dataValue"></span>
@@ -354,7 +365,7 @@
                                                         </template>
                                                     </div>
                                                 </template>
-                                                <template x-if="!card.hasData">
+                                                <template x-if="!card.failed && !card.hasData">
                                                     <p class="text-gray-300 text-sm">데이터 없음</p>
                                                 </template>
                                                 <template x-if="card.cycle">

@@ -1,12 +1,15 @@
 package com.thlee.stock.market.stockmarket.favorite.presentation;
 
+import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalEconomicIndicatorType;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedFavorites;
+import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedGlobalFavorite;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicator;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.EnrichedFavoriteResponse;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteIndicatorResponse;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteToggleRequest;
+import com.thlee.stock.market.stockmarket.favorite.presentation.dto.GlobalRefreshResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -69,6 +72,18 @@ public class FavoriteIndicatorController {
         Long userId = getCurrentUserId();
         EnrichedFavorites enriched = favoriteIndicatorService.findEnrichedByUserId(userId);
         return ResponseEntity.ok(EnrichedFavoriteResponse.from(enriched));
+    }
+
+    /**
+     * 글로벌 관심 지표 단일 타입 실시간 재조회.
+     * 본인이 관심 등록한 지표에 한해 허용되며, 60초에 1회 레이트리밋을 적용한다.
+     */
+    @PostMapping("/global/refresh/{indicatorType}")
+    public ResponseEntity<GlobalRefreshResponse> refreshGlobal(@PathVariable String indicatorType) {
+        Long userId = getCurrentUserId();
+        GlobalEconomicIndicatorType type = GlobalEconomicIndicatorType.valueOf(indicatorType);
+        List<EnrichedGlobalFavorite> refreshed = favoriteIndicatorService.refreshGlobalIndicator(userId, type);
+        return ResponseEntity.ok(GlobalRefreshResponse.of(type, refreshed));
     }
 
     private Long getCurrentUserId() {

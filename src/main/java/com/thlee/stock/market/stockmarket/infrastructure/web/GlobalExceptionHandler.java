@@ -3,6 +3,8 @@ package com.thlee.stock.market.stockmarket.infrastructure.web;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradingeconomics.exception.TradingEconomicsFetchException;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradingeconomics.exception.TradingEconomicsParseException;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.korea.ecos.exception.EcosApiException;
+import com.thlee.stock.market.stockmarket.favorite.application.exception.FavoriteRefreshForbiddenException;
+import com.thlee.stock.market.stockmarket.favorite.application.exception.RefreshRateLimitExceededException;
 import com.thlee.stock.market.stockmarket.logging.application.event.ApplicationLogEvent;
 import com.thlee.stock.market.stockmarket.logging.domain.model.LogDomain;
 import com.thlee.stock.market.stockmarket.logging.infrastructure.filter.RequestIdFilter;
@@ -109,6 +111,24 @@ public class GlobalExceptionHandler {
             default ->
                     buildResponse(HttpStatus.BAD_GATEWAY, "EXTERNAL_API_ERROR", e.getMessage());
         };
+    }
+
+    /**
+     * 관심 지표 재조회 권한 없음 → 403
+     */
+    @ExceptionHandler(FavoriteRefreshForbiddenException.class)
+    public ResponseEntity<Map<String, Object>> handleFavoriteRefreshForbidden(FavoriteRefreshForbiddenException e) {
+        publishError(e);
+        return buildResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
+    }
+
+    /**
+     * 관심 지표 재조회 레이트리밋 초과 → 429
+     */
+    @ExceptionHandler(RefreshRateLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleRefreshRateLimit(RefreshRateLimitExceededException e) {
+        publishError(e);
+        return buildResponse(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", e.getMessage());
     }
 
     /**

@@ -30,7 +30,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -603,21 +602,9 @@ public class PortfolioService {
         PortfolioItem item = findUserItem(userId, itemId);
         validateDepositTarget(item);
 
-        List<DepositHistory> histories = new ArrayList<>(depositHistoryRepository.findByPortfolioItemId(itemId));
-        if (histories.isEmpty()) {
-            BigDecimal existingAmount = item.getInvestedAmount();
-            if (existingAmount != null && existingAmount.compareTo(BigDecimal.ZERO) > 0) {
-                DepositHistory initial = DepositHistory.create(
-                        itemId, resolveInitialDepositDate(item), existingAmount, null, "기존 납입분");
-                histories.add(depositHistoryRepository.save(initial));
-            }
-        }
-
-        DepositHistory history = DepositHistory.create(itemId, depositDate, amount, units, memo);
-        DepositHistory saved = depositHistoryRepository.save(history);
-        histories.add(saved);
-
-        item.recalculateFromDepositHistories(histories);
+        DepositHistory saved = depositHistoryRepository.save(
+                DepositHistory.create(itemId, depositDate, amount, units, memo));
+        item.restoreAmount(amount);
         portfolioItemRepository.save(item);
 
         publishDepositEvent("PORTFOLIO_DEPOSIT_ADDED", userId, itemId, saved.getId(), amount);
@@ -649,10 +636,16 @@ public class PortfolioService {
             throw new IllegalArgumentException("해당 항목의 납입 이력이 아���니다.");
         }
 
+        BigDecimal oldAmount = history.getAmount();
         history.update(depositDate, amount, units, memo);
         DepositHistory saved = depositHistoryRepository.save(history);
 
-        recalculateInvestedAmountFromDeposits(item, itemId);
+        BigDecimal delta = amount.subtract(oldAmount);
+        if (delta.signum() > 0) {
+            item.restoreAmount(delta);
+        } else if (delta.signum() < 0) {
+            item.deductAmount(delta.negate());
+        }
         portfolioItemRepository.save(item);
 
         publishDepositEvent("PORTFOLIO_DEPOSIT_UPDATED", userId, itemId, historyId, amount);
@@ -672,9 +665,10 @@ public class PortfolioService {
             throw new IllegalArgumentException("해당 항목의 납입 이력이 아닙니다.");
         }
 
+        BigDecimal removed = history.getAmount();
         depositHistoryRepository.delete(history);
 
-        recalculateInvestedAmountFromDeposits(item, itemId);
+        item.deductAmount(removed);
         portfolioItemRepository.save(item);
 
         publishDepositEvent("PORTFOLIO_DEPOSIT_DELETED", userId, itemId, historyId, null);
@@ -732,25 +726,8 @@ public class PortfolioService {
         }
     }
 
-    private LocalDate resolveInitialDepositDate(PortfolioItem item) {
-        if (item.getAssetType() == AssetType.CASH
-                && item.getCashDetail() != null
-                && item.getCashDetail().getStartDate() != null) {
-            return item.getCashDetail().getStartDate();
-        }
-        return LocalDate.now();
-    }
-
-    private void recalculateInvestedAmountFromDeposits(PortfolioItem item, Long itemId) {
-        List<DepositHistory> histories = depositHistoryRepository.findByPortfolioItemId(itemId);
-        if (histories.isEmpty()) {
-            return;
-        }
-        item.recalculateFromDepositHistories(histories);
-    }
-
     /**
-     * 항목 삭제 + ��수이력 삭제 + 관련 뉴스 출처 매핑 삭제 + orphan 뉴스 정리
+     * 항목 삭제 + 매수이력 삭제 + 관련 뉴스 출처 매핑 삭제 + orphan 뉴스 정리
      */
     @Transactional
     public void deleteItem(Long userId, Long itemId, boolean restoreCash, BigDecimal restoreAmount) {

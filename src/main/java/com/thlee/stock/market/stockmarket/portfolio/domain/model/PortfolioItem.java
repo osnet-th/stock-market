@@ -296,22 +296,6 @@ public class PortfolioItem {
         this.updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * 납입이력 기반 투자금액 재계산
-     * 이력 추가/수정/삭제 후 호출
-     */
-    public void recalculateFromDepositHistories(List<DepositHistory> histories) {
-        if (this.assetType != AssetType.CASH && this.assetType != AssetType.FUND) {
-            throw new IllegalArgumentException("현금성 자산 또는 펀드 항목이 아닙니다.");
-        }
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        for (DepositHistory h : histories) {
-            totalAmount = totalAmount.add(h.getAmount());
-        }
-        this.investedAmount = totalAmount;
-        this.updatedAt = LocalDateTime.now();
-    }
-
     public void updateStockDetail(StockDetail stockDetail) {
         validateDetail(stockDetail, "stockDetail");
         if (this.assetType != AssetType.STOCK) {

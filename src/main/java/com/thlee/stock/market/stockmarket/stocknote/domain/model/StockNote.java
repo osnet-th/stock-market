@@ -15,8 +15,9 @@ import java.time.LocalDateTime;
 /**
  * 주식 기록 본체.
  *
- * <p>등락 시점의 10가지 판단 축을 한 엔티티로 보관한다. Valuation / Fundamental 영향도는
- * 1:1 관계로 단순하므로 별도 테이블 대신 본체 컬럼으로 흡수한다 (설계 승인본 반영).
+ * <p>등락 시점의 10가지 판단 축을 한 엔티티로 보관한다. Valuation / FundamentalImpact 영향도는
+ * 1:1 관계로 단순하므로 별도 테이블 대신 본체 컬럼으로 흡수하되, 도메인 모델에서는 두 그룹을
+ * {@link Valuation} / {@link FundamentalImpact} VO 로 묶어 swap 위험을 차단한다 (DB 컬럼은 평면 유지).
  *
  * <p>Entity 연관관계는 두지 않고 {@code stockCode / marketType / exchangeCode} 값 참조만 보유한다.
  */
@@ -41,30 +42,18 @@ public class StockNote {
     private boolean preReflected;
     private UserJudgment initialJudgment;
 
-    // Valuation (1:1 흡수)
-    private BigDecimal per;
-    private BigDecimal pbr;
-    private BigDecimal evEbitda;
-    private VsAverageLevel vsAverage;
-
-    // Fundamental Link (1:1 흡수)
-    private ImpactLevel revenueImpact;
-    private ImpactLevel profitImpact;
-    private ImpactLevel cashflowImpact;
-    private boolean oneTime;
-    private boolean structural;
+    private Valuation valuation;
+    private FundamentalImpact fundamentalImpact;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    /** 재구성용 생성자 (Repository 조회 시) */
+    /** 재구성용 생성자 (Repository / Mapper 전용) */
     public StockNote(Long id, Long userId, String stockCode, MarketType marketType, ExchangeCode exchangeCode,
                      NoteDirection direction, BigDecimal changePercent, LocalDate noteDate,
                      String triggerText, String interpretationText, String riskText,
                      boolean preReflected, UserJudgment initialJudgment,
-                     BigDecimal per, BigDecimal pbr, BigDecimal evEbitda, VsAverageLevel vsAverage,
-                     ImpactLevel revenueImpact, ImpactLevel profitImpact, ImpactLevel cashflowImpact,
-                     boolean oneTime, boolean structural,
+                     Valuation valuation, FundamentalImpact fundamentalImpact,
                      LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
@@ -79,15 +68,8 @@ public class StockNote {
         this.riskText = riskText;
         this.preReflected = preReflected;
         this.initialJudgment = initialJudgment;
-        this.per = per;
-        this.pbr = pbr;
-        this.evEbitda = evEbitda;
-        this.vsAverage = vsAverage;
-        this.revenueImpact = revenueImpact;
-        this.profitImpact = profitImpact;
-        this.cashflowImpact = cashflowImpact;
-        this.oneTime = oneTime;
-        this.structural = structural;
+        this.valuation = valuation == null ? Valuation.empty() : valuation;
+        this.fundamentalImpact = fundamentalImpact == null ? FundamentalImpact.empty() : fundamentalImpact;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -101,9 +83,7 @@ public class StockNote {
                                    NoteDirection direction, BigDecimal changePercent, LocalDate noteDate, LocalDate today,
                                    String triggerText, String interpretationText, String riskText,
                                    boolean preReflected, UserJudgment initialJudgment,
-                                   BigDecimal per, BigDecimal pbr, BigDecimal evEbitda, VsAverageLevel vsAverage,
-                                   ImpactLevel revenueImpact, ImpactLevel profitImpact, ImpactLevel cashflowImpact,
-                                   boolean oneTime, boolean structural) {
+                                   Valuation valuation, FundamentalImpact fundamentalImpact) {
         requireNonNull(userId, "userId");
         requireNonBlank(stockCode, "stockCode");
         requireNonNull(marketType, "marketType");
@@ -121,21 +101,19 @@ public class StockNote {
         LocalDateTime now = LocalDateTime.now();
         return new StockNote(null, userId, stockCode, marketType, exchangeCode, direction, changePercent, noteDate,
                 triggerText, interpretationText, riskText, preReflected, initialJudgment,
-                per, pbr, evEbitda, vsAverage,
-                revenueImpact, profitImpact, cashflowImpact, oneTime, structural,
+                valuation == null ? Valuation.empty() : valuation,
+                fundamentalImpact == null ? FundamentalImpact.empty() : fundamentalImpact,
                 now, now);
     }
 
     /**
      * 본문 및 분석 항목 수정.
-     * <p>잠금 여부는 application 계층에서 {@link com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNoteVerification}
-     * 존재 여부로 사전 판정한 뒤 호출한다. 본 도메인 메서드는 값 검증만 수행한다.
+     * <p>잠금 여부는 application 계층에서 {@link StockNoteVerification} 존재 여부로 사전 판정한 뒤 호출한다.
+     * 본 도메인 메서드는 값 검증만 수행한다.
      */
     public void updateBody(String triggerText, String interpretationText, String riskText,
                            boolean preReflected, UserJudgment initialJudgment,
-                           BigDecimal per, BigDecimal pbr, BigDecimal evEbitda, VsAverageLevel vsAverage,
-                           ImpactLevel revenueImpact, ImpactLevel profitImpact, ImpactLevel cashflowImpact,
-                           boolean oneTime, boolean structural) {
+                           Valuation valuation, FundamentalImpact fundamentalImpact) {
         requireNonNull(initialJudgment, "initialJudgment");
         requireTextWithin(triggerText, "triggerText");
         requireTextWithin(interpretationText, "interpretationText");
@@ -145,15 +123,8 @@ public class StockNote {
         this.riskText = riskText;
         this.preReflected = preReflected;
         this.initialJudgment = initialJudgment;
-        this.per = per;
-        this.pbr = pbr;
-        this.evEbitda = evEbitda;
-        this.vsAverage = vsAverage;
-        this.revenueImpact = revenueImpact;
-        this.profitImpact = profitImpact;
-        this.cashflowImpact = cashflowImpact;
-        this.oneTime = oneTime;
-        this.structural = structural;
+        this.valuation = valuation == null ? Valuation.empty() : valuation;
+        this.fundamentalImpact = fundamentalImpact == null ? FundamentalImpact.empty() : fundamentalImpact;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -165,9 +136,17 @@ public class StockNote {
         this.id = id;
     }
 
-    public boolean isDomestic() {
-        return marketType.isDomestic();
-    }
+    // -------- 위임 getter (Mapper / Response DTO 호환 — VO 분리 이전 평면 호출 패턴 유지) --------
+
+    public BigDecimal getPer() { return valuation.per(); }
+    public BigDecimal getPbr() { return valuation.pbr(); }
+    public BigDecimal getEvEbitda() { return valuation.evEbitda(); }
+    public VsAverageLevel getVsAverage() { return valuation.vsAverage(); }
+    public ImpactLevel getRevenueImpact() { return fundamentalImpact.revenueImpact(); }
+    public ImpactLevel getProfitImpact() { return fundamentalImpact.profitImpact(); }
+    public ImpactLevel getCashflowImpact() { return fundamentalImpact.cashflowImpact(); }
+    public boolean isOneTime() { return fundamentalImpact.oneTime(); }
+    public boolean isStructural() { return fundamentalImpact.structural(); }
 
     private static void requireNonNull(Object v, String name) {
         if (v == null) {

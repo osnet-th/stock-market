@@ -397,10 +397,11 @@ GET    /api/stock-notes/dashboard
 # Response: {
 #   thisMonthCount, verifiedCount, pendingVerificationCount,
 #   hitRate: { correct, wrong, partial, total },
-#   characterDistribution: [{ character: 'FUNDAMENTAL', count, hitRate }, ...],
-#   topTagCombinations: [{ tags: [...], count, hitRate }, ...]
+#   characterDistribution: { 'FUNDAMENTAL': count, 'EXPECTATION': count, ... },   # Map<String, Long>
+#   topTagCombinations: [{ tagValues: [...], count }, ...]
 # }
-# 캐시: Caffeine, TTL 5분, 기록/검증 생성 시 evict
+# 캐시: Caffeine, TTL 30분 (심화 E), 기록/검증 생성 시 evict
+# NOTE(2026-04-26): character/combo 별 hitRate 는 별건 plan 후속. 현재 구현은 count 만 집계.
 
 GET    /api/stock-notes/by-stock/{stockCode}/chart?period=90
 # Response: {
@@ -651,65 +652,124 @@ Step 5/5: 내 판단 & 반대 논리
 ## Implementation Phases
 
 ### Phase 1: 도메인 모델 + 인프라 스켈레톤
-- [ ] Entity 7개, Enum 11개 **사전 승인 요청** 후 생성
-- [ ] 테이블 마이그레이션 (Flyway or Hibernate auto-ddl — 기존 프로젝트 방침 확인 필요)
-- [ ] Repository 포트 7개 + JpaRepository + RepositoryImpl 어댑터
-- [ ] `StockNoteMapper` (Entity ↔ Domain 변환)
-- [ ] `BusinessDayCalculator` 간이 구현 + 단위 테스트 가능 구조
+- [x] Entity 5개(심화 축소), Enum 10개 생성 (사전 승인 완료)
+- [x] 테이블 마이그레이션 (Hibernate auto-ddl)
+- [x] Repository 포트 5쌍 + JpaRepository + RepositoryImpl 어댑터
+- [x] `StockNoteMapper` (Entity ↔ Domain 변환)
+- [x] `BusinessDayCalculator` 간이 구현 + 단위 테스트 가능 구조
 
 ### Phase 2: 응용 계층 + REST API (기록 CRUD)
-- [ ] `StockNoteWriteService.create` — 본체/태그/밸류/펀더멘털/AT_NOTE(PENDING) 원자 생성
-- [ ] `StockNoteWriteService.update` — 검증 존재 시 `StockNoteLockedException` → 409
-- [ ] `StockNoteWriteService.delete` — 하위 엔티티 cascade (Repository 레벨)
-- [ ] `StockNoteReadService.findById/findList` — aggregate 조립
-- [ ] `StockNoteController` + `CreateStockNoteRequest/UpdateStockNoteRequest` DTO
-- [ ] 인증 주입 (`SecurityContextHolder`), 모든 엔드포인트에 userId 스코프
-- [ ] `@Valid` Bean Validation (예: noteDate 미래 금지, changePercent 범위)
+- [x] `StockNoteWriteService.create` — 본체/태그/밸류/펀더멘털/AT_NOTE(PENDING) 원자 생성
+- [x] `StockNoteWriteService.update` — 검증 존재 시 `StockNoteLockedException` → 409
+- [x] `StockNoteWriteService.delete` — 하위 엔티티 cascade (Repository 레벨)
+- [x] `StockNoteReadService.findById/findList` — aggregate 조립
+- [x] `StockNoteController` + `CreateStockNoteRequest/UpdateStockNoteRequest` DTO
+- [x] 인증 주입 (`SecurityContextHolder`), 모든 엔드포인트에 userId 스코프
+- [x] `@Valid` Bean Validation (예: noteDate 미래 금지, changePercent 범위)
 
 ### Phase 3: 가격 스냅샷 + 스케줄러
-- [ ] `StockNoteSnapshotService.captureAtNoteAsync(noteId)` — `@Async`, PENDING → SUCCESS/FAILED
-- [ ] `StockNoteSnapshotService.retryPending()` — 10분 배치, retryCount 3 초과 시 FAILED 확정
-- [ ] `StockNoteSnapshotScheduler.captureDomesticSnapshots()` — 국내 16:00 KST
-- [ ] `StockNoteSnapshotScheduler.captureOverseasSnapshots()` — 해외 07:00 KST (다음날)
-- [ ] 종목 실패 격리 (try-catch per note, LoggingContext MDC)
-- [ ] 상장폐지/거래정지 처리 (retry 3회 후 DELISTED 확정)
-- [ ] 수동 재시도 엔드포인트
+- [x] `StockNoteSnapshotService.captureAtNoteAsync(noteId)` — `@Async`, PENDING → SUCCESS/FAILED
+- [x] `StockNoteSnapshotService.retryPending()` — 10분 배치, retryCount 3 초과 시 FAILED 확정
+- [x] `StockNoteSnapshotScheduler.captureDomesticSnapshots()` — 국내 16:00 KST
+- [x] `StockNoteSnapshotScheduler.captureOverseasSnapshots()` — 해외 07:00 KST (다음날)
+- [x] 종목 실패 격리 (try-catch per note, LoggingContext MDC)
+- [x] 상장폐지/거래정지 처리 (retry 3회 후 DELISTED 확정)
+- [x] 수동 재시도 엔드포인트
 
 ### Phase 4: 사후 검증 + 본문 잠금
-- [ ] `StockNoteVerificationService.upsert` — 본문 잠금 발효, 대시보드 캐시 evict
-- [ ] `StockNoteVerificationService.delete` — 잠금 해제
-- [ ] `PUT/DELETE /api/stock-notes/{id}/verification`
-- [ ] 이미 검증 존재 상태에서 본문 PUT 시 `409 Conflict` 반환 + 에러 바디 `{error: 'LOCKED_BY_VERIFICATION'}`
+- [x] `StockNoteVerificationService.upsert` — 본문 잠금 발효, 대시보드 캐시 evict
+- [x] `StockNoteVerificationService.delete` — 잠금 해제
+- [x] `PUT/DELETE /api/stock-notes/{id}/verification`
+- [x] 이미 검증 존재 상태에서 본문 PUT 시 `409 Conflict` 반환 + 에러 바디 `{error: 'LOCKED_BY_VERIFICATION'}`
 
 ### Phase 5: 분석 API (패턴 매칭 + 대시보드 + 차트)
-- [ ] `StockNotePatternMatchService.findSimilar(noteId, directionFilter)` — native 쿼리
-- [ ] `StockNoteDashboardService.getDashboard(userId)` — Caffeine 캐시 (TTL 5분)
-- [ ] `StockNoteChartService.getChartData(userId, stockCode, period)` — 일봉 + 기록점
-   - 일봉 조회: 기존 `StockPriceService` 에 `getDailyHistory(...)` 포트 추가 필요 (KIS `inquire-daily-itemchartprice` TR 연동). **이 작업은 Phase 5 선행 조건**
-- [ ] `/api/stock-notes/pending-verifications/count`
+- [x] `StockNotePatternMatchService.findSimilar(noteId, directionFilter)` — native 쿼리
+- [x] `StockNoteDashboardService.getDashboard(userId)` — Caffeine 캐시 (TTL 30분, 심화 반영)
+- [x] `StockNoteChartService.getChartData(userId, stockCode, period)` — 일봉 + 기록점
+   - 일봉 조회: `StockPricePort.getDailyHistory(...)` 포트 + KIS 어댑터 구현 완료 (TR `FHKST03010100`, 단일 호출 ~100 영업일). 해외는 base default(빈 리스트) 유지 — 후속 별도 작업.
+- [x] ~~`/api/stock-notes/pending-verifications/count`~~ — 심화에서 제거 (대시보드 응답의 `pendingVerificationCount` 재활용)
 
 ### Phase 6: 프론트엔드 — 기본 골격
-- [ ] `static/partials/stocknote.html` + `static/js/components/stocknote.js`
-- [ ] `app.js` 메뉴/컴포넌트 등록 (4개 수정 포인트)
-- [ ] 대시보드 탭 (Chart.js 도넛 + KPI 카드)
-- [ ] 기록 리스트 탭 (테이블 + 필터 + 페이징)
+- [x] `static/js/components/stocknote.js` + `static/index.html` 인라인 템플릿 (별도 partial 분리 안 함)
+- [x] `app.js` 메뉴/컴포넌트 등록 (4개 수정 포인트)
+- [x] 대시보드 탭 (KPI 카드 + 성격 분포 + 태그 조합)
+- [x] 기록 리스트 탭 (테이블 + 필터 + 페이징)
 
 ### Phase 7: 프론트엔드 — 기록 작성 드로워
-- [ ] 5-step 드로워 구현
-- [ ] 각 step validation
-- [ ] localStorage draft 자동 저장/복구
-- [ ] 자유 태그 자동완성 (debounce)
+- [x] 5-step 드로워 구현
+- [x] 각 step validation
+- [x] localStorage draft 자동 저장/복구
+- [x] 자유 태그 자동완성 (debounce)
 
 ### Phase 8: 프론트엔드 — 종목 차트 + 검증 패널
-- [ ] 종목 상세 탭: 좌측 종목 리스트 / 우측 Chart.js mixed chart (line + scatter)
-- [ ] 기록점 클릭 → 우측 슬라이드 검증 패널
-- [ ] 검증 패널 내 유사 패턴 미니 카드
+- [x] 종목 상세 탭: 종목 코드 입력 / Chart.js mixed chart (line + scatter)
+- [x] 기록점 클릭 → 검증 패널 오픈
+- [x] 검증 패널 내 유사 패턴 미니 카드
 
 ### Phase 9: 폴리싱
-- [ ] 사이드바 배지 카운트
-- [ ] 스냅샷 실패 상태 UI 표시 + 수동 재시도 버튼
-- [ ] 빈 상태 / 로딩 / 에러 메시지
-- [ ] 반응형 (모바일 드로워 fullscreen)
+- [x] 사이드바 배지 카운트
+- [x] 스냅샷 실패 상태 UI 표시 + 수동 재시도 버튼
+- [x] 빈 상태 / 로딩 / 에러 메시지- [x] 반응형 (모바일 드로워 fullscreen) — `w-full sm:w-[580px]` + `top-0 bottom-0` fullscreen, 액션바 sticky bottom + iOS safe-area
+
+### Phase 10: ce-review 후속 작업 (2026-04-25 코드 리뷰 결과)
+
+> 11-reviewer ce-review 결과 도출된 P0~P3 발견사항. 한 번에 하나씩 진행, 작업 시작 전 분석/설계 문서 필요 여부 판단.
+
+#### P0 — Critical
+- [x] [stocknote] D+7/D+30 PENDING 행 미생성으로 자동 캡처 영구 미동작 — 옵션A 채택. `WriteService.create` 가 AT_NOTE + D+7 + D+30 PENDING 3건 saveAll. 분석/설계: `.claude/analyzes/stocknote/d-plus-n-pending-missing/` + `.claude/designs/stocknote/d-plus-n-pending-fix/`.
+- [x] [stocknote] currentUserId() 안전 가드 추가 (4 컨트롤러 NPE/CCE 방어) — `StockNoteSecurityContext` 신설(presentation), 4 컨트롤러 일괄 적용, ExceptionHandler 에 `InsufficientAuthenticationException → 401 UNAUTHORIZED` 매핑.
+
+#### P1 — High
+- [x] [stocknote] captureForMarket 트랜잭션 분리 및 외부 HTTP 격리 — `StockNoteSnapshotCaptureExecutor` 신설. SnapshotService 의 captureForMarket/retryPending @Transactional 제거 + per-note try-catch + executor 호출. AsyncDispatcher 도 executor 직접 호출. 분석/설계: `.claude/{analyzes,designs}/stocknote/{capture-transaction-isolation,snapshot-capture-executor}/`.
+- [x] [stock] KIS RestClient connect/read timeout 설정 — `KisRestClientConfig` 신설(`@Bean("kisRestClient")` + SimpleClientHttpRequestFactory). `KisProperties` 에 connectTimeoutMs/readTimeoutMs (기본 3000/10000). KisApiClient/KisTokenManager 에 `@Qualifier("kisRestClient")`. 분석/설계: `.claude/{analyzes,designs}/stock/kis-restclient-timeout/`.
+- [x] [stocknote] BusinessDayCalculator 음력/임시 공휴일 보강 (옵션 A) — `LUNAR_AND_SUBSTITUTE_HOLIDAYS` Set 추가 (2026~2027 등록). 매년 12월 갱신 PR 정책. 옵션 B (KRX 캘린더 외부 연동) / 옵션 C (KIS 빈 응답 감지) 별건. 분석/설계: `.claude/{analyzes,designs}/stocknote/business-day-lunar-holidays/`.
+- [x] [stocknote] AT_NOTE FAILED 시 D+N changePercent null 영구화 방지 — 옵션 C(A+B). 옵션 A: captureTarget atNoteClose=null guard → PENDING 유지. 옵션 B: captureAtNote SUCCESS 직후 backfillDPlusNChangePercent 호출 + 도메인 backfillChangePercent 메서드 추가. 분석/설계: `.claude/{analyzes,designs}/stocknote/d-plus-n-change-percent-null/`.
+- [x] [stock/kis] 일봉 100영업일 한계 분할 호출 페이지네이션 — `KisStockPriceAdapter.getDailyHistory` 슬라이딩 윈도우 청크 루프(CHUNK_CALENDAR_DAYS=140, MAX_ITERATIONS=10) + LinkedHashMap dedup + ASC 정렬. 부분 실패 시 graceful degrade. 분석/설계: `.claude/{analyzes,designs}/stock/kis-daily-chart-pagination/`.
+- [x] [stocknote] DashboardService EntityManager 직접 사용 → Repository 포트로 분리 — `StockNoteDashboardRepository` 포트(domain) + `StockNoteDashboardRepositoryImpl` 어댑터(infrastructure) 신설. JPQL/Native SQL 5건 어댑터로 이전. Service 슬림화. 분석/설계: `.claude/{analyzes,designs}/stocknote/dashboard-repository-port/`.
+- [x] ~~[chatbot] stocknote 도메인 챗봇 컨텍스트 + tool-calling 통합~~ — **deferred (2026-04-26)**: 태형님 결정으로 본 PR 범위 외. 향후 챗봇 stocknote 연동 시 별도 plan 으로 진행.
+- [x] [stocknote] StockNoteListFilter character/judgmentResult 실제 적용 — 옵션 B. `StockNoteRepositoryImpl.buildWhereClause` 에 EXISTS subquery 2건 추가 (StockNoteTagEntity / StockNoteVerificationEntity). "Phase 5 확장" 주석 제거. 분석/설계: `.claude/{analyzes,designs}/stocknote/list-filter-dead-fields/`.
+- [x] [stocknote] DetailResponse.note.locked 실제 verification 존재 반영 — `StockNoteDetailResponse.from` 에서 `locked = r.verification() != null` 계산 후 `NoteDto.from(StockNote, boolean locked)` 시그니처로 전달. 하드코딩 false 제거.
+- [x] [stocknote] @Valid bean validation 핸들러 추가 + 에러 응답 shape 통일 — `StockNoteExceptionHandler` 응답 shape `{error, message, timestamp}` 통일 + `MethodArgumentNotValidException` (`fieldErrors` 포함) / `HttpMessageNotReadableException` / `MethodArgumentTypeMismatchException` 핸들러 3건 추가. 분석/설계: `.claude/{analyzes,designs}/stocknote/exception-handler-unification/`.
+- [x] [stocknote] DashboardResponse contract drift 정합 — 옵션 A. plan L400-401 을 현재 구현 형식으로 갱신 (characterDistribution: `Map<String, Long>`, topTagCombinations.tagValues, hitRate 별건 후속 명시). 코드/프론트 무변경. 분석/설계: `.claude/{analyzes,designs}/stocknote/dashboard-contract-drift/`.
+- [x] [stocknote] pagination offset/limit → page/size 통일 — 7개 파일 일괄 (Controller / Filter / Result / Response / RepositoryImpl 의 `firstResult = page * size` 변환 / ReadService / frontend filters). News/AdminLog 모듈 + plan L366 정합. 분석/설계: `.claude/{analyzes,designs}/stocknote/pagination-page-size/`.
+- [x] [stocknote] StockNote 25 필드 Value Object 분리 (Valuation/FundamentalImpact) — 옵션 A. 도메인 record `Valuation` / `FundamentalImpact` 신설, StockNote 8필드 → 2 VO. create/updateBody 인자 21→13. 위임 getter 9개로 응답/Mapper 평면 호출 호환. WriteService cmd→VO 조립, Mapper toDomain VO 변환. DB 스키마/응답 contract 무영향. 분석/설계: `.claude/{analyzes,designs}/stocknote/stocknote-value-objects/`.
+- [x] [stocknote] application/presentation DTO 중복 정리 — 옵션 A. 1:1 복제 케이스 정리: `SimilarPatternResponse` / `DashboardResponse` 삭제, AnalyticsController 가 Result 직접 반환. Chart/Detail/List Response 는 가공 가치 인정해 보존. 분석/설계: `.claude/{analyzes,designs}/stocknote/dto-duplication-cleanup/`.
+- [x] [stocknote/frontend] index.html 인라인 블록 영역 분리 또는 anchor 마커 도입 — 옵션 A. 5개 영역(dashboard-tab / stock-chart-tab / list-tab / drawer / detail-panel) start/end anchor 주석 마커 추가 + STOCK NOTE end 마커. partial 분리는 Alpine SSR 제약으로 별건 권장.
+
+#### P2 — Moderate
+- [x] [stocknote] CreateStockNoteRequest.tags @Size 길이 검증 + 중복 제거 — Create/Update Request 에 `@Size(max=50)` 추가. WriteService.replaceTags 에 (source+normalized) LinkedHashSet dedup. unique 제약은 별건.
+- [x] [stocknote] custom tag MAX_PER_USER TOCTOU 보강 — `DataIntegrityViolationException` catch + `incrementUsage` 재시도. unique 제약(`uk_stock_note_custom_tag_user_value`) 이 최종 가드, 동시 insert 시 retry 로 복구.
+- [x] [stocknote] 검증 본문 잠금 우회 race 방어 — `StockNoteVerification.update` 가 `verifiedAt` 갱신 안 함 (최초 검증 시점 영구 보존). DELETE → 재생성 시에만 새 verifiedAt 발급 → 잠금 해제 후 본문 변경+재인증 우회 시 시점 차이로 추적 가능.
+- [x] [stocknote] manualRetry self-invocation 트랜잭션 분리 — Task #3 의 `StockNoteSnapshotCaptureExecutor` 빈 분리로 self-invocation 자체 해소. manualRetry outer @Transactional + executor REQUIRED 합류 → reset 결과 보임 (race-safe).
+- [x] [stocknote] StocknoteAsyncConfig CallerRunsPolicy → AbortPolicy + retry 인계 — `AbortPolicy` 적용. AT_NOTE PENDING 행은 영속화되어 있어 retryPending 10분 배치가 자연 인계.
+- [x] [stocknote/frontend] 해외 종목 차트 미지원 안내 추가 — index.html 의 stock-chart-tab 빈 상태 분기에 "해당 종목 기록 없음" / "해외 종목 일봉 미지원 (국내만)" 메시지 분기 추가.
+- [x] [stocknote] retryPending 가 D+7/D+30 PENDING 도 처리하도록 일관화 — `retryPending` 의 분기에 D+N 처리 추가. note 정보 + AT_NOTE close 조립 후 `captureExecutor.captureTarget` 호출. per-note try-catch 격리.
+- [x] [stocknote] 동일 트랜잭션 custom tag 중복 입력 dedup — Task #18 와 함께 처리. WriteService.replaceTags 에 (source+normalized) LinkedHashSet dedup.
+- [x] [stocknote] PatternMatchService N+1 findById 배치화 — `StockNoteRepository.findAllByIds` 추가 + Service 가 `noteMap.get(id)` 매핑. 단건 호출 20회 → 1회 IN-batch.
+- [x] [stocknote] captureTarget redundant noteRepository.findById 제거 — `PendingCaptureTarget` 에 `exchangeCode` 필드 추가 + native 쿼리 컬럼 추가. `captureTarget` 가 target 의 stockCode/marketType/exchangeCode 직접 사용. `fetchCurrentPrice` 시그니처 변경. manualRetry/retryPending 의 PendingCaptureTarget 생성도 exchangeCode 포함.
+- [x] [stock/kis] 일봉 long TTL 캐시 도입 — `StockPriceCacheConfig` 에 `dailyHistoryCacheManager` 빈 추가 (TTL 12h, maxSize 200). `KisStockPriceAdapter.getDailyHistory` 에 `@Cacheable(stockCode:from:to, sync=true, unless empty)` 적용.
+- [x] [stocknote] ListResponse.Item verified/locked 의미 분리 또는 단일화 — `locked` 필드 제거, `verified` 만 유지. 프론트가 `note.verified` 만 사용 검증.
+- [x] [stocknote] dead public API 제거 — `BusinessDayCalculator.nextBusinessDay`, `StockNote.isDomestic` 두 메서드 삭제 (호출처 0건 검증).
+- [x] [stocknote] StockNoteLockedException 을 domain/exception 으로 이전 — `domain/exception/` 패키지 신설 + 이동. import 3 파일(WriteService, UpdateStockNoteCommand javadoc, ExceptionHandler) 갱신.
+- [x] [stocknote] retrySnapshot 응답 코드 일관화 — 200 + body → 204 No Content. 다른 write 엔드포인트와 contract 일관.
+- [x] [stock/kis] KisTokenManager synchronized + 외부 호출 분리 — `volatile cachedToken/tokenExpiresAt` + double-checked locking. 캐시 히트는 lock 없이 반환 → 동시 호출 직렬화 회피. timeout 은 Task #4 (KisRestClientConfig) 에서 처리됨.
+- [x] [stocknote] StockNoteSnapshotAsyncDispatcher 위치/네이밍 재검토 — `application/listener/StockNoteCreatedSnapshotListener` 로 이동 + 행위 중심 이름.
+- [x] [stocknote/api] TagPayload 'source' vs plan 'category' 정합화 — DTO/도메인/프론트 모두 `source` 사용 (`StockNoteTag.tagSource`, `t.tag_source`). 본 문서의 `category` 표기는 plan 작성 시 별칭이었으며 구현 형식(`source`) 으로 정합화.
+- [x] [stocknote/api] SimilarPattern aggregate 누락 필드 추가 — `Aggregate` record 에 upAfter1W/downAfter1W/upAfter1M/downAfter1M 4 필드 추가, PatternMatchService.aggregate 에서 signum 기반 카운트.
+- [x] [stocknote] dashboard Caffeine cacheManager mismatch 검증 — DashboardService 의 `@Cacheable` + WriteService/VerificationService 의 `@CacheEvict` 모두 `cacheManager="stocknoteCacheManager"` 명시 일관 확인.
+
+#### P3 — Low
+- [x] [stocknote] ExceptionHandler IllegalArgumentException msg null Map.of NPE 가드 — Task #12 에서 자동 해결 (`e.getMessage() == null ? "잘못된 요청입니다." : e.getMessage()`).
+- [ ] [stocknote] CustomTag autocomplete prefix 비정규 문자 silent fail — try-catch + 빈 리스트.
+- [x] [stocknote/frontend] resolveNoteIndex 0 fallback 제거 (점 미표시) — `return -1` 후 호출부에서 `idx < 0` 분기로 점 생략.
+- [ ] [stocknote] IllegalArgumentException 메시지 노출 정제 — enum 클래스 경로 정찰 차단.
+- [ ] [user/kakao] KakaoTokenClient 응답 바디 read 실패 폴백 강화 — 운영 진단 메시지 손실 방지.
+- [x] [stocknote] retryPendingSnapshots cron zone='Asia/Seoul' 명시 — 다른 cron 과 일관.
+- [ ] [stocknote] POST /api/stock-notes 응답 typed record 도입 — Map.of → CreateStockNoteResponse(Long id) record.
+- [x] [stocknote] enum query/path param 미스 → 400 매핑 — Task #12 에서 자동 해결 (`MethodArgumentTypeMismatchException` 핸들러 + `HttpMessageNotReadableException` 핸들러 추가).
+- [x] [stocknote] PatternMatchService unreachable null check + '추후 확장' 주석 제거 — `baseNote` 변수 자체 제거(권한 검증만 유지) + dead 분기/주석 삭제.
+- [ ] [stocknote/frontend] localStorage anon key 로그아웃 시 정리 + userId scope 강화 — 다른 사용자 draft 누설 방지. plan #17 정합.
+- [ ] [user/kakao] OAuth 콜백 인가 코드 재사용 사용자 친화 처리 — invalid_grant 500 노출 방지.
 
 ---
 
@@ -718,38 +778,38 @@ Step 5/5: 내 판단 & 반대 논리
 ### 기능 요건
 
 **기록 작성**
-- [ ] 관심/보유 종목 검색으로 종목 선택 가능
-- [ ] 5-step 드로워 폼 전부 입력 후 제출 시 `StockNote` + 태그/밸류/펀더멘털/AT_NOTE PENDING 스냅샷이 하나의 트랜잭션으로 생성
-- [ ] 제출 직후 비동기로 AT_NOTE 스냅샷이 SUCCESS 또는 FAILED 로 전이
-- [ ] `noteDate` 가 오늘보다 미래이면 400
-- [ ] 동일 종목 동일 날짜 복수 기록 허용
+- [x] 관심/보유 종목 검색으로 종목 선택 가능
+- [x] 5-step 드로워 폼 전부 입력 후 제출 시 `StockNote` + 태그/밸류/펀더멘털/AT_NOTE PENDING 스냅샷이 하나의 트랜잭션으로 생성
+- [x] 제출 직후 비동기로 AT_NOTE 스냅샷이 SUCCESS 또는 FAILED 로 전이
+- [x] `noteDate` 가 오늘보다 미래이면 400
+- [x] 동일 종목 동일 날짜 복수 기록 허용
 
 **기록 수정/삭제**
-- [ ] 검증 존재 시 PUT 시도하면 409 Conflict
-- [ ] DELETE 시 하위 엔티티(태그/밸류/펀더멘털/스냅샷/검증) 모두 cascade 삭제
+- [x] 검증 존재 시 PUT 시도하면 409 Conflict
+- [x] DELETE 시 하위 엔티티(태그/밸류/펀더멘털/스냅샷/검증) 모두 cascade 삭제
 
 **사후 검증**
-- [ ] PUT /verification 으로 검증 upsert, 본문 잠금 발효
-- [ ] DELETE /verification 으로 검증 삭제, 본문 잠금 해제
-- [ ] D+30 도달 전 검증 입력도 허용 (사용자 자율)
+- [x] PUT /verification 으로 검증 upsert, 본문 잠금 발효
+- [x] DELETE /verification 으로 검증 삭제, 본문 잠금 해제
+- [x] D+30 도달 전 검증 입력도 허용 (사용자 자율)
 
 **가격 스냅샷**
-- [ ] AT_NOTE: 기록 생성 시 PENDING 즉시 insert, 비동기 SUCCESS 전이, 실패 시 최대 3회 재시도 후 FAILED 확정
-- [ ] D+7/D+30: 기록일 + N 영업일(BusinessDayCalculator) 에 해당하는 기록을 스케줄러가 배치로 스냅샷
-- [ ] 국내 16:00 KST, 해외 07:00 KST 분리 실행
-- [ ] 상장폐지/거래정지 종목은 FAILED → DELISTED 로 전이하며 재시도 종료
+- [x] AT_NOTE: 기록 생성 시 PENDING 즉시 insert, 비동기 SUCCESS 전이, 실패 시 최대 3회 재시도 후 FAILED 확정
+- [x] D+7/D+30: 기록일 + N 영업일(BusinessDayCalculator) 에 해당하는 기록을 스케줄러가 배치로 스냅샷
+- [x] 국내 16:00 KST, 해외 07:00 KST 분리 실행
+- [x] 상장폐지/거래정지 종목은 FAILED → DELISTED 로 전이하며 재시도 종료
 
 **분석**
-- [ ] 대시보드 API 가 이번 달 기록 수 / 적중률 / 상승성격 분포 / 태그 조합 TOP5 반환
-- [ ] 유사 패턴 API 가 태그 조합 일치 과거 기록과 D+7/D+30 집계 반환
-- [ ] 종목 차트 API 가 일봉 + 기록점 반환
+- [x] 대시보드 API 가 이번 달 기록 수 / 적중률 / 상승성격 분포 / 태그 조합 TOP5 반환
+- [x] 유사 패턴 API 가 태그 조합 일치 과거 기록과 D+7/D+30 집계 반환
+- [x] 종목 차트 API 가 일봉 + 기록점 반환 — 기록점 OK, 국내 일봉 KIS 연동 완료, 해외는 빈 리스트(후속)
 
 **프론트엔드**
-- [ ] 사이드바 `내 투자 노트` 메뉴 추가, 클릭 시 대시보드 탭 로드
-- [ ] 3탭(대시보드/종목 차트/기록 리스트) 전환 시 Chart.js 인스턴스 destroy
-- [ ] 종목 차트의 기록점 클릭 시 우측 슬라이드 검증 패널 오픈
-- [ ] 드로워 폼의 각 step 이동 시 localStorage 에 draft 저장, 재진입 시 복구
-- [ ] 검증 대기 기록 수 배지 표시 (페이지 로드 시 갱신)
+- [x] 사이드바 `내 투자 노트` 메뉴 추가, 클릭 시 대시보드 탭 로드
+- [x] 3탭(대시보드/종목 차트/기록 리스트) 전환 시 Chart.js 인스턴스 destroy
+- [x] 종목 차트의 기록점 클릭 시 우측 슬라이드 검증 패널 오픈
+- [x] 드로워 폼의 각 step 이동 시 localStorage 에 draft 저장, 재진입 시 복구
+- [x] 검증 대기 기록 수 배지 표시 (페이지 로드 시 갱신)
 
 ### 비기능 요건
 - [ ] 기록 1000 건 규모에서 유사 패턴 쿼리 p95 < 300ms (인덱스 전제)
@@ -759,10 +819,10 @@ Step 5/5: 내 판단 & 반대 논리
 - [ ] 검증 입력 UI 반응 시간 < 100ms
 
 ### 품질 게이트
-- [ ] `ARCHITECTURE.md` 규칙 전수 준수 (ID 참조, application 트랜잭션, 레이어 분리)
-- [ ] Entity/Enum 사전 승인 완료 (CLAUDE.md Section 4 규칙)
-- [ ] 테스트 가능성 유지 (포트-어댑터 분리, 의존성 주입)
-- [ ] 모든 endpoint 에 `SecurityContextHolder` 기반 userId 스코프 검증
+- [x] `ARCHITECTURE.md` 규칙 전수 준수 (ID 참조, application 트랜잭션, 레이어 분리)
+- [x] Entity/Enum 사전 승인 완료 (CLAUDE.md Section 4 규칙)
+- [x] 테스트 가능성 유지 (포트-어댑터 분리, 의존성 주입)
+- [x] 모든 endpoint 에 `SecurityContextHolder` 기반 userId 스코프 검증
 
 ---
 
@@ -909,10 +969,10 @@ PUT /api/stock-notes/{id}/verification
 
 ## Documentation Plan
 
-- [ ] `ARCHITECTURE.md` 내 도메인 목록에 `stocknote` 한 줄 추가
-- [ ] `README.md` 기능 리스트에 "주식 기록 기능" 추가
-- [ ] `docs/solutions/architecture-patterns/` 에 Chart.js mixed chart (line + scatter) 패턴 학습 문서 1건 작성 (MVP 완료 후)
-- [ ] API 문서: 기존 OpenAPI/Swagger 사용 여부 확인 후 동일 방식 (기존에 미사용이면 README 에 curl 예시)
+- [x] `ARCHITECTURE.md` 내 도메인 목록에 `stocknote` 추가 (구조 트리 한 블록)
+- [x] `README.md` 기능 리스트에 "주식 기록 기능" 추가 — `STOCK-MARKET-PROJECT.md` 핵심 기능 8번으로 추가 (README.md 부재)
+- [x] `docs/solutions/architecture-patterns/` 에 Chart.js mixed chart (line + scatter) 패턴 학습 문서 1건 작성 — `stocknote-chartjs-mixed-line-scatter.md`
+- [x] API 문서 — `springdoc-openapi-starter-webmvc-ui:3.0.1` 이미 적용 (build.gradle:71). Swagger UI 자동 노출, 별도 작업 불필요
 
 ---
 

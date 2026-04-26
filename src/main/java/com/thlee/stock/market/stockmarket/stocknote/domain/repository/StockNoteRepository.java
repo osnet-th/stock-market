@@ -3,7 +3,9 @@ package com.thlee.stock.market.stockmarket.stocknote.domain.repository;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNote;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -24,6 +26,9 @@ public interface StockNoteRepository {
      * 호출하지 말 것. 스냅샷 캡처/스케줄러가 이벤트 payload 의 noteId 로 노트 정보를 얻을 때 사용.
      */
     Optional<StockNote> findById(Long id);
+
+    /** 다건 IN-batch 조회 (PatternMatch 등 N+1 회피용). 결과 키는 noteId. */
+    Map<Long, StockNote> findAllByIds(Collection<Long> noteIds);
 
     /** 필터/페이징 리스트. 구현 레이어는 복합 인덱스 {@code (user_id, note_date DESC)} 를 활용한다. */
     List<StockNote> findList(Long userId, StockNoteListFilter filter);

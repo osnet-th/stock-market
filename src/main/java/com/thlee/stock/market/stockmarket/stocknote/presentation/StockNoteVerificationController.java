@@ -5,7 +5,6 @@ import com.thlee.stock.market.stockmarket.stocknote.presentation.dto.UpsertVerif
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -27,17 +26,13 @@ public class StockNoteVerificationController {
     @PutMapping
     public ResponseEntity<Void> upsert(@PathVariable Long id,
                                        @Valid @RequestBody UpsertVerificationRequest request) {
-        verificationService.upsert(request.toCommand(id, currentUserId()));
+        verificationService.upsert(request.toCommand(id, StockNoteSecurityContext.currentUserId()));
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        verificationService.delete(id, currentUserId());
+        verificationService.delete(id, StockNoteSecurityContext.currentUserId());
         return ResponseEntity.noContent().build();
-    }
-
-    private Long currentUserId() {
-        return (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 }

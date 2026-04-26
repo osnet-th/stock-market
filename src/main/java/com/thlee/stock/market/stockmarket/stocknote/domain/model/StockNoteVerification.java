@@ -43,12 +43,17 @@ public class StockNoteVerification {
         this.id = id;
     }
 
+    /**
+     * 동일 검증의 사후 수정 — 결과/메모는 갱신하되 {@code verifiedAt} 은 최초 시점 유지.
+     * (DELETE → 재생성 시에만 새 verifiedAt 발급. 사용자가 잠금 해제+본문 변경+재인증 우회 시도 시
+     * 변경 시점이 변경 전 검증보다 늦음이 명확해짐 — ce-review #20.)
+     */
     public void update(JudgmentResult judgmentResult, String verificationNote) {
         Objects.requireNonNull(judgmentResult, "judgmentResult");
         requireTextWithin(verificationNote);
         this.judgmentResult = judgmentResult;
         this.verificationNote = verificationNote;
-        this.verifiedAt = LocalDateTime.now();
+        // verifiedAt 은 보존 — 최초 검증 시점을 영구히 추적
     }
 
     private static void requireTextWithin(String v) {

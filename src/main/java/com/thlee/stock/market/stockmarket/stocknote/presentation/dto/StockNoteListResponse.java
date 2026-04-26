@@ -21,16 +21,16 @@ import java.util.List;
 public record StockNoteListResponse(
         List<Item> items,
         long totalCount,
-        int offset,
-        int limit
+        int page,
+        int size
 ) {
 
     public static StockNoteListResponse from(StockNoteListResult r) {
         return new StockNoteListResponse(
                 r.items().stream().map(Item::from).toList(),
                 r.totalCount(),
-                r.offset(),
-                r.limit()
+                r.page(),
+                r.size()
         );
     }
 
@@ -47,8 +47,7 @@ public record StockNoteListResponse(
             List<TagPayload> tags,
             List<SnapshotSummary> snapshots,
             String judgmentResult,
-            boolean verified,
-            boolean locked
+            boolean verified
     ) {
         public static Item from(StockNoteListItemResult r) {
             StockNote n = r.note();
@@ -63,7 +62,6 @@ public record StockNoteListResponse(
                             .toList(),
                     r.snapshots().stream().map(SnapshotSummary::from).toList(),
                     v == null ? null : v.getJudgmentResult().name(),
-                    v != null,
                     v != null
             );
         }

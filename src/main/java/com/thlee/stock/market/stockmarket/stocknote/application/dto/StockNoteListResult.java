@@ -8,6 +8,6 @@ import java.util.List;
 public record StockNoteListResult(
         List<StockNoteListItemResult> items,
         long totalCount,
-        int offset,
-        int limit
+        int page,
+        int size
 ) { }

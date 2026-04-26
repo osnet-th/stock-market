@@ -11,7 +11,7 @@ import java.util.List;
  * 기록 수정 application command.
  *
  * <p>검증이 생성된 기록은 잠금 상태로 {@link
- * com.thlee.stock.market.stockmarket.stocknote.application.exception.StockNoteLockedException}
+ * com.thlee.stock.market.stockmarket.stocknote.domain.exception.StockNoteLockedException}
  * 가 던져진다. stockCode / marketType / noteDate / direction 등 기록의 정체성에 해당하는 필드는
  * 수정 불가 (변경 시 새 기록 작성 원칙).
  */

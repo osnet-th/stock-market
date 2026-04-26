@@ -4,6 +4,7 @@ import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.config.
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisTokenResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.exception.KisApiException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -21,10 +22,10 @@ public class KisTokenManager {
     private final RestClient restClient;
     private final KisProperties properties;
 
-    private String cachedToken;
-    private Instant tokenExpiresAt;
+    private volatile String cachedToken;
+    private volatile Instant tokenExpiresAt;
 
-    public KisTokenManager(RestClient restClient, KisProperties properties) {
+    public KisTokenManager(@Qualifier("kisRestClient") RestClient restClient, KisProperties properties) {
         this.restClient = restClient;
         this.properties = properties;
     }
@@ -33,11 +34,19 @@ public class KisTokenManager {
      * KIS Access Token 반환.
      * 캐시에 토큰이 있으면 즉시 반환, 없으면 발급 후 캐시에 저장.
      */
-    public synchronized String getAccessToken() {
-        if (cachedToken != null && Instant.now().isBefore(tokenExpiresAt)) {
-            return cachedToken;
+    public String getAccessToken() {
+        // Double-checked locking: 정상 캐시 히트는 lock 없이 반환 → 동시 호출 직렬화 회피.
+        String t = cachedToken;
+        Instant exp = tokenExpiresAt;
+        if (t != null && exp != null && Instant.now().isBefore(exp)) {
+            return t;
         }
-        return issueAndCacheToken();
+        synchronized (this) {
+            if (cachedToken != null && tokenExpiresAt != null && Instant.now().isBefore(tokenExpiresAt)) {
+                return cachedToken;
+            }
+            return issueAndCacheToken();
+        }
     }
 
     private String issueAndCacheToken() {

@@ -4,7 +4,6 @@ import com.thlee.stock.market.stockmarket.stocknote.application.StockNoteCustomT
 import com.thlee.stock.market.stockmarket.stocknote.presentation.dto.CustomTagResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,10 +25,6 @@ public class StockNoteCustomTagController {
             @RequestParam(defaultValue = "10") int limit
     ) {
         return ResponseEntity.ok(CustomTagResponse.from(
-                customTagService.autocomplete(currentUserId(), prefix, limit)));
-    }
-
-    private Long currentUserId() {
-        return (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                customTagService.autocomplete(StockNoteSecurityContext.currentUserId(), prefix, limit)));
     }
 }

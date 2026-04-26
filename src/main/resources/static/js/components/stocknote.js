@@ -76,8 +76,8 @@ const StocknoteComponent = {
             direction: '',
             character: '',
             judgmentResult: '',
-            offset: 0,
-            limit: 20
+            page: 0,
+            size: 20
         },
 
         // 상세/검증 패널
@@ -179,8 +179,11 @@ const StocknoteComponent = {
             this.stocknote.stockChartData = data;
             this.stocknote.stockChartAvailable = Array.isArray(data.prices) && data.prices.length > 0;
             this.stocknote.selectedStockCode = stockCode;
-            // 다음 tick 에 canvas 존재 가정. Alpine x-show 바인딩 순서 고려해 setTimeout 0.
-            setTimeout(() => this.renderStocknoteStockChart(), 0);
+            // Alpine x-show 가 display:none → block 으로 적용된 뒤 캔버스 사이즈가 확정되어야
+            // Chart.js 가 정상 크기로 렌더된다. $nextTick + 더블 RAF 로 레이아웃 commit 보장.
+            this.$nextTick(() => {
+                requestAnimationFrame(() => requestAnimationFrame(() => this.renderStocknoteStockChart()));
+            });
         } catch (e) {
             console.error('stocknote chart 로드 실패:', e);
             this.stocknote.stockChartData = null;
@@ -483,6 +486,18 @@ const StocknoteComponent = {
         }
     },
 
+    async retryStocknoteSnapshot(snapshotType) {
+        if (!this.stocknote.detail) return;
+        const noteId = this.stocknote.detail.note.id;
+        if (!confirm(`${snapshotType} 스냅샷을 다시 시도하시겠습니까?`)) return;
+        try {
+            this.stocknote.detail = await API.retryStockNoteSnapshot(noteId, snapshotType);
+        } catch (e) {
+            console.error('stocknote snapshot retry 실패:', e);
+            alert('스냅샷 재시도 실패: ' + ((e && e.message) || '알 수 없는 오류'));
+        }
+    },
+
     async loadStocknoteSimilarPatterns(noteId, directionFilter = null) {
         this.stocknote.similar = null;
         this.stocknote.similarLoading = true;
@@ -510,14 +525,33 @@ const StocknoteComponent = {
             return; // 일봉 없음 — 상단 안내 문구만 표시
         }
         const labels = data.prices.map(p => p.date);
-        const priceMap = new Map(labels.map((d, i) => [d, i]));
+        // noteDate 가 labels 에 정확히 없을 때(주말/공휴일/장중 작성 등) 가장 가까운 이전 영업일 인덱스에 매핑.
+        const resolveNoteIndex = (noteDate) => {
+            const exact = labels.indexOf(noteDate);
+            if (exact !== -1) return exact;
+            for (let i = labels.length - 1; i >= 0; i--) {
+                if (labels[i] <= noteDate) return i;
+            }
+            return -1; // labels 시작일보다 이른 noteDate → 점 미표시
+        };
         const lineData = data.prices.map(p => p.close);
-        const upNotes = (data.notes || []).filter(n => n.direction === 'UP' && n.priceAtNote != null)
-            .map(n => ({ x: priceMap.has(n.noteDate) ? priceMap.get(n.noteDate) : null, y: n.priceAtNote, noteId: n.noteId, verified: n.verified, summary: n.summary }))
-            .filter(p => p.x != null);
-        const downNotes = (data.notes || []).filter(n => n.direction === 'DOWN' && n.priceAtNote != null)
-            .map(n => ({ x: priceMap.has(n.noteDate) ? priceMap.get(n.noteDate) : null, y: n.priceAtNote, noteId: n.noteId, verified: n.verified, summary: n.summary }))
-            .filter(p => p.x != null);
+        // mixed line+scatter + category 축 조합은 Chart.js 버전별 매칭 이슈가 있어 모든 dataset 을
+        // labels 기반 sparse line 으로 통일한다 (scatter 효과는 showLine:false + pointRadius 로 표현).
+        const upData = labels.map(() => null);
+        const downData = labels.map(() => null);
+        const noteMetaByIndex = {}; // {idx: {noteId, verified, summary, originalDate}}
+        (data.notes || []).forEach(n => {
+            if (n.priceAtNote == null) return;
+            const idx = resolveNoteIndex(n.noteDate);
+            if (idx < 0) return; // labels 범위 밖 노트는 차트에 표시 안 함 (잘못된 위치 매핑 방지)
+            const meta = { noteId: n.noteId, verified: n.verified, summary: n.summary, originalDate: n.noteDate };
+            if (n.direction === 'UP') {
+                upData[idx] = n.priceAtNote;
+            } else if (n.direction === 'DOWN') {
+                downData[idx] = n.priceAtNote;
+            }
+            noteMetaByIndex[idx] = meta;
+        });
 
         const self = this;
         const chart = new Chart(canvas.getContext('2d'), {
@@ -525,12 +559,14 @@ const StocknoteComponent = {
             data: {
                 labels: labels,
                 datasets: [
-                    { type: 'line', label: '종가', data: lineData, borderColor: '#3b82f6',
+                    { label: '종가', data: lineData, borderColor: '#3b82f6',
                       borderWidth: 1.5, tension: 0, pointRadius: 0, pointHitRadius: 0 },
-                    { type: 'scatter', label: '상승 기록', data: upNotes,
-                      backgroundColor: '#10b981', pointStyle: 'triangle', pointRadius: 9 },
-                    { type: 'scatter', label: '하락 기록', data: downNotes,
-                      backgroundColor: '#ef4444', pointStyle: 'triangle', rotation: 180, pointRadius: 9 }
+                    { label: '상승 기록', data: upData, showLine: false, spanGaps: false,
+                      backgroundColor: '#10b981', borderColor: '#10b981',
+                      pointStyle: 'triangle', pointRadius: 9, pointHoverRadius: 11, pointHitRadius: 12 },
+                    { label: '하락 기록', data: downData, showLine: false, spanGaps: false,
+                      backgroundColor: '#ef4444', borderColor: '#ef4444',
+                      pointStyle: 'triangle', rotation: 180, pointRadius: 9, pointHoverRadius: 11, pointHitRadius: 12 }
                 ]
             },
             options: {
@@ -538,26 +574,35 @@ const StocknoteComponent = {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { type: 'linear', display: false },
+                    x: { type: 'category', display: false },
                     y: { position: 'right' }
                 },
-                onClick: (evt, elements, c) => {
+                onClick: (evt, elements) => {
                     if (!elements.length) return;
                     const { datasetIndex, index } = elements[0];
-                    const raw = c.data.datasets[datasetIndex].data[index];
-                    if (raw && typeof raw === 'object' && raw.noteId) {
-                        self.openStocknoteDetail(raw.noteId);
-                    }
+                    if (datasetIndex === 0) return; // 종가 라인은 클릭 무시
+                    const meta = noteMetaByIndex[index];
+                    if (meta && meta.noteId) self.openStocknoteDetail(meta.noteId);
                 },
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            label: (ctx) => {
-                                const r = ctx.raw;
-                                if (r && typeof r === 'object' && r.summary) {
-                                    return `[${r.verified ? '검증' : '미검증'}] ${r.summary}`;
+                            title: (items) => {
+                                if (!items.length) return '';
+                                const di = items[0].datasetIndex;
+                                const idx = items[0].dataIndex;
+                                if (di > 0 && noteMetaByIndex[idx]) {
+                                    return `${noteMetaByIndex[idx].originalDate} (기록일)`;
                                 }
-                                return ctx.parsed.y;
+                                return labels[idx];
+                            },
+                            label: (ctx) => {
+                                if (ctx.datasetIndex === 0) return `종가: ${ctx.parsed.y}`;
+                                const meta = noteMetaByIndex[ctx.dataIndex];
+                                if (meta && meta.summary) {
+                                    return `[${meta.verified ? '검증' : '미검증'}] ${meta.summary}`;
+                                }
+                                return `기록 ${meta && meta.verified ? '(검증)' : '(미검증)'}`;
                             }
                         }
                     }

@@ -50,7 +50,7 @@ public class StockNoteSnapshotScheduler {
         }
     }
 
-    @Scheduled(cron = "${stocknote.snapshot.retry.cron:0 */10 * * * *}")
+    @Scheduled(cron = "${stocknote.snapshot.retry.cron:0 */10 * * * *}", zone = "Asia/Seoul")
     public void retryPendingSnapshots() {
         try (var ctx = LoggingContext.forScheduler("stocknote-snapshot-retry")) {
             try {

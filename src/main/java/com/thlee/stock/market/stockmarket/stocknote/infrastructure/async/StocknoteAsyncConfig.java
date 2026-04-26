@@ -18,8 +18,9 @@ import java.util.concurrent.ThreadPoolExecutor;
  *
  * <ul>
  *   <li>core=4 / max=8 / queue=200 — KIS 레이트리밋 고려 (async 리서치 심화 11)</li>
- *   <li>rejection = {@link ThreadPoolExecutor.CallerRunsPolicy} — AT_NOTE 스냅샷 유실 금지.
- *       이벤트 리스너가 AFTER_COMMIT 으로 호출되므로 caller 스레드 점유 허용 가능</li>
+ *   <li>rejection = {@link ThreadPoolExecutor.AbortPolicy} — 풀 포화 시 거부.
+ *       AT_NOTE PENDING 행은 이미 영속화되어 있어 retryPending 10분 배치가 자연 인계.
+ *       Tomcat/이벤트 발행 스레드 점거 회피 (ce-review #22)</li>
  *   <li>MDC 전파 TaskDecorator — LoggingContext 의 requestId 를 async 스레드에 복사</li>
  *   <li>graceful shutdown — awaitTermination 30초, 처리 중 스냅샷 drain</li>
  * </ul>
@@ -37,7 +38,7 @@ public class StocknoteAsyncConfig {
         executor.setQueueCapacity(200);
         executor.setThreadNamePrefix("stocknote-snap-");
         executor.setTaskDecorator(new StocknoteMdcTaskDecorator());
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
         executor.initialize();

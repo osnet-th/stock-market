@@ -1,8 +1,8 @@
 package com.thlee.stock.market.stockmarket.stocknote.application;
 
 import com.thlee.stock.market.stockmarket.stock.application.StockPriceService;
-import com.thlee.stock.market.stockmarket.stock.application.dto.StockPriceResponse;
 import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
+import com.thlee.stock.market.stockmarket.stocknote.application.exception.StockNoteNotFoundException;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNote;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNotePriceSnapshot;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.enums.SnapshotStatus;
@@ -18,14 +18,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 /**
- * 가격 스냅샷 캡처/재시도 유스케이스.
+ * 가격 스냅샷 캡처 유스케이스 진입점.
  *
- * <p>외부 가격 소스는 {@link StockPriceService} 를 경유해 호출한다 (stock 도메인 포트 직접 호출 금지,
- * 아키텍처 심화 5). 각 메서드는 자체 트랜잭션 경계를 가지며, 종목별 실패는 try/catch 로 격리되어
- * 배치 전체 실패를 막는다.
+ * <p>실제 노트 1건 캡처는 {@link StockNoteSnapshotCaptureExecutor} 가 자기 트랜잭션으로 수행한다.
+ * 본 서비스는 (1) 스케줄러 진입점 (captureForMarket / retryPending), (2) 사용자 수동 재시도
+ * (manualRetry) 의 상위 오케스트레이션만 담당한다. captureForMarket / retryPending 은 트랜잭션을
+ * 갖지 않으며 — executor 호출 마다 새 트랜잭션이 시작되어 per-note 격리를 확보한다.
+ *
+ * <p>외부 가격 소스는 {@link StockPriceService} 를 경유한다 (stock 도메인 포트 직접 호출 금지,
+ * 아키텍처 심화 5).
  */
 @Slf4j
 @Service
@@ -36,56 +39,13 @@ public class StockNoteSnapshotService {
 
     private final StockNoteRepository noteRepository;
     private final StockNotePriceSnapshotRepository snapshotRepository;
-    private final StockPriceService stockPriceService;
     private final BusinessDayCalculator businessDayCalculator;
-
-    /**
-     * 특정 기록의 AT_NOTE PENDING 스냅샷을 현재가로 갱신한다.
-     * 이벤트 리스너 또는 수동 재시도 경로에서 호출.
-     */
-    @Transactional
-    public void captureAtNote(Long noteId) {
-        Optional<StockNotePriceSnapshot> snapshotOpt = snapshotRepository.findByNoteIdAndType(noteId, SnapshotType.AT_NOTE);
-        if (snapshotOpt.isEmpty()) {
-            log.warn("AT_NOTE snapshot missing for noteId={} (already deleted?)", noteId);
-            return;
-        }
-        StockNotePriceSnapshot snapshot = snapshotOpt.get();
-        if (snapshot.isSuccess() || snapshot.isRetryExhausted()) {
-            return;
-        }
-        Optional<StockNote> noteOpt = noteRepository.findById(noteId);
-        if (noteOpt.isEmpty()) {
-            log.warn("stocknote missing for noteId={} (deleted mid-capture)", noteId);
-            return;
-        }
-        StockNote note = noteOpt.get();
-        try {
-            BigDecimal price = fetchCurrentPrice(note);
-            // AT_NOTE 는 기준가 자체이므로 changePercent 는 0 (Domain 의 markSuccess 가 null 반환).
-            // 동일 행을 경합 없이 갱신하기 위해 conditional UPDATE 사용 (race-safe).
-            int updated = snapshotRepository.markSuccessIfPending(
-                    snapshot.getId(),
-                    LocalDate.now(),
-                    price,
-                    BigDecimal.ZERO
-            );
-            if (updated == 0) {
-                log.warn("AT_NOTE snapshot conditional update skipped: id={} (status transitioned)",
-                        snapshot.getId());
-            }
-        } catch (Exception e) {
-            snapshot.markFailed("AT_NOTE capture failed: " + e.getClass().getSimpleName());
-            snapshotRepository.save(snapshot);
-            log.warn("AT_NOTE capture failed: noteId={}, retryCount={}, reason={}",
-                    noteId, snapshot.getRetryCount(), e.getMessage());
-        }
-    }
+    private final StockNoteSnapshotCaptureExecutor captureExecutor;
 
     /**
      * 지정 시장의 D+7 / D+30 도달 스냅샷을 캡처한다 (스케줄러에서 호출).
+     * 트랜잭션 미보유 — executor 호출 마다 새 트랜잭션. 한 노트의 트랜잭션 실패가 다음 노트로 전파되지 않음.
      */
-    @Transactional
     public void captureForMarket(SnapshotType type, MarketType marketType, LocalDate asOfDate) {
         int targetOffset = resolveOffset(type);
         List<StockNotePriceSnapshotRepository.PendingCaptureTarget> targets =
@@ -96,63 +56,75 @@ public class StockNoteSnapshotService {
             if (marketType.isDomestic() && !due.isEqual(asOfDate)) {
                 continue;
             }
-            captureTarget(type, target);
+            try {
+                captureExecutor.captureTarget(type, target);
+            } catch (Exception e) {
+                log.warn("captureForMarket per-note isolation: noteId={}, type={}, error={}",
+                        target.noteId(), type, e.getMessage());
+            }
         }
     }
 
     /**
-     * PENDING 스냅샷을 재시도한다 (10분 간격 스케줄러에서 호출).
-     * retryCount &lt; MAX_RETRY 만 대상. MAX 도달 시 이 쿼리에서 제외되어 자연 종결.
+     * 사용자 수동 재시도 — 권한 검증 후 retryCount/상태 리셋 + 즉시 캡처 실행.
+     * outer @Transactional 유지 — executor 호출 시 propagation REQUIRED 로 합류해 reset 결과가
+     * 캡처 단계에서 보임 (race-safe).
+     *
+     * @throws StockNoteNotFoundException 기록이 없거나 본인 소유가 아닐 때 (404)
+     * @throws IllegalArgumentException 스냅샷 행이 없거나 이미 SUCCESS 인 경우 (400)
      */
     @Transactional
+    public void manualRetry(Long noteId, SnapshotType type, Long userId) {
+        StockNote note = noteRepository.findByIdAndUserId(noteId, userId)
+                .orElseThrow(() -> new StockNoteNotFoundException(noteId));
+        StockNotePriceSnapshot snapshot = snapshotRepository.findByNoteIdAndType(noteId, type)
+                .orElseThrow(() -> new IllegalArgumentException("snapshot not found: " + type));
+        snapshot.resetForManualRetry();
+        snapshotRepository.save(snapshot);
+
+        if (type == SnapshotType.AT_NOTE) {
+            captureExecutor.captureAtNote(noteId);
+            return;
+        }
+        // D+7 / D+30 수동 재시도: AT_NOTE close 를 기준으로 inline 캡처
+        BigDecimal atNoteClose = snapshotRepository.findByNoteIdAndType(noteId, SnapshotType.AT_NOTE)
+                .filter(StockNotePriceSnapshot::isSuccess)
+                .map(StockNotePriceSnapshot::getClosePrice)
+                .orElse(null);
+        captureExecutor.captureTarget(type, new StockNotePriceSnapshotRepository.PendingCaptureTarget(
+                note.getId(), note.getStockCode(), note.getMarketType(), note.getExchangeCode(),
+                note.getNoteDate(), atNoteClose));
+    }
+
+    /**
+     * PENDING 스냅샷을 재시도한다 (10분 간격 스케줄러에서 호출).
+     * 트랜잭션 미보유 — executor 호출 마다 새 트랜잭션. retryCount &lt; MAX_RETRY 만 대상.
+     */
     public void retryPending() {
         List<StockNotePriceSnapshot> retryable = snapshotRepository.findRetryable(
                 SnapshotStatus.PENDING, StockNotePriceSnapshot.MAX_RETRY, RETRY_BATCH_LIMIT);
         for (StockNotePriceSnapshot snapshot : retryable) {
-            if (snapshot.getSnapshotType() == SnapshotType.AT_NOTE) {
-                captureAtNote(snapshot.getNoteId());
+            try {
+                if (snapshot.getSnapshotType() == SnapshotType.AT_NOTE) {
+                    captureExecutor.captureAtNote(snapshot.getNoteId());
+                } else {
+                    // D+7/D+30 PENDING 재시도 — note 정보 + AT_NOTE close 조립 후 captureTarget.
+                    StockNote note = noteRepository.findById(snapshot.getNoteId()).orElse(null);
+                    if (note == null) continue;
+                    BigDecimal atNoteClose = snapshotRepository.findByNoteIdAndType(snapshot.getNoteId(), SnapshotType.AT_NOTE)
+                            .filter(StockNotePriceSnapshot::isSuccess)
+                            .map(StockNotePriceSnapshot::getClosePrice)
+                            .orElse(null);
+                    captureExecutor.captureTarget(snapshot.getSnapshotType(),
+                            new StockNotePriceSnapshotRepository.PendingCaptureTarget(
+                                    note.getId(), note.getStockCode(), note.getMarketType(),
+                                    note.getExchangeCode(), note.getNoteDate(), atNoteClose));
+                }
+            } catch (Exception e) {
+                log.warn("retryPending per-note isolation: noteId={}, type={}, error={}",
+                        snapshot.getNoteId(), snapshot.getSnapshotType(), e.getMessage());
             }
-            // D+7/D+30 PENDING 재시도는 market scheduler 경로에서 처리됨
         }
-    }
-
-    private void captureTarget(SnapshotType type,
-                               StockNotePriceSnapshotRepository.PendingCaptureTarget target) {
-        Optional<StockNotePriceSnapshot> existing = snapshotRepository
-                .findByNoteIdAndType(target.noteId(), type);
-        if (existing.isEmpty()) {
-            log.warn("snapshot row missing for noteId={}, type={}", target.noteId(), type);
-            return;
-        }
-        StockNotePriceSnapshot snapshot = existing.get();
-        if (!snapshot.canRetry()) {
-            return;
-        }
-        StockNote note = noteRepository.findById(target.noteId()).orElse(null);
-        if (note == null) {
-            log.warn("stocknote missing during market capture: noteId={}", target.noteId());
-            return;
-        }
-        try {
-            BigDecimal price = fetchCurrentPrice(note);
-            snapshot.markSuccess(LocalDate.now(), price, target.atNoteClosePrice());
-            snapshotRepository.save(snapshot);
-        } catch (Exception e) {
-            snapshot.markFailed(type.name() + " capture failed: " + e.getClass().getSimpleName());
-            snapshotRepository.save(snapshot);
-            log.warn("{} capture failed: noteId={}, retryCount={}, reason={}",
-                    type, target.noteId(), snapshot.getRetryCount(), e.getMessage());
-        }
-    }
-
-    private BigDecimal fetchCurrentPrice(StockNote note) {
-        StockPriceResponse response = stockPriceService.getPrice(
-                note.getStockCode(), note.getMarketType(), note.getExchangeCode());
-        String raw = response.getCurrentPrice();
-        if (raw == null || raw.isBlank()) {
-            throw new IllegalStateException("empty current price for " + note.getStockCode());
-        }
-        return new BigDecimal(raw.replace(",", ""));
     }
 
     private static int resolveOffset(SnapshotType type) {

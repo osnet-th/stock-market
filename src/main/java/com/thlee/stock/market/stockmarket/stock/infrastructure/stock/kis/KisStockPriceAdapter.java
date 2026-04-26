@@ -1,20 +1,26 @@
 package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis;
 
 import com.thlee.stock.market.stockmarket.stock.domain.model.CachedStockPrice;
+import com.thlee.stock.market.stockmarket.stock.domain.model.DailyPrice;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
 import com.thlee.stock.market.stockmarket.stock.domain.model.StockPrice;
 import com.thlee.stock.market.stockmarket.stock.domain.service.StockPricePort;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.config.StockPriceCacheConfig;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDailyChartResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticMultiPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOvertimePriceOutput;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +30,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * KIS API를 통한 주식 현재가 조회 어댑터.
  * StockPricePort 구현체.
  */
+@Slf4j
 @Component
 public class KisStockPriceAdapter implements StockPricePort {
+
+    /** KIS inquire-daily-itemchartprice 단일 호출 영업일 한계(~100). 캘린더 환산 안전 마진 포함. */
+    private static final int DAILY_CHUNK_CALENDAR_DAYS = 140;
+
+    /** 청크 루프 무한 가드 (365일 ÷ 100영업일 ≈ 3회면 충분). */
+    private static final int DAILY_MAX_CHUNK_ITERATIONS = 10;
 
     private final KisStockPriceClient priceClient;
     private final CacheManager stockPriceCacheManager;
@@ -92,6 +105,57 @@ public class KisStockPriceAdapter implements StockPricePort {
         return output.getCurrentPrice() != null
             && !output.getCurrentPrice().isEmpty()
             && !"0".equals(output.getCurrentPrice());
+    }
+
+    /**
+     * 국내 일봉 조회. KIS inquire-daily-itemchartprice 가 단일 호출 ~100영업일 한계라
+     * 슬라이딩 윈도우(windowEnd 후방 이동) 로 청크 호출 + LinkedHashMap dedup 후 ASC 정렬 반환.
+     * 해외는 base 인터페이스의 default(빈 리스트)를 유지 — 별도 어댑터 도입 시 확장.
+     *
+     * <p>중간 청크 실패 시 이미 모은 부분 결과를 반환 (graceful degrade). 전체 실패면 빈 리스트.
+     */
+    @Override
+    @Cacheable(
+            cacheNames = StockPriceCacheConfig.DAILY_HISTORY_CACHE,
+            cacheManager = "dailyHistoryCacheManager",
+            key = "#stockCode + ':' + #from + ':' + #to",
+            unless = "#result.isEmpty()"
+    )
+    public List<DailyPrice> getDailyHistory(String stockCode, MarketType marketType, ExchangeCode exchangeCode,
+                                            LocalDate from, LocalDate to) {
+        if (!marketType.isDomestic() || from == null || to == null || from.isAfter(to)) {
+            return List.of();
+        }
+        Map<LocalDate, DailyPrice> dedup = new LinkedHashMap<>();
+        LocalDate windowEnd = to;
+        int iterations = 0;
+        try {
+            while (!windowEnd.isBefore(from) && iterations++ < DAILY_MAX_CHUNK_ITERATIONS) {
+                LocalDate windowStart = windowEnd.minusDays(DAILY_CHUNK_CALENDAR_DAYS);
+                if (windowStart.isBefore(from)) {
+                    windowStart = from;
+                }
+                KisDailyChartResponse response = priceClient.getDomesticDailyChart(stockCode, windowStart, windowEnd);
+                List<DailyPrice> chunk = KisStockPriceMapper.fromDailyChart(response.getItems());
+                if (chunk.isEmpty()) {
+                    break;
+                }
+                for (DailyPrice p : chunk) {
+                    dedup.putIfAbsent(p.date(), p);
+                }
+                LocalDate oldestInChunk = chunk.get(0).date();
+                if (!oldestInChunk.isAfter(from)) {
+                    break;
+                }
+                windowEnd = oldestInChunk.minusDays(1);
+            }
+        } catch (Exception e) {
+            log.warn("KIS 일봉 조회 실패 — degrade to partial/empty: stockCode={}, range={}~{}, collected={}, reason={}",
+                    stockCode, from, to, dedup.size(), e.getMessage());
+        }
+        return dedup.values().stream()
+                .sorted(Comparator.comparing(DailyPrice::date))
+                .toList();
     }
 
     @Override

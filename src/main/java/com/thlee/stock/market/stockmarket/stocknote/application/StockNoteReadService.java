@@ -51,7 +51,7 @@ public class StockNoteReadService {
         List<StockNote> notes = noteRepository.findList(userId, filter);
         long total = noteRepository.countList(userId, filter);
         if (notes.isEmpty()) {
-            return new StockNoteListResult(List.of(), total, filter.offset(), filter.limit());
+            return new StockNoteListResult(List.of(), total, filter.page(), filter.size());
         }
         List<Long> noteIds = notes.stream().map(StockNote::getId).toList();
         Map<Long, List<StockNoteTag>> tagMap = tagRepository.findAllByNoteIds(noteIds);
@@ -68,6 +68,6 @@ public class StockNoteReadService {
                     verificationMap.get(id)
             ));
         }
-        return new StockNoteListResult(items, total, filter.offset(), filter.limit());
+        return new StockNoteListResult(items, total, filter.page(), filter.size());
     }
 }

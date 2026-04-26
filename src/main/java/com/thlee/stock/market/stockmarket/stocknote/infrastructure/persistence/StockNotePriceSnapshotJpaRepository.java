@@ -57,6 +57,7 @@ public interface StockNotePriceSnapshotJpaRepository extends JpaRepository<Stock
             SELECT n.id              AS note_id,
                    n.stock_code      AS stock_code,
                    n.market_type     AS market_type,
+                   n.exchange_code   AS exchange_code,
                    n.note_date       AS note_date,
                    atps.close_price  AS at_note_close_price
             FROM stock_note_price_snapshot ps
@@ -80,6 +81,8 @@ public interface StockNotePriceSnapshotJpaRepository extends JpaRepository<Stock
         String getStockCode();
 
         String getMarketType();
+
+        String getExchangeCode();
 
         LocalDate getNoteDate();
 

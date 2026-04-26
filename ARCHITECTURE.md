@@ -93,15 +93,32 @@ src/main/java/com/thlee/stock/market/stockmarket/
 │   ├── domain/                      # NotificationRequest, NotificationService (인터페이스)
 │   └── infrastructure/email/        # EmailNotificationService (구현체)
 │
-└── chatbot/
+├── chatbot/
+│   ├── application/
+│   │   ├── port/                    # LlmPort (Flux<String>, Reactor 의존으로 application/port에 위치)
+│   │   ├── dto/                     # ChatRequest
+│   │   ├── ChatContextBuilder       # 포트폴리오/뉴스/경제지표 컨텍스트 조합
+│   │   └── ChatService              # 유스케이스 진입점
+│   ├── infrastructure/
+│   │   └── gemini/                  # GeminiAdapter(LlmPort 구현), WebClient, DTO, Config
+│   └── presentation/                # ChatController (POST /api/chat, SSE 스트리밍)
+│
+└── stocknote/
+    ├── domain/
+    │   ├── model/                   # StockNote, StockNoteTag, StockNotePriceSnapshot, StockNoteVerification, StockNoteCustomTag + enums
+    │   └── repository/              # 포트 인터페이스 5개
     ├── application/
-    │   ├── port/                    # LlmPort (Flux<String>, Reactor 의존으로 application/port에 위치)
-    │   ├── dto/                     # ChatRequest
-    │   ├── ChatContextBuilder       # 포트폴리오/뉴스/경제지표 컨텍스트 조합
-    │   └── ChatService              # 유스케이스 진입점
+    │   ├── StockNoteWriteService / ReadService / VerificationService
+    │   ├── StockNoteSnapshotService + StockNoteSnapshotAsyncDispatcher (event AFTER_COMMIT + @Async)
+    │   ├── StockNoteDashboardService (Caffeine TTL 30m), PatternMatchService, ChartService, CustomTagService
+    │   ├── dto/                     # *Result / *Command (유스케이스 입출력)
+    │   └── event/, exception/
     ├── infrastructure/
-    │   └── gemini/                  # GeminiAdapter(LlmPort 구현), WebClient, DTO, Config
-    └── presentation/                # ChatController (POST /api/chat, SSE 스트리밍)
+    │   ├── persistence/             # Entity 5종, JpaRepository, RepositoryImpl, Mapper
+    │   ├── scheduler/               # StockNoteSnapshotScheduler (국내 16:00/해외 07:00 KST), BusinessDayCalculator
+    │   ├── async/                   # 전용 ThreadPoolTaskExecutor + MdcTaskDecorator
+    │   └── cache/                   # StocknoteCacheConfig
+    └── presentation/                # StockNoteController, VerificationController, AnalyticsController, CustomTagController, ExceptionHandler
 ```
 
 ---

@@ -496,7 +496,7 @@ const API = {
         return this.request('POST', '/api/stock-notes', body);
     },
     getStockNoteList(filters = {}) {
-        return this.request('GET', '/api/stock-notes' + this.toQueryString(filters));
+        return this.request('GET', '/api/stock-notes' + this._buildLogQuery(filters));
     },
     getStockNoteDetail(id) {
         return this.request('GET', `/api/stock-notes/${id}`);
@@ -525,5 +525,8 @@ const API = {
     },
     getStockNoteCustomTags(prefix = '', limit = 10) {
         return this.request('GET', `/api/stock-notes/custom-tags?prefix=${encodeURIComponent(prefix)}&limit=${limit}`);
+    },
+    retryStockNoteSnapshot(id, type) {
+        return this.request('POST', `/api/stock-notes/${id}/snapshots/${type}/retry`);
     }
 };

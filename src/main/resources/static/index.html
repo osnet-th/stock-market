@@ -103,6 +103,9 @@
                             <template x-if="menu.icon === 'logs'">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                             </template>
+                            <template x-if="menu.icon === 'note'">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM19.5 7.125L16.862 4.487M4.5 19.5h15" /></svg>
+                            </template>
                         </span>
                         <span x-text="menu.label" class="whitespace-nowrap"></span>
                     </button>
@@ -158,6 +161,9 @@
                             </template>
                             <template x-if="menu.icon === 'logs'">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            </template>
+                            <template x-if="menu.icon === 'note'">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM19.5 7.125L16.862 4.487M4.5 19.5h15" /></svg>
                             </template>
                         </span>
                         <span x-show="!sidebarCollapsed" x-text="menu.label" class="whitespace-nowrap"></span>
@@ -2658,7 +2664,7 @@
             <!-- ========== STOCK NOTE (내 투자 노트) ========== -->
             <div x-show="currentPage === 'stocknote'" x-cloak>
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-bold text-gray-800">내 투자 노트</h2>
+                    <h2 class="text-xl font-bold text-gray-800">투자 노트</h2>
                     <div class="flex items-center gap-2">
                         <span x-show="stocknote.pendingVerificationBadge > 0"
                               x-text="'검증 대기 ' + stocknote.pendingVerificationBadge + '건'"
@@ -2695,6 +2701,7 @@
                 <div x-show="stocknote.loading" class="text-sm text-gray-400 mb-2">로딩 중…</div>
 
                 <!-- 대시보드 탭 -->
+                <!-- STOCKNOTE / dashboard-tab start (L2698~) -->
                 <div x-show="stocknote.activeTab === 'dashboard'" x-cloak>
                     <template x-if="!stocknote.dashboard">
                         <p class="text-sm text-gray-500">대시보드 데이터를 불러오는 중…</p>
@@ -2759,6 +2766,9 @@
                 </div>
 
                 <!-- 종목 차트 탭 (Phase 8: Chart.js mixed + 기록점 리스트) -->
+                <!-- STOCKNOTE / dashboard-tab end -->
+
+                <!-- STOCKNOTE / stock-chart-tab start -->
                 <div x-show="stocknote.activeTab === 'stock'" x-cloak>
                     <div class="bg-white rounded border border-gray-200 p-4">
                         <div class="flex items-center gap-2 mb-3">
@@ -2773,7 +2783,12 @@
                         </div>
                         <template x-if="stocknote.selectedStockCode && !stocknote.stockChartAvailable && stocknote.stockChartData">
                             <div class="p-4 text-sm text-gray-500 border border-dashed rounded">
-                                일봉 데이터가 아직 연결되지 않았습니다. KIS 일봉 API 연동 후 이 영역에 라인 차트 + 기록점(삼각형)이 렌더됩니다.
+                                <template x-if="stocknote.stockChartData.notes && stocknote.stockChartData.notes.length === 0">
+                                    <span>해당 종목의 기록이 아직 없습니다. 새 기록을 작성해 보세요.</span>
+                                </template>
+                                <template x-if="stocknote.stockChartData.notes && stocknote.stockChartData.notes.length > 0">
+                                    <span>해외 종목 일봉은 아직 지원되지 않습니다. 국내 종목(코스피/코스닥)만 차트 표시 가능.</span>
+                                </template>
                             </div>
                         </template>
                         <div class="relative" style="height: 360px" x-show="stocknote.stockChartAvailable" x-cloak>
@@ -2801,6 +2816,9 @@
                 </div>
 
                 <!-- 기록 리스트 탭 -->
+                <!-- STOCKNOTE / stock-chart-tab end -->
+
+                <!-- STOCKNOTE / list-tab start -->
                 <div x-show="stocknote.activeTab === 'list'" x-cloak>
                     <div class="bg-white rounded border border-gray-200 overflow-hidden">
                         <table class="w-full text-sm">
@@ -2855,7 +2873,9 @@
                     </div>
                 </div>
 
-                <!-- 드로워: 3-section 아코디언 폼 (Phase 7) -->
+                <!-- STOCKNOTE / list-tab end -->
+
+                <!-- STOCKNOTE / drawer (3-section 아코디언 폼, Phase 7) start -->
                 <div x-show="stocknote.drawerOpen" x-cloak
                      class="fixed inset-0 z-40 bg-black/40"
                      @click.self="closeStocknoteDrawer()">
@@ -3124,7 +3144,8 @@
                                 </div>
                             </section>
 
-                            <div class="border-t pt-4 flex items-center justify-end gap-2">
+                            <div class="sticky bottom-0 -mx-5 px-5 py-3 bg-white border-t border-gray-200 flex items-center justify-end gap-2 shadow-[0_-4px_8px_-4px_rgba(0,0,0,0.08)]"
+                                 style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom));">
                                 <button @click="closeStocknoteDrawer()"
                                         class="px-4 py-2 border rounded text-sm text-gray-700 hover:bg-gray-50">취소</button>
                                 <button @click="submitStocknoteNote()"
@@ -3138,7 +3159,9 @@
                     </aside>
                 </div>
 
-                <!-- 상세 패널 (Phase 8 에서 검증 폼 + 유사 패턴 강화) -->
+                <!-- STOCKNOTE / drawer end -->
+
+                <!-- STOCKNOTE / detail-panel (검증 폼 + 유사 패턴, Phase 8) start -->
                 <div x-show="stocknote.detailOpen" x-cloak
                      class="fixed inset-0 z-40 bg-black/40"
                      @click.self="closeStocknoteDetail()">
@@ -3180,9 +3203,26 @@
                                     <h4 class="text-xs text-gray-500 mb-1">스냅샷</h4>
                                     <ul class="space-y-1">
                                         <template x-for="s in stocknote.detail.snapshots" :key="s.snapshotType">
-                                            <li class="flex items-center justify-between text-xs">
-                                                <span class="text-gray-600" x-text="s.snapshotType"></span>
-                                                <span class="text-gray-800" x-text="s.status + (s.changePercent != null ? ' / ' + s.changePercent + '%' : '')"></span>
+                                            <li class="flex items-center justify-between gap-2 text-xs">
+                                                <span class="text-gray-600 w-20" x-text="s.snapshotType"></span>
+                                                <span class="flex-1 text-right">
+                                                    <span :class="{
+                                                            'text-emerald-700': s.status === 'SUCCESS',
+                                                            'text-amber-700': s.status === 'PENDING',
+                                                            'text-red-700': s.status === 'FAILED' || s.status === 'DELISTED' || s.status === 'SUSPENDED'
+                                                          }"
+                                                          x-text="s.status + (s.changePercent != null ? ' / ' + s.changePercent + '%' : '')"></span>
+                                                    <template x-if="s.failureReason">
+                                                        <span class="block text-[10px] text-red-500 truncate" :title="s.failureReason"
+                                                              x-text="'사유: ' + s.failureReason"></span>
+                                                    </template>
+                                                </span>
+                                                <template x-if="s.status === 'FAILED' || s.status === 'PENDING'">
+                                                    <button @click="retryStocknoteSnapshot(s.snapshotType)"
+                                                            class="px-2 py-0.5 text-[11px] border border-blue-300 text-blue-700 rounded hover:bg-blue-50">
+                                                        재시도
+                                                    </button>
+                                                </template>
                                             </li>
                                         </template>
                                     </ul>
@@ -3282,6 +3322,8 @@
                     </aside>
                 </div>
             </div>
+            <!-- STOCKNOTE / detail-panel end -->
+            <!-- ========== STOCK NOTE end ========== -->
 
             <!-- ========== ADMIN LOGS (운영자 전용) ========== -->
             <div x-show="currentPage === 'admin-logs'" x-cloak>

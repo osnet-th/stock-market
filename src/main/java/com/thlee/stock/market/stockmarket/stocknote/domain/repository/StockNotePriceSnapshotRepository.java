@@ -56,6 +56,8 @@ public interface StockNotePriceSnapshotRepository {
     void deleteByNoteId(Long noteId);
 
     /** D+N 수집 배치가 필요로 하는 조회 결과 projection. */
-    record PendingCaptureTarget(Long noteId, String stockCode, MarketType marketType, LocalDate noteDate,
+    record PendingCaptureTarget(Long noteId, String stockCode, MarketType marketType,
+                                com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode exchangeCode,
+                                LocalDate noteDate,
                                 java.math.BigDecimal atNoteClosePrice) { }
 }

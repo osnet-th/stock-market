@@ -1,10 +1,12 @@
 package com.thlee.stock.market.stockmarket.stocknote.infrastructure.persistence.mapper;
 
+import com.thlee.stock.market.stockmarket.stocknote.domain.model.FundamentalImpact;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNote;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNoteCustomTag;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNotePriceSnapshot;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNoteTag;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNoteVerification;
+import com.thlee.stock.market.stockmarket.stocknote.domain.model.Valuation;
 import com.thlee.stock.market.stockmarket.stocknote.infrastructure.persistence.StockNoteCustomTagEntity;
 import com.thlee.stock.market.stockmarket.stocknote.infrastructure.persistence.StockNoteEntity;
 import com.thlee.stock.market.stockmarket.stocknote.infrastructure.persistence.StockNotePriceSnapshotEntity;
@@ -35,14 +37,16 @@ public final class StockNoteMapper {
     }
 
     public static StockNote toDomain(StockNoteEntity e) {
+        Valuation valuation = new Valuation(e.getPer(), e.getPbr(), e.getEvEbitda(), e.getVsAverage());
+        FundamentalImpact fundamentalImpact = new FundamentalImpact(
+                e.getRevenueImpact(), e.getProfitImpact(), e.getCashflowImpact(),
+                e.isOneTime(), e.isStructural());
         return new StockNote(
                 e.getId(), e.getUserId(), e.getStockCode(), e.getMarketType(), e.getExchangeCode(),
                 e.getDirection(), e.getChangePercent(), e.getNoteDate(),
                 e.getTriggerText(), e.getInterpretationText(), e.getRiskText(),
                 e.isPreReflected(), e.getInitialJudgment(),
-                e.getPer(), e.getPbr(), e.getEvEbitda(), e.getVsAverage(),
-                e.getRevenueImpact(), e.getProfitImpact(), e.getCashflowImpact(),
-                e.isOneTime(), e.isStructural(),
+                valuation, fundamentalImpact,
                 e.getCreatedAt(), e.getUpdatedAt()
         );
     }

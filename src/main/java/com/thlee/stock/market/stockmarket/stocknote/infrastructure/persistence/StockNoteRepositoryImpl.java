@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,8 +21,8 @@ import java.util.Optional;
 /**
  * StockNote 포트 어댑터.
  *
- * <p>{@link #findList} 는 기본 필터(stockCode/fromDate/toDate/direction) 만 JPQL 로 동적 조립한다.
- * character / judgmentResult 필터는 별 테이블 JOIN 이 필요해 Phase 5 에서 확장 예정.
+ * <p>{@link #findList} 는 모든 필터(stockCode/fromDate/toDate/direction/character/judgmentResult) 를
+ * JPQL 로 동적 조립한다. character/judgmentResult 는 EXISTS subquery 로 별 테이블 매칭.
  */
 @Repository
 @RequiredArgsConstructor
@@ -53,6 +54,18 @@ public class StockNoteRepositoryImpl implements StockNoteRepository {
     }
 
     @Override
+    public Map<Long, StockNote> findAllByIds(Collection<Long> noteIds) {
+        if (noteIds == null || noteIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, StockNote> result = new LinkedHashMap<>(noteIds.size());
+        for (StockNoteEntity e : jpaRepository.findAllById(noteIds)) {
+            result.put(e.getId(), StockNoteMapper.toDomain(e));
+        }
+        return result;
+    }
+
+    @Override
     public List<StockNote> findList(Long userId, StockNoteListFilter filter) {
         Map<String, Object> params = new LinkedHashMap<>();
         String where = buildWhereClause(userId, filter, params);
@@ -60,8 +73,8 @@ public class StockNoteRepositoryImpl implements StockNoteRepository {
                 + " ORDER BY n.noteDate DESC, n.id DESC";
         TypedQuery<StockNoteEntity> query = em.createQuery(jpql, StockNoteEntity.class);
         params.forEach(query::setParameter);
-        query.setFirstResult(filter.offset());
-        query.setMaxResults(filter.limit());
+        query.setFirstResult(filter.page() * filter.size());
+        query.setMaxResults(filter.size());
         List<StockNote> result = new ArrayList<>(query.getResultList().size());
         for (StockNoteEntity e : query.getResultList()) {
             result.add(StockNoteMapper.toDomain(e));
@@ -111,7 +124,17 @@ public class StockNoteRepositoryImpl implements StockNoteRepository {
             sb.append(" AND n.direction = :direction");
             params.put("direction", filter.direction());
         }
-        // character / judgmentResult 필터는 Phase 5 에서 JOIN 쿼리로 확장.
+        if (filter.character() != null) {
+            // 같은 노트에 같은 character 태그가 여러 번 있을 수 있어 JOIN 대신 EXISTS 사용 (row 중복 회피).
+            sb.append(" AND EXISTS (SELECT 1 FROM StockNoteTagEntity t "
+                    + "WHERE t.noteId = n.id AND t.tagSource = 'CHARACTER' AND t.tagValue = :character)");
+            params.put("character", filter.character().name());
+        }
+        if (filter.judgmentResult() != null) {
+            sb.append(" AND EXISTS (SELECT 1 FROM StockNoteVerificationEntity v "
+                    + "WHERE v.noteId = n.id AND v.judgmentResult = :judgmentResult)");
+            params.put("judgmentResult", filter.judgmentResult());
+        }
         return sb.toString();
     }
 }

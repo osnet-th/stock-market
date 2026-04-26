@@ -3,13 +3,12 @@ package com.thlee.stock.market.stockmarket.stocknote.presentation;
 import com.thlee.stock.market.stockmarket.stocknote.application.StockNoteChartService;
 import com.thlee.stock.market.stockmarket.stocknote.application.StockNoteDashboardService;
 import com.thlee.stock.market.stockmarket.stocknote.application.StockNotePatternMatchService;
+import com.thlee.stock.market.stockmarket.stocknote.application.dto.DashboardResult;
+import com.thlee.stock.market.stockmarket.stocknote.application.dto.SimilarPatternResult;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.enums.NoteDirection;
 import com.thlee.stock.market.stockmarket.stocknote.presentation.dto.ChartDataResponse;
-import com.thlee.stock.market.stockmarket.stocknote.presentation.dto.DashboardResponse;
-import com.thlee.stock.market.stockmarket.stocknote.presentation.dto.SimilarPatternResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,17 +28,18 @@ public class StockNoteAnalyticsController {
     private final StockNoteChartService chartService;
 
     @GetMapping("/dashboard")
-    public ResponseEntity<DashboardResponse> dashboard() {
-        return ResponseEntity.ok(DashboardResponse.from(dashboardService.getDashboard(currentUserId())));
+    public ResponseEntity<DashboardResult> dashboard() {
+        return ResponseEntity.ok(
+                dashboardService.getDashboard(StockNoteSecurityContext.currentUserId()));
     }
 
     @GetMapping("/{id}/similar-patterns")
-    public ResponseEntity<SimilarPatternResponse> similarPatterns(
+    public ResponseEntity<SimilarPatternResult> similarPatterns(
             @PathVariable Long id,
             @RequestParam(required = false) NoteDirection directionFilter
     ) {
-        return ResponseEntity.ok(SimilarPatternResponse.from(
-                patternMatchService.findSimilar(id, currentUserId(), directionFilter)));
+        return ResponseEntity.ok(
+                patternMatchService.findSimilar(id, StockNoteSecurityContext.currentUserId(), directionFilter));
     }
 
     @GetMapping("/by-stock/{stockCode}/chart")
@@ -48,10 +48,6 @@ public class StockNoteAnalyticsController {
             @RequestParam(required = false) Integer period
     ) {
         return ResponseEntity.ok(ChartDataResponse.from(
-                chartService.getChartData(currentUserId(), stockCode, period)));
-    }
-
-    private Long currentUserId() {
-        return (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                chartService.getChartData(StockNoteSecurityContext.currentUserId(), stockCode, period)));
     }
 }

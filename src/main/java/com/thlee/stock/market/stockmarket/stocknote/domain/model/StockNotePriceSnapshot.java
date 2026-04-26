@@ -85,6 +85,44 @@ public class StockNotePriceSnapshot {
         this.capturedAt = LocalDateTime.now();
     }
 
+    /**
+     * SUCCESS 상태 + changePercent 가 null 인 D+N 행을 사후 보강한다.
+     * AT_NOTE 가 D+N 보다 늦게 SUCCESS 되어 captureTarget 시점에 atNoteClose=null 로 SUCCESS 된
+     * 잔존 행을 captureAtNote 가 SUCCESS 전이 시 호출해 회복한다.
+     *
+     * @return 실제로 보강이 일어났으면 true (호출자가 save 결정)
+     */
+    public boolean backfillChangePercent(BigDecimal atNotePrice) {
+        if (this.status != SnapshotStatus.SUCCESS) {
+            return false;
+        }
+        if (this.changePercent != null) {
+            return false;
+        }
+        if (this.closePrice == null || atNotePrice == null) {
+            return false;
+        }
+        BigDecimal computed = computeChangePercent(atNotePrice, this.closePrice);
+        if (computed == null) {
+            return false;
+        }
+        this.changePercent = computed;
+        return true;
+    }
+
+    /**
+     * 사용자 수동 재시도 트리거. 상태를 PENDING 으로 되돌리고 retryCount/사유를 초기화한다.
+     * 이미 SUCCESS 상태인 스냅샷은 재시도 의미가 없어 예외.
+     */
+    public void resetForManualRetry() {
+        if (this.status == SnapshotStatus.SUCCESS) {
+            throw new IllegalStateException("이미 성공한 스냅샷은 재시도할 수 없습니다.");
+        }
+        this.status = SnapshotStatus.PENDING;
+        this.failureReason = null;
+        this.retryCount = 0;
+    }
+
     /** 재시도 가능 여부. PENDING 이거나 FAILED+retry 여력이 있을 때 true. */
     public boolean canRetry() {
         return status == SnapshotStatus.PENDING

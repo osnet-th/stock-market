@@ -42,7 +42,8 @@ public class StockNotePatternMatchService {
 
     @Transactional(readOnly = true)
     public SimilarPatternResult findSimilar(Long noteId, Long userId, NoteDirection directionFilter) {
-        StockNote baseNote = noteRepository.findByIdAndUserId(noteId, userId)
+        // 권한 검증만 — baseNote 자체는 결과 조립에 사용하지 않음. 미존재/권한 미일치 시 404.
+        noteRepository.findByIdAndUserId(noteId, userId)
                 .orElseThrow(() -> new StockNoteNotFoundException(noteId));
         List<StockNoteTag> baseTags = tagRepository.findByNoteId(noteId);
         if (baseTags.isEmpty()) {
@@ -66,8 +67,10 @@ public class StockNotePatternMatchService {
 
         Map<Long, List<StockNotePriceSnapshot>> snapshotMap = snapshotRepository.findAllByNoteIds(matchedIds);
         Map<Long, StockNoteVerification> verificationMap = verificationRepository.findAllByNoteIds(matchedIds);
+        // N+1 회피: matchedIds 를 IN-batch 로 일괄 조회 (ce-review #26).
+        Map<Long, StockNote> noteMap = noteRepository.findAllByIds(matchedIds);
         List<StockNote> notes = matchedIds.stream()
-                .map(id -> noteRepository.findById(id).orElse(null))
+                .map(noteMap::get)
                 .filter(n -> n != null)
                 .toList();
 
@@ -77,12 +80,6 @@ public class StockNotePatternMatchService {
                         verificationMap.get(n.getId())))
                 .toList();
         SimilarPatternResult.Aggregate aggregate = aggregate(matches);
-        // basisTag 에서 baseNote.direction 을 사용하지 않으므로 baseNote 는 현재는 참조만.
-        // 추후 확장: matching 결과에 baseNote 의 초기 판단을 비교 컬럼으로 넣을 수 있음.
-        if (baseNote == null) {
-            // 이론적으로 unreachable, 컴파일러 경고 회피용
-            throw new IllegalStateException("base note disappeared");
-        }
         return new SimilarPatternResult(basisTags, matches, aggregate);
     }
 
@@ -110,6 +107,7 @@ public class StockNotePatternMatchService {
             return zeroAggregate();
         }
         long correct = 0, wrong = 0, partial = 0;
+        long upAfter1W = 0, downAfter1W = 0, upAfter1M = 0, downAfter1M = 0;
         BigDecimal d7Sum = BigDecimal.ZERO;
         int d7Count = 0;
         BigDecimal d30Sum = BigDecimal.ZERO;
@@ -118,17 +116,28 @@ public class StockNotePatternMatchService {
             if (m.judgmentResult() == JudgmentResult.CORRECT) correct++;
             else if (m.judgmentResult() == JudgmentResult.WRONG) wrong++;
             else if (m.judgmentResult() == JudgmentResult.PARTIAL) partial++;
-            if (m.d7ChangePercent() != null) { d7Sum = d7Sum.add(m.d7ChangePercent()); d7Count++; }
-            if (m.d30ChangePercent() != null) { d30Sum = d30Sum.add(m.d30ChangePercent()); d30Count++; }
+            if (m.d7ChangePercent() != null) {
+                d7Sum = d7Sum.add(m.d7ChangePercent());
+                d7Count++;
+                if (m.d7ChangePercent().signum() > 0) upAfter1W++;
+                else if (m.d7ChangePercent().signum() < 0) downAfter1W++;
+            }
+            if (m.d30ChangePercent() != null) {
+                d30Sum = d30Sum.add(m.d30ChangePercent());
+                d30Count++;
+                if (m.d30ChangePercent().signum() > 0) upAfter1M++;
+                else if (m.d30ChangePercent().signum() < 0) downAfter1M++;
+            }
         }
         BigDecimal avgD7 = d7Count == 0 ? null
                 : d7Sum.divide(BigDecimal.valueOf(d7Count), 2, RoundingMode.HALF_UP);
         BigDecimal avgD30 = d30Count == 0 ? null
                 : d30Sum.divide(BigDecimal.valueOf(d30Count), 2, RoundingMode.HALF_UP);
-        return new SimilarPatternResult.Aggregate(matches.size(), correct, wrong, partial, avgD7, avgD30);
+        return new SimilarPatternResult.Aggregate(matches.size(), correct, wrong, partial, avgD7, avgD30,
+                upAfter1W, downAfter1W, upAfter1M, downAfter1M);
     }
 
     private SimilarPatternResult.Aggregate zeroAggregate() {
-        return new SimilarPatternResult.Aggregate(0, 0, 0, 0, null, null);
+        return new SimilarPatternResult.Aggregate(0, 0, 0, 0, null, null, 0, 0, 0, 0);
     }
 }

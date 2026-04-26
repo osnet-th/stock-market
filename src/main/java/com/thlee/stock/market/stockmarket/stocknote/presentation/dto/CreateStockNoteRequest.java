@@ -32,7 +32,7 @@ public record CreateStockNoteRequest(
         @Size(max = 4000) String riskText,
         boolean preReflected,
         @NotNull UserJudgment initialJudgment,
-        @Valid List<TagPayload> tags,
+        @Valid @Size(max = 50, message = "tags 는 최대 50개까지 허용됩니다.") List<TagPayload> tags,
         BigDecimal per,
         BigDecimal pbr,
         BigDecimal evEbitda,

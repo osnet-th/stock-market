@@ -4,12 +4,14 @@ import com.thlee.stock.market.stockmarket.stocknote.application.dto.CreateStockN
 import com.thlee.stock.market.stockmarket.stocknote.application.dto.TagInput;
 import com.thlee.stock.market.stockmarket.stocknote.application.dto.UpdateStockNoteCommand;
 import com.thlee.stock.market.stockmarket.stocknote.application.event.StockNoteCreatedEvent;
-import com.thlee.stock.market.stockmarket.stocknote.application.exception.StockNoteLockedException;
+import com.thlee.stock.market.stockmarket.stocknote.domain.exception.StockNoteLockedException;
 import com.thlee.stock.market.stockmarket.stocknote.application.exception.StockNoteNotFoundException;
+import com.thlee.stock.market.stockmarket.stocknote.domain.model.FundamentalImpact;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNote;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNoteCustomTag;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNotePriceSnapshot;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.StockNoteTag;
+import com.thlee.stock.market.stockmarket.stocknote.domain.model.Valuation;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.enums.RiseCharacter;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.enums.SnapshotType;
 import com.thlee.stock.market.stockmarket.stocknote.domain.model.enums.SupplyActor;
@@ -53,20 +55,27 @@ public class StockNoteWriteService {
             cacheManager = "stocknoteCacheManager", key = "#cmd.userId")
     public Long create(CreateStockNoteCommand cmd) {
         LocalDate today = LocalDate.now();
+        Valuation valuation = new Valuation(cmd.per(), cmd.pbr(), cmd.evEbitda(), cmd.vsAverage());
+        FundamentalImpact fundamentalImpact = new FundamentalImpact(
+                cmd.revenueImpact(), cmd.profitImpact(), cmd.cashflowImpact(),
+                cmd.oneTime(), cmd.structural());
         StockNote note = StockNote.create(
                 cmd.userId(), cmd.stockCode(), cmd.marketType(), cmd.exchangeCode(),
                 cmd.direction(), cmd.changePercent(), cmd.noteDate(), today,
                 cmd.triggerText(), cmd.interpretationText(), cmd.riskText(),
                 cmd.preReflected(), cmd.initialJudgment(),
-                cmd.per(), cmd.pbr(), cmd.evEbitda(), cmd.vsAverage(),
-                cmd.revenueImpact(), cmd.profitImpact(), cmd.cashflowImpact(),
-                cmd.oneTime(), cmd.structural()
+                valuation, fundamentalImpact
         );
         StockNote saved = noteRepository.save(note);
         Long noteId = saved.getId();
 
         replaceTags(noteId, cmd.userId(), cmd.tags());
-        snapshotRepository.save(StockNotePriceSnapshot.createPending(noteId, SnapshotType.AT_NOTE));
+        // AT_NOTE + D+7 + D+30 PENDING 동시 생성. 도달일에 스케줄러가 markSuccess 로 전이.
+        snapshotRepository.saveAll(List.of(
+                StockNotePriceSnapshot.createPending(noteId, SnapshotType.AT_NOTE),
+                StockNotePriceSnapshot.createPending(noteId, SnapshotType.D_PLUS_7),
+                StockNotePriceSnapshot.createPending(noteId, SnapshotType.D_PLUS_30)
+        ));
 
         eventPublisher.publishEvent(new StockNoteCreatedEvent(noteId));
         return noteId;
@@ -81,12 +90,14 @@ public class StockNoteWriteService {
         if (verificationRepository.existsByNoteId(cmd.noteId())) {
             throw new StockNoteLockedException(cmd.noteId());
         }
+        Valuation valuation = new Valuation(cmd.per(), cmd.pbr(), cmd.evEbitda(), cmd.vsAverage());
+        FundamentalImpact fundamentalImpact = new FundamentalImpact(
+                cmd.revenueImpact(), cmd.profitImpact(), cmd.cashflowImpact(),
+                cmd.oneTime(), cmd.structural());
         note.updateBody(
                 cmd.triggerText(), cmd.interpretationText(), cmd.riskText(),
                 cmd.preReflected(), cmd.initialJudgment(),
-                cmd.per(), cmd.pbr(), cmd.evEbitda(), cmd.vsAverage(),
-                cmd.revenueImpact(), cmd.profitImpact(), cmd.cashflowImpact(),
-                cmd.oneTime(), cmd.structural()
+                valuation, fundamentalImpact
         );
         noteRepository.save(note);
 
@@ -106,18 +117,29 @@ public class StockNoteWriteService {
         noteRepository.deleteByIdAndUserId(noteId, userId);
     }
 
-    /** 태그 전체 교체 (기존 태그 삭제 후 신규 insert) + custom 태그 마스터 사용횟수 upsert. */
+    /**
+     * 태그 전체 교체 (기존 태그 삭제 후 신규 insert) + custom 태그 마스터 사용횟수 upsert.
+     * 동일 (source, value) 중복 입력은 제거 (ce-review #25).
+     */
     private void replaceTags(Long noteId, Long userId, List<TagInput> inputs) {
         tagRepository.deleteByNoteId(noteId);
         if (inputs == null || inputs.isEmpty()) {
             return;
         }
-        List<StockNoteTag> tags = new ArrayList<>(inputs.size());
+        java.util.LinkedHashSet<String> seen = new java.util.LinkedHashSet<>(inputs.size());
+        List<TagInput> deduped = new ArrayList<>(inputs.size());
         for (TagInput input : inputs) {
+            String key = input.source() + "::" + (input.value() == null ? "" : input.value().trim().toLowerCase());
+            if (seen.add(key)) {
+                deduped.add(input);
+            }
+        }
+        List<StockNoteTag> tags = new ArrayList<>(deduped.size());
+        for (TagInput input : deduped) {
             tags.add(buildTag(noteId, userId, input));
         }
         tagRepository.saveAll(tags);
-        updateCustomTagUsage(userId, inputs);
+        updateCustomTagUsage(userId, deduped);
     }
 
     private StockNoteTag buildTag(Long noteId, Long userId, TagInput input) {
@@ -148,8 +170,18 @@ public class StockNoteWriteService {
                 if (currentCount >= StockNoteCustomTag.MAX_PER_USER) {
                     throw new IllegalStateException("자유 태그 상한 초과: " + StockNoteCustomTag.MAX_PER_USER);
                 }
-                customTagRepository.save(StockNoteCustomTag.createNew(userId, normalized));
-                currentCount++;
+                try {
+                    customTagRepository.save(StockNoteCustomTag.createNew(userId, normalized));
+                    currentCount++;
+                } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                    // TOCTOU 동시 요청에서 다른 트랜잭션이 같은 (user_id, tag_value) 를 먼저 insert.
+                    // unique 제약(uk_stock_note_custom_tag_user_value) 이 최종 가드. 본 트랜잭션은
+                    // incrementUsage 재시도로 복구 (다른 트랜잭션 commit 후라야 보임 — read-after-commit).
+                    int retried = customTagRepository.incrementUsage(userId, normalized);
+                    if (retried == 0) {
+                        throw e; // 동시 insert 도 아닌 다른 violation
+                    }
+                }
             }
         }
     }

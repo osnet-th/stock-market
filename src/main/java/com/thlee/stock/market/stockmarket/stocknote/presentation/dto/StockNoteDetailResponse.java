@@ -28,8 +28,9 @@ public record StockNoteDetailResponse(
 ) {
 
     public static StockNoteDetailResponse from(StockNoteDetailResult r) {
+        boolean locked = r.verification() != null;
         return new StockNoteDetailResponse(
-                NoteDto.from(r.note()),
+                NoteDto.from(r.note(), locked),
                 r.tags().stream().map(StockNoteDetailResponse::toTag).toList(),
                 r.snapshots().stream().map(SnapshotDto::from).toList(),
                 r.verification() == null ? null : VerificationDto.from(r.verification())
@@ -67,7 +68,7 @@ public record StockNoteDetailResponse(
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
-        public static NoteDto from(StockNote n) {
+        public static NoteDto from(StockNote n, boolean locked) {
             return new NoteDto(
                     n.getId(), n.getUserId(), n.getStockCode(), n.getMarketType(), n.getExchangeCode(),
                     n.getDirection(), n.getChangePercent(), n.getNoteDate(),
@@ -76,8 +77,7 @@ public record StockNoteDetailResponse(
                     n.getPer(), n.getPbr(), n.getEvEbitda(), n.getVsAverage(),
                     n.getRevenueImpact(), n.getProfitImpact(), n.getCashflowImpact(),
                     n.isOneTime(), n.isStructural(),
-                    /* locked - Detail Response 에서는 상위 래퍼가 verification != null 여부로 결정 */
-                    false,
+                    locked,
                     n.getCreatedAt(), n.getUpdatedAt()
             );
         }

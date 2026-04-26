@@ -16,7 +16,7 @@ function dashboard() {
             { key: 'global', label: '글로벌 경제지표', icon: 'globe' },
             { key: 'portfolio', label: '포트폴리오', icon: 'portfolio' },
             { key: 'salary', label: '월급 사용 비율', icon: 'wallet' },
-            { key: 'stocknote', label: '내 투자 노트', icon: 'logs' },
+            { key: 'stocknote', label: '투자 노트', icon: 'note' },
             { key: 'admin-logs', label: '운영자 로그', icon: 'logs' }
         ],
 

@@ -33,6 +33,10 @@ public record SimilarPatternResult(
             long wrong,
             long partial,
             BigDecimal avgD7Percent,
-            BigDecimal avgD30Percent
+            BigDecimal avgD30Percent,
+            long upAfter1W,
+            long downAfter1W,
+            long upAfter1M,
+            long downAfter1M
     ) { }
 }

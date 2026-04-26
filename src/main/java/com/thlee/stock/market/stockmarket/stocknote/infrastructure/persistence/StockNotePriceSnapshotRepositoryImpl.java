@@ -90,6 +90,7 @@ public class StockNotePriceSnapshotRepositoryImpl implements StockNotePriceSnaps
                     r.getNoteId(),
                     r.getStockCode(),
                     MarketType.valueOf(r.getMarketType()),
+                    com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode.valueOf(r.getExchangeCode()),
                     r.getNoteDate(),
                     r.getAtNoteClosePrice()
             ));

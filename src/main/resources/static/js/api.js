@@ -489,5 +489,44 @@ const API = {
             }
         }
         return '?' + parts.join('&');
+    },
+
+    // ==================== Stock Note ====================
+    createStockNote(body) {
+        return this.request('POST', '/api/stock-notes', body);
+    },
+    getStockNoteList(filters = {}) {
+        return this.request('GET', '/api/stock-notes' + this._buildLogQuery(filters));
+    },
+    getStockNoteDetail(id) {
+        return this.request('GET', `/api/stock-notes/${id}`);
+    },
+    updateStockNote(id, body) {
+        return this.request('PUT', `/api/stock-notes/${id}`, body);
+    },
+    deleteStockNote(id) {
+        return this.request('DELETE', `/api/stock-notes/${id}`);
+    },
+    upsertStockNoteVerification(id, body) {
+        return this.request('PUT', `/api/stock-notes/${id}/verification`, body);
+    },
+    deleteStockNoteVerification(id) {
+        return this.request('DELETE', `/api/stock-notes/${id}/verification`);
+    },
+    getStockNoteDashboard() {
+        return this.request('GET', '/api/stock-notes/dashboard');
+    },
+    getStockNoteSimilarPatterns(id, directionFilter = null) {
+        const qs = directionFilter ? `?directionFilter=${directionFilter}` : '';
+        return this.request('GET', `/api/stock-notes/${id}/similar-patterns${qs}`);
+    },
+    getStockNoteChart(stockCode, period = 90) {
+        return this.request('GET', `/api/stock-notes/by-stock/${stockCode}/chart?period=${period}`);
+    },
+    getStockNoteCustomTags(prefix = '', limit = 10) {
+        return this.request('GET', `/api/stock-notes/custom-tags?prefix=${encodeURIComponent(prefix)}&limit=${limit}`);
+    },
+    retryStockNoteSnapshot(id, type) {
+        return this.request('POST', `/api/stock-notes/${id}/snapshots/${type}/retry`);
     }
 };

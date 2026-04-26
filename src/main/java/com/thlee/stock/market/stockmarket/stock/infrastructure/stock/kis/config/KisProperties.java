@@ -17,6 +17,12 @@ public class KisProperties {
     private String account;
     private Master master = new Master();
 
+    /** RestClient connect timeout (ms). 기본 3000. */
+    private long connectTimeoutMs = 3000L;
+
+    /** RestClient read timeout (ms). 기본 10000. */
+    private long readTimeoutMs = 10000L;
+
     @Getter
     @Setter
     public static class Master {

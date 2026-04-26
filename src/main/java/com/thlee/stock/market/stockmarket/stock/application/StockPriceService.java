@@ -3,6 +3,7 @@ package com.thlee.stock.market.stockmarket.stock.application;
 import com.thlee.stock.market.stockmarket.stock.application.dto.BulkStockPriceResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockPriceResponse;
 import com.thlee.stock.market.stockmarket.stock.domain.model.CachedStockPrice;
+import com.thlee.stock.market.stockmarket.stock.domain.model.DailyPrice;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
 import com.thlee.stock.market.stockmarket.stock.domain.service.ExchangeRatePort;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -79,5 +81,14 @@ public class StockPriceService {
         }
 
         return new BulkStockPriceResponse(prices);
+    }
+
+    /**
+     * 일봉 히스토리. stocknote 종목 차트(line + scatter overlay) 에서 사용.
+     * 현재 포트 기본 구현은 빈 리스트 반환 — 실제 KIS inquire-daily-itemchartprice 연동은 후속.
+     */
+    public List<DailyPrice> getDailyHistory(String stockCode, MarketType marketType, ExchangeCode exchangeCode,
+                                            LocalDate from, LocalDate to) {
+        return stockPricePort.getDailyHistory(stockCode, marketType, exchangeCode, from, to);
     }
 }

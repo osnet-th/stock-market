@@ -221,7 +221,7 @@ flowchart TB
 
 ### Phase 1: 도메인 & 영속성 기반
 
-- [ ] **Unit 1: 도메인 enum 추가**
+- [x] **Unit 1: 도메인 enum 추가**
 
   **Goal:** PortfolioItem 상태와 매도 사유 enum 도입.
 
@@ -246,7 +246,7 @@ flowchart TB
   **Verification:**
   - 새 enum이 도메인 패키지에 존재하고, AssetType과 동일한 형태(description getter)로 사용 가능.
 
-- [ ] **Unit 2: PortfolioItem 상태 필드 + 낙관적 락 도입**
+- [x] **Unit 2: PortfolioItem 상태 필드 + 낙관적 락 도입**
 
   **Goal:** PortfolioItem 도메인/엔티티에 `status`와 `@Version` 도입, 모든 reconstruction 경로 갱신.
 
@@ -296,7 +296,7 @@ flowchart TB
   **Verification:**
   - 모든 PortfolioItem factory가 status=ACTIVE로 항목 생성. 기존 reconstruction 경로(repository 조회) 정상 동작. 9개 sub-entity persist/load 정상.
 
-- [ ] **Unit 3: ACTIVE 필터 일괄 적용**
+- [x] **Unit 3: ACTIVE 필터 일괄 적용**
 
   **Goal:** 모든 기존 PortfolioItem 조회 경로에 ACTIVE 필터 적용, CLOSED 포함은 명시적 메서드로만 제공.
 
@@ -341,7 +341,7 @@ flowchart TB
   **Verification:**
   - 기존 보유 목록/Allocation/Evaluation/News-keyword 화면에서 CLOSED 항목이 노출되지 않는다. 매도 이력 탭에서만 CLOSED가 보인다.
 
-- [ ] **Unit 4: StockSaleHistory 도메인 모델·엔티티·영속성**
+- [x] **Unit 4: StockSaleHistory 도메인 모델·엔티티·영속성**
 
   **Goal:** 매도 이력 도메인을 StockPurchaseHistory 패턴으로 미러링 도입.
 

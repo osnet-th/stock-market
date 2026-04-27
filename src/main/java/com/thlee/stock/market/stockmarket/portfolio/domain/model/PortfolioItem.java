@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.portfolio.domain.model;
 
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -19,6 +20,7 @@ public class PortfolioItem {
     private boolean newsEnabled;
     private Region region;
     private String memo;
+    private PortfolioItemStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -39,6 +41,7 @@ public class PortfolioItem {
                          boolean newsEnabled,
                          Region region,
                          String memo,
+                         PortfolioItemStatus status,
                          LocalDateTime createdAt,
                          LocalDateTime updatedAt,
                          StockDetail stockDetail,
@@ -54,6 +57,7 @@ public class PortfolioItem {
         this.newsEnabled = newsEnabled;
         this.region = region;
         this.memo = memo;
+        this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.stockDetail = stockDetail;
@@ -75,6 +79,7 @@ public class PortfolioItem {
         this.investedAmount = investedAmount;
         this.newsEnabled = false;
         this.region = region;
+        this.status = PortfolioItemStatus.ACTIVE;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -340,6 +345,74 @@ public class PortfolioItem {
         }
         this.cashDetail = cashDetail;
         this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 보유 항목 마감 (전량 매도 완료)
+     */
+    public void closeItem() {
+        if (this.status == PortfolioItemStatus.CLOSED) {
+            throw new IllegalArgumentException("이미 마감된 항목입니다.");
+        }
+        this.status = PortfolioItemStatus.CLOSED;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 마감된 항목을 보유 상태로 복원 (매도 이력 사후 수정에서 사용)
+     */
+    public void reopenItem() {
+        if (this.status == PortfolioItemStatus.ACTIVE) {
+            throw new IllegalArgumentException("이미 보유 중인 항목입니다.");
+        }
+        this.status = PortfolioItemStatus.ACTIVE;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 주식 매도로 인한 보유 수량 차감.
+     * 잔여 수량이 0이 되면 자동으로 closeItem() 호출.
+     */
+    public void deductStockQuantity(int quantity) {
+        if (this.assetType != AssetType.STOCK) {
+            throw new IllegalArgumentException("주식 항목이 아닙니다.");
+        }
+        validateDetail(this.stockDetail, "stockDetail");
+        if (this.status == PortfolioItemStatus.CLOSED) {
+            throw new IllegalArgumentException("이미 마감된 항목은 매도할 수 없습니다.");
+        }
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("매도 수량은 0보다 커야 합니다.");
+        }
+        int currentQuantity = this.stockDetail.getQuantity();
+        if (quantity > currentQuantity) {
+            throw new IllegalArgumentException(
+                    String.format("보유 수량을 초과한 매도입니다. (보유: %d, 매도: %d)", currentQuantity, quantity));
+        }
+
+        int remaining = currentQuantity - quantity;
+        BigDecimal avgBuyPrice = this.stockDetail.getAvgBuyPrice();
+
+        this.stockDetail = new StockDetail(
+                this.stockDetail.getSubType(),
+                this.stockDetail.getStockCode(),
+                this.stockDetail.getMarket(),
+                this.stockDetail.getExchangeCode(),
+                this.stockDetail.getCountry(),
+                remaining,
+                avgBuyPrice,
+                this.stockDetail.getDividendYield(),
+                this.stockDetail.getPriceCurrency(),
+                this.stockDetail.getInvestedAmountKrw()
+        );
+        this.investedAmount = remaining == 0
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : calcInvestedAmount(avgBuyPrice, remaining);
+        this.updatedAt = LocalDateTime.now();
+
+        if (remaining == 0) {
+            closeItem();
+        }
     }
 
     private static void validateRequired(Long userId,

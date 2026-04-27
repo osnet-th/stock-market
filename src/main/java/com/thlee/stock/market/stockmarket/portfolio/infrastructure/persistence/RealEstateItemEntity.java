@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence;
 
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -31,12 +32,13 @@ public class RealEstateItemEntity extends PortfolioItemEntity {
                                 boolean newsEnabled,
                                 String region,
                                 String memo,
+                                PortfolioItemStatus status,
                                 LocalDateTime createdAt,
                                 LocalDateTime updatedAt,
                                 String subType,
                                 String address,
                                 BigDecimal area) {
-        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, createdAt, updatedAt);
+        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, createdAt, updatedAt);
         this.subType = subType;
         this.address = address;
         this.area = area;

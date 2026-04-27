@@ -17,6 +17,7 @@ public class PortfolioEvaluation {
     @Getter
     @RequiredArgsConstructor
     public static class ItemEvaluation {
+        private final Long portfolioItemId;
         private final String itemName;
         private final String assetType;
         private final String country;

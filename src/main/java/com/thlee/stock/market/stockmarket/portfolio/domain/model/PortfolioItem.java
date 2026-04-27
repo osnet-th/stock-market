@@ -370,6 +370,37 @@ public class PortfolioItem {
     }
 
     /**
+     * 매도 이력 사후 수정/삭제로 인한 보유 수량 복원.
+     * status는 변경하지 않으므로 호출자가 필요 시 {@link #reopenItem()}을 호출한다.
+     */
+    public void restoreStockQuantity(int quantity) {
+        if (this.assetType != AssetType.STOCK) {
+            throw new IllegalArgumentException("주식 항목이 아닙니다.");
+        }
+        validateDetail(this.stockDetail, "stockDetail");
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("복원 수량은 0보다 커야 합니다.");
+        }
+        int newQuantity = this.stockDetail.getQuantity() + quantity;
+        BigDecimal avgBuyPrice = this.stockDetail.getAvgBuyPrice();
+
+        this.stockDetail = new StockDetail(
+                this.stockDetail.getSubType(),
+                this.stockDetail.getStockCode(),
+                this.stockDetail.getMarket(),
+                this.stockDetail.getExchangeCode(),
+                this.stockDetail.getCountry(),
+                newQuantity,
+                avgBuyPrice,
+                this.stockDetail.getDividendYield(),
+                this.stockDetail.getPriceCurrency(),
+                this.stockDetail.getInvestedAmountKrw()
+        );
+        this.investedAmount = calcInvestedAmount(avgBuyPrice, newQuantity);
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
      * 주식 매도로 인한 보유 수량 차감.
      * 잔여 수량이 0이 되면 자동으로 closeItem() 호출.
      */

@@ -383,7 +383,7 @@ flowchart TB
 
 ### Phase 2: Application 계층
 
-- [ ] **Unit 5: PortfolioEvaluationService per-item API + ItemEvaluation 확장**
+- [x] **Unit 5: PortfolioEvaluationService per-item API + ItemEvaluation 확장**
 
   **Goal:** 매도 모달이 단일 종목 평가가격을 직접 조회할 수 있게 함. ItemEvaluation에 itemId 추가.
 
@@ -418,7 +418,7 @@ flowchart TB
   **Verification:**
   - 매도 모달 API 호출 시 단일 종목 평가가격을 200ms 내 응답(캐시 hit). itemId 필드가 응답에 포함.
 
-- [ ] **Unit 6: 매도 등록 application service**
+- [x] **Unit 6: 매도 등록 application service**
 
   **Goal:** 매도 1건을 단일 트랜잭션으로 처리(이력 기록 + 보유 수량 차감 + CASH 입금 + 상태 전환).
 
@@ -476,7 +476,7 @@ flowchart TB
   **Verification:**
   - 매도 1건 등록 후: StockSaleHistory 1건, PortfolioItem.quantity 감소 또는 status CLOSED, CASH PortfolioItem.investedAmount 증가 또는 unrecordedDeposit=true. 트랜잭션 부분 실패 시 모두 롤백.
 
-- [ ] **Unit 7: 매도 이력 사후 수정/삭제**
+- [x] **Unit 7: 매도 이력 사후 수정/삭제**
 
   **Goal:** 잘못 등록한 매도를 수정하거나 삭제. 수정 시 보유 수량/CASH 입금/상태를 일관 재계산.
 
@@ -519,7 +519,7 @@ flowchart TB
   **Verification:**
   - 매도 이력의 수량/단가 수정이 PortfolioItem 보유 수량·CASH 잔액·status를 일관되게 재계산. 모든 변경은 단일 트랜잭션.
 
-- [ ] **Unit 8: 삭제 정책 변경(매도 이력 있는 항목 삭제 차단)**
+- [x] **Unit 8: 삭제 정책 변경(매도 이력 있는 항목 삭제 차단)**
 
   **Goal:** R23 적용 — 매도 이력이 1건이라도 있으면 PortfolioItem 삭제 불가. CLOSED 항목도 삭제 불가.
 

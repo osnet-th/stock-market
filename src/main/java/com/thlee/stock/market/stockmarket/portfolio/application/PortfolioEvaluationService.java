@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -96,6 +97,7 @@ public class PortfolioEvaluationService {
             totalEvaluated = totalEvaluated.add(evaluated);
 
             evaluations.add(new ItemEvaluation(
+                    item.getId(),
                     item.getItemName(),
                     item.getAssetType().name(),
                     country,
@@ -108,6 +110,68 @@ public class PortfolioEvaluationService {
         }
 
         return new PortfolioEvaluation(userId, evaluations, totalInvested, totalEvaluated);
+    }
+
+    /**
+     * 단일 STOCK 항목 평가 — 매도 모달 진입 시 사용.
+     * KIS 호출 실패 시 currentPrice=null로 반환 (예외 X).
+     */
+    public Optional<ItemEvaluation> evaluateOne(Long userId, Long portfolioItemId) {
+        PortfolioItem item = portfolioItemRepository.findById(portfolioItemId)
+                .orElseThrow(() -> new IllegalArgumentException("포트폴리오 항목을 찾을 수 없습니다."));
+        if (!item.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("해당 항목에 대한 권한이 없습니다.");
+        }
+        if (item.getAssetType() != AssetType.STOCK || item.getStockDetail() == null) {
+            throw new IllegalArgumentException("주식 항목만 평가할 수 있습니다.");
+        }
+
+        StockDetail detail = item.getStockDetail();
+        StockPriceResponse price = fetchSingleStockPrice(detail);
+
+        BigDecimal invested = detail.getInvestedAmountKrw() != null
+                ? detail.getInvestedAmountKrw()
+                : item.getInvestedAmount();
+        BigDecimal evaluated = invested;
+        String currentPrice = null;
+        String changeRate = null;
+        if (price != null && price.getCurrentPriceKrw() != null) {
+            currentPrice = price.getCurrentPriceKrw();
+            changeRate = price.getChangeRate();
+            evaluated = new BigDecimal(price.getCurrentPriceKrw())
+                    .multiply(BigDecimal.valueOf(detail.getQuantity()));
+        }
+
+        return Optional.of(new ItemEvaluation(
+                item.getId(),
+                item.getItemName(),
+                item.getAssetType().name(),
+                detail.getCountry(),
+                invested,
+                evaluated,
+                detail.getQuantity(),
+                currentPrice,
+                changeRate
+        ));
+    }
+
+    /**
+     * 매도 시점의 사용자 전체 자산 KRW 평가금액 스냅샷.
+     * 자산 기여율(contributionRate) 계산 기준값으로 사용된다.
+     */
+    public BigDecimal computeTotalAsset(Long userId) {
+        PortfolioEvaluation evaluation = evaluatePortfolios(List.of(userId)).get(userId);
+        return evaluation != null ? evaluation.getTotalEvaluated() : BigDecimal.ZERO;
+    }
+
+    private StockPriceResponse fetchSingleStockPrice(StockDetail detail) {
+        try {
+            MarketType marketType = MarketType.valueOf(detail.getMarket());
+            ExchangeCode exchangeCode = ExchangeCode.valueOf(detail.getExchangeCode());
+            return stockPriceService.getPrice(detail.getStockCode(), marketType, exchangeCode);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

@@ -17,6 +17,7 @@ public class PortfolioItemResponse {
     private final boolean newsEnabled;
     private final String region;
     private final String memo;
+    private final String status;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
     private final StockDetailResponse stockDetail;
@@ -30,7 +31,7 @@ public class PortfolioItemResponse {
 
     private PortfolioItemResponse(Long id, String assetType, String itemName,
                                   BigDecimal investedAmount, boolean newsEnabled,
-                                  String region, String memo,
+                                  String region, String memo, String status,
                                   LocalDateTime createdAt, LocalDateTime updatedAt,
                                   StockDetailResponse stockDetail,
                                   BondDetailResponse bondDetail,
@@ -47,6 +48,7 @@ public class PortfolioItemResponse {
         this.newsEnabled = newsEnabled;
         this.region = region;
         this.memo = memo;
+        this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.stockDetail = stockDetail;
@@ -77,6 +79,7 @@ public class PortfolioItemResponse {
                 item.isNewsEnabled(),
                 item.getRegion().name(),
                 item.getMemo(),
+                item.getStatus() != null ? item.getStatus().name() : null,
                 item.getCreatedAt(),
                 item.getUpdatedAt(),
                 item.getStockDetail() != null ? StockDetailResponse.from(item.getStockDetail()) : null,

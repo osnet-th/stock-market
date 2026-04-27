@@ -1176,14 +1176,24 @@
                     </div>
                 </div>
 
+                <!-- 탭 컨트롤 -->
+                <div class="flex gap-1 border-b border-gray-200 mb-4">
+                    <button @click="setActiveTab('items')"
+                        :class="portfolio.activeTab === 'items' ? 'text-rose-600 border-rose-600' : 'text-gray-500 border-transparent hover:text-gray-700'"
+                        class="px-4 py-2 text-sm font-medium border-b-2 transition">보유 자산</button>
+                    <button @click="setActiveTab('sales')"
+                        :class="portfolio.activeTab === 'sales' ? 'text-rose-600 border-rose-600' : 'text-gray-500 border-transparent hover:text-gray-700'"
+                        class="px-4 py-2 text-sm font-medium border-b-2 transition">매도 이력</button>
+                </div>
+
                 <!-- 로딩 -->
-                <template x-if="portfolio.loading">
+                <template x-if="portfolio.loading && portfolio.activeTab === 'items'">
                     <div class="flex justify-center py-12">
                         <div class="spinner"></div>
                     </div>
                 </template>
 
-                <template x-if="!portfolio.loading">
+                <template x-if="!portfolio.loading && portfolio.activeTab === 'items'">
                     <div>
                         <!-- 빈 상태 (초기 로드 완료 후에만 표시) -->
                         <template x-if="portfolio._initialized && portfolio.items.length === 0">
@@ -1316,6 +1326,10 @@
                                                                 <button x-show="item.assetType === 'STOCK' && item.stockDetail"
                                                                     @click.stop="openPurchaseModal(item)"
                                                                     class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">추가 매수</button>
+                                                                <!-- 매도 (주식 ACTIVE만) -->
+                                                                <button x-show="item.assetType === 'STOCK' && item.stockDetail && (item.status === 'ACTIVE' || !item.status)"
+                                                                    @click.stop="openSaleModal(item)"
+                                                                    class="text-xs text-rose-600 hover:text-rose-800 font-medium transition">매도</button>
                                                                 <!-- 납입 (현금성/펀드만) -->
                                                                 <button x-show="isDepositTarget(item)"
                                                                     @click.stop="openDepositModal(item)"
@@ -1323,9 +1337,12 @@
                                                                 <!-- 수정 -->
                                                                 <button @click.stop="openEditModal(item)"
                                                                     class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
-                                                                <!-- 삭제 -->
+                                                                <!-- 삭제 (매도 이력 있으면 disabled) -->
                                                                 <button @click.stop="deleteItem(item.id)"
-                                                                    class="text-xs text-red-500 hover:text-red-700 font-medium transition">삭제</button>
+                                                                    :disabled="item.assetType === 'STOCK' && hasSaleHistories(item.id)"
+                                                                    :class="(item.assetType === 'STOCK' && hasSaleHistories(item.id)) ? 'text-gray-400 opacity-50 cursor-not-allowed' : 'text-red-500 hover:text-red-700'"
+                                                                    :title="(item.assetType === 'STOCK' && hasSaleHistories(item.id)) ? '매도 이력이 있어 삭제할 수 없습니다. 매도 이력 탭에서 정리해 주세요.' : ''"
+                                                                    class="text-xs font-medium transition">삭제</button>
                                                             </div>
                                                         </div>
                                                         <!-- 뉴스 목록 (카드 클릭 시 펼침) -->
@@ -1415,13 +1432,19 @@
                                                                 <button x-show="item.assetType === 'STOCK' && item.stockDetail"
                                                                     @click.stop="openPurchaseModal(item)"
                                                                     class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">추가 매수</button>
+                                                                <button x-show="item.assetType === 'STOCK' && item.stockDetail && (item.status === 'ACTIVE' || !item.status)"
+                                                                    @click.stop="openSaleModal(item)"
+                                                                    class="text-xs text-rose-600 hover:text-rose-800 font-medium transition">매도</button>
                                                                 <button x-show="isDepositTarget(item)"
                                                                     @click.stop="openDepositModal(item)"
                                                                     class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">납입</button>
                                                                 <button @click.stop="openEditModal(item)"
                                                                     class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
                                                                 <button @click.stop="deleteItem(item.id)"
-                                                                    class="text-xs text-red-500 hover:text-red-700 font-medium transition">삭제</button>
+                                                                    :disabled="item.assetType === 'STOCK' && hasSaleHistories(item.id)"
+                                                                    :class="(item.assetType === 'STOCK' && hasSaleHistories(item.id)) ? 'text-gray-400 opacity-50 cursor-not-allowed' : 'text-red-500 hover:text-red-700'"
+                                                                    :title="(item.assetType === 'STOCK' && hasSaleHistories(item.id)) ? '매도 이력이 있어 삭제할 수 없습니다. 매도 이력 탭에서 정리해 주세요.' : ''"
+                                                                    class="text-xs font-medium transition">삭제</button>
                                                             </div>
                                                         </div>
                                                         <!-- 해외뉴스 패널 (속보/뉴스종합) -->
@@ -1532,6 +1555,82 @@
                                 </div>
                             </div>
                         </template>
+                    </div>
+                </template>
+
+                <!-- 매도 이력 탭 -->
+                <template x-if="portfolio.activeTab === 'sales'">
+                    <div>
+                        <!-- 로딩 -->
+                        <div x-show="portfolio.userSalesLoading" class="flex justify-center py-12">
+                            <div class="spinner"></div>
+                        </div>
+
+                        <!-- 빈 상태 -->
+                        <div x-show="!portfolio.userSalesLoading && portfolio.userSales.length === 0"
+                            class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                            <p class="text-gray-400 text-sm">아직 매도 이력이 없어요. 보유 주식 카드의 '매도' 버튼을 눌러보세요.</p>
+                        </div>
+
+                        <!-- 월별 그룹 리스트 -->
+                        <div x-show="!portfolio.userSalesLoading && portfolio.userSales.length > 0" class="space-y-4">
+                            <template x-for="group in groupSalesByMonth()" :key="group.month">
+                                <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                    <div class="px-5 py-3 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                        <h3 class="text-sm font-bold text-gray-700"
+                                            x-text="group.month + ' (' + group.items.length + '건)'"></h3>
+                                        <div class="text-xs text-gray-600 space-x-3">
+                                            <span>판매금
+                                                <span class="font-medium text-gray-800"
+                                                    x-text="Format.number(group.totalSaleAmount, 0) + '원'"></span></span>
+                                            <span>손익
+                                                <span class="font-medium"
+                                                    :class="group.totalProfit > 0 ? 'text-red-600' : group.totalProfit < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                                    x-text="(group.totalProfit > 0 ? '+' : '') + Format.number(group.totalProfit, 0) + '원'"></span></span>
+                                        </div>
+                                    </div>
+                                    <div class="divide-y divide-gray-100">
+                                        <template x-for="sale in group.items" :key="sale.id">
+                                            <div @click="openSaleDetailModal(sale)"
+                                                class="px-5 py-3 hover:bg-gray-50 cursor-pointer transition">
+                                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                                    <div>
+                                                        <div class="flex flex-wrap items-center gap-2">
+                                                            <span class="text-sm font-medium text-gray-800" x-text="sale.stockName"></span>
+                                                            <span class="text-xs text-gray-400" x-text="sale.soldAt"></span>
+                                                            <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600"
+                                                                x-text="saleReasonLabel(sale.reason)"></span>
+                                                            <span x-show="sale.unrecordedDeposit"
+                                                                class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700">미입금</span>
+                                                        </div>
+                                                        <p class="text-xs text-gray-500 mt-0.5">
+                                                            <span x-text="Format.number(sale.quantity, 0) + '주'"></span>
+                                                            <span class="text-gray-400">&times;</span>
+                                                            <span x-text="Format.number(sale.salePrice, 2) + (sale.currency !== 'KRW' ? ' ' + sale.currency : '원')"></span>
+                                                            <span x-show="sale.salePriceKrw" class="text-gray-400"
+                                                                x-text="' = ' + Format.number(sale.salePriceKrw, 0) + '원'"></span>
+                                                        </p>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <div class="text-sm font-medium"
+                                                            :class="sale.profit > 0 ? 'text-red-600' : sale.profit < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                                            x-text="(sale.profit > 0 ? '+' : '') + Format.number(sale.profit, 2) + (sale.currency !== 'KRW' ? ' ' + sale.currency : '원')"></div>
+                                                        <div class="text-xs space-x-2">
+                                                            <span
+                                                                :class="sale.profitRate > 0 ? 'text-red-500' : sale.profitRate < 0 ? 'text-blue-500' : 'text-gray-500'"
+                                                                x-text="(sale.profitRate > 0 ? '+' : '') + Format.number(sale.profitRate, 2) + '%'"></span>
+                                                            <span class="text-gray-400">|</span>
+                                                            <span class="text-gray-500" title="자산 기여율"
+                                                                x-text="'기여 ' + (sale.contributionRate > 0 ? '+' : '') + Format.number(sale.contributionRate, 2) + '%'"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </template>
             </div>
@@ -2318,6 +2417,248 @@
                                 class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">취소</button>
                             <button @click="submitPurchase()"
                                 class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition">추가 매수</button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- 매도 모달 -->
+            <template x-if="portfolio.showSaleModal && portfolio.saleItem">
+                <div x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto"
+                        @click.outside="closeSaleModal()" @keydown.escape.window="closeSaleModal()">
+
+                        <h3 class="text-lg font-bold text-gray-900 mb-1">주식 매도</h3>
+                        <p class="text-sm text-gray-500 mb-4" x-text="portfolio.saleItem.itemName"></p>
+
+                        <!-- 현재 보유 정보 -->
+                        <template x-if="portfolio.saleItem.stockDetail">
+                            <div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600 space-y-1">
+                                <div class="flex justify-between">
+                                    <span>현재 보유 수량</span>
+                                    <span class="font-medium text-gray-800" x-text="Format.number(portfolio.saleItem.stockDetail.quantity, 0) + '주'"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>평균 매수가</span>
+                                    <span class="font-medium text-gray-800" x-text="Format.number(portfolio.saleItem.stockDetail.avgBuyPrice, 0) + (portfolio.saleContext.currency !== 'KRW' ? ' ' + portfolio.saleContext.currency : '원')"></span>
+                                </div>
+                                <div x-show="portfolio.saleContext.currentPriceOriginal" class="flex justify-between">
+                                    <span>현재가 (자동조회)</span>
+                                    <span class="font-medium text-gray-800" x-text="Format.number(portfolio.saleContext.currentPriceOriginal, 0) + (portfolio.saleContext.currency !== 'KRW' ? ' ' + portfolio.saleContext.currency : '원')"></span>
+                                </div>
+                                <div x-show="!portfolio.saleContext.currentPriceOriginal" class="text-xs text-amber-600">
+                                    현재가 자동 조회에 실패했습니다. 직접 입력해 주세요.
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- 입력 폼 -->
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">매도 수량</label>
+                                <input type="number" x-model="portfolio.saleForm.quantity" @input="recalculateSalePreview()"
+                                    :max="portfolio.saleItem.stockDetail?.quantity || 1" min="1"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                                <p x-show="Number(portfolio.saleForm.quantity) > (portfolio.saleItem.stockDetail?.quantity || 0)"
+                                    class="text-xs text-red-500 mt-1">보유 수량을 초과합니다.</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    판매 단가
+                                    <span x-show="portfolio.saleContext.currency !== 'KRW'" class="text-blue-500 font-medium" x-text="'(' + portfolio.saleContext.currency + ')'"></span>
+                                </label>
+                                <input type="number" x-model="portfolio.saleForm.salePrice" @input="recalculateSalePreview()"
+                                    :step="portfolio.saleContext.currency !== 'KRW' ? '0.01' : '1'"
+                                    placeholder="1주당 판매가" min="0.01"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                            </div>
+                            <div x-show="portfolio.saleContext.currency !== 'KRW'">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">환율 (1 <span x-text="portfolio.saleContext.currency"></span> = ? 원)</label>
+                                <input type="number" x-model="portfolio.saleForm.fxRate" @input="recalculateSalePreview()"
+                                    step="0.01" min="0.01"
+                                    placeholder="자동 조회 실패 시 직접 입력"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">매도일</label>
+                                <input type="date" x-model="portfolio.saleForm.soldAt"
+                                    :max="new Date().toISOString().slice(0,10)"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">매도 사유</label>
+                                <select x-model="portfolio.saleForm.reason"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                                    <option value="TARGET_PRICE_REACHED">목표가 도달</option>
+                                    <option value="STOP_LOSS">손절</option>
+                                    <option value="CASH_NEEDED">현금 확보</option>
+                                    <option value="REBALANCING">리밸런싱</option>
+                                    <option value="OTHER">기타</option>
+                                </select>
+                            </div>
+                            <div x-show="portfolio.userCashItems.length > 0">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">입금 대상 (선택, 미선택 시 연결된 원화로 자동)</label>
+                                <select x-model="portfolio.saleForm.depositCashItemId"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                                    <option value="">자동 (연결된 원화)</option>
+                                    <template x-for="cash in portfolio.userCashItems" :key="cash.id">
+                                        <option :value="cash.id" x-text="cash.itemName"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div x-show="portfolio.userCashItems.length === 0" class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+                                보유한 원화 항목이 없어 매도 대금이 입금되지 않습니다. 매도 이력에 <strong>미입금</strong>으로 기록되며, 추후 원화 항목을 등록한 뒤 사후 수정으로 보정할 수 있습니다.
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">메모 (선택)</label>
+                                <input type="text" x-model="portfolio.saleForm.memo" maxlength="200" placeholder="메모"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                            </div>
+                        </div>
+
+                        <!-- 미리보기 -->
+                        <div class="bg-rose-50 rounded-lg p-3 mt-4 text-sm space-y-1">
+                            <p class="font-medium text-rose-800 mb-1">매도 후 예상 (서버에서 최종 계산)</p>
+                            <div class="flex justify-between">
+                                <span class="text-rose-700">손익</span>
+                                <span class="font-medium" :class="portfolio.salePreview.profit > 0 ? 'text-red-600' : portfolio.salePreview.profit < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                    x-text="(portfolio.salePreview.profit > 0 ? '+' : '') + Format.number(portfolio.salePreview.profit, 2) + (portfolio.saleContext.currency !== 'KRW' ? ' ' + portfolio.saleContext.currency : '원')"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-rose-700">종목 수익률</span>
+                                <span class="font-medium" :class="portfolio.salePreview.profitRate > 0 ? 'text-red-600' : portfolio.salePreview.profitRate < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                    x-text="(portfolio.salePreview.profitRate > 0 ? '+' : '') + Format.number(portfolio.salePreview.profitRate, 2) + '%'"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-rose-700">자산 기여율</span>
+                                <span class="font-medium" :class="portfolio.salePreview.contributionRate > 0 ? 'text-red-600' : portfolio.salePreview.contributionRate < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                    x-text="(portfolio.salePreview.contributionRate > 0 ? '+' : '') + Format.number(portfolio.salePreview.contributionRate, 2) + '%'"></span>
+                            </div>
+                            <div x-show="portfolio.saleContext.currency !== 'KRW'" class="flex justify-between text-xs text-rose-600 pt-1 border-t border-rose-200">
+                                <span>판매 금액 (KRW 환산)</span>
+                                <span x-text="Format.number(portfolio.salePreview.salePriceKrw, 0) + '원'"></span>
+                            </div>
+                        </div>
+
+                        <p class="text-xs text-gray-400 mt-3 leading-relaxed">
+                            • 매도 시점의 자산 평가금액과 환율은 매도 이력에 스냅샷으로 저장됩니다.<br>
+                            • 입력된 판매단가가 정확한 매도가로 기록됩니다.<br>
+                            • 전량 매도 시 항목은 보유 목록에서 사라지고 매도 이력 탭에서 회고할 수 있습니다.
+                        </p>
+
+                        <div class="flex justify-end gap-2 mt-6">
+                            <button @click="closeSaleModal()"
+                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">취소</button>
+                            <button @click="submitSale()"
+                                class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-700 transition">매도 등록</button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- 매도 상세/수정 모달 -->
+            <template x-if="portfolio.showSaleDetailModal && portfolio.saleDetail">
+                <div x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto"
+                        @click.outside="closeSaleDetailModal()" @keydown.escape.window="closeSaleDetailModal()">
+
+                        <h3 class="text-lg font-bold text-gray-900 mb-1">매도 이력 상세</h3>
+                        <p class="text-sm text-gray-500 mb-4">
+                            <span x-text="portfolio.saleDetail.stockName"></span>
+                            <span class="text-gray-400" x-text="' · ' + portfolio.saleDetail.soldAt"></span>
+                        </p>
+
+                        <!-- 보기 모드 -->
+                        <template x-if="!portfolio.editingSaleHistory">
+                            <div class="space-y-3 text-sm">
+                                <div class="bg-gray-50 rounded-lg p-3 space-y-1">
+                                    <div class="flex justify-between"><span class="text-gray-500">매도 수량</span><span class="font-medium text-gray-800" x-text="Format.number(portfolio.saleDetail.quantity, 0) + '주'"></span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">판매 단가</span><span class="font-medium text-gray-800" x-text="Format.number(portfolio.saleDetail.salePrice, 2) + (portfolio.saleDetail.currency !== 'KRW' ? ' ' + portfolio.saleDetail.currency : '원')"></span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">평균 매수가</span><span class="font-medium text-gray-800" x-text="Format.number(portfolio.saleDetail.avgBuyPrice, 2) + (portfolio.saleDetail.currency !== 'KRW' ? ' ' + portfolio.saleDetail.currency : '원')"></span></div>
+                                    <div x-show="portfolio.saleDetail.currency !== 'KRW' && portfolio.saleDetail.fxRate" class="flex justify-between"><span class="text-gray-500">매도 시 환율</span><span class="font-medium text-gray-800" x-text="Format.number(portfolio.saleDetail.fxRate, 2)"></span></div>
+                                </div>
+                                <div class="bg-rose-50 rounded-lg p-3 space-y-1">
+                                    <div class="flex justify-between"><span class="text-rose-700">손익</span>
+                                        <span class="font-medium" :class="portfolio.saleDetail.profit > 0 ? 'text-red-600' : portfolio.saleDetail.profit < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                            x-text="(portfolio.saleDetail.profit > 0 ? '+' : '') + Format.number(portfolio.saleDetail.profit, 2) + (portfolio.saleDetail.currency !== 'KRW' ? ' ' + portfolio.saleDetail.currency : '원')"></span>
+                                    </div>
+                                    <div class="flex justify-between"><span class="text-rose-700">종목 수익률</span>
+                                        <span class="font-medium" :class="portfolio.saleDetail.profitRate > 0 ? 'text-red-600' : portfolio.saleDetail.profitRate < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                            x-text="(portfolio.saleDetail.profitRate > 0 ? '+' : '') + Format.number(portfolio.saleDetail.profitRate, 2) + '%'"></span>
+                                    </div>
+                                    <div class="flex justify-between"><span class="text-rose-700">자산 기여율</span>
+                                        <span class="font-medium" :class="portfolio.saleDetail.contributionRate > 0 ? 'text-red-600' : portfolio.saleDetail.contributionRate < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                            x-text="(portfolio.saleDetail.contributionRate > 0 ? '+' : '') + Format.number(portfolio.saleDetail.contributionRate, 2) + '%'"></span>
+                                    </div>
+                                    <div x-show="portfolio.saleDetail.salePriceKrw" class="flex justify-between text-xs text-rose-600 pt-1 border-t border-rose-200">
+                                        <span>판매 금액 (KRW)</span>
+                                        <span x-text="Format.number(portfolio.saleDetail.salePriceKrw, 0) + '원'"></span>
+                                    </div>
+                                </div>
+                                <div class="text-xs space-y-1">
+                                    <p><span class="text-gray-500">사유: </span><span class="text-gray-700" x-text="saleReasonLabel(portfolio.saleDetail.reason)"></span></p>
+                                    <p x-show="portfolio.saleDetail.memo"><span class="text-gray-500">메모: </span><span class="text-gray-700" x-text="portfolio.saleDetail.memo"></span></p>
+                                    <p x-show="portfolio.saleDetail.unrecordedDeposit" class="bg-amber-50 border border-amber-200 rounded p-2 text-amber-700">
+                                        ⚠ 매도 대금이 원화 항목에 입금되지 않은 이력입니다. 원화 등록 후 사후 수정 시 보정해 주세요.
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- 수정 모드 -->
+                        <template x-if="portfolio.editingSaleHistory">
+                            <div class="space-y-3 text-sm">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">매도 수량</label>
+                                    <input type="number" x-model="portfolio.editSaleForm.quantity" min="1"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">판매 단가</label>
+                                    <input type="number" x-model="portfolio.editSaleForm.salePrice" step="0.01" min="0.01"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">매도 사유</label>
+                                    <select x-model="portfolio.editSaleForm.reason"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                                        <option value="TARGET_PRICE_REACHED">목표가 도달</option>
+                                        <option value="STOP_LOSS">손절</option>
+                                        <option value="CASH_NEEDED">현금 확보</option>
+                                        <option value="REBALANCING">리밸런싱</option>
+                                        <option value="OTHER">기타</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">메모</label>
+                                    <input type="text" x-model="portfolio.editSaleForm.memo" maxlength="200"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                                </div>
+                                <p class="text-xs text-amber-600">
+                                    수정 시 보유 수량과 원화 잔액이 자동 재계산됩니다. 환율과 매도 시점 자산은 그대로 유지됩니다.
+                                </p>
+                            </div>
+                        </template>
+
+                        <div class="flex justify-end gap-2 mt-6">
+                            <template x-if="!portfolio.editingSaleHistory">
+                                <div class="flex gap-2">
+                                    <button @click="confirmDeleteSale()"
+                                        class="px-4 py-2 text-sm text-red-600 hover:text-red-800 transition">삭제</button>
+                                    <button @click="startEditSaleHistory()"
+                                        class="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 transition">수정</button>
+                                    <button @click="closeSaleDetailModal()"
+                                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">닫기</button>
+                                </div>
+                            </template>
+                            <template x-if="portfolio.editingSaleHistory">
+                                <div class="flex gap-2">
+                                    <button @click="cancelEditSaleHistory()"
+                                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">취소</button>
+                                    <button @click="submitSaleEdit()"
+                                        class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-700 transition">저장</button>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>

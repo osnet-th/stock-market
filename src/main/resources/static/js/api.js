@@ -206,6 +206,31 @@ const API = {
         return this.request('DELETE', `/api/portfolio/items/stock/${itemId}/purchases/${historyId}?userId=${userId}`);
     },
 
+    // 매도 이력
+    getSaleContext(userId, itemId) {
+        return this.request('GET', `/api/portfolio/items/stock/${itemId}/sale-context?userId=${userId}`);
+    },
+
+    addStockSale(userId, itemId, body) {
+        return this.request('POST', `/api/portfolio/items/stock/${itemId}/sale?userId=${userId}`, body);
+    },
+
+    getSaleHistories(userId, itemId) {
+        return this.request('GET', `/api/portfolio/items/stock/${itemId}/sales?userId=${userId}`);
+    },
+
+    updateSaleHistory(userId, itemId, historyId, body) {
+        return this.request('PUT', `/api/portfolio/items/stock/${itemId}/sales/${historyId}?userId=${userId}`, body);
+    },
+
+    deleteSaleHistory(userId, itemId, historyId) {
+        return this.request('DELETE', `/api/portfolio/items/stock/${itemId}/sales/${historyId}?userId=${userId}`);
+    },
+
+    getAllUserSaleHistories(userId) {
+        return this.request('GET', `/api/portfolio/sales?userId=${userId}`);
+    },
+
     // 납입 이력
     addDeposit(userId, itemId, body) {
         return this.request('POST', `/api/portfolio/items/${itemId}/deposits?userId=${userId}`, body);

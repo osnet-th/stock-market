@@ -23,6 +23,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -60,6 +61,16 @@ public class GlobalExceptionHandler {
         publishError(e);
         return buildResponse(HttpStatus.CONFLICT, "CONFLICT",
                 "요청이 동시성 충돌로 처리되지 않았습니다. 다시 시도해주세요.");
+    }
+
+    /**
+     * 낙관적 락 충돌 (@Version) — 동시 매도/수정 등에서 발생.
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, Object>> handleOptimisticLocking(ObjectOptimisticLockingFailureException e) {
+        publishError(e);
+        return buildResponse(HttpStatus.CONFLICT, "OPTIMISTIC_LOCK_CONFLICT",
+                "다른 작업과 충돌했습니다. 새로고침 후 다시 시도해 주세요.");
     }
 
     /**

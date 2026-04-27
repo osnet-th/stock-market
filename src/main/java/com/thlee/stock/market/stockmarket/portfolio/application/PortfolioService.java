@@ -8,8 +8,10 @@ import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordReposito
 import com.thlee.stock.market.stockmarket.news.domain.repository.UserKeywordRepository;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.AddStockSaleParam;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.DepositHistoryResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioEvaluation.ItemEvaluation;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockPurchaseHistoryResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockSaleContextResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockSaleHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.UpdateSaleParam;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
@@ -684,6 +686,39 @@ public class PortfolioService {
         return stockSaleHistoryRepository.findByUserId(userId).stream()
                 .map(StockSaleHistoryResponse::from)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 매도 모달 진입 시 자동 입력 컨텍스트.
+     * 현재가(KRW/원본) + 통화 + 환율(자동 조회) + 사용자 총자산 평가금액 묶음.
+     */
+    public StockSaleContextResponse getSaleContext(Long userId, Long stockItemId) {
+        PortfolioItem stockItem = findUserItem(userId, stockItemId);
+        if (stockItem.getAssetType() != AssetType.STOCK || stockItem.getStockDetail() == null) {
+            throw new IllegalArgumentException("주식 항목만 매도 컨텍스트를 조회할 수 있습니다.");
+        }
+
+        ItemEvaluation eval = portfolioEvaluationService.evaluateOne(userId, stockItemId)
+                .orElseThrow(() -> new IllegalStateException("STOCK 항목 평가 결과가 비어 있습니다."));
+
+        String currency = stockItem.getStockDetail().getPriceCurrency() != null
+                ? stockItem.getStockDetail().getPriceCurrency().name() : "KRW";
+        BigDecimal fxRate = resolveFxRate(currency, null);
+
+        BigDecimal currentPriceKrw = eval.getCurrentPrice() != null
+                ? new BigDecimal(eval.getCurrentPrice()) : null;
+        BigDecimal currentPriceOriginal = computeCurrentPriceOriginal(currentPriceKrw, fxRate);
+
+        BigDecimal totalAsset = portfolioEvaluationService.computeTotalAsset(userId);
+
+        return new StockSaleContextResponse(currentPriceKrw, currentPriceOriginal, currency, fxRate, totalAsset);
+    }
+
+    private BigDecimal computeCurrentPriceOriginal(BigDecimal currentPriceKrw, BigDecimal fxRate) {
+        if (currentPriceKrw == null || fxRate == null || fxRate.compareTo(BigDecimal.ZERO) == 0) {
+            return currentPriceKrw;
+        }
+        return currentPriceKrw.divide(fxRate, 2, RoundingMode.HALF_UP);
     }
 
     /**

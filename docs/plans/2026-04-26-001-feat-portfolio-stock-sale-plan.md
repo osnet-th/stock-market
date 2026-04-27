@@ -551,7 +551,7 @@ flowchart TB
 
 ### Phase 3: Presentation 계층
 
-- [ ] **Unit 9: REST 엔드포인트 추가**
+- [x] **Unit 9: REST 엔드포인트 추가**
 
   **Goal:** 매도 등록·조회·수정·삭제 + 매도 모달 컨텍스트 + 사용자 단위 매도 이력 엔드포인트 추가.
 
@@ -595,7 +595,7 @@ flowchart TB
   **Verification:**
   - 6개 엔드포인트 모두 200/204 정상 응답. Validation 위반은 400.
 
-- [ ] **Unit 10: 글로벌 ExceptionHandler에 OptimisticLockingFailure 매핑**
+- [x] **Unit 10: 글로벌 ExceptionHandler에 OptimisticLockingFailure 매핑**
 
   **Goal:** `ObjectOptimisticLockingFailureException`을 HTTP 409 Conflict로 매핑.
 

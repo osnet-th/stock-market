@@ -2,10 +2,14 @@ package com.thlee.stock.market.stockmarket.portfolio.presentation;
 
 import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioAllocationService;
 import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioService;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.AddStockSaleParam;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.AllocationResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.DepositHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockPurchaseHistoryResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockSaleContextResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockSaleHistoryResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.UpdateSaleParam;
 import com.thlee.stock.market.stockmarket.portfolio.presentation.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -276,6 +280,89 @@ public class PortfolioController {
             @PathVariable Long historyId) {
         portfolioService.deletePurchaseHistory(userId, itemId, historyId);
         return ResponseEntity.noContent().build();
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // 매도 이력 API
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * 매도 모달 진입 시 자동 입력 컨텍스트 조회
+     */
+    @GetMapping("/items/stock/{itemId}/sale-context")
+    public ResponseEntity<StockSaleContextResponse> getSaleContext(
+            @RequestParam Long userId,
+            @PathVariable Long itemId) {
+        return ResponseEntity.ok(portfolioService.getSaleContext(userId, itemId));
+    }
+
+    /**
+     * 주식 매도 등록
+     */
+    @PostMapping("/items/stock/{itemId}/sale")
+    public ResponseEntity<StockSaleHistoryResponse> addStockSale(
+            @RequestParam Long userId,
+            @PathVariable Long itemId,
+            @Valid @RequestBody StockSaleRequest request) {
+        AddStockSaleParam param = new AddStockSaleParam(
+                request.getQuantity(),
+                request.getSalePrice(),
+                request.getSoldAt(),
+                request.getReason(),
+                request.getMemo(),
+                request.getFxRate(),
+                request.getDepositCashItemId()
+        );
+        return ResponseEntity.ok(portfolioService.addStockSale(userId, itemId, param));
+    }
+
+    /**
+     * 특정 항목의 매도 이력 조회
+     */
+    @GetMapping("/items/stock/{itemId}/sales")
+    public ResponseEntity<List<StockSaleHistoryResponse>> getSaleHistories(
+            @RequestParam Long userId,
+            @PathVariable Long itemId) {
+        return ResponseEntity.ok(portfolioService.getSaleHistories(userId, itemId));
+    }
+
+    /**
+     * 매도 이력 사후 수정
+     */
+    @PutMapping("/items/stock/{itemId}/sales/{historyId}")
+    public ResponseEntity<StockSaleHistoryResponse> updateSaleHistory(
+            @RequestParam Long userId,
+            @PathVariable Long itemId,
+            @PathVariable Long historyId,
+            @Valid @RequestBody StockSaleHistoryUpdateRequest request) {
+        UpdateSaleParam param = new UpdateSaleParam(
+                request.getQuantity(),
+                request.getSalePrice(),
+                request.getReason(),
+                request.getMemo()
+        );
+        return ResponseEntity.ok(portfolioService.updateSaleHistory(userId, itemId, historyId, param));
+    }
+
+    /**
+     * 매도 이력 삭제
+     */
+    @DeleteMapping("/items/stock/{itemId}/sales/{historyId}")
+    public ResponseEntity<Void> deleteSaleHistory(
+            @RequestParam Long userId,
+            @PathVariable Long itemId,
+            @PathVariable Long historyId) {
+        portfolioService.deleteSaleHistory(userId, itemId, historyId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 사용자 전체 매도 이력 조회 (매도일 내림차순)
+     */
+    @GetMapping("/sales")
+    public ResponseEntity<List<StockSaleHistoryResponse>> getAllUserSaleHistories(
+            @RequestParam Long userId) {
+        return ResponseEntity.ok(portfolioService.getAllUserSaleHistories(userId));
     }
 
     // ──────────────────────────────────────────────────────────────────

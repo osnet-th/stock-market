@@ -231,6 +231,11 @@ const API = {
         return this.request('GET', `/api/portfolio/sales?userId=${userId}`);
     },
 
+    // 매도 이력이 있는 itemId 집합 (보유 카드 삭제 disabled 판정 전용 — 경량)
+    getSaleItemIds(userId) {
+        return this.request('GET', `/api/portfolio/sales/item-ids?userId=${userId}`);
+    },
+
     // 납입 이력
     addDeposit(userId, itemId, body) {
         return this.request('POST', `/api/portfolio/items/${itemId}/deposits?userId=${userId}`, body);

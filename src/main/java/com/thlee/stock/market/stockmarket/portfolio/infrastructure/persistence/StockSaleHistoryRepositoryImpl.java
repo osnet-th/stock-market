@@ -36,17 +36,6 @@ public class StockSaleHistoryRepositoryImpl implements StockSaleHistoryRepositor
     }
 
     @Override
-    public List<StockSaleHistory> findByPortfolioItemIdIn(List<Long> portfolioItemIds) {
-        if (portfolioItemIds.isEmpty()) {
-            return List.of();
-        }
-        return jpaRepository.findByPortfolioItemIdInOrderBySoldAtAsc(portfolioItemIds)
-                .stream()
-                .map(this::toDomain)
-                .collect(Collectors.toList());
-    }
-
-    @Override
     public List<StockSaleHistory> findByUserId(Long userId) {
         return jpaRepository.findByUserId(userId)
                 .stream()
@@ -55,13 +44,13 @@ public class StockSaleHistoryRepositoryImpl implements StockSaleHistoryRepositor
     }
 
     @Override
-    public void delete(StockSaleHistory history) {
-        jpaRepository.deleteById(history.getId());
+    public List<Long> findItemIdsByUserId(Long userId) {
+        return jpaRepository.findItemIdsByUserId(userId);
     }
 
     @Override
-    public void deleteByPortfolioItemId(Long portfolioItemId) {
-        jpaRepository.deleteByPortfolioItemId(portfolioItemId);
+    public void delete(StockSaleHistory history) {
+        jpaRepository.deleteById(history.getId());
     }
 
     private StockSaleHistoryEntity toEntity(StockSaleHistory h) {

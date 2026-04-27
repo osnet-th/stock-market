@@ -265,14 +265,19 @@ flowchart TB
   - 도메인:
     - `PortfolioItem`에 `private PortfolioItemStatus status` 필드 + `closeItem()` / `reopenItem()` / `deductStockQuantity(int)` 메서드 추가.
     - 모든 factory(`create`, `createWithStock`, `createWithBond`, …)에서 `status = ACTIVE` 초기화.
-    - 15-arg → 16-arg reconstruction constructor (status 추가). `version`은 도메인에 노출 X(엔티티-only).
+    - 15-arg → 17-arg reconstruction constructor (status, version 추가).
+    - **(2026-04-27 보정)** `version`도 도메인에 패스스루 필드로 보유.
+      - `private Long version` (Lombok `@Getter`만 노출, mutate 메서드/setter 없음 — 도메인은 *읽기 전용 패스스루*).
+      - 새 항목 factory(`createWithStock` 등)는 `version = 0L` 초기화.
+      - reconstruction 시 entity → domain → entity 왕복에서 version 손실 시 `Detached entity ... uninitialized version` 발생하므로, mapper가 도메인을 통해 version을 전달해야 함.
     - `closeItem()`은 `status == ACTIVE` 검증 후 CLOSED 전환, 재오픈은 사후 수정에서 사용(quantity > 0 복원 시).
     - `deductStockQuantity(int)`는 stockDetail 전용 — 새 quantity와 investedAmount 재계산. 새 quantity가 0이면 자동 closeItem 호출.
   - 엔티티:
     - `PortfolioItemEntity`에 `@Column(nullable=false) PortfolioItemStatus status`, `@Version Long version` 추가. 기존 9-arg constructor → 11-arg.
     - 9개 sub-entity의 `super(...)` 호출 갱신.
+    - **(2026-04-27 보정)** `status`/`version` 컬럼은 NOT NULL이므로 기존 데이터가 존재하는 환경에서 ddl-auto:update가 실패하지 않도록 `columnDefinition`에 DEFAULT(`'ACTIVE'`, `0`) 명시.
   - 매퍼:
-    - `toEntity` 9개 case branch에 status 전달. `toDomain`에 status 매핑 추가.
+    - `toEntity` 9개 case branch에 status, version 전달. `toDomain`에 status, version 매핑 추가.
   - 마이그레이션: 기존 행은 `status='ACTIVE'`, `version=0`으로 backfill. SQL은 application 부팅 시 `ddl-auto: update`가 처리하나, **CLAUDE.md Entity 사전 승인 규칙상** 컬럼 추가 PR은 별도 승인 필요 — 본 plan 승인이 곧 컬럼 변경 승인을 포함한다고 본다.
 
   **Execution note:** 도메인 메서드(`closeItem`/`reopenItem`/`deductStockQuantity`)는 검증 분기가 많아 test-first 권장.

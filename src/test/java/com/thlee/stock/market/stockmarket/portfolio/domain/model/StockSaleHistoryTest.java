@@ -211,20 +211,5 @@ class StockSaleHistoryTest {
             assertThat(history.getReason()).isEqualTo(SaleReason.REBALANCING);
             assertThat(history.getMemo()).isEqualTo("수정");
         }
-
-        @Test
-        @DisplayName("markDepositRecorded 호출 시 unrecordedDeposit=false")
-        void markDepositRecorded_clearsFlag() {
-            StockSaleHistory history = StockSaleHistory.create(
-                    ITEM_ID, 1,
-                    BigDecimal.valueOf(100), BigDecimal.valueOf(150),
-                    "KRW", BigDecimal.ONE, BigDecimal.valueOf(1000),
-                    SaleReason.OTHER, null, "X", "X", true, TODAY, TODAY
-            );
-
-            history.markDepositRecorded();
-
-            assertThat(history.isUnrecordedDeposit()).isFalse();
-        }
     }
 }

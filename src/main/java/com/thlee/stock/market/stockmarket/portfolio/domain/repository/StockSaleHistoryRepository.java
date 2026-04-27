@@ -17,16 +17,15 @@ public interface StockSaleHistoryRepository {
     List<StockSaleHistory> findByPortfolioItemId(Long portfolioItemId);
 
     /**
-     * 여러 PortfolioItem의 매도 이력 일괄 조회 (배치 조회로 N+1 회피)
-     */
-    List<StockSaleHistory> findByPortfolioItemIdIn(List<Long> portfolioItemIds);
-
-    /**
      * 사용자 단위 매도 이력 (매도일 내림차순) — PortfolioItem과 ID 조인
      */
     List<StockSaleHistory> findByUserId(Long userId);
 
-    void delete(StockSaleHistory history);
+    /**
+     * 사용자가 매도 이력을 1건이라도 보유한 PortfolioItem id 집합.
+     * 보유 카드 삭제 버튼 disabled 판정 등 경량 lookup 전용.
+     */
+    List<Long> findItemIdsByUserId(Long userId);
 
-    void deleteByPortfolioItemId(Long portfolioItemId);
+    void delete(StockSaleHistory history);
 }

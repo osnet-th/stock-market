@@ -34,7 +34,7 @@ class PortfolioItemRepositoryImplActiveFilterTest {
     void findByUserId_returnsOnlyActiveItems() {
         OtherItemEntity activeEntity = new OtherItemEntity(
                 10L, 1L, "기타1", BigDecimal.valueOf(1000), false,
-                "DOMESTIC", null, PortfolioItemStatus.ACTIVE,
+                "DOMESTIC", null, PortfolioItemStatus.ACTIVE, 0L,
                 LocalDateTime.now(), LocalDateTime.now()
         );
         given(jpaRepository.findByUserIdAndStatus(1L, PortfolioItemStatus.ACTIVE))
@@ -45,28 +45,6 @@ class PortfolioItemRepositoryImplActiveFilterTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getStatus()).isEqualTo(PortfolioItemStatus.ACTIVE);
         assertThat(result.get(0).getId()).isEqualTo(10L);
-    }
-
-    @Test
-    @DisplayName("findByUserIdIncludingClosed는 status 무관 항목을 모두 반환한다")
-    void findByUserIdIncludingClosed_returnsAllStatuses() {
-        OtherItemEntity active = new OtherItemEntity(
-                10L, 1L, "ACT", BigDecimal.valueOf(1000), false,
-                "DOMESTIC", null, PortfolioItemStatus.ACTIVE,
-                LocalDateTime.now(), LocalDateTime.now()
-        );
-        OtherItemEntity closed = new OtherItemEntity(
-                11L, 1L, "CLOSED", BigDecimal.valueOf(0), false,
-                "DOMESTIC", null, PortfolioItemStatus.CLOSED,
-                LocalDateTime.now(), LocalDateTime.now()
-        );
-        given(jpaRepository.findByUserId(1L)).willReturn(List.of(active, closed));
-
-        List<PortfolioItem> result = repository.findByUserIdIncludingClosed(1L);
-
-        assertThat(result).hasSize(2);
-        assertThat(result).extracting(PortfolioItem::getStatus)
-                .containsExactlyInAnyOrder(PortfolioItemStatus.ACTIVE, PortfolioItemStatus.CLOSED);
     }
 
     @Test
@@ -87,7 +65,7 @@ class PortfolioItemRepositoryImplActiveFilterTest {
     void findById_isStatusAgnostic() {
         OtherItemEntity closed = new OtherItemEntity(
                 12L, 1L, "X", BigDecimal.valueOf(0), false,
-                "DOMESTIC", null, PortfolioItemStatus.CLOSED,
+                "DOMESTIC", null, PortfolioItemStatus.CLOSED, 0L,
                 LocalDateTime.now(), LocalDateTime.now()
         );
         given(jpaRepository.findById(12L)).willReturn(Optional.of(closed));
@@ -103,7 +81,7 @@ class PortfolioItemRepositoryImplActiveFilterTest {
     void findByUserIdIn_returnsOnlyActiveItems() {
         OtherItemEntity active = new OtherItemEntity(
                 20L, 2L, "Y", BigDecimal.valueOf(500), false,
-                "DOMESTIC", null, PortfolioItemStatus.ACTIVE,
+                "DOMESTIC", null, PortfolioItemStatus.ACTIVE, 0L,
                 LocalDateTime.now(), LocalDateTime.now()
         );
         given(jpaRepository.findByUserIdInAndStatus(List.of(2L, 3L), PortfolioItemStatus.ACTIVE))
@@ -120,7 +98,7 @@ class PortfolioItemRepositoryImplActiveFilterTest {
     void findByNewsEnabled_returnsOnlyActiveItems() {
         OtherItemEntity active = new OtherItemEntity(
                 30L, 3L, "뉴스ON", BigDecimal.valueOf(100), true,
-                "DOMESTIC", null, PortfolioItemStatus.ACTIVE,
+                "DOMESTIC", null, PortfolioItemStatus.ACTIVE, 0L,
                 LocalDateTime.now(), LocalDateTime.now()
         );
         given(jpaRepository.findByNewsEnabledAndStatus(true, PortfolioItemStatus.ACTIVE))
@@ -138,7 +116,7 @@ class PortfolioItemRepositoryImplActiveFilterTest {
     void findByUserIdAndItemNameAndNewsEnabled_returnsOnlyActiveItems() {
         OtherItemEntity active = new OtherItemEntity(
                 40L, 4L, "삼성전자", BigDecimal.valueOf(1000), true,
-                "DOMESTIC", null, PortfolioItemStatus.ACTIVE,
+                "DOMESTIC", null, PortfolioItemStatus.ACTIVE, 0L,
                 LocalDateTime.now(), LocalDateTime.now()
         );
         given(jpaRepository.findByUserIdAndItemNameAndNewsEnabledAndStatus(

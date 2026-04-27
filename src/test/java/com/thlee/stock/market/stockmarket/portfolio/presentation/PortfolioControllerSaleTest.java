@@ -71,7 +71,7 @@ class PortfolioControllerSaleTest {
                 .willReturn(expected);
 
         ResponseEntity<StockSaleHistoryResponse> resp = controller.addStockSale(
-                USER_ID, STOCK_ITEM_ID, fillSaleRequest(3, BigDecimal.valueOf(80_000)));
+                USER_ID, USER_ID, STOCK_ITEM_ID, fillSaleRequest(3, BigDecimal.valueOf(80_000)));
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resp.getBody()).isEqualTo(expected);
@@ -93,7 +93,7 @@ class PortfolioControllerSaleTest {
         given(portfolioService.addStockSale(eq(USER_ID), eq(STOCK_ITEM_ID), captor.capture()))
                 .willReturn(sampleResponse());
 
-        controller.addStockSale(USER_ID, STOCK_ITEM_ID, req);
+        controller.addStockSale(USER_ID, USER_ID, STOCK_ITEM_ID, req);
 
         AddStockSaleParam captured = captor.getValue();
         assertThat(captured.quantity()).isEqualTo(5);
@@ -112,7 +112,7 @@ class PortfolioControllerSaleTest {
                 BigDecimal.ONE, BigDecimal.valueOf(10_000_000));
         given(portfolioService.getSaleContext(USER_ID, STOCK_ITEM_ID)).willReturn(expected);
 
-        ResponseEntity<StockSaleContextResponse> resp = controller.getSaleContext(USER_ID, STOCK_ITEM_ID);
+        ResponseEntity<StockSaleContextResponse> resp = controller.getSaleContext(USER_ID, USER_ID, STOCK_ITEM_ID);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resp.getBody()).isEqualTo(expected);
@@ -125,7 +125,7 @@ class PortfolioControllerSaleTest {
         given(portfolioService.getSaleHistories(USER_ID, STOCK_ITEM_ID)).willReturn(expected);
 
         ResponseEntity<List<StockSaleHistoryResponse>> resp =
-                controller.getSaleHistories(USER_ID, STOCK_ITEM_ID);
+                controller.getSaleHistories(USER_ID, USER_ID, STOCK_ITEM_ID);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resp.getBody()).hasSize(1);
@@ -145,7 +145,7 @@ class PortfolioControllerSaleTest {
                 .willReturn(sampleResponse());
 
         ResponseEntity<StockSaleHistoryResponse> resp =
-                controller.updateSaleHistory(USER_ID, STOCK_ITEM_ID, HISTORY_ID, req);
+                controller.updateSaleHistory(USER_ID, USER_ID, STOCK_ITEM_ID, HISTORY_ID, req);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         UpdateSaleParam captured = captor.getValue();
@@ -158,7 +158,7 @@ class PortfolioControllerSaleTest {
     @Test
     @DisplayName("DELETE /sales/{historyId} → 204")
     void deleteSaleHistory_returns204() {
-        ResponseEntity<Void> resp = controller.deleteSaleHistory(USER_ID, STOCK_ITEM_ID, HISTORY_ID);
+        ResponseEntity<Void> resp = controller.deleteSaleHistory(USER_ID, USER_ID, STOCK_ITEM_ID, HISTORY_ID);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
@@ -170,7 +170,7 @@ class PortfolioControllerSaleTest {
         given(portfolioService.getAllUserSaleHistories(USER_ID)).willReturn(expected);
 
         ResponseEntity<List<StockSaleHistoryResponse>> resp =
-                controller.getAllUserSaleHistories(USER_ID);
+                controller.getAllUserSaleHistories(USER_ID, USER_ID);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resp.getBody()).hasSize(1);

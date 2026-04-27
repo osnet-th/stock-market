@@ -21,6 +21,7 @@ public class PortfolioItem {
     private Region region;
     private String memo;
     private PortfolioItemStatus status;
+    private Long version;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -42,6 +43,7 @@ public class PortfolioItem {
                          Region region,
                          String memo,
                          PortfolioItemStatus status,
+                         Long version,
                          LocalDateTime createdAt,
                          LocalDateTime updatedAt,
                          StockDetail stockDetail,
@@ -58,6 +60,7 @@ public class PortfolioItem {
         this.region = region;
         this.memo = memo;
         this.status = status;
+        this.version = version;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.stockDetail = stockDetail;
@@ -80,6 +83,7 @@ public class PortfolioItem {
         this.newsEnabled = false;
         this.region = region;
         this.status = PortfolioItemStatus.ACTIVE;
+        this.version = 0L;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }

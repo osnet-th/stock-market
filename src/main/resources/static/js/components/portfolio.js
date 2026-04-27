@@ -157,8 +157,9 @@ const PortfolioComponent = {
             });
             this.portfolio.expandedSections = sections;
 
-            // 보유 카드의 삭제 disabled 판정용으로 매도 이력 인덱스 갱신
-            this.loadAllUserSales();
+            // 보유 카드의 삭제 disabled 판정용 경량 itemId 인덱스 갱신
+            // (전체 매도 이력 페이로드는 매도 이력 탭 진입 시에만 fetch)
+            this.loadSaleItemIds();
         } catch (e) {
             console.error('포트폴리오 로드 실패:', e);
             this.portfolio.items = [];
@@ -1228,6 +1229,16 @@ const PortfolioComponent = {
         } catch (e) {
             console.error('매도 등록 실패:', e);
             alert(e.message || '매도 등록에 실패했습니다.');
+        }
+    },
+
+    async loadSaleItemIds() {
+        try {
+            const ids = await API.getSaleItemIds(this.auth.userId) || [];
+            this.portfolio.userSalesItemIdsWithSales = ids;
+        } catch (e) {
+            console.error('매도 이력 itemId 조회 실패:', e);
+            this.portfolio.userSalesItemIdsWithSales = [];
         }
     },
 

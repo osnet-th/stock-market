@@ -1,14 +1,19 @@
 package com.thlee.stock.market.stockmarket.portfolio.application.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.StockSaleHistory;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.SaleReason;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class StockSaleHistoryResponse {
 
     private final Long id;
@@ -32,37 +37,6 @@ public class StockSaleHistoryResponse {
     private final LocalDate soldAt;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
-
-    private StockSaleHistoryResponse(Long id, Long portfolioItemId, int quantity,
-                                     BigDecimal avgBuyPrice, BigDecimal salePrice,
-                                     BigDecimal profit, BigDecimal profitRate, BigDecimal contributionRate,
-                                     BigDecimal totalAssetAtSale, String currency, BigDecimal fxRate,
-                                     BigDecimal salePriceKrw, BigDecimal profitKrw,
-                                     SaleReason reason, String memo,
-                                     String stockCode, String stockName, boolean unrecordedDeposit,
-                                     LocalDate soldAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id;
-        this.portfolioItemId = portfolioItemId;
-        this.quantity = quantity;
-        this.avgBuyPrice = avgBuyPrice;
-        this.salePrice = salePrice;
-        this.profit = profit;
-        this.profitRate = profitRate;
-        this.contributionRate = contributionRate;
-        this.totalAssetAtSale = totalAssetAtSale;
-        this.currency = currency;
-        this.fxRate = fxRate;
-        this.salePriceKrw = salePriceKrw;
-        this.profitKrw = profitKrw;
-        this.reason = reason;
-        this.memo = memo;
-        this.stockCode = stockCode;
-        this.stockName = stockName;
-        this.unrecordedDeposit = unrecordedDeposit;
-        this.soldAt = soldAt;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
 
     public static StockSaleHistoryResponse from(StockSaleHistory history) {
         return new StockSaleHistoryResponse(

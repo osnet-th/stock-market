@@ -71,7 +71,7 @@ class PortfolioServiceDeleteItemSaleGuardTest {
                 STOCK_ITEM_ID, USER_ID, "삼성전자", AssetType.STOCK,
                 BigDecimal.valueOf(70_000).multiply(BigDecimal.valueOf(Math.max(quantity, 1))),
                 false, Region.DOMESTIC, null,
-                status, LocalDateTime.now(), LocalDateTime.now(),
+                status, 0L, LocalDateTime.now(), LocalDateTime.now(),
                 detail, null, null, null, null
         );
     }

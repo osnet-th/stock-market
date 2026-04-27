@@ -31,7 +31,9 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.repository.StockPurch
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.StockSaleHistoryRepository;
 import com.thlee.stock.market.stockmarket.stock.domain.service.ExchangeRatePort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -62,6 +64,22 @@ public class PortfolioService {
     private final KeywordRepository keywordRepository;
     private final UserKeywordRepository userKeywordRepository;
     private final DomainEventLogger domainEventLogger;
+    private final ObjectProvider<PortfolioService> selfProvider;
+
+    /**
+     * 자기 참조(AOP 프록시) — `addStockSale`처럼 외부 호출과 DB 트랜잭션을 분리해야 하는 메서드에서 사용.
+     * 같은 클래스 내부 호출은 트랜잭션 어노테이션이 적용되지 않으므로(Spring AOP 한계),
+     * `selfProvider.getObject()`를 통해 프록시를 거쳐 호출한다.
+     */
+    private PortfolioService self() {
+        return selfProvider.getObject();
+    }
+
+    /**
+     * 매도 트랜잭션 진입 전 외부 의존성(환율, 총자산 평가) 스냅샷.
+     */
+    private record SaleSnapshot(String currency, BigDecimal fxRate, BigDecimal totalAssetAtSale) {
+    }
 
     /**
      * 주식 항목 등록 (investedAmount = quantity × purchasePrice 자동 계산)
@@ -610,9 +628,42 @@ public class PortfolioService {
      * 3. CASH 입금 처리 (링크 있음 → 자동 / depositCashItemId 지정 → 해당 CASH / CASH 0개 → unrecordedDeposit)
      * 4. 전량 매도 시 CashStockLink 해제
      * 5. StockSaleHistory 저장
+     *
+     * <p>외부 HTTP 호출(환율, KIS 가격 평가)을 트랜잭션 외부로 분리하여 DB 커넥션 hold 시간을 최소화한다.
+     * institutional learning: external-http-per-item-transaction-isolation-2026-04-26.md</p>
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public StockSaleHistoryResponse addStockSale(Long userId, Long stockItemId, AddStockSaleParam param) {
+        SaleSnapshot snapshot = self().prepareStockSaleSnapshot(userId, stockItemId, param);
+        return self().persistStockSale(userId, stockItemId, param, snapshot);
+    }
+
+    /**
+     * 매도 트랜잭션 진입 전 단계 — 항목 검증 + 외부 호출(환율, 사용자 총자산).
+     * 트랜잭션 외부에서 실행되어 KIS/환율 API 응답 지연이 DB 락 보유 시간에 영향 주지 않는다.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public SaleSnapshot prepareStockSaleSnapshot(Long userId, Long stockItemId, AddStockSaleParam param) {
+        PortfolioItem stockItem = findUserItem(userId, stockItemId);
+        if (stockItem.getAssetType() != AssetType.STOCK || stockItem.getStockDetail() == null) {
+            throw new IllegalArgumentException("주식 항목만 매도할 수 있습니다.");
+        }
+        if (stockItem.getStatus() != PortfolioItemStatus.ACTIVE) {
+            throw new IllegalArgumentException("이미 마감된 항목은 매도할 수 없습니다.");
+        }
+        StockDetail detail = stockItem.getStockDetail();
+        String currency = detail.getPriceCurrency() != null ? detail.getPriceCurrency().name() : "KRW";
+        BigDecimal fxRate = resolveFxRate(currency, param.fxRate());
+        BigDecimal totalAssetAtSale = portfolioEvaluationService.computeTotalAsset(userId);
+        return new SaleSnapshot(currency, fxRate, totalAssetAtSale);
+    }
+
+    /**
+     * 매도 DB 트랜잭션 — 외부 호출 없이 PortfolioItem/CashItem/StockSaleHistory 영속화만 수행.
+     * 동시성을 위해 항목 상태/통화는 다시 한 번 확인한다(스냅샷 단계 이후 race 보호).
      */
     @Transactional
-    public StockSaleHistoryResponse addStockSale(Long userId, Long stockItemId, AddStockSaleParam param) {
+    public StockSaleHistoryResponse persistStockSale(Long userId, Long stockItemId, AddStockSaleParam param, SaleSnapshot snapshot) {
         LocalDate today = LocalDate.now();
 
         PortfolioItem stockItem = findUserItem(userId, stockItemId);
@@ -624,11 +675,7 @@ public class PortfolioService {
         }
 
         StockDetail detail = stockItem.getStockDetail();
-        String currency = detail.getPriceCurrency() != null ? detail.getPriceCurrency().name() : "KRW";
-
-        BigDecimal fxRate = resolveFxRate(currency, param.fxRate());
-        BigDecimal salePriceKrw = computeSalePriceKrw(param.salePrice(), param.quantity(), fxRate);
-        BigDecimal totalAssetAtSale = portfolioEvaluationService.computeTotalAsset(userId);
+        BigDecimal salePriceKrw = computeSalePriceKrw(param.salePrice(), param.quantity(), snapshot.fxRate());
 
         DepositResolution deposit = resolveDepositTarget(userId, stockItemId, param.depositCashItemId(), salePriceKrw);
 
@@ -637,9 +684,9 @@ public class PortfolioService {
                 param.quantity(),
                 detail.getAvgBuyPrice(),
                 param.salePrice(),
-                currency,
-                fxRate,
-                totalAssetAtSale,
+                snapshot.currency(),
+                snapshot.fxRate(),
+                snapshot.totalAssetAtSale(),
                 param.reason(),
                 param.memo(),
                 detail.getStockCode(),
@@ -689,9 +736,21 @@ public class PortfolioService {
     }
 
     /**
+     * 매도 이력이 1건이라도 있는 PortfolioItem id 집합.
+     * 보유 카드 삭제 버튼 disabled 판정 전용 경량 조회.
+     */
+    public List<Long> getSaleItemIds(Long userId) {
+        return stockSaleHistoryRepository.findItemIdsByUserId(userId);
+    }
+
+    /**
      * 매도 모달 진입 시 자동 입력 컨텍스트.
      * 현재가(KRW/원본) + 통화 + 환율(자동 조회) + 사용자 총자산 평가금액 묶음.
+     *
+     * <p>KIS/환율 외부 호출이 다수 발생하므로 클래스 레벨 readOnly 트랜잭션을 사용하지 않는다.
+     * 각 repo 호출은 implicit single-statement 트랜잭션으로 처리된다.</p>
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public StockSaleContextResponse getSaleContext(Long userId, Long stockItemId) {
         PortfolioItem stockItem = findUserItem(userId, stockItemId);
         if (stockItem.getAssetType() != AssetType.STOCK || stockItem.getStockDetail() == null) {

@@ -43,14 +43,6 @@ public class PortfolioItemRepositoryImpl implements PortfolioItemRepository {
     }
 
     @Override
-    public List<PortfolioItem> findByUserIdIncludingClosed(Long userId) {
-        return portfolioItemJpaRepository.findByUserId(userId)
-                .stream()
-                .map(PortfolioItemMapper::toDomain)
-                .collect(Collectors.toList());
-    }
-
-    @Override
     public List<PortfolioItem> findByNewsEnabled(boolean newsEnabled) {
         return portfolioItemJpaRepository.findByNewsEnabledAndStatus(newsEnabled, PortfolioItemStatus.ACTIVE)
                 .stream()

@@ -1,6 +1,8 @@
 package com.thlee.stock.market.stockmarket.portfolio.domain.model;
 
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.SaleReason;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -16,6 +18,7 @@ import java.time.LocalDateTime;
  * 파생값은 {@link #recomputeProfit(BigDecimal, BigDecimal)}으로 재계산한다.</p>
  */
 @Getter
+@AllArgsConstructor(access = AccessLevel.PUBLIC)
 public class StockSaleHistory {
 
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
@@ -43,53 +46,6 @@ public class StockSaleHistory {
     private LocalDate soldAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    /**
-     * 재구성용 생성자 (Repository 조회 시)
-     */
-    public StockSaleHistory(Long id,
-                            Long portfolioItemId,
-                            int quantity,
-                            BigDecimal avgBuyPrice,
-                            BigDecimal salePrice,
-                            BigDecimal profit,
-                            BigDecimal profitRate,
-                            BigDecimal contributionRate,
-                            BigDecimal totalAssetAtSale,
-                            String currency,
-                            BigDecimal fxRate,
-                            BigDecimal salePriceKrw,
-                            BigDecimal profitKrw,
-                            SaleReason reason,
-                            String memo,
-                            String stockCode,
-                            String stockName,
-                            boolean unrecordedDeposit,
-                            LocalDate soldAt,
-                            LocalDateTime createdAt,
-                            LocalDateTime updatedAt) {
-        this.id = id;
-        this.portfolioItemId = portfolioItemId;
-        this.quantity = quantity;
-        this.avgBuyPrice = avgBuyPrice;
-        this.salePrice = salePrice;
-        this.profit = profit;
-        this.profitRate = profitRate;
-        this.contributionRate = contributionRate;
-        this.totalAssetAtSale = totalAssetAtSale;
-        this.currency = currency;
-        this.fxRate = fxRate;
-        this.salePriceKrw = salePriceKrw;
-        this.profitKrw = profitKrw;
-        this.reason = reason;
-        this.memo = memo;
-        this.stockCode = stockCode;
-        this.stockName = stockName;
-        this.unrecordedDeposit = unrecordedDeposit;
-        this.soldAt = soldAt;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
 
     /**
      * 새 매도 이력 생성. 파생값(profit/rate/krw)은 자동 계산된다.
@@ -177,14 +133,6 @@ public class StockSaleHistory {
                     .multiply(HUNDRED).setScale(FINAL_SCALE, RoundingMode.HALF_UP);
         }
 
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    /**
-     * unrecordedDeposit 플래그 갱신 (CASH 미입금 → 입금 처리 등).
-     */
-    public void markDepositRecorded() {
-        this.unrecordedDeposit = false;
         this.updatedAt = LocalDateTime.now();
     }
 

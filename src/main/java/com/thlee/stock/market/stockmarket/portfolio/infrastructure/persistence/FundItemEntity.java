@@ -36,13 +36,14 @@ public class FundItemEntity extends PortfolioItemEntity {
                           String region,
                           String memo,
                           PortfolioItemStatus status,
+                          Long version,
                           LocalDateTime createdAt,
                           LocalDateTime updatedAt,
                           String subType,
                           BigDecimal managementFee,
                           BigDecimal monthlyDepositAmount,
                           Integer depositDay) {
-        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, createdAt, updatedAt);
+        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, version, createdAt, updatedAt);
         this.subType = subType;
         this.managementFee = managementFee;
         this.monthlyDepositAmount = monthlyDepositAmount;

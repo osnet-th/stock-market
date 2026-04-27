@@ -10,8 +10,6 @@ import java.util.List;
  */
 public interface PortfolioItemJpaRepository extends JpaRepository<PortfolioItemEntity, Long> {
 
-    List<PortfolioItemEntity> findByUserId(Long userId);
-
     List<PortfolioItemEntity> findByUserIdAndStatus(Long userId, PortfolioItemStatus status);
 
     List<PortfolioItemEntity> findByNewsEnabledAndStatus(boolean newsEnabled, PortfolioItemStatus status);

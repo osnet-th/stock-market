@@ -22,8 +22,9 @@ public class GoldItemEntity extends PortfolioItemEntity {
                           String region,
                           String memo,
                           PortfolioItemStatus status,
+                          Long version,
                           LocalDateTime createdAt,
                           LocalDateTime updatedAt) {
-        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, createdAt, updatedAt);
+        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, version, createdAt, updatedAt);
     }
 }

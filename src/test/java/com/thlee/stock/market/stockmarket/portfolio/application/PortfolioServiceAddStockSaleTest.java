@@ -33,6 +33,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -61,6 +62,7 @@ class PortfolioServiceAddStockSaleTest {
     @Mock KeywordRepository keywordRepository;
     @Mock UserKeywordRepository userKeywordRepository;
     @Mock DomainEventLogger domainEventLogger;
+    @Mock ObjectProvider<PortfolioService> selfProvider;
 
     @InjectMocks PortfolioService portfolioService;
 
@@ -96,7 +98,7 @@ class PortfolioServiceAddStockSaleTest {
         return new PortfolioItem(
                 CASH_ITEM_ID, USER_ID, "CMA", AssetType.CASH,
                 amount, false, Region.DOMESTIC, null,
-                PortfolioItemStatus.ACTIVE,
+                PortfolioItemStatus.ACTIVE, 0L,
                 LocalDateTime.now(), LocalDateTime.now(),
                 null, null, null, null, cashDetail
         );
@@ -106,7 +108,8 @@ class PortfolioServiceAddStockSaleTest {
         return new PortfolioItem(
                 id, origin.getUserId(), origin.getItemName(), origin.getAssetType(),
                 origin.getInvestedAmount(), origin.isNewsEnabled(), origin.getRegion(),
-                origin.getMemo(), origin.getStatus(), origin.getCreatedAt(), origin.getUpdatedAt(),
+                origin.getMemo(), origin.getStatus(), origin.getVersion(),
+                origin.getCreatedAt(), origin.getUpdatedAt(),
                 origin.getStockDetail(), origin.getBondDetail(), origin.getRealEstateDetail(),
                 origin.getFundDetail(), origin.getCashDetail()
         );
@@ -117,6 +120,8 @@ class PortfolioServiceAddStockSaleTest {
         // save 호출 시 입력 그대로 반환 (id 부여 없는 echo)
         given(stockSaleHistoryRepository.save(any(StockSaleHistory.class)))
                 .willAnswer(inv -> inv.getArgument(0));
+        // self() 호출이 동일 인스턴스를 반환하도록 stub (트랜잭션 분리 self-ref 패턴 단위테스트 회피)
+        given(selfProvider.getObject()).willReturn(portfolioService);
     }
 
     private AddStockSaleParam param(int quantity, BigDecimal salePrice, BigDecimal fxRate, Long depositCashItemId) {

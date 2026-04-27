@@ -14,6 +14,8 @@ import com.thlee.stock.market.stockmarket.portfolio.presentation.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -30,6 +32,17 @@ public class PortfolioController {
 
     private final PortfolioService portfolioService;
     private final PortfolioAllocationService portfolioAllocationService;
+
+    /**
+     * JWT 인증된 사용자(principal)와 query userId의 일치 검증.
+     * dev 환경(permitAll, anonymous principal)에서는 jwtUserId가 null이므로 검증을 건너뛴다.
+     * 운영(JWT 강제) 환경에서만 IDOR을 차단한다.
+     */
+    private void assertUserMatches(Long jwtUserId, Long requestedUserId) {
+        if (jwtUserId != null && !jwtUserId.equals(requestedUserId)) {
+            throw new AccessDeniedException("요청한 사용자 정보가 인증된 사용자와 일치하지 않습니다.");
+        }
+    }
 
     /**
      * 주식 항목 등록
@@ -291,8 +304,10 @@ public class PortfolioController {
      */
     @GetMapping("/items/stock/{itemId}/sale-context")
     public ResponseEntity<StockSaleContextResponse> getSaleContext(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId) {
+        assertUserMatches(jwtUserId, userId);
         return ResponseEntity.ok(portfolioService.getSaleContext(userId, itemId));
     }
 
@@ -301,9 +316,11 @@ public class PortfolioController {
      */
     @PostMapping("/items/stock/{itemId}/sale")
     public ResponseEntity<StockSaleHistoryResponse> addStockSale(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @Valid @RequestBody StockSaleRequest request) {
+        assertUserMatches(jwtUserId, userId);
         AddStockSaleParam param = new AddStockSaleParam(
                 request.getQuantity(),
                 request.getSalePrice(),
@@ -321,8 +338,10 @@ public class PortfolioController {
      */
     @GetMapping("/items/stock/{itemId}/sales")
     public ResponseEntity<List<StockSaleHistoryResponse>> getSaleHistories(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId) {
+        assertUserMatches(jwtUserId, userId);
         return ResponseEntity.ok(portfolioService.getSaleHistories(userId, itemId));
     }
 
@@ -331,10 +350,12 @@ public class PortfolioController {
      */
     @PutMapping("/items/stock/{itemId}/sales/{historyId}")
     public ResponseEntity<StockSaleHistoryResponse> updateSaleHistory(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @PathVariable Long historyId,
             @Valid @RequestBody StockSaleHistoryUpdateRequest request) {
+        assertUserMatches(jwtUserId, userId);
         UpdateSaleParam param = new UpdateSaleParam(
                 request.getQuantity(),
                 request.getSalePrice(),
@@ -349,9 +370,11 @@ public class PortfolioController {
      */
     @DeleteMapping("/items/stock/{itemId}/sales/{historyId}")
     public ResponseEntity<Void> deleteSaleHistory(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @PathVariable Long historyId) {
+        assertUserMatches(jwtUserId, userId);
         portfolioService.deleteSaleHistory(userId, itemId, historyId);
         return ResponseEntity.noContent().build();
     }
@@ -361,8 +384,21 @@ public class PortfolioController {
      */
     @GetMapping("/sales")
     public ResponseEntity<List<StockSaleHistoryResponse>> getAllUserSaleHistories(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId) {
+        assertUserMatches(jwtUserId, userId);
         return ResponseEntity.ok(portfolioService.getAllUserSaleHistories(userId));
+    }
+
+    /**
+     * 매도 이력이 있는 PortfolioItem id 집합 (경량 — 보유 카드 disabled 판정 전용).
+     */
+    @GetMapping("/sales/item-ids")
+    public ResponseEntity<List<Long>> getSaleItemIds(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId) {
+        assertUserMatches(jwtUserId, userId);
+        return ResponseEntity.ok(portfolioService.getSaleItemIds(userId));
     }
 
     // ──────────────────────────────────────────────────────────────────

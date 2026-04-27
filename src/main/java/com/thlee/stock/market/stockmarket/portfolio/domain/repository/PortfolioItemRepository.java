@@ -11,7 +11,6 @@ import java.util.Optional;
  * 도메인 계층에 정의하여 인프라 계층이 구현
  *
  * <p>기본 조회 메서드는 ACTIVE 상태(보유 중)인 항목만 반환한다.
- * CLOSED(전량 매도 완료) 항목까지 포함해야 하는 경우 명시적 *IncludingClosed 메서드를 사용한다.
  * 단건 {@link #findById(Long)}는 status 무관하게 반환한다(매도 이력 사후 수정 등 CLOSED 접근 필요).</p>
  */
 public interface PortfolioItemRepository {
@@ -30,11 +29,6 @@ public interface PortfolioItemRepository {
      * 사용자별 ACTIVE 항목 조회
      */
     List<PortfolioItem> findByUserId(Long userId);
-
-    /**
-     * 사용자별 전체 항목 조회 (ACTIVE + CLOSED)
-     */
-    List<PortfolioItem> findByUserIdIncludingClosed(Long userId);
 
     /**
      * 뉴스 활성화된 ACTIVE 항목 조회

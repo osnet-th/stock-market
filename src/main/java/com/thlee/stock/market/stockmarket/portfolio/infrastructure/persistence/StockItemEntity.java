@@ -54,6 +54,7 @@ public class StockItemEntity extends PortfolioItemEntity {
                            String region,
                            String memo,
                            PortfolioItemStatus status,
+                           Long version,
                            LocalDateTime createdAt,
                            LocalDateTime updatedAt,
                            String subType,
@@ -66,7 +67,7 @@ public class StockItemEntity extends PortfolioItemEntity {
                            BigDecimal dividendYield,
                            String priceCurrency,
                            BigDecimal investedAmountKrw) {
-        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, createdAt, updatedAt);
+        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, version, createdAt, updatedAt);
         this.subType = subType;
         this.stockCode = stockCode;
         this.market = market;

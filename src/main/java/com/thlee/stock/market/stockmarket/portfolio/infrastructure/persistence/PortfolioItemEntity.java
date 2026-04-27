@@ -51,11 +51,13 @@ public abstract class PortfolioItemEntity {
     private String memo;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 20,
+            columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'")
     private PortfolioItemStatus status;
 
     @Version
-    @Column(name = "version", nullable = false)
+    @Column(name = "version", nullable = false,
+            columnDefinition = "BIGINT NOT NULL DEFAULT 0")
     private Long version;
 
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -75,6 +77,7 @@ public abstract class PortfolioItemEntity {
                                   String region,
                                   String memo,
                                   PortfolioItemStatus status,
+                                  Long version,
                                   LocalDateTime createdAt,
                                   LocalDateTime updatedAt) {
         this.id = id;
@@ -85,6 +88,7 @@ public abstract class PortfolioItemEntity {
         this.region = region;
         this.memo = memo;
         this.status = status;
+        this.version = version;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }

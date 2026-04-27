@@ -36,6 +36,21 @@ const PortfolioComponent = {
         depositHistories: [],
         editingDeposit: null,
         editDepositForm: { depositDate: '', amount: '', units: '', memo: '' },
+        // 매도 상태
+        activeTab: 'items',
+        showSaleModal: false,
+        saleItem: null,
+        saleForm: { quantity: '', salePrice: '', soldAt: '', reason: 'OTHER', memo: '', fxRate: '', depositCashItemId: '', confirmUnrecorded: false },
+        saleContext: { currentPriceKrw: null, currentPriceOriginal: null, currency: 'KRW', fxRate: null, totalAsset: null },
+        salePreview: { profit: 0, profitRate: 0, contributionRate: 0, salePriceKrw: 0, profitKrw: 0 },
+        userCashItems: [],
+        userSales: [],
+        userSalesLoading: false,
+        userSalesItemIdsWithSales: [],
+        showSaleDetailModal: false,
+        saleDetail: null,
+        editingSaleHistory: false,
+        editSaleForm: { quantity: '', salePrice: '', reason: 'OTHER', memo: '' },
         selectedNewsItemId: null,
         news: { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false },
         collectingItemId: null,
@@ -141,6 +156,10 @@ const PortfolioComponent = {
                 }
             });
             this.portfolio.expandedSections = sections;
+
+            // 보유 카드의 삭제 disabled 판정용 경량 itemId 인덱스 갱신
+            // (전체 매도 이력 페이로드는 매도 이력 탭 진입 시에만 fetch)
+            this.loadSaleItemIds();
         } catch (e) {
             console.error('포트폴리오 로드 실패:', e);
             this.portfolio.items = [];
@@ -1046,6 +1065,297 @@ const PortfolioComponent = {
         } catch (e) {
             console.error('매수이력 삭제 실패:', e);
             alert(e.message || '매수이력 삭제에 실패했습니다.');
+        }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // 매도 모달 / 매도 이력 / 사후 수정·삭제
+    // ─────────────────────────────────────────────────────────────────────
+
+    SALE_REASON_LABELS: {
+        TARGET_PRICE_REACHED: '목표가 도달',
+        STOP_LOSS: '손절',
+        CASH_NEEDED: '현금 확보',
+        REBALANCING: '리밸런싱',
+        OTHER: '기타'
+    },
+
+    saleReasonLabel(reason) {
+        return this.SALE_REASON_LABELS[reason] || reason || '기타';
+    },
+
+    hasSaleHistories(itemId) {
+        return this.portfolio.userSalesItemIdsWithSales.includes(itemId);
+    },
+
+    closeSaleModal() {
+        this.portfolio.showSaleModal = false;
+        this.portfolio.saleItem = null;
+        this.portfolio.saleForm = { quantity: '', salePrice: '', soldAt: '', reason: 'OTHER', memo: '', fxRate: '', depositCashItemId: '', confirmUnrecorded: false };
+        this.portfolio.saleContext = { currentPriceKrw: null, currentPriceOriginal: null, currency: 'KRW', fxRate: null, totalAsset: null };
+        this.portfolio.salePreview = { profit: 0, profitRate: 0, contributionRate: 0, salePriceKrw: 0, profitKrw: 0 };
+        this.portfolio.userCashItems = [];
+    },
+
+    async openSaleModal(item) {
+        if (!item || !item.stockDetail) {
+            console.warn('Cannot open sale modal without stockDetail', { id: item?.id, itemName: item?.itemName });
+            return;
+        }
+        this.portfolio.saleItem = item;
+        const today = new Date().toISOString().slice(0, 10);
+        this.portfolio.saleForm = {
+            quantity: item.stockDetail.quantity || '',
+            salePrice: '',
+            soldAt: today,
+            reason: 'OTHER',
+            memo: '',
+            fxRate: '',
+            depositCashItemId: '',
+            confirmUnrecorded: false
+        };
+        this.portfolio.saleContext = { currentPriceKrw: null, currentPriceOriginal: null, currency: item.stockDetail.priceCurrency || 'KRW', fxRate: null, totalAsset: null };
+        this.portfolio.salePreview = { profit: 0, profitRate: 0, contributionRate: 0, salePriceKrw: 0, profitKrw: 0 };
+        this.portfolio.userCashItems = (this.portfolio.items || []).filter(i => i.assetType === 'CASH');
+        this.portfolio.showSaleModal = true;
+
+        try {
+            const ctx = await API.getSaleContext(this.auth.userId, item.id);
+            this.portfolio.saleContext = ctx || this.portfolio.saleContext;
+
+            // 자동 입력: 단가는 종목 통화 기준 currentPriceOriginal, 환율은 자동 조회 결과
+            if (ctx && ctx.currentPriceOriginal != null) {
+                this.portfolio.saleForm.salePrice = Number(ctx.currentPriceOriginal);
+            }
+            if (ctx && ctx.currency !== 'KRW' && ctx.fxRate != null) {
+                this.portfolio.saleForm.fxRate = Number(ctx.fxRate);
+            }
+            this.recalculateSalePreview();
+        } catch (e) {
+            console.error('매도 컨텍스트 조회 실패:', e);
+        }
+    },
+
+    recalculateSalePreview() {
+        const item = this.portfolio.saleItem;
+        if (!item || !item.stockDetail) return;
+
+        const quantity = Number(this.portfolio.saleForm.quantity) || 0;
+        const salePrice = Number(this.portfolio.saleForm.salePrice) || 0;
+        const avgBuyPrice = Number(item.stockDetail.avgBuyPrice) || 0;
+        const currency = this.portfolio.saleContext.currency || 'KRW';
+
+        let fxRate = currency === 'KRW' ? 1 : Number(this.portfolio.saleForm.fxRate) || 0;
+
+        const totalAsset = Number(this.portfolio.saleContext.totalAsset) || 0;
+
+        const profit = (salePrice - avgBuyPrice) * quantity;
+        const cost = avgBuyPrice * quantity;
+        const profitRate = cost > 0 ? (profit / cost) * 100 : 0;
+
+        let salePriceKrw = 0;
+        let profitKrw = 0;
+        if (fxRate > 0) {
+            salePriceKrw = salePrice * fxRate * quantity;
+            profitKrw = profit * fxRate;
+        }
+
+        const contributionBase = fxRate > 0 ? profitKrw : profit;
+        const contributionRate = totalAsset > 0 ? (contributionBase / totalAsset) * 100 : 0;
+
+        this.portfolio.salePreview = {
+            profit: Math.round(profit * 100) / 100,
+            profitRate: Math.round(profitRate * 100) / 100,
+            contributionRate: Math.round(contributionRate * 100) / 100,
+            salePriceKrw: Math.round(salePriceKrw * 100) / 100,
+            profitKrw: Math.round(profitKrw * 100) / 100
+        };
+    },
+
+    async submitSale() {
+        const form = this.portfolio.saleForm;
+        const item = this.portfolio.saleItem;
+        if (!item || !item.stockDetail) return;
+
+        if (!form.quantity || Number(form.quantity) <= 0) {
+            alert('매도 수량을 입력해주세요.');
+            return;
+        }
+        if (Number(form.quantity) > item.stockDetail.quantity) {
+            alert(`보유 수량(${item.stockDetail.quantity})을 초과한 매도입니다.`);
+            return;
+        }
+        if (!form.salePrice || Number(form.salePrice) <= 0) {
+            alert('판매 단가를 입력해주세요.');
+            return;
+        }
+        if (!form.soldAt) {
+            alert('매도일을 입력해주세요.');
+            return;
+        }
+        if (!form.reason) {
+            alert('매도 사유를 선택해주세요.');
+            return;
+        }
+
+        const currency = this.portfolio.saleContext.currency || 'KRW';
+        if (currency !== 'KRW' && (!form.fxRate || Number(form.fxRate) <= 0)) {
+            alert('환율을 입력해주세요. 자동 조회에 실패한 경우 직접 입력이 필요합니다.');
+            return;
+        }
+
+        const link = this.portfolio.userCashItems.length === 0;
+        if (link && !form.confirmUnrecorded) {
+            // CASH 항목이 없는 경우 사용자 명시 확인 (서버가 unrecordedDeposit=true로 처리)
+        }
+
+        const payload = {
+            quantity: Number(form.quantity),
+            salePrice: Number(form.salePrice),
+            soldAt: form.soldAt,
+            reason: form.reason,
+            memo: form.memo || null,
+            fxRate: form.fxRate ? Number(form.fxRate) : null,
+            depositCashItemId: form.depositCashItemId ? Number(form.depositCashItemId) : null
+        };
+
+        try {
+            await API.addStockSale(this.auth.userId, item.id, payload);
+            this.closeSaleModal();
+            await this.loadPortfolio();
+            if (this.portfolio.activeTab === 'sales') {
+                await this.loadAllUserSales();
+            }
+        } catch (e) {
+            console.error('매도 등록 실패:', e);
+            alert(e.message || '매도 등록에 실패했습니다.');
+        }
+    },
+
+    async loadSaleItemIds() {
+        try {
+            const ids = await API.getSaleItemIds(this.auth.userId) || [];
+            this.portfolio.userSalesItemIdsWithSales = ids;
+        } catch (e) {
+            console.error('매도 이력 itemId 조회 실패:', e);
+            this.portfolio.userSalesItemIdsWithSales = [];
+        }
+    },
+
+    async loadAllUserSales() {
+        this.portfolio.userSalesLoading = true;
+        try {
+            const sales = await API.getAllUserSaleHistories(this.auth.userId) || [];
+            this.portfolio.userSales = sales;
+            this.portfolio.userSalesItemIdsWithSales = [...new Set(sales.map(s => s.portfolioItemId))];
+        } catch (e) {
+            console.error('매도 이력 조회 실패:', e);
+            this.portfolio.userSales = [];
+            this.portfolio.userSalesItemIdsWithSales = [];
+        } finally {
+            this.portfolio.userSalesLoading = false;
+        }
+    },
+
+    groupSalesByMonth() {
+        const groups = {};
+        for (const sale of this.portfolio.userSales) {
+            const month = (sale.soldAt || '').slice(0, 7);
+            if (!groups[month]) {
+                groups[month] = { month, items: [], totalSaleAmount: 0, totalProfit: 0 };
+            }
+            groups[month].items.push(sale);
+            groups[month].totalSaleAmount += Number(sale.salePriceKrw || 0);
+            groups[month].totalProfit += Number(sale.profitKrw || sale.profit || 0);
+        }
+        return Object.values(groups).sort((a, b) => b.month.localeCompare(a.month));
+    },
+
+    setActiveTab(tab) {
+        this.portfolio.activeTab = tab;
+        if (tab === 'sales') {
+            this.loadAllUserSales();
+        }
+    },
+
+    openSaleDetailModal(history) {
+        this.portfolio.saleDetail = history;
+        this.portfolio.editingSaleHistory = false;
+        this.portfolio.editSaleForm = {
+            quantity: history.quantity,
+            salePrice: history.salePrice,
+            reason: history.reason,
+            memo: history.memo || ''
+        };
+        this.portfolio.showSaleDetailModal = true;
+    },
+
+    closeSaleDetailModal() {
+        this.portfolio.showSaleDetailModal = false;
+        this.portfolio.saleDetail = null;
+        this.portfolio.editingSaleHistory = false;
+    },
+
+    startEditSaleHistory() {
+        const history = this.portfolio.saleDetail;
+        if (!history) return;
+        this.portfolio.editSaleForm = {
+            quantity: history.quantity,
+            salePrice: history.salePrice,
+            reason: history.reason,
+            memo: history.memo || ''
+        };
+        this.portfolio.editingSaleHistory = true;
+    },
+
+    cancelEditSaleHistory() {
+        this.portfolio.editingSaleHistory = false;
+    },
+
+    async submitSaleEdit() {
+        const history = this.portfolio.saleDetail;
+        const form = this.portfolio.editSaleForm;
+        if (!history) return;
+
+        if (!form.quantity || Number(form.quantity) <= 0) {
+            alert('수량을 입력해주세요.');
+            return;
+        }
+        if (!form.salePrice || Number(form.salePrice) <= 0) {
+            alert('판매 단가를 입력해주세요.');
+            return;
+        }
+
+        try {
+            const updated = await API.updateSaleHistory(this.auth.userId, history.portfolioItemId, history.id, {
+                quantity: Number(form.quantity),
+                salePrice: Number(form.salePrice),
+                reason: form.reason,
+                memo: form.memo || null
+            });
+            this.portfolio.saleDetail = updated;
+            this.portfolio.editingSaleHistory = false;
+            await this.loadAllUserSales();
+            await this.loadPortfolio();
+        } catch (e) {
+            console.error('매도 이력 수정 실패:', e);
+            alert(e.message || '매도 이력 수정에 실패했습니다.');
+        }
+    },
+
+    async confirmDeleteSale() {
+        const history = this.portfolio.saleDetail;
+        if (!history) return;
+        if (!confirm('이 매도 이력을 삭제하시겠습니까?\n보유 수량 복원, CASH 차감(미입금 제외), 마감 항목은 보유 상태로 복원됩니다.')) return;
+
+        try {
+            await API.deleteSaleHistory(this.auth.userId, history.portfolioItemId, history.id);
+            this.closeSaleDetailModal();
+            await this.loadAllUserSales();
+            await this.loadPortfolio();
+        } catch (e) {
+            console.error('매도 이력 삭제 실패:', e);
+            alert(e.message || '매도 이력 삭제에 실패했습니다.');
         }
     },
 

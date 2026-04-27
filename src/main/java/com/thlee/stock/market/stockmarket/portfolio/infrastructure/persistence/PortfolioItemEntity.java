@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence;
 
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -49,6 +50,16 @@ public abstract class PortfolioItemEntity {
     @Column(name = "memo", length = 500)
     private String memo;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20,
+            columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'")
+    private PortfolioItemStatus status;
+
+    @Version
+    @Column(name = "version", nullable = false,
+            columnDefinition = "BIGINT NOT NULL DEFAULT 0")
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -65,6 +76,8 @@ public abstract class PortfolioItemEntity {
                                   boolean newsEnabled,
                                   String region,
                                   String memo,
+                                  PortfolioItemStatus status,
+                                  Long version,
                                   LocalDateTime createdAt,
                                   LocalDateTime updatedAt) {
         this.id = id;
@@ -74,6 +87,8 @@ public abstract class PortfolioItemEntity {
         this.newsEnabled = newsEnabled;
         this.region = region;
         this.memo = memo;
+        this.status = status;
+        this.version = version;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }

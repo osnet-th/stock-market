@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence;
 
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -44,6 +45,8 @@ public class CashItemEntity extends PortfolioItemEntity {
                           boolean newsEnabled,
                           String region,
                           String memo,
+                          PortfolioItemStatus status,
+                          Long version,
                           LocalDateTime createdAt,
                           LocalDateTime updatedAt,
                           String cashType,
@@ -53,7 +56,7 @@ public class CashItemEntity extends PortfolioItemEntity {
                           String taxType,
                           BigDecimal monthlyDepositAmount,
                           Integer depositDay) {
-        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, createdAt, updatedAt);
+        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, version, createdAt, updatedAt);
         this.cashType = cashType;
         this.interestRate = interestRate;
         this.startDate = startDate;

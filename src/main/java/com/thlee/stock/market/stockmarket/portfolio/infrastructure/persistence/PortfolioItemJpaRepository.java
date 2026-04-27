@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence;
 
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -9,13 +10,19 @@ import java.util.List;
  */
 public interface PortfolioItemJpaRepository extends JpaRepository<PortfolioItemEntity, Long> {
 
-    List<PortfolioItemEntity> findByUserId(Long userId);
+    List<PortfolioItemEntity> findByUserIdAndStatus(Long userId, PortfolioItemStatus status);
 
-    List<PortfolioItemEntity> findByNewsEnabled(boolean newsEnabled);
+    List<PortfolioItemEntity> findByNewsEnabledAndStatus(boolean newsEnabled, PortfolioItemStatus status);
 
-    boolean existsByUserIdAndItemNameAndAssetType(Long userId, String itemName, String assetType);
+    boolean existsByUserIdAndItemNameAndAssetTypeAndStatus(Long userId,
+                                                           String itemName,
+                                                           String assetType,
+                                                           PortfolioItemStatus status);
 
-    List<PortfolioItemEntity> findByUserIdAndItemNameAndNewsEnabled(Long userId, String itemName, boolean newsEnabled);
+    List<PortfolioItemEntity> findByUserIdAndItemNameAndNewsEnabledAndStatus(Long userId,
+                                                                            String itemName,
+                                                                            boolean newsEnabled,
+                                                                            PortfolioItemStatus status);
 
-    List<PortfolioItemEntity> findByUserIdIn(List<Long> userIds);
+    List<PortfolioItemEntity> findByUserIdInAndStatus(List<Long> userIds, PortfolioItemStatus status);
 }

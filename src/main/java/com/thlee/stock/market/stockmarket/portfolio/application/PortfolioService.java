@@ -6,14 +6,20 @@ import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.model.UserKeyword;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
 import com.thlee.stock.market.stockmarket.news.domain.repository.UserKeywordRepository;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.AddStockSaleParam;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.DepositHistoryResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioEvaluation.ItemEvaluation;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockPurchaseHistoryResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockSaleContextResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockSaleHistoryResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.UpdateSaleParam;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.CashSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PriceCurrency;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstateSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.StockSubType;
@@ -22,8 +28,12 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.repository.CashStockL
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.DepositHistoryRepository;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioItemRepository;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.StockPurchaseHistoryRepository;
+import com.thlee.stock.market.stockmarket.portfolio.domain.repository.StockSaleHistoryRepository;
+import com.thlee.stock.market.stockmarket.stock.domain.service.ExchangeRatePort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -45,12 +55,31 @@ public class PortfolioService {
 
     private final PortfolioItemRepository portfolioItemRepository;
     private final StockPurchaseHistoryRepository purchaseHistoryRepository;
+    private final StockSaleHistoryRepository stockSaleHistoryRepository;
     private final DepositHistoryRepository depositHistoryRepository;
     private final CashStockLinkRepository cashStockLinkRepository;
+    private final PortfolioEvaluationService portfolioEvaluationService;
+    private final ExchangeRatePort exchangeRatePort;
     private final KeywordService keywordService;
     private final KeywordRepository keywordRepository;
     private final UserKeywordRepository userKeywordRepository;
     private final DomainEventLogger domainEventLogger;
+    private final ObjectProvider<PortfolioService> selfProvider;
+
+    /**
+     * 자기 참조(AOP 프록시) — `addStockSale`처럼 외부 호출과 DB 트랜잭션을 분리해야 하는 메서드에서 사용.
+     * 같은 클래스 내부 호출은 트랜잭션 어노테이션이 적용되지 않으므로(Spring AOP 한계),
+     * `selfProvider.getObject()`를 통해 프록시를 거쳐 호출한다.
+     */
+    private PortfolioService self() {
+        return selfProvider.getObject();
+    }
+
+    /**
+     * 매도 트랜잭션 진입 전 외부 의존성(환율, 총자산 평가) 스냅샷.
+     */
+    private record SaleSnapshot(String currency, BigDecimal fxRate, BigDecimal totalAssetAtSale) {
+    }
 
     /**
      * 주식 항목 등록 (investedAmount = quantity × purchasePrice 자동 계산)
@@ -589,6 +618,357 @@ public class PortfolioService {
     }
 
     // ──────────────────────────────────────────────────────────────────
+    // 매도 이력 CRUD
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * 주식 매도 등록 — 단일 트랜잭션.
+     * 1. PortfolioItem ACTIVE 검증 + 보유 수량 차감 (전량 매도 시 자동 CLOSED)
+     * 2. WAC 기반 profit/profitRate/contributionRate 계산 (KRW 환산 포함)
+     * 3. CASH 입금 처리 (링크 있음 → 자동 / depositCashItemId 지정 → 해당 CASH / CASH 0개 → unrecordedDeposit)
+     * 4. 전량 매도 시 CashStockLink 해제
+     * 5. StockSaleHistory 저장
+     *
+     * <p>외부 HTTP 호출(환율, KIS 가격 평가)을 트랜잭션 외부로 분리하여 DB 커넥션 hold 시간을 최소화한다.
+     * institutional learning: external-http-per-item-transaction-isolation-2026-04-26.md</p>
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public StockSaleHistoryResponse addStockSale(Long userId, Long stockItemId, AddStockSaleParam param) {
+        SaleSnapshot snapshot = self().prepareStockSaleSnapshot(userId, stockItemId, param);
+        return self().persistStockSale(userId, stockItemId, param, snapshot);
+    }
+
+    /**
+     * 매도 트랜잭션 진입 전 단계 — 항목 검증 + 외부 호출(환율, 사용자 총자산).
+     * 트랜잭션 외부에서 실행되어 KIS/환율 API 응답 지연이 DB 락 보유 시간에 영향 주지 않는다.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public SaleSnapshot prepareStockSaleSnapshot(Long userId, Long stockItemId, AddStockSaleParam param) {
+        PortfolioItem stockItem = findUserItem(userId, stockItemId);
+        if (stockItem.getAssetType() != AssetType.STOCK || stockItem.getStockDetail() == null) {
+            throw new IllegalArgumentException("주식 항목만 매도할 수 있습니다.");
+        }
+        if (stockItem.getStatus() != PortfolioItemStatus.ACTIVE) {
+            throw new IllegalArgumentException("이미 마감된 항목은 매도할 수 없습니다.");
+        }
+        StockDetail detail = stockItem.getStockDetail();
+        String currency = detail.getPriceCurrency() != null ? detail.getPriceCurrency().name() : "KRW";
+        BigDecimal fxRate = resolveFxRate(currency, param.fxRate());
+        BigDecimal totalAssetAtSale = portfolioEvaluationService.computeTotalAsset(userId);
+        return new SaleSnapshot(currency, fxRate, totalAssetAtSale);
+    }
+
+    /**
+     * 매도 DB 트랜잭션 — 외부 호출 없이 PortfolioItem/CashItem/StockSaleHistory 영속화만 수행.
+     * 동시성을 위해 항목 상태/통화는 다시 한 번 확인한다(스냅샷 단계 이후 race 보호).
+     */
+    @Transactional
+    public StockSaleHistoryResponse persistStockSale(Long userId, Long stockItemId, AddStockSaleParam param, SaleSnapshot snapshot) {
+        LocalDate today = LocalDate.now();
+
+        PortfolioItem stockItem = findUserItem(userId, stockItemId);
+        if (stockItem.getAssetType() != AssetType.STOCK || stockItem.getStockDetail() == null) {
+            throw new IllegalArgumentException("주식 항목만 매도할 수 있습니다.");
+        }
+        if (stockItem.getStatus() != PortfolioItemStatus.ACTIVE) {
+            throw new IllegalArgumentException("이미 마감된 항목은 매도할 수 없습니다.");
+        }
+
+        StockDetail detail = stockItem.getStockDetail();
+        BigDecimal salePriceKrw = computeSalePriceKrw(param.salePrice(), param.quantity(), snapshot.fxRate());
+
+        DepositResolution deposit = resolveDepositTarget(userId, stockItemId, param.depositCashItemId(), salePriceKrw);
+
+        StockSaleHistory history = StockSaleHistory.create(
+                stockItemId,
+                param.quantity(),
+                detail.getAvgBuyPrice(),
+                param.salePrice(),
+                snapshot.currency(),
+                snapshot.fxRate(),
+                snapshot.totalAssetAtSale(),
+                param.reason(),
+                param.memo(),
+                detail.getStockCode(),
+                stockItem.getItemName(),
+                deposit.unrecordedDeposit(),
+                param.soldAt(),
+                today
+        );
+
+        if (deposit.cashItem() != null && salePriceKrw != null) {
+            deposit.cashItem().restoreAmount(salePriceKrw);
+            portfolioItemRepository.save(deposit.cashItem());
+        }
+
+        stockItem.deductStockQuantity(param.quantity());
+
+        if (stockItem.getStatus() == PortfolioItemStatus.CLOSED) {
+            cashStockLinkRepository.deleteByStockItemId(stockItemId);
+        }
+
+        StockSaleHistory savedHistory = stockSaleHistoryRepository.save(history);
+        portfolioItemRepository.save(stockItem);
+
+        publishSaleEvent("PORTFOLIO_STOCK_SALE_ADDED", userId, stockItemId,
+                savedHistory.getId(), param.quantity(), param.salePrice(), savedHistory.getProfit());
+
+        return StockSaleHistoryResponse.from(savedHistory);
+    }
+
+    /**
+     * 특정 PortfolioItem의 매도 이력 조회 (오래된 순)
+     */
+    public List<StockSaleHistoryResponse> getSaleHistories(Long userId, Long stockItemId) {
+        findUserItem(userId, stockItemId);
+        return stockSaleHistoryRepository.findByPortfolioItemId(stockItemId).stream()
+                .map(StockSaleHistoryResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 사용자 전체 매도 이력 조회 (매도일 내림차순)
+     */
+    public List<StockSaleHistoryResponse> getAllUserSaleHistories(Long userId) {
+        return stockSaleHistoryRepository.findByUserId(userId).stream()
+                .map(StockSaleHistoryResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 매도 이력이 1건이라도 있는 PortfolioItem id 집합.
+     * 보유 카드 삭제 버튼 disabled 판정 전용 경량 조회.
+     */
+    public List<Long> getSaleItemIds(Long userId) {
+        return stockSaleHistoryRepository.findItemIdsByUserId(userId);
+    }
+
+    /**
+     * 매도 모달 진입 시 자동 입력 컨텍스트.
+     * 현재가(KRW/원본) + 통화 + 환율(자동 조회) + 사용자 총자산 평가금액 묶음.
+     *
+     * <p>KIS/환율 외부 호출이 다수 발생하므로 클래스 레벨 readOnly 트랜잭션을 사용하지 않는다.
+     * 각 repo 호출은 implicit single-statement 트랜잭션으로 처리된다.</p>
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public StockSaleContextResponse getSaleContext(Long userId, Long stockItemId) {
+        PortfolioItem stockItem = findUserItem(userId, stockItemId);
+        if (stockItem.getAssetType() != AssetType.STOCK || stockItem.getStockDetail() == null) {
+            throw new IllegalArgumentException("주식 항목만 매도 컨텍스트를 조회할 수 있습니다.");
+        }
+
+        ItemEvaluation eval = portfolioEvaluationService.evaluateOne(userId, stockItemId)
+                .orElseThrow(() -> new IllegalStateException("STOCK 항목 평가 결과가 비어 있습니다."));
+
+        String currency = stockItem.getStockDetail().getPriceCurrency() != null
+                ? stockItem.getStockDetail().getPriceCurrency().name() : "KRW";
+        BigDecimal fxRate = resolveFxRate(currency, null);
+
+        BigDecimal currentPriceKrw = eval.getCurrentPrice() != null
+                ? new BigDecimal(eval.getCurrentPrice()) : null;
+        BigDecimal currentPriceOriginal = computeCurrentPriceOriginal(currentPriceKrw, fxRate);
+
+        BigDecimal totalAsset = portfolioEvaluationService.computeTotalAsset(userId);
+
+        return new StockSaleContextResponse(currentPriceKrw, currentPriceOriginal, currency, fxRate, totalAsset);
+    }
+
+    private BigDecimal computeCurrentPriceOriginal(BigDecimal currentPriceKrw, BigDecimal fxRate) {
+        if (currentPriceKrw == null || fxRate == null || fxRate.compareTo(BigDecimal.ZERO) == 0) {
+            return currentPriceKrw;
+        }
+        return currentPriceKrw.divide(fxRate, 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 매도 이력 사후 수정.
+     * quantity/salePrice/reason/memo 변경 → 보유 수량·CASH 잔액·status를 일관 재계산.
+     * fxRate / totalAssetAtSale은 매도 시점 스냅샷이므로 변경하지 않는다.
+     */
+    @Transactional
+    public StockSaleHistoryResponse updateSaleHistory(Long userId, Long stockItemId, Long historyId,
+                                                     UpdateSaleParam param) {
+        PortfolioItem stockItem = findUserItem(userId, stockItemId);
+        if (stockItem.getAssetType() != AssetType.STOCK) {
+            throw new IllegalArgumentException("주식 항목만 매도 이력을 가질 수 있습니다.");
+        }
+
+        StockSaleHistory history = stockSaleHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new IllegalArgumentException("매도 이력을 찾을 수 없습니다."));
+        if (!history.getPortfolioItemId().equals(stockItemId)) {
+            throw new IllegalArgumentException("해당 항목의 매도 이력이 아닙니다.");
+        }
+
+        int oldQuantity = history.getQuantity();
+        int newQuantity = param.quantity();
+        int deltaQuantity = newQuantity - oldQuantity;
+
+        if (deltaQuantity > 0) {
+            stockItem.deductStockQuantity(deltaQuantity);
+        } else if (deltaQuantity < 0) {
+            stockItem.restoreStockQuantity(-deltaQuantity);
+            if (stockItem.getStatus() == PortfolioItemStatus.CLOSED
+                    && stockItem.getStockDetail().getQuantity() > 0) {
+                stockItem.reopenItem();
+            }
+        }
+
+        BigDecimal fxRate = history.getFxRate();
+        BigDecimal oldSalePriceKrw = history.getSalePriceKrw();
+        BigDecimal newSalePriceKrw = computeSalePriceKrw(param.salePrice(), newQuantity, fxRate);
+
+        if (!history.isUnrecordedDeposit()
+                && oldSalePriceKrw != null
+                && newSalePriceKrw != null) {
+            applyCashDelta(stockItemId, oldSalePriceKrw, newSalePriceKrw);
+        }
+
+        history.update(newQuantity, param.salePrice(), param.reason(), param.memo());
+        history.recomputeProfit(history.getTotalAssetAtSale(), fxRate);
+        StockSaleHistory savedHistory = stockSaleHistoryRepository.save(history);
+
+        portfolioItemRepository.save(stockItem);
+
+        publishSaleEvent("PORTFOLIO_STOCK_SALE_UPDATED", userId, stockItemId,
+                historyId, newQuantity, param.salePrice(), savedHistory.getProfit());
+
+        return StockSaleHistoryResponse.from(savedHistory);
+    }
+
+    /**
+     * 매도 이력 삭제.
+     * 보유 수량 복원 + status 복원(CLOSED → ACTIVE) + 입금했던 금액 CASH에서 차감.
+     * unrecordedDeposit=true 이력은 CASH 차감을 건너뛴다.
+     */
+    @Transactional
+    public void deleteSaleHistory(Long userId, Long stockItemId, Long historyId) {
+        PortfolioItem stockItem = findUserItem(userId, stockItemId);
+        if (stockItem.getAssetType() != AssetType.STOCK) {
+            throw new IllegalArgumentException("주식 항목만 매도 이력을 가질 수 있습니다.");
+        }
+
+        StockSaleHistory history = stockSaleHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new IllegalArgumentException("매도 이력을 찾을 수 없습니다."));
+        if (!history.getPortfolioItemId().equals(stockItemId)) {
+            throw new IllegalArgumentException("해당 항목의 매도 이력이 아닙니다.");
+        }
+
+        int restoreQuantity = history.getQuantity();
+        BigDecimal restoreSalePriceKrw = history.getSalePriceKrw();
+        boolean wasUnrecorded = history.isUnrecordedDeposit();
+
+        stockItem.restoreStockQuantity(restoreQuantity);
+        if (stockItem.getStatus() == PortfolioItemStatus.CLOSED) {
+            stockItem.reopenItem();
+        }
+
+        if (!wasUnrecorded && restoreSalePriceKrw != null) {
+            cashStockLinkRepository.findByStockItemId(stockItemId).ifPresent(link -> {
+                PortfolioItem cashItem = portfolioItemRepository.findById(link.getCashItemId())
+                        .orElseThrow(() -> new IllegalArgumentException("연결된 원화 항목을 찾을 수 없습니다."));
+                cashItem.deductAmount(restoreSalePriceKrw);
+                portfolioItemRepository.save(cashItem);
+            });
+        }
+
+        stockSaleHistoryRepository.delete(history);
+        portfolioItemRepository.save(stockItem);
+
+        publishSaleEvent("PORTFOLIO_STOCK_SALE_DELETED", userId, stockItemId,
+                historyId, restoreQuantity, history.getSalePrice(), null);
+    }
+
+    /**
+     * 매도 이력 수정으로 인한 KRW 차액을 연결된 CASH에 반영.
+     * 새 KRW 입금액이 더 크면 CASH 잔액 추가 입금, 작으면 차감.
+     */
+    private void applyCashDelta(Long stockItemId, BigDecimal oldSalePriceKrw, BigDecimal newSalePriceKrw) {
+        BigDecimal delta = newSalePriceKrw.subtract(oldSalePriceKrw);
+        if (delta.signum() == 0) {
+            return;
+        }
+        cashStockLinkRepository.findByStockItemId(stockItemId).ifPresent(link -> {
+            PortfolioItem cashItem = portfolioItemRepository.findById(link.getCashItemId())
+                    .orElseThrow(() -> new IllegalArgumentException("연결된 원화 항목을 찾을 수 없습니다."));
+            if (delta.signum() > 0) {
+                cashItem.restoreAmount(delta);
+            } else {
+                cashItem.deductAmount(delta.negate());
+            }
+            portfolioItemRepository.save(cashItem);
+        });
+    }
+
+    private BigDecimal resolveFxRate(String currency, BigDecimal userFxRate) {
+        if ("KRW".equals(currency)) {
+            return BigDecimal.ONE;
+        }
+        if (userFxRate != null) {
+            return userFxRate;
+        }
+        try {
+            return exchangeRatePort.getRate(currency);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private BigDecimal computeSalePriceKrw(BigDecimal salePrice, int quantity, BigDecimal fxRate) {
+        if (fxRate == null) {
+            return null;
+        }
+        return salePrice.multiply(fxRate)
+                .multiply(BigDecimal.valueOf(quantity))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 매도 입금 대상 결정 결과.
+     * cashItem이 null이면 입금하지 않는다 (unrecordedDeposit=true 또는 KRW 환산 불가).
+     */
+    private record DepositResolution(PortfolioItem cashItem, boolean unrecordedDeposit) {
+    }
+
+    private DepositResolution resolveDepositTarget(Long userId,
+                                                   Long stockItemId,
+                                                   Long depositCashItemId,
+                                                   BigDecimal salePriceKrw) {
+        if (salePriceKrw == null) {
+            return new DepositResolution(null, true);
+        }
+
+        java.util.Optional<CashStockLink> link = cashStockLinkRepository.findByStockItemId(stockItemId);
+        if (link.isPresent()) {
+            PortfolioItem cashItem = portfolioItemRepository.findById(link.get().getCashItemId())
+                    .orElseThrow(() -> new IllegalArgumentException("연결된 원화 항목을 찾을 수 없습니다."));
+            return new DepositResolution(cashItem, false);
+        }
+
+        if (depositCashItemId != null) {
+            PortfolioItem cashItem = findAndValidateCashItem(userId, depositCashItemId);
+            return new DepositResolution(cashItem, false);
+        }
+
+        boolean userHasAnyCash = portfolioItemRepository.findByUserId(userId).stream()
+                .anyMatch(i -> i.getAssetType() == AssetType.CASH);
+        if (!userHasAnyCash) {
+            return new DepositResolution(null, true);
+        }
+        throw new IllegalArgumentException("입금할 원화 항목을 선택해 주세요.");
+    }
+
+    private void publishSaleEvent(String eventType, Long userId, Long itemId, Long historyId,
+                                  int quantity, BigDecimal salePrice, BigDecimal profit) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("itemId", itemId);
+        payload.put("historyId", historyId);
+        payload.put("quantity", quantity);
+        payload.put("salePrice", salePrice);
+        payload.put("profit", profit);
+        domainEventLogger.logBusiness(eventType, userId, payload);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
     // 납입 이력 CRUD
     // ───────────────���──────────────────────────────────────────────────
 
@@ -913,9 +1293,14 @@ public class PortfolioService {
     }
 
     /**
-     * 주식 삭제 시 선택적 CASH 복원 + cash_stock_link 삭제
+     * 주식 삭제 시 선택적 CASH 복원 + cash_stock_link 삭제.
+     * 매도 이력이 1건이라도 있으면 삭제를 차단한다 (매도 이력 탭에서 정리한 후 삭제 가능).
      */
     private void handleStockDeletion(PortfolioItem stockItem, boolean restoreCash, BigDecimal restoreAmount) {
+        if (!stockSaleHistoryRepository.findByPortfolioItemId(stockItem.getId()).isEmpty()) {
+            throw new IllegalArgumentException("매도 이력이 있는 항목은 삭제할 수 없습니다. 매도 이력 탭에서 정리해 주세요.");
+        }
+
         CashStockLink link = cashStockLinkRepository.findByStockItemId(stockItem.getId()).orElse(null);
 
         if (link != null) {

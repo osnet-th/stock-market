@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence;
 
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.PortfolioItem;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioItemRepository;
 import com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence.mapper.PortfolioItemMapper;
@@ -35,7 +36,7 @@ public class PortfolioItemRepositoryImpl implements PortfolioItemRepository {
 
     @Override
     public List<PortfolioItem> findByUserId(Long userId) {
-        return portfolioItemJpaRepository.findByUserId(userId)
+        return portfolioItemJpaRepository.findByUserIdAndStatus(userId, PortfolioItemStatus.ACTIVE)
                 .stream()
                 .map(PortfolioItemMapper::toDomain)
                 .collect(Collectors.toList());
@@ -43,7 +44,7 @@ public class PortfolioItemRepositoryImpl implements PortfolioItemRepository {
 
     @Override
     public List<PortfolioItem> findByNewsEnabled(boolean newsEnabled) {
-        return portfolioItemJpaRepository.findByNewsEnabled(newsEnabled)
+        return portfolioItemJpaRepository.findByNewsEnabledAndStatus(newsEnabled, PortfolioItemStatus.ACTIVE)
                 .stream()
                 .map(PortfolioItemMapper::toDomain)
                 .collect(Collectors.toList());
@@ -51,7 +52,8 @@ public class PortfolioItemRepositoryImpl implements PortfolioItemRepository {
 
     @Override
     public List<PortfolioItem> findByUserIdAndItemNameAndNewsEnabled(Long userId, String itemName, boolean newsEnabled) {
-        return portfolioItemJpaRepository.findByUserIdAndItemNameAndNewsEnabled(userId, itemName, newsEnabled)
+        return portfolioItemJpaRepository.findByUserIdAndItemNameAndNewsEnabledAndStatus(
+                        userId, itemName, newsEnabled, PortfolioItemStatus.ACTIVE)
                 .stream()
                 .map(PortfolioItemMapper::toDomain)
                 .collect(Collectors.toList());
@@ -59,12 +61,13 @@ public class PortfolioItemRepositoryImpl implements PortfolioItemRepository {
 
     @Override
     public boolean existsByUserIdAndItemNameAndAssetType(Long userId, String itemName, AssetType assetType) {
-        return portfolioItemJpaRepository.existsByUserIdAndItemNameAndAssetType(userId, itemName, assetType.name());
+        return portfolioItemJpaRepository.existsByUserIdAndItemNameAndAssetTypeAndStatus(
+                userId, itemName, assetType.name(), PortfolioItemStatus.ACTIVE);
     }
 
     @Override
     public List<PortfolioItem> findByUserIdIn(List<Long> userIds) {
-        return portfolioItemJpaRepository.findByUserIdIn(userIds)
+        return portfolioItemJpaRepository.findByUserIdInAndStatus(userIds, PortfolioItemStatus.ACTIVE)
                 .stream()
                 .map(PortfolioItemMapper::toDomain)
                 .collect(Collectors.toList());

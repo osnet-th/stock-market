@@ -106,6 +106,9 @@
                             <template x-if="menu.icon === 'note'">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM19.5 7.125L16.862 4.487M4.5 19.5h15" /></svg>
                             </template>
+                            <template x-if="menu.icon === 'journal'">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                            </template>
                         </span>
                         <span x-text="menu.label" class="whitespace-nowrap"></span>
                     </button>
@@ -164,6 +167,9 @@
                             </template>
                             <template x-if="menu.icon === 'note'">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM19.5 7.125L16.862 4.487M4.5 19.5h15" /></svg>
+                            </template>
+                            <template x-if="menu.icon === 'journal'">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
                             </template>
                         </span>
                         <span x-show="!sidebarCollapsed" x-text="menu.label" class="whitespace-nowrap"></span>
@@ -3666,6 +3672,240 @@
             <!-- STOCKNOTE / detail-panel end -->
             <!-- ========== STOCK NOTE end ========== -->
 
+            <!-- ========== NEWS JOURNAL (뉴스 기록) ========== -->
+            <div x-show="currentPage === 'news-journal'" x-cloak
+                 x-init="$watch('currentPage', v => { if (v === 'news-journal') newsJournalLoad(); }); if (currentPage === 'news-journal') newsJournalLoad();">
+                <!-- 헤더 -->
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">뉴스 기록</h2>
+                        <p class="text-xs text-gray-500 mt-1">사건을 일자별로 정리하고 타임라인으로 회고합니다.</p>
+                    </div>
+                    <button type="button" @click="newsJournalOpenCreate()"
+                            class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                        새 사건 기록
+                    </button>
+                </div>
+
+                <!-- 필터 바 -->
+                <div class="bg-white border border-gray-200 rounded p-3 mb-4 flex flex-wrap items-end gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">카테고리</label>
+                        <select x-model="newsJournal.filter.category"
+                                class="text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <option value="">전체</option>
+                            <option value="GOOD">호재</option>
+                            <option value="BAD">악재</option>
+                            <option value="NEUTRAL">중립</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">시작일</label>
+                        <input type="date" x-model="newsJournal.filter.from"
+                               class="text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">종료일</label>
+                        <input type="date" x-model="newsJournal.filter.to"
+                               class="text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" @click="newsJournalApplyFilter()"
+                                class="text-sm px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-50">필터 적용</button>
+                        <button type="button" @click="newsJournalResetFilter()"
+                                class="text-sm px-3 py-1.5 text-gray-500 hover:text-gray-700">초기화</button>
+                    </div>
+                </div>
+
+                <!-- 상태 메시지 -->
+                <div x-show="newsJournal.loading" class="text-sm text-gray-400 mb-2">로딩 중…</div>
+                <div x-show="newsJournal.error" class="text-sm text-red-600 mb-2" x-text="newsJournal.error"></div>
+
+                <!-- 빈 상태 -->
+                <template x-if="!newsJournal.loading && newsJournal.items.length === 0 && !newsJournal.error">
+                    <div class="bg-white border border-dashed border-gray-300 rounded p-8 text-center text-sm text-gray-500">
+                        아직 기록된 사건이 없습니다. 우측 상단의 “새 사건 기록” 버튼으로 첫 사건을 추가해 보세요.
+                    </div>
+                </template>
+
+                <!-- 세로 타임라인 -->
+                <ol x-show="newsJournal.items.length > 0" class="relative border-l-2 border-slate-200 ml-3 pl-6 py-2">
+                    <template x-for="item in newsJournal.items" :key="item.id">
+                        <li class="relative mb-6 last:mb-0">
+                            <!-- 도트 -->
+                            <span class="absolute -left-[34px] top-2 h-3 w-3 rounded-full ring-4 ring-white"
+                                  :class="newsJournalDotClass(item.category)"></span>
+                            <!-- 카드 -->
+                            <div class="bg-white border border-gray-200 rounded shadow-sm p-4">
+                                <div class="flex items-start justify-between gap-3 mb-2">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex flex-wrap items-center gap-2 mb-1">
+                                            <span class="text-xs text-gray-500" x-text="item.occurredDate"></span>
+                                            <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-medium border rounded"
+                                                  :class="newsJournalCategoryBadgeClass(item.category)"
+                                                  x-text="newsJournalCategoryLabel(item.category)"></span>
+                                        </div>
+                                        <h3 class="text-base font-semibold text-gray-800 break-words" x-text="item.title"></h3>
+                                    </div>
+                                    <div class="flex gap-1 shrink-0">
+                                        <button type="button" @click="newsJournalOpenEdit(item)"
+                                                class="text-xs px-2 py-1 text-gray-500 hover:text-blue-600">수정</button>
+                                        <button type="button" @click="newsJournalDelete(item.id)"
+                                                class="text-xs px-2 py-1 text-gray-500 hover:text-red-600">삭제</button>
+                                    </div>
+                                </div>
+
+                                <!-- WHAT / WHY / HOW -->
+                                <div class="space-y-2 text-sm text-gray-700">
+                                    <template x-if="item.what">
+                                        <div>
+                                            <div class="text-[11px] font-semibold text-gray-400 mb-0.5">WHAT</div>
+                                            <p class="whitespace-pre-wrap leading-relaxed" x-text="item.what"></p>
+                                        </div>
+                                    </template>
+                                    <template x-if="item.why">
+                                        <div>
+                                            <div class="text-[11px] font-semibold text-gray-400 mb-0.5">WHY</div>
+                                            <p class="whitespace-pre-wrap leading-relaxed" x-text="item.why"></p>
+                                        </div>
+                                    </template>
+                                    <template x-if="item.how">
+                                        <div>
+                                            <div class="text-[11px] font-semibold text-gray-400 mb-0.5">HOW</div>
+                                            <p class="whitespace-pre-wrap leading-relaxed" x-text="item.how"></p>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- 관련 기사 -->
+                                <template x-if="item.links && item.links.length > 0">
+                                    <div class="mt-3 pt-3 border-t border-gray-100">
+                                        <div class="text-[11px] font-semibold text-gray-400 mb-1">관련 기사</div>
+                                        <ul class="space-y-1">
+                                            <template x-for="(link, idx) in item.links" :key="idx">
+                                                <li class="text-sm">
+                                                    <a :href="link.url" target="_blank" rel="noopener noreferrer"
+                                                       class="text-blue-600 hover:underline break-all" x-text="link.title"></a>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                            </div>
+                        </li>
+                    </template>
+                </ol>
+
+                <!-- 페이지네이션 -->
+                <div x-show="newsJournal.pagination.totalCount > 0"
+                     class="flex items-center justify-center gap-3 mt-6 text-sm">
+                    <button type="button" @click="newsJournalChangePage(-1)"
+                            :disabled="newsJournal.pagination.page === 0"
+                            class="px-3 py-1.5 border border-gray-300 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50">이전</button>
+                    <span class="text-gray-600">
+                        <span x-text="newsJournal.pagination.page + 1"></span>
+                        /
+                        <span x-text="newsJournalTotalPages()"></span>
+                        <span class="text-gray-400 ml-1">(총 <span x-text="newsJournal.pagination.totalCount"></span>건)</span>
+                    </span>
+                    <button type="button" @click="newsJournalChangePage(1)"
+                            :disabled="newsJournal.pagination.page + 1 >= newsJournalTotalPages()"
+                            class="px-3 py-1.5 border border-gray-300 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50">다음</button>
+                </div>
+
+                <!-- 생성/수정 모달 -->
+                <div x-show="newsJournal.mode === 'create' || newsJournal.mode === 'edit'" x-cloak
+                     class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+                     @click.self="newsJournalCloseModal()" @keydown.escape.window="newsJournalCloseModal()">
+                    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200">
+                            <h3 class="text-base font-semibold text-gray-800">
+                                <span x-show="newsJournal.mode === 'create'">새 사건 기록</span>
+                                <span x-show="newsJournal.mode === 'edit'">사건 수정</span>
+                            </h3>
+                            <button type="button" @click="newsJournalCloseModal()" class="text-gray-400 hover:text-gray-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <form @submit.prevent="newsJournalSave()" class="px-5 py-4 space-y-3">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">제목 <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="newsJournal.form.title" maxlength="200"
+                                       class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                       placeholder="예: 미 연준 기준금리 0.25%p 인하">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">발생 일자 <span class="text-red-500">*</span></label>
+                                    <input type="date" x-model="newsJournal.form.occurredDate"
+                                           :max="new Date().toISOString().slice(0, 10)"
+                                           class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">카테고리 <span class="text-red-500">*</span></label>
+                                    <select x-model="newsJournal.form.category"
+                                            class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                        <option value="GOOD">호재</option>
+                                        <option value="BAD">악재</option>
+                                        <option value="NEUTRAL">중립</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">WHAT (무슨 일인가)</label>
+                                <textarea x-model="newsJournal.form.what" rows="2" maxlength="4000"
+                                          class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">WHY (왜 일어났나)</label>
+                                <textarea x-model="newsJournal.form.why" rows="2" maxlength="4000"
+                                          class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">HOW (어떻게 흘러갈까)</label>
+                                <textarea x-model="newsJournal.form.how" rows="2" maxlength="4000"
+                                          class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
+                            </div>
+                            <!-- 관련 기사 (URL 리스트) -->
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="block text-xs text-gray-600">관련 기사 (선택)</label>
+                                    <button type="button" @click="newsJournalAddLink()"
+                                            class="text-xs text-blue-600 hover:underline">+ 기사 추가</button>
+                                </div>
+                                <template x-if="newsJournal.form.links.length === 0">
+                                    <div class="text-xs text-gray-400 py-2">아직 추가된 기사가 없습니다.</div>
+                                </template>
+                                <template x-for="(link, idx) in newsJournal.form.links" :key="idx">
+                                    <div class="flex gap-2 mb-2">
+                                        <input type="text" x-model="link.title" maxlength="200" placeholder="기사 제목"
+                                               class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                        <input type="url" x-model="link.url" maxlength="2000" placeholder="https://…"
+                                               class="flex-[2] text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                        <button type="button" @click="newsJournalRemoveLink(idx)"
+                                                class="text-xs text-gray-400 hover:text-red-500 px-1">삭제</button>
+                                    </div>
+                                </template>
+                            </div>
+                            <!-- 폼 에러 -->
+                            <div x-show="newsJournal.formError" class="text-sm text-red-600" x-text="newsJournal.formError"></div>
+                        </form>
+                        <div class="px-5 py-3 border-t border-gray-200 flex justify-end gap-2 bg-gray-50">
+                            <button type="button" @click="newsJournalCloseModal()"
+                                    class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800">취소</button>
+                            <button type="button" @click="newsJournalSave()"
+                                    :disabled="newsJournal.loading"
+                                    class="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50">
+                                <span x-show="!newsJournal.loading">저장</span>
+                                <span x-show="newsJournal.loading">저장 중…</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- ========== NEWS JOURNAL end ========== -->
+
             <!-- ========== ADMIN LOGS (운영자 전용) ========== -->
             <div x-show="currentPage === 'admin-logs'" x-cloak>
                 <div class="flex items-center justify-between mb-6">
@@ -4455,6 +4695,7 @@
     <script src="/js/components/favorite.js"></script>
     <script src="/js/components/salary.js"></script>
     <script src="/js/components/stocknote.js"></script>
+    <script src="/js/components/news-journal.js"></script>
     <script src="/js/components/admin-logs.js"></script>
 
     <!-- 메인 앱 (컴포넌트 통합) -->

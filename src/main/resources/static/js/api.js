@@ -558,5 +558,22 @@ const API = {
     },
     retryStockNoteSnapshot(id, type) {
         return this.request('POST', `/api/stock-notes/${id}/snapshots/${type}/retry`);
+    },
+
+    // News Journal (뉴스 기록)
+    createNewsEvent(body) {
+        return this.request('POST', '/api/news-journal/events', body);
+    },
+    getNewsEvents(filters = {}) {
+        return this.request('GET', '/api/news-journal/events' + this._buildLogQuery(filters));
+    },
+    getNewsEvent(id) {
+        return this.request('GET', `/api/news-journal/events/${id}`);
+    },
+    updateNewsEvent(id, body) {
+        return this.request('PUT', `/api/news-journal/events/${id}`, body);
+    },
+    deleteNewsEvent(id) {
+        return this.request('DELETE', `/api/news-journal/events/${id}`);
     }
 };

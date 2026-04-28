@@ -4,7 +4,7 @@ function dashboard() {
         // ==================== 코어 상태 ====================
         currentPage: (() => {
             const hash = location.hash.replace('#', '');
-            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'salary', 'stocknote', 'admin-logs'];
+            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'salary', 'stocknote', 'news-journal', 'admin-logs'];
             return validPages.includes(hash) ? hash : 'home';
         })(),
 
@@ -17,6 +17,7 @@ function dashboard() {
             { key: 'portfolio', label: '포트폴리오', icon: 'portfolio' },
             { key: 'salary', label: '월급 사용 비율', icon: 'wallet' },
             { key: 'stocknote', label: '투자 노트', icon: 'note' },
+            { key: 'news-journal', label: '뉴스 기록', icon: 'journal' },
             { key: 'admin-logs', label: '운영자 로그', icon: 'logs' }
         ],
 
@@ -41,6 +42,7 @@ function dashboard() {
         ...FavoriteComponent,
         ...SalaryComponent,
         ...StocknoteComponent,
+        ...NewsJournalComponent,
         ...AdminLogsComponent,
 
         // ==================== 코어 메서드 ====================

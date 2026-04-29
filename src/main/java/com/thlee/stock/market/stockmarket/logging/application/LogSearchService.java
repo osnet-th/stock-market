@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.logging.application;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.thlee.stock.market.stockmarket.logging.application.dto.IncidentCountResult;
 import com.thlee.stock.market.stockmarket.logging.domain.model.LogDomain;
 import com.thlee.stock.market.stockmarket.logging.infrastructure.elasticsearch.LogElasticsearchSearcher;
 import com.thlee.stock.market.stockmarket.logging.presentation.dto.LogDailyCountResponse;
@@ -14,6 +15,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +42,7 @@ public class LogSearchService {
     private static final Duration DEFAULT_WINDOW = Duration.ofHours(24);
     private static final int MAX_SIZE = 100;
     private static final int DEFAULT_SIZE = 20;
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final LogElasticsearchSearcher searcher;
 
@@ -75,6 +80,31 @@ public class LogSearchService {
 
     public LogDiskUsageResponse diskUsage() {
         return diskCache.get("usage", k -> fetchDiskUsage());
+    }
+
+    /**
+     * 메인 대시보드 운영자 카드용 — KST 오늘(00:00 ~ 24:00) ERROR 도메인 카운트.
+     *
+     * <p>"장애" 정의는 plan 결정: {@link LogDomain#ERROR} 인덱스의 KST 오늘 카운트.
+     * AUDIT/BUSINESS 도메인은 제외. ES 장애 시 graceful degrade 로 {@code available=false}
+     * 와 {@code count=0} 반환 — 503 으로 끌어올리지 않아 다른 카드 렌더 보장.
+     */
+    public IncidentCountResult countErrorsForToday() {
+        ZonedDateTime startOfDay = LocalDate.now(SEOUL).atStartOfDay(SEOUL);
+        Instant from = startOfDay.toInstant();
+        Instant to = startOfDay.plusDays(1).toInstant();
+        Instant asOf = Instant.now();
+        try {
+            long count = searcher.countDocs(LogDomain.ERROR, from, to);
+            return new IncidentCountResult(count, asOf, true);
+        } catch (InterruptedException e) {
+            // 인터럽트 시그널 보존 — 호출자/스레드 풀이 graceful shutdown 을 인지할 수 있도록
+            Thread.currentThread().interrupt();
+            return new IncidentCountResult(0L, asOf, false);
+        } catch (Exception e) {
+            log.warn("ES 오늘 장애 건수 조회 실패: err={}", e.getMessage());
+            return new IncidentCountResult(0L, asOf, false);
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────

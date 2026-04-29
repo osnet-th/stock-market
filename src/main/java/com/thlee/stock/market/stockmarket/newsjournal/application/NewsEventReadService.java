@@ -3,10 +3,12 @@ package com.thlee.stock.market.stockmarket.newsjournal.application;
 import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsEventDetailResult;
 import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsEventListItemResult;
 import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsEventListResult;
+import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsJournalSummaryResult;
 import com.thlee.stock.market.stockmarket.newsjournal.application.exception.NewsEventNotFoundException;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEvent;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventCategory;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventLink;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventCategoryCount;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventCategoryRepository;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventLinkRepository;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventListFilter;
@@ -45,6 +47,33 @@ public class NewsEventReadService {
                 : categoryRepository.findByIdAndUserId(event.getCategoryId(), userId).orElse(null);
         List<NewsEventLink> links = linkRepository.findByEventId(id);
         return new NewsEventDetailResult(event, category, links);
+    }
+
+    /**
+     * 대시보드 요약(최근 등록 N건 + 카테고리별 사건 건수).
+     *
+     * <p>카테고리명은 사용자 카테고리 목록 1회 조회 후 메모리 join 으로 채운다.
+     * 카테고리가 삭제된 후 사건만 남은 그룹은 결과에서 제외(이름 매핑 실패 시 skip).
+     */
+    public NewsJournalSummaryResult findSummary(Long userId, int recentLimit) {
+        List<NewsEvent> recent = eventRepository.findRecentByUserId(userId, recentLimit);
+        List<NewsEventCategoryCount> rawCounts = eventRepository.countByCategoryGroupedByCategoryId(userId);
+
+        Map<Long, NewsEventCategory> categoryById = new HashMap<>();
+        for (NewsEventCategory c : categoryRepository.findByUserIdOrderByNameAsc(userId)) {
+            categoryById.put(c.getId(), c);
+        }
+
+        List<NewsJournalSummaryResult.CategoryCountItem> items = new ArrayList<>(rawCounts.size());
+        for (NewsEventCategoryCount rc : rawCounts) {
+            NewsEventCategory category = categoryById.get(rc.categoryId());
+            if (category == null) {
+                continue;
+            }
+            items.add(new NewsJournalSummaryResult.CategoryCountItem(
+                    rc.categoryId(), category.getName(), rc.count()));
+        }
+        return new NewsJournalSummaryResult(recent, items);
     }
 
     public NewsEventListResult findList(Long userId, NewsEventListFilter filter) {

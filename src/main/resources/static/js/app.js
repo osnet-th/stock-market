@@ -44,6 +44,7 @@ function dashboard() {
         ...StocknoteComponent,
         ...NewsJournalComponent,
         ...AdminLogsComponent,
+        ...DashboardSummaryComponent,
 
         // ==================== 코어 메서드 ====================
         toggleSidebar() {
@@ -110,7 +111,10 @@ function dashboard() {
             if (this.currentPage !== 'home') {
                 await this.navigateTo(this.currentPage);
             } else {
-                await this.loadHomeSummary();
+                await Promise.allSettled([
+                    this.loadHomeSummary(),
+                    this.loadDashboardSummary()
+                ]);
             }
         },
 
@@ -152,11 +156,19 @@ function dashboard() {
                 this.destroyStocknoteCharts();
             }
 
+            // home 떠날 때 대시보드 요약 차트 정리
+            if (this.currentPage === 'home' && page !== 'home') {
+                this.destroyDashboardSummaryChart();
+            }
+
             this.currentPage = page;
             history.pushState(null, '', '#' + page);
             switch (page) {
                 case 'home':
-                    await this.loadHomeSummary();
+                    await Promise.allSettled([
+                        this.loadHomeSummary(),
+                        this.loadDashboardSummary()
+                    ]);
                     break;
                 case 'keywords':
                     if (this.checkLoggedIn()) {

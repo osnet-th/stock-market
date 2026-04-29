@@ -24,4 +24,17 @@ public interface NewsEventRepository {
     long countList(Long userId, NewsEventListFilter filter);
 
     void deleteByIdAndUserId(Long id, Long userId);
+
+    /**
+     * 최근 등록 N건(대시보드 요약용). {@code created_at DESC, id DESC} 정렬.
+     *
+     * @param limit 1 이상 정수. 호출 측 책임.
+     */
+    List<NewsEvent> findRecentByUserId(Long userId, int limit);
+
+    /**
+     * 사용자별 카테고리 ID 그룹 합계(대시보드 요약용).
+     * {@code category_id IS NULL} 인 레거시 backfill 잔재 행은 결과에서 제외한다.
+     */
+    List<NewsEventCategoryCount> countByCategoryGroupedByCategoryId(Long userId);
 }

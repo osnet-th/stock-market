@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistence;
 
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEvent;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventCategoryCount;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventListFilter;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventRepository;
 import com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistence.mapper.NewsEventMapper;
@@ -59,5 +60,19 @@ public class NewsEventRepositoryImpl implements NewsEventRepository {
     @Override
     public void deleteByIdAndUserId(Long id, Long userId) {
         jpaRepository.deleteByIdAndUserId(id, userId);
+    }
+
+    @Override
+    public List<NewsEvent> findRecentByUserId(Long userId, int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return jpaRepository.findRecentByUserId(userId, pageable)
+                .stream()
+                .map(NewsEventMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<NewsEventCategoryCount> countByCategoryGroupedByCategoryId(Long userId) {
+        return jpaRepository.countByCategoryGroupedByCategoryId(userId);
     }
 }

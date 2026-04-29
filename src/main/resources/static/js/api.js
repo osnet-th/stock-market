@@ -9,31 +9,55 @@ const API = {
         };
     },
 
-    async request(method, url, body = null, { signal } = {}) {
+    /** 기본 요청 타임아웃(ms). 호출자가 signal 을 명시한 경우에는 적용하지 않음. */
+    DEFAULT_TIMEOUT_MS: 15000,
+
+    async request(method, url, body = null, { signal, timeoutMs } = {}) {
         const options = {
             method,
             headers: this.getHeaders(),
         };
         if (body) options.body = JSON.stringify(body);
-        if (signal) options.signal = signal;
 
-        const response = await fetch(`${this.baseUrl}${url}`, options);
-
-        if (response.status === 401) {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('userId');
-            window.location.href = '/login.html';
-            return;
+        // 호출자 signal 우선. 없으면 default timeout 으로 AbortController 합성.
+        let timeoutId = null;
+        if (signal) {
+            options.signal = signal;
+        } else {
+            const ctrl = new AbortController();
+            const ms = typeof timeoutMs === 'number' ? timeoutMs : this.DEFAULT_TIMEOUT_MS;
+            timeoutId = setTimeout(() => ctrl.abort(), ms);
+            options.signal = ctrl.signal;
         }
 
-        if (response.status === 204) return null;
+        try {
+            const response = await fetch(`${this.baseUrl}${url}`, options);
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`API Error ${response.status}: ${errorText}`);
+            if (response.status === 401) {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('userId');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            if (response.status === 204) return null;
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API Error ${response.status}: ${errorText}`);
+            }
+
+            return response.json();
+        } catch (err) {
+            if (err && err.name === 'AbortError') {
+                throw new Error(`API Timeout after ${this.DEFAULT_TIMEOUT_MS}ms: ${method} ${url}`);
+            }
+            throw err;
+        } finally {
+            if (timeoutId !== null) {
+                clearTimeout(timeoutId);
+            }
         }
-
-        return response.json();
     },
 
     // Users
@@ -558,6 +582,17 @@ const API = {
     },
     retryStockNoteSnapshot(id, type) {
         return this.request('POST', `/api/stock-notes/${id}/snapshots/${type}/retry`);
+    },
+
+    // ==================== Dashboard Summary ====================
+    /** 메인 대시보드 뉴스 기록 카드용 — 최근 등록 3건 + 카테고리별 카운트. */
+    getNewsJournalDashboardSummary() {
+        return this.request('GET', '/api/news-journal/dashboard/summary');
+    },
+
+    /** 메인 대시보드 운영자 카드용 — 오늘 ERROR 도메인 카운트(KST). admin only. */
+    getTodayIncidentCount() {
+        return this.request('GET', '/api/admin/dashboard/incidents/today');
     },
 
     // News Journal (뉴스 기록)

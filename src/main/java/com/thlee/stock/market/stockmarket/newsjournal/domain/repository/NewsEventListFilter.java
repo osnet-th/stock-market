@@ -1,6 +1,6 @@
 package com.thlee.stock.market.stockmarket.newsjournal.domain.repository;
 
-import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventCategory;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventImpact;
 
 import java.time.LocalDate;
 
@@ -9,7 +9,8 @@ import java.time.LocalDate;
  * page 는 0-base, size 는 1~200 범위.
  */
 public record NewsEventListFilter(
-        EventCategory category,
+        EventImpact impact,
+        Long categoryId,
         LocalDate fromDate,
         LocalDate toDate,
         int page,

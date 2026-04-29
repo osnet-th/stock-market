@@ -43,7 +43,8 @@ public class NewsEventRepositoryImpl implements NewsEventRepository {
     public List<NewsEvent> findList(Long userId, NewsEventListFilter filter) {
         Pageable pageable = PageRequest.of(filter.page(), filter.size());
         return jpaRepository
-                .findList(userId, filter.category(), filter.fromDate(), filter.toDate(), pageable)
+                .findList(userId, filter.impact(), filter.categoryId(),
+                        filter.fromDate(), filter.toDate(), pageable)
                 .stream()
                 .map(NewsEventMapper::toDomain)
                 .toList();
@@ -51,7 +52,8 @@ public class NewsEventRepositoryImpl implements NewsEventRepository {
 
     @Override
     public long countList(Long userId, NewsEventListFilter filter) {
-        return jpaRepository.countList(userId, filter.category(), filter.fromDate(), filter.toDate());
+        return jpaRepository.countList(userId, filter.impact(), filter.categoryId(),
+                filter.fromDate(), filter.toDate());
     }
 
     @Override

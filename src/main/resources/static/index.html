@@ -3688,11 +3688,32 @@
                     </button>
                 </div>
 
+                <!-- 주제 분류 탭 -->
+                <div class="mb-3 -mx-1 overflow-x-auto">
+                    <div class="flex items-center gap-2 px-1 whitespace-nowrap">
+                        <button type="button" @click="newsJournalSelectCategoryTab(null)"
+                                class="px-3 py-1.5 text-xs rounded-full border transition"
+                                :class="newsJournal.activeCategoryId === null
+                                        ? 'bg-blue-600 text-white border-blue-600'
+                                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'">
+                            전체
+                        </button>
+                        <template x-for="cat in newsJournal.categories" :key="cat.id">
+                            <button type="button" @click="newsJournalSelectCategoryTab(cat.id)"
+                                    class="px-3 py-1.5 text-xs rounded-full border transition"
+                                    :class="newsJournal.activeCategoryId === cat.id
+                                            ? 'bg-blue-600 text-white border-blue-600'
+                                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
+                                    x-text="cat.name"></button>
+                        </template>
+                    </div>
+                </div>
+
                 <!-- 필터 바 -->
                 <div class="bg-white border border-gray-200 rounded p-3 mb-4 flex flex-wrap items-end gap-3">
                     <div>
-                        <label class="block text-xs text-gray-500 mb-1">카테고리</label>
-                        <select x-model="newsJournal.filter.category"
+                        <label class="block text-xs text-gray-500 mb-1">시장영향</label>
+                        <select x-model="newsJournal.filter.impact"
                                 class="text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
                             <option value="">전체</option>
                             <option value="GOOD">호재</option>
@@ -3735,7 +3756,7 @@
                         <li class="relative mb-6 last:mb-0">
                             <!-- 도트 -->
                             <span class="absolute -left-[34px] top-2 h-3 w-3 rounded-full ring-4 ring-white"
-                                  :class="newsJournalDotClass(item.category)"></span>
+                                  :class="newsJournalImpactDotClass(item.impact)"></span>
                             <!-- 카드 -->
                             <div class="bg-white border border-gray-200 rounded shadow-sm p-4">
                                 <div class="flex items-start justify-between gap-3 mb-2">
@@ -3743,8 +3764,12 @@
                                         <div class="flex flex-wrap items-center gap-2 mb-1">
                                             <span class="text-xs text-gray-500" x-text="item.occurredDate"></span>
                                             <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-medium border rounded"
-                                                  :class="newsJournalCategoryBadgeClass(item.category)"
-                                                  x-text="newsJournalCategoryLabel(item.category)"></span>
+                                                  :class="newsJournalImpactBadgeClass(item.impact)"
+                                                  x-text="newsJournalImpactLabel(item.impact)"></span>
+                                            <template x-if="item.category">
+                                                <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-medium border rounded bg-slate-50 text-slate-600 border-slate-200"
+                                                      x-text="item.category.name"></span>
+                                            </template>
                                         </div>
                                         <h3 class="text-base font-semibold text-gray-800 break-words" x-text="item.title"></h3>
                                     </div>
@@ -3843,14 +3868,26 @@
                                            class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-gray-600 mb-1">카테고리 <span class="text-red-500">*</span></label>
-                                    <select x-model="newsJournal.form.category"
+                                    <label class="block text-xs text-gray-600 mb-1">시장영향 <span class="text-red-500">*</span></label>
+                                    <select x-model="newsJournal.form.impact"
                                             class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
                                         <option value="GOOD">호재</option>
                                         <option value="BAD">악재</option>
                                         <option value="NEUTRAL">중립</option>
                                     </select>
                                 </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">주제 분류 <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="newsJournal.form.category" maxlength="50"
+                                       list="newsJournalCategoryOptions"
+                                       class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                       placeholder="예: 거시경제, IT, 부동산 (기존 분류 자동완성 / 신규 입력 시 자동 등록)">
+                                <datalist id="newsJournalCategoryOptions">
+                                    <template x-for="cat in newsJournal.categories" :key="cat.id">
+                                        <option :value="cat.name"></option>
+                                    </template>
+                                </datalist>
                             </div>
                             <div>
                                 <label class="block text-xs text-gray-600 mb-1">WHAT (무슨 일인가)</label>

@@ -1,16 +1,17 @@
 /**
- * NewsJournalComponent — 뉴스 기록 (사건 타임라인) 1차 MVP.
+ * NewsJournalComponent — 뉴스 기록 (사건 타임라인) 1차 MVP + 주제 분류.
  *
  * 소유 프로퍼티: newsJournal
  * 외부 의존: API (api.js), auth (userId)
  *
- * 설계 문서: .claude/designs/newsjournal/news-journal/news-journal.md
+ * 설계 문서:
+ *  - .claude/designs/newsjournal/news-journal/news-journal.md (1차 MVP)
+ *  - .claude/designs/newsjournal/news-event-category/news-event-category.md (Phase B)
  *
- * 1차 MVP 범위:
- *  - 사건 CRUD (제목 / 발생일 / 카테고리 / WHAT/WHY/HOW / URL 리스트)
- *  - 세로 타임라인 조회 (Tailwind 마크업, Chart.js 미사용)
- *  - 카테고리 필터 + 단순 페이지네이션 (prev/next)
- * 2차 보류: 결과 추가, 학습 메모, 텍스트 검색.
+ * 범위:
+ *  - 사건 CRUD (제목 / 발생일 / 시장영향 / 주제 분류 / WHAT/WHY/HOW / URL 리스트)
+ *  - 세로 타임라인 + 주제 탭 + 시장영향 필터 + 페이지네이션
+ *  - 주제는 사용자 입력 → 서버가 find-or-create
  */
 
 function _newsJournalEmptyForm() {
@@ -18,7 +19,8 @@ function _newsJournalEmptyForm() {
         id: null,
         title: '',
         occurredDate: new Date().toISOString().slice(0, 10),
-        category: 'NEUTRAL',
+        impact: 'NEUTRAL',
+        category: '',
         what: '',
         why: '',
         how: '',
@@ -30,23 +32,37 @@ const NewsJournalComponent = {
     newsJournal: {
         loading: false,
         error: null,
-        items: [],                                   // [{ id, title, occurredDate, category, what, why, how, links: [...] , createdAt, updatedAt }]
+        items: [],                                   // [{ id, title, occurredDate, impact, category: {id, name}, what, why, how, links: [...] , createdAt, updatedAt }]
         pagination: { page: 0, size: 20, totalCount: 0 },
-        filter: { category: '', from: '', to: '' },
+        filter: { impact: '', from: '', to: '' },
+        categories: [],                              // [{ id, name }]
+        activeCategoryId: null,                      // null = 전체
         mode: null,                                  // null | 'create' | 'edit'
         form: _newsJournalEmptyForm(),
         formError: null
     },
 
     // ---------- 조회 ----------
+    async newsJournalLoadCategories() {
+        try {
+            const res = await API.getNewsEventCategories();
+            this.newsJournal.categories = Array.isArray(res) ? res : [];
+        } catch (e) {
+            // 카테고리 로딩 실패는 비치명적: 빈 배열 유지하고 입력은 허용
+            this.newsJournal.categories = [];
+        }
+    },
+
     async newsJournalLoad() {
         this.newsJournal.loading = true;
         this.newsJournal.error = null;
         try {
+            await this.newsJournalLoadCategories();
             const params = {
                 page: this.newsJournal.pagination.page,
                 size: this.newsJournal.pagination.size,
-                category: this.newsJournal.filter.category || undefined,
+                impact: this.newsJournal.filter.impact || undefined,
+                categoryId: this.newsJournal.activeCategoryId || undefined,
                 from: this.newsJournal.filter.from || undefined,
                 to: this.newsJournal.filter.to || undefined
             };
@@ -62,13 +78,19 @@ const NewsJournalComponent = {
         }
     },
 
+    newsJournalSelectCategoryTab(id) {
+        this.newsJournal.activeCategoryId = id;
+        this.newsJournal.pagination.page = 0;
+        return this.newsJournalLoad();
+    },
+
     newsJournalApplyFilter() {
         this.newsJournal.pagination.page = 0;
         return this.newsJournalLoad();
     },
 
     newsJournalResetFilter() {
-        this.newsJournal.filter = { category: '', from: '', to: '' };
+        this.newsJournal.filter = { impact: '', from: '', to: '' };
         this.newsJournal.pagination.page = 0;
         return this.newsJournalLoad();
     },
@@ -102,7 +124,8 @@ const NewsJournalComponent = {
             id: item.id,
             title: item.title || '',
             occurredDate: item.occurredDate || '',
-            category: item.category || 'NEUTRAL',
+            impact: item.impact || 'NEUTRAL',
+            category: item.category?.name || '',
             what: item.what || '',
             why: item.why || '',
             how: item.how || '',
@@ -149,8 +172,17 @@ const NewsJournalComponent = {
             this.newsJournal.formError = '미래 날짜로 기록할 수 없습니다.';
             return;
         }
-        if (!f.category) {
-            this.newsJournal.formError = '카테고리를 선택하세요.';
+        if (!f.impact) {
+            this.newsJournal.formError = '시장영향을 선택하세요.';
+            return;
+        }
+        const categoryName = (f.category || '').trim();
+        if (!categoryName) {
+            this.newsJournal.formError = '주제 분류를 입력하세요.';
+            return;
+        }
+        if (categoryName.length > 50) {
+            this.newsJournal.formError = '주제 분류는 50자 이하여야 합니다.';
             return;
         }
         for (const key of ['what', 'why', 'how']) {
@@ -181,7 +213,8 @@ const NewsJournalComponent = {
         const body = {
             title: f.title.trim(),
             occurredDate: f.occurredDate,
-            category: f.category,
+            impact: f.impact,
+            category: categoryName,
             what: f.what || null,
             why: f.why || null,
             how: f.how || null,
@@ -220,17 +253,17 @@ const NewsJournalComponent = {
     },
 
     // ---------- 표시 헬퍼 ----------
-    newsJournalCategoryLabel(category) {
-        switch (category) {
+    newsJournalImpactLabel(impact) {
+        switch (impact) {
             case 'GOOD': return '호재';
             case 'BAD': return '악재';
             case 'NEUTRAL': return '중립';
-            default: return category || '';
+            default: return impact || '';
         }
     },
 
-    newsJournalCategoryBadgeClass(category) {
-        switch (category) {
+    newsJournalImpactBadgeClass(impact) {
+        switch (impact) {
             case 'GOOD': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
             case 'BAD': return 'bg-rose-100 text-rose-700 border-rose-200';
             case 'NEUTRAL': return 'bg-slate-100 text-slate-700 border-slate-200';
@@ -238,8 +271,8 @@ const NewsJournalComponent = {
         }
     },
 
-    newsJournalDotClass(category) {
-        switch (category) {
+    newsJournalImpactDotClass(impact) {
+        switch (impact) {
             case 'GOOD': return 'bg-emerald-500';
             case 'BAD': return 'bg-rose-500';
             case 'NEUTRAL': return 'bg-slate-400';

@@ -1,6 +1,6 @@
 package com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistence;
 
-import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventCategory;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventImpact;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -18,14 +18,16 @@ public interface NewsEventJpaRepository extends JpaRepository<NewsEventEntity, L
     @Query("""
             SELECT e FROM NewsEventEntity e
              WHERE e.userId = :userId
-               AND (:category IS NULL OR e.category = :category)
+               AND (:impact IS NULL OR e.impact = :impact)
+               AND (:categoryId IS NULL OR e.categoryId = :categoryId)
                AND (:fromDate IS NULL OR e.occurredDate >= :fromDate)
                AND (:toDate IS NULL OR e.occurredDate <= :toDate)
              ORDER BY e.occurredDate DESC, e.id DESC
             """)
     List<NewsEventEntity> findList(
             @Param("userId") Long userId,
-            @Param("category") EventCategory category,
+            @Param("impact") EventImpact impact,
+            @Param("categoryId") Long categoryId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             Pageable pageable
@@ -34,13 +36,15 @@ public interface NewsEventJpaRepository extends JpaRepository<NewsEventEntity, L
     @Query("""
             SELECT COUNT(e) FROM NewsEventEntity e
              WHERE e.userId = :userId
-               AND (:category IS NULL OR e.category = :category)
+               AND (:impact IS NULL OR e.impact = :impact)
+               AND (:categoryId IS NULL OR e.categoryId = :categoryId)
                AND (:fromDate IS NULL OR e.occurredDate >= :fromDate)
                AND (:toDate IS NULL OR e.occurredDate <= :toDate)
             """)
     long countList(
             @Param("userId") Long userId,
-            @Param("category") EventCategory category,
+            @Param("impact") EventImpact impact,
+            @Param("categoryId") Long categoryId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate
     );

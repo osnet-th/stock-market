@@ -575,5 +575,8 @@ const API = {
     },
     deleteNewsEvent(id) {
         return this.request('DELETE', `/api/news-journal/events/${id}`);
+    },
+    getNewsEventCategories() {
+        return this.request('GET', '/api/news-journal/categories');
     }
 };

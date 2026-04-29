@@ -9,10 +9,10 @@ import java.time.LocalDateTime;
  * 뉴스 저널 사건(Event) 본체.
  *
  * <p>사용자가 직접 정리한 사건을 일자 단위로 보관한다. 본문은 WHAT / WHY / HOW 세 텍스트
- * 필드와 카테고리({@link EventCategory})로 구성되며, 관련 기사 URL은 별도 자식 엔티티
- * {@link NewsEventLink}로 분리해 관리한다.
+ * 필드와 시장영향({@link EventImpact}), 주제 분류({@code categoryId} → {@link NewsEventCategory})
+ * 로 구성되며, 관련 기사 URL은 별도 자식 엔티티 {@link NewsEventLink}로 분리해 관리한다.
  *
- * <p>Entity 연관관계는 두지 않고 자식은 {@code eventId} 값 참조만 보유한다.
+ * <p>Entity 연관관계는 두지 않고 자식·카테고리 모두 ID 값 참조만 보유한다.
  */
 @Getter
 public class NewsEvent {
@@ -28,7 +28,8 @@ public class NewsEvent {
 
     private String title;
     private LocalDate occurredDate;
-    private EventCategory category;
+    private EventImpact impact;
+    private Long categoryId;
     private String what;
     private String why;
     private String how;
@@ -37,14 +38,15 @@ public class NewsEvent {
     private LocalDateTime updatedAt;
 
     /** 재구성용 생성자 (Repository / Mapper 전용) */
-    public NewsEvent(Long id, Long userId, String title, LocalDate occurredDate, EventCategory category,
-                     String what, String why, String how,
+    public NewsEvent(Long id, Long userId, String title, LocalDate occurredDate, EventImpact impact,
+                     Long categoryId, String what, String why, String how,
                      LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.title = title;
         this.occurredDate = occurredDate;
-        this.category = category;
+        this.impact = impact;
+        this.categoryId = categoryId;
         this.what = what;
         this.why = why;
         this.how = how;
@@ -58,7 +60,8 @@ public class NewsEvent {
      * @param today occurredDate 미래 검증 기준 (테스트 주입 목적)
      */
     public static NewsEvent create(Long userId, String title, LocalDate occurredDate, LocalDate today,
-                                   EventCategory category, String what, String why, String how) {
+                                   EventImpact impact, Long categoryId,
+                                   String what, String why, String how) {
         requireNonNull(userId, "userId");
         requireNonBlank(title, "title");
         requireTitleWithin(title);
@@ -67,19 +70,22 @@ public class NewsEvent {
         if (occurredDate.isAfter(today)) {
             throw new IllegalArgumentException("미래 날짜로 기록할 수 없습니다.");
         }
-        requireNonNull(category, "category");
+        requireNonNull(impact, "impact");
+        requireNonNull(categoryId, "categoryId");
         requireTextWithin(what, "what");
         requireTextWithin(why, "why");
         requireTextWithin(how, "how");
         LocalDateTime now = LocalDateTime.now();
-        return new NewsEvent(null, userId, title, occurredDate, category, what, why, how, now, now);
+        return new NewsEvent(null, userId, title, occurredDate, impact, categoryId,
+                what, why, how, now, now);
     }
 
     /**
      * 사건 본문 수정.
      */
     public void updateBody(String title, LocalDate occurredDate, LocalDate today,
-                           EventCategory category, String what, String why, String how) {
+                           EventImpact impact, Long categoryId,
+                           String what, String why, String how) {
         requireNonBlank(title, "title");
         requireTitleWithin(title);
         requireNonNull(occurredDate, "occurredDate");
@@ -87,13 +93,15 @@ public class NewsEvent {
         if (occurredDate.isAfter(today)) {
             throw new IllegalArgumentException("미래 날짜로 기록할 수 없습니다.");
         }
-        requireNonNull(category, "category");
+        requireNonNull(impact, "impact");
+        requireNonNull(categoryId, "categoryId");
         requireTextWithin(what, "what");
         requireTextWithin(why, "why");
         requireTextWithin(how, "how");
         this.title = title;
         this.occurredDate = occurredDate;
-        this.category = category;
+        this.impact = impact;
+        this.categoryId = categoryId;
         this.what = what;
         this.why = why;
         this.how = how;

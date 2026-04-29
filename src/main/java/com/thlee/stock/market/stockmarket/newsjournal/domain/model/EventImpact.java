@@ -7,7 +7,7 @@ package com.thlee.stock.market.stockmarket.newsjournal.domain.model;
  * {@code @Enumerated(EnumType.STRING)}으로 DB에 저장되므로, 이름을 바꾸면
  * 기존 행이 orphan이 된다. 추가는 허용하며, 제거 시 데이터 이관 스크립트 필수.
  */
-public enum EventCategory {
+public enum EventImpact {
     GOOD,    // 호재
     BAD,     // 악재
     NEUTRAL  // 중립

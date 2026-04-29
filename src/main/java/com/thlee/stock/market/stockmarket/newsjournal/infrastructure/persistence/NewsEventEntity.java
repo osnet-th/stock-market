@@ -1,6 +1,6 @@
 package com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistence;
 
-import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventCategory;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventImpact;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -18,7 +18,11 @@ import java.time.LocalDateTime;
 /**
  * 뉴스 저널 사건 본체 Entity.
  *
- * <p>자식 링크({@link NewsEventLinkEntity})와 연관관계 없이 ID 참조만 사용한다 (CLAUDE.md 규칙).
+ * <p>자식 링크({@link NewsEventLinkEntity}) / 카테고리({@link NewsEventCategoryEntity}) 와
+ * 연관관계 없이 ID 참조만 사용한다 (CLAUDE.md 규칙).
+ *
+ * <p>{@code category_id} 는 backfill 단계 경유를 위해 자바 레이어에선 nullable 로 둔다.
+ * 운영 DB 는 부팅 backfill 후 별도 ALTER 로 NOT NULL 강화.
  */
 @Entity
 @Table(
@@ -26,8 +30,10 @@ import java.time.LocalDateTime;
         indexes = {
                 @Index(name = "idx_news_event_user_date",
                         columnList = "user_id, occurred_date DESC"),
-                @Index(name = "idx_news_event_user_category",
-                        columnList = "user_id, category, occurred_date DESC")
+                @Index(name = "idx_news_event_user_impact",
+                        columnList = "user_id, impact, occurred_date DESC"),
+                @Index(name = "idx_news_event_user_category_date",
+                        columnList = "user_id, category_id, occurred_date DESC, id DESC")
         }
 )
 @Getter
@@ -47,8 +53,11 @@ public class NewsEventEntity {
     private LocalDate occurredDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "category", nullable = false, length = 20)
-    private EventCategory category;
+    @Column(name = "impact", nullable = false, length = 20)
+    private EventImpact impact;
+
+    @Column(name = "category_id")
+    private Long categoryId;
 
     @Column(name = "what", columnDefinition = "TEXT")
     private String what;
@@ -68,14 +77,15 @@ public class NewsEventEntity {
     protected NewsEventEntity() {
     }
 
-    public NewsEventEntity(Long id, Long userId, String title, LocalDate occurredDate, EventCategory category,
-                           String what, String why, String how,
+    public NewsEventEntity(Long id, Long userId, String title, LocalDate occurredDate, EventImpact impact,
+                           Long categoryId, String what, String why, String how,
                            LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.title = title;
         this.occurredDate = occurredDate;
-        this.category = category;
+        this.impact = impact;
+        this.categoryId = categoryId;
         this.what = what;
         this.why = why;
         this.how = how;

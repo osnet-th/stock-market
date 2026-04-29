@@ -2,7 +2,7 @@ package com.thlee.stock.market.stockmarket.newsjournal.presentation.dto;
 
 import com.thlee.stock.market.stockmarket.newsjournal.application.dto.CreateNewsEventCommand;
 import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsEventLinkCommand;
-import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventCategory;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventImpact;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,11 +13,14 @@ import java.util.List;
 
 /**
  * 사건 생성 Request.
+ *
+ * <p>{@code category} 필드는 *주제 분류명* 으로 사용된다 (시장영향은 {@code impact} 로 분리).
  */
 public record CreateNewsEventRequest(
         @NotBlank @Size(max = 200) String title,
         @NotNull LocalDate occurredDate,
-        @NotNull EventCategory category,
+        @NotNull EventImpact impact,
+        @NotBlank @Size(max = 50) String category,
         @Size(max = 4000) String what,
         @Size(max = 4000) String why,
         @Size(max = 4000) String how,
@@ -29,7 +32,7 @@ public record CreateNewsEventRequest(
                 .map(l -> new NewsEventLinkCommand(l.title(), l.url()))
                 .toList();
         return new CreateNewsEventCommand(
-                userId, title, occurredDate, category, what, why, how, linkCommands
+                userId, title, occurredDate, impact, category, what, why, how, linkCommands
         );
     }
 }

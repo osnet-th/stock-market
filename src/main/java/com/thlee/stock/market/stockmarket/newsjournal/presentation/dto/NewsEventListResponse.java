@@ -2,7 +2,7 @@ package com.thlee.stock.market.stockmarket.newsjournal.presentation.dto;
 
 import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsEventListItemResult;
 import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsEventListResult;
-import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventCategory;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventImpact;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEvent;
 
 import java.time.LocalDate;
@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 사건 리스트 Response (타임라인 화면용). 각 항목은 본체 + 링크 평탄화.
+ * 사건 리스트 Response (타임라인 화면용). 각 항목은 본체 + 카테고리 + 링크 평탄화.
  */
 public record NewsEventListResponse(
         List<ItemDto> items,
@@ -30,7 +30,8 @@ public record NewsEventListResponse(
             Long id,
             String title,
             LocalDate occurredDate,
-            EventCategory category,
+            EventImpact impact,
+            CategoryDto category,
             String what,
             String why,
             String how,
@@ -41,7 +42,8 @@ public record NewsEventListResponse(
         public static ItemDto from(NewsEventListItemResult i) {
             NewsEvent e = i.event();
             return new ItemDto(
-                    e.getId(), e.getTitle(), e.getOccurredDate(), e.getCategory(),
+                    e.getId(), e.getTitle(), e.getOccurredDate(), e.getImpact(),
+                    i.category() == null ? null : CategoryDto.from(i.category()),
                     e.getWhat(), e.getWhy(), e.getHow(),
                     i.links().stream().map(NewsEventLinkDto::from).toList(),
                     e.getCreatedAt(), e.getUpdatedAt()

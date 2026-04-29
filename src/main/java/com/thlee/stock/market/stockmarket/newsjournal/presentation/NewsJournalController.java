@@ -4,7 +4,7 @@ import com.thlee.stock.market.stockmarket.newsjournal.application.NewsEventReadS
 import com.thlee.stock.market.stockmarket.newsjournal.application.NewsEventWriteService;
 import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsEventDetailResult;
 import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsEventListResult;
-import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventCategory;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventImpact;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventListFilter;
 import com.thlee.stock.market.stockmarket.newsjournal.presentation.dto.CreateNewsEventRequest;
 import com.thlee.stock.market.stockmarket.newsjournal.presentation.dto.NewsEventDetailResponse;
@@ -58,13 +58,14 @@ public class NewsJournalController {
 
     @GetMapping
     public ResponseEntity<NewsEventListResponse> findList(
-            @RequestParam(required = false) EventCategory category,
+            @RequestParam(required = false) EventImpact impact,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        NewsEventListFilter filter = new NewsEventListFilter(category, from, to, page, size);
+        NewsEventListFilter filter = new NewsEventListFilter(impact, categoryId, from, to, page, size);
         NewsEventListResult result = readService.findList(NewsJournalSecurityContext.currentUserId(), filter);
         return ResponseEntity.ok(NewsEventListResponse.from(result));
     }

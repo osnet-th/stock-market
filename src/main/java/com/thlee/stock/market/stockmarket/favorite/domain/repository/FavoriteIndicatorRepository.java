@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.favorite.domain.repository;
 
+import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteDisplayMode;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicator;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 
@@ -19,4 +20,9 @@ public interface FavoriteIndicatorRepository {
     List<FavoriteIndicator> findByUserId(Long userId);
 
     List<FavoriteIndicator> findByUserIdAndSourceType(Long userId, FavoriteIndicatorSourceType sourceType);
+
+    int updateDisplayMode(Long userId,
+                          FavoriteIndicatorSourceType sourceType,
+                          String indicatorCode,
+                          FavoriteDisplayMode displayMode);
 }

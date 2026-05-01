@@ -17,34 +17,34 @@
 - [x] `UserFavoriteIndicatorJpaRepository.updateDisplayMode(...)` `@Modifying` 쿼리 추가
 
 ### Economics 모듈 신규 history 조회 메서드 추가 (favorite 가 활용)
-- [ ] `EcosIndicatorRepository.findHistory(className, keystatName, limit)` 포트 추가
-- [ ] `EcosIndicatorJpaRepository`에 native ROW_NUMBER 쿼리로 `findHistory(...)` 추가
-- [ ] `EcosIndicatorRepositoryImpl.findHistory(...)` 구현 (Entity → Domain 매핑)
-- [ ] `EcosIndicatorService.findHistory(className, keystatName, limit)` 위임 메서드 추가
-- [ ] `GlobalIndicatorRepository.findHistory(countryName, indicatorType, limit)` 포트 추가
-- [ ] `GlobalIndicatorJpaRepository.findHistory(...)` native ROW_NUMBER 쿼리 추가
-- [ ] `GlobalIndicatorRepositoryImpl.findHistory(...)` 구현
-- [ ] `GlobalIndicatorQueryService.findHistory(countryName, indicatorType, limit)` 위임 메서드 추가
+- [x] `EcosIndicatorRepository.findHistory(className, keystatName, limit)` 포트 추가
+- [x] `EcosIndicatorJpaRepository`에 native ROW_NUMBER 쿼리로 `findHistory(...)` 추가
+- [x] `EcosIndicatorRepositoryImpl.findHistory(...)` 구현 (Entity → Domain 매핑)
+- [x] `EcosIndicatorService.findHistory(className, keystatName, limit)` 위임 메서드 추가
+- [x] `GlobalIndicatorRepository.findHistory(countryName, indicatorType, limit)` 포트 추가
+- [x] `GlobalIndicatorJpaRepository.findHistory(...)` native ROW_NUMBER 쿼리 추가
+- [x] `GlobalIndicatorRepositoryImpl.findHistory(...)` 구현
+- [x] `GlobalIndicatorQueryService.findHistory(countryName, indicatorType, limit)` 위임 메서드 추가
 
 ### Application 계층 (favorite)
-- [ ] `FavoriteIndicatorService.changeDisplayMode(userId, sourceType, indicatorCode, mode)` 메서드 추가
-- [ ] `findEnrichedByUserId(userId)` 확장: GRAPH 모드 항목에 한해 시계열을 함께 모아 응답에 포함
-- [ ] EnrichedEcosFavorite/EnrichedGlobalFavorite 레코드에 `history: List<HistoryPoint>` 추가
-- [ ] indicatorCode 파싱하여 economics 모듈 신규 `findHistory(...)` 호출 (GRAPH 항목별 단건 조회)
+- [x] `FavoriteIndicatorService.changeDisplayMode(userId, sourceType, indicatorCode, mode)` 메서드 추가
+- [x] `findEnrichedByUserId(userId)` 확장: GRAPH 모드 항목에 한해 시계열을 함께 모아 응답에 포함
+- [x] EnrichedEcosFavorite/EnrichedGlobalFavorite 레코드에 `history: List<HistoryPoint>` 추가
+- [x] indicatorCode 파싱하여 economics 모듈 신규 `findHistory(...)` 호출 (GRAPH 항목별 단건 조회)
 
 ### Presentation 계층
-- [ ] `PUT /api/favorites/display-mode` API 신규 추가
-- [ ] `FavoriteDisplayModeRequest` DTO 신규 작성
-- [ ] `EnrichedFavoriteResponse`의 EcosItem/GlobalItem에 `displayMode`, `history` 필드 추가
-- [ ] `EnrichedHistoryPoint` DTO 신규 작성 (snapshotDate, dataValue)
+- [x] `PUT /api/favorites/display-mode` API 신규 추가
+- [x] `FavoriteDisplayModeRequest` DTO 신규 작성
+- [x] `EnrichedFavoriteResponse`의 EcosItem/GlobalItem에 `displayMode`, `history` 필드 추가
+- [x] `EnrichedHistoryPoint` DTO 신규 작성 (snapshotDate, dataValue)
 
 ### Frontend 계층
-- [ ] `index.html` 대시보드: "그래프 영역"과 "단순 지표 영역" 카드 컨테이너 분리
-- [ ] `favorite.js`: 항목별 displayMode에 따라 두 영역에 분기 렌더
-- [ ] 카드별 "지표/그래프" 토글 버튼 UI 추가
-- [ ] 토글 시 `PUT /api/favorites/display-mode` 호출 후 화면 재배치
-- [ ] Chart.js 라인 차트 렌더링 함수 작성 (`renderFavoriteChart(canvasId, points)`)
-- [ ] 차트 라이프사이클 관리 (Chart 인스턴스 destroy → re-render)
+- [x] `index.html` 대시보드: "그래프 영역"과 "단순 지표 영역" 카드 컨테이너 분리
+- [x] `favorite.js`: 항목별 displayMode에 따라 두 영역에 분기 렌더
+- [x] 카드별 "지표/그래프" 토글 버튼 UI 추가
+- [x] 토글 시 `PUT /api/favorites/display-mode` 호출 후 화면 재배치
+- [x] Chart.js 라인 차트 렌더링 함수 작성 (`renderFavoriteChart(canvasId, points)`)
+- [x] 차트 라이프사이클 관리 (Chart 인스턴스 destroy → re-render)
 
 ---
 

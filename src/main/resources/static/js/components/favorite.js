@@ -143,5 +143,92 @@ const FavoriteComponent = {
             case 'INVALID_CODE': return '알 수 없는 지표 코드입니다. 관심 지표에서 제거해주세요';
             default: return '실시간 조회 실패. 잠시 후 재조회해주세요';
         }
+    },
+
+    /**
+     * 관심 지표 표시 모드 토글 (INDICATOR ↔ GRAPH).
+     * 토글 후 enriched 재조회로 history 동기화.
+     */
+    async toggleDisplayMode(card, sourceType) {
+        if (!this.checkLoggedIn()) return;
+        if (!card || card._displayModePending) return;
+        card._displayModePending = true;
+
+        const oldMode = card.displayMode || 'INDICATOR';
+        const newMode = oldMode === 'GRAPH' ? 'INDICATOR' : 'GRAPH';
+
+        try {
+            await API.changeFavoriteDisplayMode(sourceType, card.indicatorCode, newMode);
+
+            const fresh = await API.getEnrichedFavorites();
+            if (fresh && this.homeSummary) {
+                this.homeSummary.enrichedFavorites = fresh;
+            }
+        } catch (e) {
+            console.error('표시 모드 변경 실패:', e);
+            alert('표시 모드 변경에 실패했어요. 잠시 후 다시 시도해주세요');
+        } finally {
+            card._displayModePending = false;
+        }
+    },
+
+    /**
+     * 카드 안 canvas 에 시계열 라인 차트 렌더.
+     * 동일 indicatorCode 의 기존 차트는 destroy 후 재생성한다.
+     */
+    renderFavoriteChart(canvasEl, history, indicatorCode) {
+        if (!canvasEl) return;
+        if (!this.favorites._charts) this.favorites._charts = {};
+
+        const prev = this.favorites._charts[indicatorCode];
+        if (prev) {
+            try { prev.destroy(); } catch (_) { /* noop */ }
+            delete this.favorites._charts[indicatorCode];
+        }
+
+        if (!history || history.length === 0) return;
+
+        const labels = history.map(p => p.snapshotDate);
+        const values = history.map(p => {
+            const num = parseFloat(String(p.dataValue || '').replace(/,/g, ''));
+            return Number.isFinite(num) ? num : null;
+        });
+
+        const chart = new Chart(canvasEl, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 1.5,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    spanGaps: true,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => items[0]?.label || '',
+                            label: (item) => item.formattedValue
+                        }
+                    }
+                },
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                }
+            }
+        });
+
+        this.favorites._charts[indicatorCode] = chart;
     }
 };

@@ -2983,7 +2983,7 @@
 
                     <select :value="salary.currentMonth"
                             @change="onSalaryMonthSelected($event.target.value)"
-                            class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[140px]">
+                            class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[120px] sm:min-w-[140px]">
                         <template x-if="!salary.availableMonths.length">
                             <option :value="salary.currentMonth" x-text="salary.currentMonth || '선택'"></option>
                         </template>
@@ -3061,8 +3061,8 @@
                             <h3 class="text-sm font-semibold text-gray-700">입력</h3>
 
                             <!-- 월급 -->
-                            <div class="flex items-center gap-2">
-                                <label class="w-24 text-sm text-gray-600 shrink-0">월 실수령액</label>
+                            <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+                                <label class="w-full sm:w-24 text-sm text-gray-600 shrink-0">월 실수령액</label>
                                 <input x-ref="salaryIncomeInput"
                                        type="number" min="0" step="1"
                                        x-model="salary.editingIncome"
@@ -3078,8 +3078,8 @@
 
                             <!-- 카테고리 입력 -->
                             <template x-for="cat in SALARY_CATEGORIES" :key="cat.key">
-                                <div class="flex items-center gap-2">
-                                    <label class="w-24 text-sm text-gray-600 flex items-center gap-1 shrink-0">
+                                <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+                                    <label class="w-full sm:w-24 text-sm text-gray-600 flex items-center gap-1 shrink-0">
                                         <span class="inline-block w-2 h-2 rounded-full shrink-0"
                                               :style="{ backgroundColor: cat.color }"></span>
                                         <span x-text="cat.label"></span>
@@ -3106,7 +3106,7 @@
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                                 <div class="bg-white rounded-xl border border-gray-200 p-4">
                                     <h3 class="text-sm font-semibold text-gray-700 mb-3">월별 분포</h3>
-                                    <div class="relative h-64">
+                                    <div class="relative h-48 sm:h-64">
                                         <canvas x-ref="salaryDonutCanvas"
                                                 role="img"
                                                 aria-label="월별 카테고리 비율 도넛 차트"></canvas>
@@ -3114,7 +3114,7 @@
                                 </div>
                                 <div class="bg-white rounded-xl border border-gray-200 p-4">
                                     <h3 class="text-sm font-semibold text-gray-700 mb-3">카테고리별 금액</h3>
-                                    <div class="relative h-64">
+                                    <div class="relative h-48 sm:h-64">
                                         <canvas x-ref="salaryBarCanvas"
                                                 role="img"
                                                 aria-label="월별 카테고리 금액 바 차트"></canvas>
@@ -3127,7 +3127,7 @@
                         <template x-if="salaryHasAnyData()">
                             <div class="bg-white rounded-xl border border-gray-200 p-4">
                                 <h3 class="text-sm font-semibold text-gray-700 mb-3">최근 12개월 추이</h3>
-                                <div class="relative h-80">
+                                <div class="relative h-56 sm:h-80">
                                     <canvas x-ref="salaryLineCanvas"
                                             role="img"
                                             aria-label="최근 12개월 월급/총지출/저축율 추이 라인 차트"></canvas>

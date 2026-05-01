@@ -14,6 +14,7 @@ import java.time.YearMonth;
 public class SpendingLineResponse {
 
     private final SpendingCategory category;
+    private final String categoryLabel;
     private final BigDecimal amount;
     private final String memo;
 
@@ -23,6 +24,7 @@ public class SpendingLineResponse {
     private SpendingLineResponse(SpendingCategory category, BigDecimal amount, String memo,
                                  YearMonth inheritedFromMonth) {
         this.category = category;
+        this.categoryLabel = category.getDisplayName();
         this.amount = amount;
         this.memo = memo;
         this.inheritedFromMonth = inheritedFromMonth;

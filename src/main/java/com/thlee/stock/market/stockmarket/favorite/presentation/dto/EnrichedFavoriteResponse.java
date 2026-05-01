@@ -6,7 +6,9 @@ import com.thlee.stock.market.stockmarket.economics.domain.model.IndicatorValue;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedEcosFavorite;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedFavorites;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedGlobalFavorite;
+import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.HistoryPoint;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public record EnrichedFavoriteResponse(
@@ -33,9 +35,14 @@ public record EnrichedFavoriteResponse(
         String dataValue,
         String previousDataValue,
         String cycle,
-        boolean hasData
+        boolean hasData,
+        String displayMode,
+        List<EnrichedHistoryPoint> history
     ) {
         public static EcosItem from(EnrichedEcosFavorite enriched) {
+            String displayMode = enriched.favorite().getDisplayMode().name();
+            List<EnrichedHistoryPoint> history = toHistoryPoints(enriched.history());
+
             EcosIndicatorLatest latest = enriched.latest();
             if (latest == null) {
                 String[] parts = enriched.favorite().getIndicatorCode().split("::", 2);
@@ -43,7 +50,8 @@ public record EnrichedFavoriteResponse(
                     enriched.favorite().getIndicatorCode(),
                     parts.length > 0 ? parts[0] : "",
                     parts.length > 1 ? parts[1] : "",
-                    null, null, null, false
+                    null, null, null, false,
+                    displayMode, history
                 );
             }
             return new EcosItem(
@@ -53,7 +61,8 @@ public record EnrichedFavoriteResponse(
                 latest.getDataValue(),
                 latest.getPreviousDataValue(),
                 latest.getCycle(),
-                true
+                true,
+                displayMode, history
             );
         }
     }
@@ -69,19 +78,24 @@ public record EnrichedFavoriteResponse(
         boolean hasData,
         boolean failed,
         String failureReason,
-        boolean refreshable
+        boolean refreshable,
+        String displayMode,
+        List<EnrichedHistoryPoint> history
     ) {
         public static GlobalItem from(EnrichedGlobalFavorite enriched) {
             String[] parts = enriched.favorite().getIndicatorCode().split("::", 2);
             String parsedCountry = parts.length > 0 ? parts[0] : "";
             String parsedType = parts.length > 1 ? parts[1] : "";
+            String displayMode = enriched.favorite().getDisplayMode().name();
+            List<EnrichedHistoryPoint> history = toHistoryPoints(enriched.history());
 
             if (enriched.isFailed()) {
                 return new GlobalItem(
                     enriched.favorite().getIndicatorCode(),
                     parsedCountry, parsedType,
                     null, null, null, null,
-                    false, true, enriched.failureReason(), enriched.refreshable()
+                    false, true, enriched.failureReason(), enriched.refreshable(),
+                    displayMode, history
                 );
             }
 
@@ -91,7 +105,8 @@ public record EnrichedFavoriteResponse(
                     enriched.favorite().getIndicatorCode(),
                     parsedCountry, parsedType,
                     null, null, null, null,
-                    false, false, null, true
+                    false, false, null, true,
+                    displayMode, history
                 );
             }
 
@@ -106,8 +121,20 @@ public record EnrichedFavoriteResponse(
                 snap.getReferenceText(),
                 last != null ? last.getUnit() : null,
                 last != null,
-                false, null, true
+                false, null, true,
+                displayMode, history
             );
         }
+    }
+
+    public record EnrichedHistoryPoint(LocalDate snapshotDate, String dataValue) {}
+
+    private static List<EnrichedHistoryPoint> toHistoryPoints(List<HistoryPoint> points) {
+        if (points == null || points.isEmpty()) {
+            return List.of();
+        }
+        return points.stream()
+            .map(p -> new EnrichedHistoryPoint(p.snapshotDate(), p.dataValue()))
+            .toList();
     }
 }

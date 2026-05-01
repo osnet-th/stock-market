@@ -13,6 +13,7 @@ public class FavoriteIndicatorMapper {
             domain.getUserId(),
             domain.getSourceType(),
             domain.getIndicatorCode(),
+            domain.getDisplayMode(),
             domain.getCreatedAt()
         );
     }
@@ -23,6 +24,7 @@ public class FavoriteIndicatorMapper {
             entity.getUserId(),
             entity.getSourceType(),
             entity.getIndicatorCode(),
+            entity.getDisplayMode(),
             entity.getCreatedAt()
         );
     }

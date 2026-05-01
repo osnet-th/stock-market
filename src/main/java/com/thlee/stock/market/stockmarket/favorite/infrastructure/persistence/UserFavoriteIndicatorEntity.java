@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.favorite.infrastructure.persistence;
 
+import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteDisplayMode;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -36,6 +37,15 @@ public class UserFavoriteIndicatorEntity {
     @Column(name = "indicator_code", nullable = false, length = 310)
     private String indicatorCode;
 
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "display_mode",
+            nullable = false,
+            length = 10,
+            columnDefinition = "VARCHAR(10) NOT NULL DEFAULT 'INDICATOR'"
+    )
+    private FavoriteDisplayMode displayMode;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -46,11 +56,13 @@ public class UserFavoriteIndicatorEntity {
                                        Long userId,
                                        FavoriteIndicatorSourceType sourceType,
                                        String indicatorCode,
+                                       FavoriteDisplayMode displayMode,
                                        LocalDateTime createdAt) {
         this.id = id;
         this.userId = userId;
         this.sourceType = sourceType;
         this.indicatorCode = indicatorCode;
+        this.displayMode = displayMode;
         this.createdAt = createdAt;
     }
 
@@ -58,6 +70,9 @@ public class UserFavoriteIndicatorEntity {
     protected void onCreate() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
+        }
+        if (displayMode == null) {
+            displayMode = FavoriteDisplayMode.INDICATOR;
         }
     }
 }

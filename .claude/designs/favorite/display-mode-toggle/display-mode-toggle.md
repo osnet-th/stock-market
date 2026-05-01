@@ -11,8 +11,7 @@
 - [ ] `FavoriteIndicatorRepository` 포트에 `updateDisplayMode(...)` 메서드 추가
 
 ### Infrastructure 계층
-- [ ] `UserFavoriteIndicatorEntity`에 `display_mode` 컬럼 추가 (VARCHAR(10), NOT NULL, default 'INDICATOR') **— Entity 변경 사전 승인 필요**
-- [ ] DB 마이그레이션 SQL 작성 (`ALTER TABLE user_favorite_indicator ADD COLUMN display_mode VARCHAR(10) NOT NULL DEFAULT 'INDICATOR'`)
+- [ ] `UserFavoriteIndicatorEntity`에 `display_mode` 컬럼 추가 — `@Enumerated(EnumType.STRING)` + `columnDefinition = "VARCHAR(10) NOT NULL DEFAULT 'INDICATOR'"` **— Entity 변경 사전 승인 필요**
 - [ ] `FavoriteIndicatorMapper`: Entity ↔ Domain displayMode 매핑 추가
 - [ ] `FavoriteIndicatorRepositoryImpl.updateDisplayMode(...)` 구현
 - [ ] `UserFavoriteIndicatorJpaRepository`: `findByUserIdAndSourceTypeAndIndicatorCode(...)` 추가 (단건 조회)
@@ -54,7 +53,7 @@
 
 - **표시 모드 식별 단위**: `(userId, sourceType, indicatorCode)` 단위로 displayMode 저장 (기존 unique 키와 동일). 사용자별 개별 지표마다 모드 다름.
 - **enum 값**: `INDICATOR`(기본), `GRAPH` 두 가지. 추후 확장 여지 둠.
-- **DB default**: 기존 row에는 'INDICATOR'를 default로 지정 → 마이그레이션 시 기존 사용자 영향 없음.
+- **DB default 처리**: `@Column(columnDefinition = "VARCHAR(10) NOT NULL DEFAULT 'INDICATOR'")` 방식 사용. `ddl-auto: update`가 ALTER TABLE 시 default까지 포함하여 기존 row에 'INDICATOR' 자동 적용 → 별도 SQL 마이그레이션 파일 불필요.
 - **시계열 데이터 전달 방식**: 단순 enriched 응답에 history 배열을 함께 담음 (별도 endpoint 분리하지 않음). 단, **GRAPH 모드 항목에만** history 포함 → 트래픽 절감.
 - **시계열 길이**: 우선 최근 30포인트 한도. 차트 가독성과 응답 크기 균형.
 - **프론트 영역 분리**: 한 화면에 두 섹션(`#favoriteGraphSection`, `#favoriteIndicatorSection`)을 두고, 카드 단위로 항목을 분배. 같은 카드를 토글하면 다른 섹션으로 이동.
@@ -79,7 +78,8 @@
 ### Infrastructure 계층
 
 **Entity**: `favorite/infrastructure/persistence/UserFavoriteIndicatorEntity.java`
-- `@Column(name = "display_mode", nullable = false, length = 10) @Enumerated(EnumType.STRING)` 추가
+- `@Enumerated(EnumType.STRING)` + `@Column(name = "display_mode", nullable = false, length = 10, columnDefinition = "VARCHAR(10) NOT NULL DEFAULT 'INDICATOR'")` 필드 추가
+- `ddl-auto: update` 가 `ALTER TABLE` 자동 실행, PostgreSQL이 기존 row에 default 'INDICATOR' 채움 → 별도 SQL 마이그레이션 불필요
 
 **Mapper**: `favorite/infrastructure/persistence/FavoriteIndicatorMapper.java`
 - toDomain/toEntity에 displayMode 매핑 추가
@@ -89,12 +89,6 @@
 
 **JPA Repository**: `favorite/infrastructure/persistence/UserFavoriteIndicatorJpaRepository.java`
 - `Optional<UserFavoriteIndicatorEntity> findByUserIdAndSourceTypeAndIndicatorCode(...)` 시그니처 추가
-
-**DB 마이그레이션**: `src/main/resources/db/migration/Vxxxx__add_display_mode_to_favorite.sql`
-```sql
-ALTER TABLE user_favorite_indicator
-  ADD COLUMN display_mode VARCHAR(10) NOT NULL DEFAULT 'INDICATOR';
-```
 
 [구현 예시](./examples/infrastructure-example.md)
 
@@ -156,4 +150,4 @@ ALTER TABLE user_favorite_indicator
 - 동일 사용자가 빠르게 토글 연타 시 race condition 방지를 위해 클라이언트에서 토글 버튼 disable + 디바운스.
 - displayMode 컬럼은 `@Enumerated(EnumType.STRING)`로 저장 — 추후 enum 추가 안전.
 - 시계열이 없는 지표(`hasData=false`)는 GRAPH 모드라도 빈 차트 placeholder 또는 "데이터 없음" 메시지 표시.
-- 마이그레이션 파일 버전 번호는 기존 마지막 마이그레이션 다음 번호로 부여 (작성 시점에 확인).
+- 컬럼 추가는 `ddl-auto: update`로 자동 처리. 운영 배포 시 ALTER TABLE 실행 시간이 테이블 크기에 비례하므로, 사용자 수가 충분히 많아지면 점검 시간대 배포 권장.

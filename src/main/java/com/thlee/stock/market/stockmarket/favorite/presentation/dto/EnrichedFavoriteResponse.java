@@ -7,6 +7,7 @@ import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicator
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedFavorites;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedGlobalFavorite;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.HistoryPoint;
+import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteDisplayMode;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -40,7 +41,8 @@ public record EnrichedFavoriteResponse(
         List<EnrichedHistoryPoint> history
     ) {
         public static EcosItem from(EnrichedEcosFavorite enriched) {
-            String displayMode = enriched.favorite().getDisplayMode().name();
+            FavoriteDisplayMode mode = enriched.favorite().getDisplayMode();
+            String displayMode = (mode != null ? mode : FavoriteDisplayMode.INDICATOR).name();
             List<EnrichedHistoryPoint> history = toHistoryPoints(enriched.history());
 
             EcosIndicatorLatest latest = enriched.latest();
@@ -86,7 +88,8 @@ public record EnrichedFavoriteResponse(
             String[] parts = enriched.favorite().getIndicatorCode().split("::", 2);
             String parsedCountry = parts.length > 0 ? parts[0] : "";
             String parsedType = parts.length > 1 ? parts[1] : "";
-            String displayMode = enriched.favorite().getDisplayMode().name();
+            FavoriteDisplayMode mode = enriched.favorite().getDisplayMode();
+            String displayMode = (mode != null ? mode : FavoriteDisplayMode.INDICATOR).name();
             List<EnrichedHistoryPoint> history = toHistoryPoints(enriched.history());
 
             if (enriched.isFailed()) {

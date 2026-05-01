@@ -148,6 +148,7 @@ const FavoriteComponent = {
     /**
      * 관심 지표 표시 모드 토글 (INDICATOR ↔ GRAPH).
      * 토글 후 enriched 재조회로 history 동기화.
+     * GRAPH → INDICATOR 전환 시 차트 인스턴스 정리.
      */
     async toggleDisplayMode(card, sourceType) {
         if (!this.checkLoggedIn()) return;
@@ -160,6 +161,10 @@ const FavoriteComponent = {
         try {
             await API.changeFavoriteDisplayMode(sourceType, card.indicatorCode, newMode);
 
+            if (oldMode === 'GRAPH') {
+                this.destroyFavoriteChart(card.indicatorCode);
+            }
+
             const fresh = await API.getEnrichedFavorites();
             if (fresh && this.homeSummary) {
                 this.homeSummary.enrichedFavorites = fresh;
@@ -169,6 +174,18 @@ const FavoriteComponent = {
             alert('표시 모드 변경에 실패했어요. 잠시 후 다시 시도해주세요');
         } finally {
             card._displayModePending = false;
+        }
+    },
+
+    /**
+     * 단일 indicatorCode 의 차트 인스턴스를 destroy 하고 캐시에서 제거한다.
+     */
+    destroyFavoriteChart(indicatorCode) {
+        if (!this.favorites._charts) return;
+        const chart = this.favorites._charts[indicatorCode];
+        if (chart) {
+            try { chart.destroy(); } catch (_) { /* noop */ }
+            delete this.favorites._charts[indicatorCode];
         }
     },
 

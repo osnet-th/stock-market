@@ -27,7 +27,7 @@ public class FavoriteIndicator {
         this.userId = userId;
         this.sourceType = sourceType;
         this.indicatorCode = indicatorCode;
-        this.displayMode = displayMode;
+        this.displayMode = displayMode != null ? displayMode : FavoriteDisplayMode.INDICATOR;
         this.createdAt = createdAt;
     }
 

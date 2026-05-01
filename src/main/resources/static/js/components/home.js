@@ -101,6 +101,8 @@ const HomeComponent = {
      */
     async removeDashboardFavorite(sourceType, indicatorCode) {
         await this.toggleFavorite(sourceType, indicatorCode);
+        // 차트 인스턴스 메모리 정리 (GRAPH 모드 카드였을 수 있음)
+        this.destroyFavoriteChart(indicatorCode);
         // enrichedFavorites에서도 즉시 제거
         if (this.homeSummary.enrichedFavorites) {
             if (sourceType === 'ECOS') {

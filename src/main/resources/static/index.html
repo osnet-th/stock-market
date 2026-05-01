@@ -534,7 +534,7 @@
                         </template>
 
                         <!-- 관심 지표 — 그래프 영역 -->
-                        <template x-if="homeSummary.enrichedFavorites?.global?.filter(c => c.displayMode === 'GRAPH').length > 0">
+                        <template x-if="homeSummary.enrichedFavorites?.global?.filter(c => c.displayMode === 'GRAPH' && !c.failed).length > 0">
                             <div class="mb-4">
                                 <div class="flex items-center justify-between mb-2">
                                     <p class="text-sm font-semibold text-gray-600 flex items-center gap-1">
@@ -548,7 +548,7 @@
                                     </div>
                                 </div>
                                 <div id="global-fav-graph-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
-                                    <template x-for="card in homeSummary.enrichedFavorites.global.filter(c => c.displayMode === 'GRAPH')" :key="card.indicatorCode">
+                                    <template x-for="card in homeSummary.enrichedFavorites.global.filter(c => c.displayMode === 'GRAPH' && !c.failed)" :key="card.indicatorCode">
                                         <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
                                             <div class="spread-card rounded-xl p-4 shadow-sm relative"
                                                  :class="!card.failed && card.hasData ? 'status-normal' : ''">
@@ -588,7 +588,7 @@
                         </template>
 
                         <!-- 관심 지표 — 단순 지표 영역 -->
-                        <template x-if="homeSummary.enrichedFavorites?.global?.filter(c => c.displayMode !== 'GRAPH').length > 0">
+                        <template x-if="homeSummary.enrichedFavorites?.global?.filter(c => c.displayMode !== 'GRAPH' || c.failed).length > 0">
                             <div>
                                 <div class="flex items-center justify-between mb-2">
                                     <p class="text-sm font-semibold text-gray-600 flex items-center gap-1">
@@ -602,7 +602,7 @@
                                     </div>
                                 </div>
                                 <div id="global-fav-indicator-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
-                                    <template x-for="card in homeSummary.enrichedFavorites.global.filter(c => c.displayMode !== 'GRAPH')" :key="card.indicatorCode">
+                                    <template x-for="card in homeSummary.enrichedFavorites.global.filter(c => c.displayMode !== 'GRAPH' || c.failed)" :key="card.indicatorCode">
                                         <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
                                             <div class="spread-card rounded-xl p-4 shadow-sm relative"
                                                  :class="!card.failed && card.hasData ? 'status-normal' : ''">

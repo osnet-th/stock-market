@@ -5,13 +5,16 @@ import com.thlee.stock.market.stockmarket.economics.application.EcosIndicatorSer
 import com.thlee.stock.market.stockmarket.economics.application.GlobalIndicatorCacheService;
 import com.thlee.stock.market.stockmarket.economics.application.GlobalIndicatorQueryService;
 import com.thlee.stock.market.stockmarket.economics.domain.model.CountryIndicatorSnapshot;
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicator;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorLatest;
 import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalEconomicIndicatorType;
+import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalIndicator;
 import com.thlee.stock.market.stockmarket.economics.domain.model.IndicatorCategory;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradingeconomics.exception.TradingEconomicsFetchException;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradingeconomics.exception.TradingEconomicsParseException;
 import com.thlee.stock.market.stockmarket.favorite.application.exception.FavoriteRefreshForbiddenException;
 import com.thlee.stock.market.stockmarket.favorite.application.exception.RefreshRateLimitExceededException;
+import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteDisplayMode;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicator;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 import com.thlee.stock.market.stockmarket.favorite.domain.repository.FavoriteIndicatorRepository;
@@ -22,6 +25,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -40,6 +44,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class FavoriteIndicatorService {
+
+    private static final int HISTORY_LIMIT = 30;
 
     private final FavoriteIndicatorRepository favoriteIndicatorRepository;
     private final EcosIndicatorService ecosIndicatorService;
@@ -85,6 +91,17 @@ public class FavoriteIndicatorService {
         }
     }
 
+    /**
+     * 관심 지표 표시 모드 변경 (INDICATOR ↔ GRAPH)
+     */
+    @Transactional
+    public void changeDisplayMode(Long userId,
+                                  FavoriteIndicatorSourceType sourceType,
+                                  String indicatorCode,
+                                  FavoriteDisplayMode displayMode) {
+        favoriteIndicatorRepository.updateDisplayMode(userId, sourceType, indicatorCode, displayMode);
+    }
+
     @Transactional(readOnly = true)
     public List<FavoriteIndicator> findByUserId(Long userId) {
         return favoriteIndicatorRepository.findByUserId(userId);
@@ -92,6 +109,7 @@ public class FavoriteIndicatorService {
 
     /**
      * 관심 지표 + Latest 데이터 통합 조회 (대시보드용)
+     * GRAPH 모드 항목들에는 시계열 history 포함.
      */
     @Transactional(readOnly = true)
     public EnrichedFavorites findEnrichedByUserId(Long userId) {
@@ -108,7 +126,10 @@ public class FavoriteIndicatorService {
         List<EnrichedEcosFavorite> enrichedEcos = enrichEcosFavorites(ecosFavorites);
         List<EnrichedGlobalFavorite> enrichedGlobal = enrichGlobalFavorites(globalFavorites);
 
-        return new EnrichedFavorites(enrichedEcos, enrichedGlobal);
+        List<EnrichedEcosFavorite> withEcosHistory = attachHistoryToEcos(enrichedEcos);
+        List<EnrichedGlobalFavorite> withGlobalHistory = attachHistoryToGlobal(enrichedGlobal);
+
+        return new EnrichedFavorites(withEcosHistory, withGlobalHistory);
     }
 
     /**
@@ -177,7 +198,7 @@ public class FavoriteIndicatorService {
             .collect(Collectors.toMap(EcosIndicatorLatest::toCompareKey, l -> l, (a, b) -> a));
 
         return ecosFavorites.stream()
-            .map(fav -> new EnrichedEcosFavorite(fav, latestMap.get(fav.getIndicatorCode())))
+            .map(fav -> new EnrichedEcosFavorite(fav, latestMap.get(fav.getIndicatorCode()), List.of()))
             .toList();
     }
 
@@ -265,6 +286,62 @@ public class FavoriteIndicatorService {
         return result;
     }
 
+    /**
+     * GRAPH 모드 ECOS 항목에 한해 시계열을 조회해 history 를 채운 새 리스트 반환.
+     * INDICATOR 모드 항목은 history 비어있는 상태로 통과.
+     */
+    private List<EnrichedEcosFavorite> attachHistoryToEcos(List<EnrichedEcosFavorite> enriched) {
+        if (enriched.isEmpty()) {
+            return enriched;
+        }
+        return enriched.stream()
+            .map(this::attachEcosHistoryIfGraph)
+            .toList();
+    }
+
+    private EnrichedEcosFavorite attachEcosHistoryIfGraph(EnrichedEcosFavorite item) {
+        if (item.favorite().getDisplayMode() != FavoriteDisplayMode.GRAPH) {
+            return item;
+        }
+        String[] parts = item.favorite().getIndicatorCode().split("::", 2);
+        if (parts.length != 2 || parts[0].isBlank() || parts[1].isBlank()) {
+            return item;
+        }
+        List<EcosIndicator> rows = ecosIndicatorService.findHistory(parts[0], parts[1], HISTORY_LIMIT);
+        List<HistoryPoint> points = rows.stream()
+            .map(r -> new HistoryPoint(r.getSnapshotDate(), r.getDataValue()))
+            .toList();
+        return item.withHistory(points);
+    }
+
+    /**
+     * GRAPH 모드 GLOBAL 항목에 한해 시계열을 조회해 history 를 채운 새 리스트 반환.
+     */
+    private List<EnrichedGlobalFavorite> attachHistoryToGlobal(List<EnrichedGlobalFavorite> enriched) {
+        if (enriched.isEmpty()) {
+            return enriched;
+        }
+        return enriched.stream()
+            .map(this::attachGlobalHistoryIfGraph)
+            .toList();
+    }
+
+    private EnrichedGlobalFavorite attachGlobalHistoryIfGraph(EnrichedGlobalFavorite item) {
+        if (item.favorite().getDisplayMode() != FavoriteDisplayMode.GRAPH) {
+            return item;
+        }
+        ParsedGlobalFavorite parsed = ParsedGlobalFavorite.of(item.favorite());
+        if (parsed.indicatorType() == null) {
+            return item;
+        }
+        List<GlobalIndicator> rows = globalIndicatorQueryService.findHistory(
+            parsed.countryName(), parsed.indicatorType(), HISTORY_LIMIT);
+        List<HistoryPoint> points = rows.stream()
+            .map(r -> new HistoryPoint(r.getSnapshotDate(), r.getDataValue()))
+            .toList();
+        return item.withHistory(points);
+    }
+
     private static String snapshotKey(CountryIndicatorSnapshot snap) {
         return snap.getCountryName() + "::" + snap.getIndicatorType().name();
     }
@@ -314,22 +391,34 @@ public class FavoriteIndicatorService {
         private FailureReason() {}
     }
 
-    public record EnrichedEcosFavorite(FavoriteIndicator favorite, EcosIndicatorLatest latest) {}
+    public record HistoryPoint(LocalDate snapshotDate, String dataValue) {}
+
+    public record EnrichedEcosFavorite(FavoriteIndicator favorite,
+                                       EcosIndicatorLatest latest,
+                                       List<HistoryPoint> history) {
+        public EnrichedEcosFavorite withHistory(List<HistoryPoint> newHistory) {
+            return new EnrichedEcosFavorite(favorite, latest, newHistory);
+        }
+    }
 
     public record EnrichedGlobalFavorite(
         FavoriteIndicator favorite,
         CountryIndicatorSnapshot snapshot,
         String failureReason,
-        boolean refreshable
+        boolean refreshable,
+        List<HistoryPoint> history
     ) {
         public static EnrichedGlobalFavorite success(FavoriteIndicator favorite, CountryIndicatorSnapshot snapshot) {
-            return new EnrichedGlobalFavorite(favorite, snapshot, null, true);
+            return new EnrichedGlobalFavorite(favorite, snapshot, null, true, List.of());
         }
         public static EnrichedGlobalFavorite noData(FavoriteIndicator favorite) {
-            return new EnrichedGlobalFavorite(favorite, null, null, true);
+            return new EnrichedGlobalFavorite(favorite, null, null, true, List.of());
         }
         public static EnrichedGlobalFavorite failed(FavoriteIndicator favorite, String failureReason, boolean refreshable) {
-            return new EnrichedGlobalFavorite(favorite, null, failureReason, refreshable);
+            return new EnrichedGlobalFavorite(favorite, null, failureReason, refreshable, List.of());
+        }
+        public EnrichedGlobalFavorite withHistory(List<HistoryPoint> newHistory) {
+            return new EnrichedGlobalFavorite(favorite, snapshot, failureReason, refreshable, newHistory);
         }
         public boolean isFailed() {
             return failureReason != null;

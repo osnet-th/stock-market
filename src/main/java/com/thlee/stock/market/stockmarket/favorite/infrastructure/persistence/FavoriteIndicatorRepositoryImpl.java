@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.favorite.infrastructure.persistence;
 
+import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteDisplayMode;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicator;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 import com.thlee.stock.market.stockmarket.favorite.domain.repository.FavoriteIndicatorRepository;
@@ -40,5 +41,13 @@ public class FavoriteIndicatorRepositoryImpl implements FavoriteIndicatorReposit
         return jpaRepository.findByUserIdAndSourceType(userId, sourceType).stream()
             .map(mapper::toDomain)
             .toList();
+    }
+
+    @Override
+    public int updateDisplayMode(Long userId,
+                                 FavoriteIndicatorSourceType sourceType,
+                                 String indicatorCode,
+                                 FavoriteDisplayMode displayMode) {
+        return jpaRepository.updateDisplayMode(userId, sourceType, indicatorCode, displayMode);
     }
 }

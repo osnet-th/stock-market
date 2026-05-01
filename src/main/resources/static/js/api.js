@@ -169,6 +169,10 @@ const API = {
         return this.request('POST', `/api/favorites/global/refresh/${indicatorType}`);
     },
 
+    changeFavoriteDisplayMode(sourceType, indicatorCode, displayMode) {
+        return this.request('PUT', '/api/favorites/display-mode', { sourceType, indicatorCode, displayMode });
+    },
+
     getRecentUpdates() {
         return this.request('GET', '/api/economics/indicators/recent-updates');
     },

@@ -40,4 +40,11 @@ public class EcosIndicatorRepositoryImpl implements EcosIndicatorRepository {
                 .map(mapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<EcosIndicator> findHistory(String className, String keystatName, int limit) {
+        return jpaRepository.findHistory(className, keystatName, limit).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }

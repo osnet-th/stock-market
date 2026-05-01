@@ -7,6 +7,7 @@ import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicator
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicator;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.EnrichedFavoriteResponse;
+import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteDisplayModeRequest;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteIndicatorResponse;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteToggleRequest;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.GlobalRefreshResponse;
@@ -84,6 +85,17 @@ public class FavoriteIndicatorController {
         GlobalEconomicIndicatorType type = GlobalEconomicIndicatorType.valueOf(indicatorType);
         List<EnrichedGlobalFavorite> refreshed = favoriteIndicatorService.refreshGlobalIndicator(userId, type);
         return ResponseEntity.ok(GlobalRefreshResponse.of(type, refreshed));
+    }
+
+    /**
+     * 관심 지표 표시 모드 변경 (INDICATOR ↔ GRAPH)
+     */
+    @PutMapping("/display-mode")
+    public ResponseEntity<Void> changeDisplayMode(@Valid @RequestBody FavoriteDisplayModeRequest request) {
+        Long userId = getCurrentUserId();
+        favoriteIndicatorService.changeDisplayMode(
+            userId, request.sourceType(), request.indicatorCode(), request.displayMode());
+        return ResponseEntity.noContent().build();
     }
 
     private Long getCurrentUserId() {

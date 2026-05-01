@@ -14,23 +14,31 @@ public class FavoriteIndicator {
     private final Long userId;
     private final FavoriteIndicatorSourceType sourceType;
     private final String indicatorCode;
+    private final FavoriteDisplayMode displayMode;
     private final LocalDateTime createdAt;
 
     public FavoriteIndicator(Long id,
                              Long userId,
                              FavoriteIndicatorSourceType sourceType,
                              String indicatorCode,
+                             FavoriteDisplayMode displayMode,
                              LocalDateTime createdAt) {
         this.id = id;
         this.userId = userId;
         this.sourceType = sourceType;
         this.indicatorCode = indicatorCode;
+        this.displayMode = displayMode;
         this.createdAt = createdAt;
     }
 
     public static FavoriteIndicator create(Long userId,
                                            FavoriteIndicatorSourceType sourceType,
                                            String indicatorCode) {
-        return new FavoriteIndicator(null, userId, sourceType, indicatorCode, LocalDateTime.now());
+        return new FavoriteIndicator(null, userId, sourceType, indicatorCode,
+                FavoriteDisplayMode.INDICATOR, LocalDateTime.now());
+    }
+
+    public FavoriteIndicator changeDisplayMode(FavoriteDisplayMode newDisplayMode) {
+        return new FavoriteIndicator(id, userId, sourceType, indicatorCode, newDisplayMode, createdAt);
     }
 }

@@ -25,4 +25,9 @@ public interface EcosIndicatorRepository {
      * 동일 (className, keystatName, cycle) 조합에 대해 최신 snapshotDate 기준 1건만 반환
      */
     List<EcosIndicator> findLatestHistoryByClassNames(Set<String> classNames);
+
+    /**
+     * 단일 지표 시계열 조회: (className, keystatName) 기준으로 최근 limit개 snapshotDate 오름차순 반환
+     */
+    List<EcosIndicator> findHistory(String className, String keystatName, int limit);
 }

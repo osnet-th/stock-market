@@ -416,22 +416,21 @@
                                 </div>
                                 <div id="ecos-fav-graph-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
                                     <template x-for="card in homeSummary.enrichedFavorites.ecos.filter(c => c.displayMode === 'GRAPH')" :key="card.indicatorCode">
-                                        <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
-                                            <div class="spread-card rounded-xl p-4 shadow-sm relative"
-                                                 :class="card.hasData ? 'status-normal' : ''">
+                                        <div class="snap-start flex-shrink-0 w-[400px] sm:w-[440px]">
+                                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
                                                 <!-- 해제 버튼 -->
                                                 <button @click="removeDashboardFavorite('ECOS', card.indicatorCode)"
                                                         class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
                                                 <!-- 표시 모드 토글 버튼 -->
                                                 <button @click="toggleDisplayMode(card, 'ECOS')"
-                                                        :disabled="card._displayModePending"
+                                                        :disabled="!!card._displayModePending"
                                                         title="지표로 보기"
                                                         class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">지표</button>
                                                 <div class="mb-2 pr-16">
                                                     <span class="text-sm font-semibold text-gray-700" x-text="card.keystatName"></span>
                                                     <p class="text-[11px] text-gray-400 mt-0.5" x-text="card.className"></p>
                                                 </div>
-                                                <div class="h-20">
+                                                <div class="h-40">
                                                     <template x-if="card.history && card.history.length > 0">
                                                         <canvas x-init="$nextTick(() => renderFavoriteChart($el, card.history, card.indicatorCode))"></canvas>
                                                     </template>
@@ -466,14 +465,13 @@
                                 <div id="ecos-fav-indicator-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
                                     <template x-for="card in homeSummary.enrichedFavorites.ecos.filter(c => c.displayMode !== 'GRAPH')" :key="card.indicatorCode">
                                         <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
-                                            <div class="spread-card rounded-xl p-4 shadow-sm relative"
-                                                 :class="card.hasData ? 'status-normal' : ''">
+                                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
                                                 <!-- 해제 버튼 -->
                                                 <button @click="removeDashboardFavorite('ECOS', card.indicatorCode)"
                                                         class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
                                                 <!-- 표시 모드 토글 버튼 -->
                                                 <button @click="toggleDisplayMode(card, 'ECOS')"
-                                                        :disabled="card._displayModePending"
+                                                        :disabled="!!card._displayModePending"
                                                         title="그래프로 보기"
                                                         class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">그래프</button>
                                                 <div class="mb-2 pr-16">
@@ -549,15 +547,14 @@
                                 </div>
                                 <div id="global-fav-graph-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
                                     <template x-for="card in homeSummary.enrichedFavorites.global.filter(c => c.displayMode === 'GRAPH' && !c.failed)" :key="card.indicatorCode">
-                                        <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
-                                            <div class="spread-card rounded-xl p-4 shadow-sm relative"
-                                                 :class="!card.failed && card.hasData ? 'status-normal' : ''">
+                                        <div class="snap-start flex-shrink-0 w-[400px] sm:w-[440px]">
+                                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
                                                 <!-- 해제 버튼 -->
                                                 <button @click="removeDashboardFavorite('GLOBAL', card.indicatorCode)"
                                                         class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
                                                 <!-- 표시 모드 토글 버튼 -->
                                                 <button @click="toggleDisplayMode(card, 'GLOBAL')"
-                                                        :disabled="card._displayModePending"
+                                                        :disabled="!!card._displayModePending"
                                                         title="지표로 보기"
                                                         class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">지표</button>
                                                 <div class="mb-2 pr-16">
@@ -568,9 +565,9 @@
                                                     <p class="text-red-400 text-sm" x-text="globalFailureMessage(card)"></p>
                                                 </template>
                                                 <template x-if="!card.failed">
-                                                    <div class="h-20">
+                                                    <div class="h-40">
                                                         <template x-if="card.history && card.history.length > 0">
-                                                            <canvas x-init="$nextTick(() => renderFavoriteChart($el, card.history, card.indicatorCode))"></canvas>
+                                                            <canvas x-init="$nextTick(() => renderFavoriteChart($el, card.history, card.indicatorCode, card.unit))"></canvas>
                                                         </template>
                                                         <template x-if="!card.history || card.history.length === 0">
                                                             <p class="text-gray-300 text-sm">시계열 데이터 없음</p>
@@ -604,14 +601,13 @@
                                 <div id="global-fav-indicator-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
                                     <template x-for="card in homeSummary.enrichedFavorites.global.filter(c => c.displayMode !== 'GRAPH' || c.failed)" :key="card.indicatorCode">
                                         <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
-                                            <div class="spread-card rounded-xl p-4 shadow-sm relative"
-                                                 :class="!card.failed && card.hasData ? 'status-normal' : ''">
+                                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
                                                 <!-- 해제 버튼 -->
                                                 <button @click="removeDashboardFavorite('GLOBAL', card.indicatorCode)"
                                                         class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
                                                 <!-- 표시 모드 토글 버튼 -->
                                                 <button @click="toggleDisplayMode(card, 'GLOBAL')"
-                                                        :disabled="card._displayModePending"
+                                                        :disabled="!!card._displayModePending"
                                                         title="그래프로 보기"
                                                         class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">그래프</button>
                                                 <!-- 재조회 버튼: 실시간 조회 실패 시 표시 -->

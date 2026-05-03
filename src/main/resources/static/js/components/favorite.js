@@ -192,8 +192,9 @@ const FavoriteComponent = {
     /**
      * 카드 안 canvas 에 시계열 라인 차트 렌더.
      * 동일 indicatorCode 의 기존 차트는 destroy 후 재생성한다.
+     * 차트 스타일은 ECOS 페이지(국내 경제지표 → 차트 뷰) 와 동일.
      */
-    renderFavoriteChart(canvasEl, history, indicatorCode) {
+    renderFavoriteChart(canvasEl, history, indicatorCode, unit) {
         if (!canvasEl) return;
         if (!this.favorites._charts) this.favorites._charts = {};
 
@@ -217,13 +218,13 @@ const FavoriteComponent = {
                 labels,
                 datasets: [{
                     data: values,
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderColor: '#3B82F6',
                     borderWidth: 1.5,
-                    tension: 0.3,
                     pointRadius: 0,
-                    spanGaps: true,
-                    fill: true
+                    pointHoverRadius: 4,
+                    tension: 0.3,
+                    fill: false,
+                    spanGaps: false
                 }]
             },
             options: {
@@ -233,15 +234,27 @@ const FavoriteComponent = {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        enabled: true,
+                        mode: 'index',
+                        intersect: false,
                         callbacks: {
-                            title: (items) => items[0]?.label || '',
-                            label: (item) => item.formattedValue
+                            label: (ctx) => {
+                                const val = ctx.parsed.y;
+                                return val !== null ? `${val} ${unit || ''}`.trim() : '데이터 없음';
+                            }
                         }
                     }
                 },
                 scales: {
-                    x: { display: false },
-                    y: { display: false }
+                    x: {
+                        display: true,
+                        ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 8, font: { size: 10 } },
+                        grid: { display: false }
+                    },
+                    y: {
+                        display: true,
+                        ticks: { maxTicksLimit: 5, font: { size: 10 } }
+                    }
                 }
             }
         });

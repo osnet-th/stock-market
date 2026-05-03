@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.favorite.presentation.dto;
 
 import com.thlee.stock.market.stockmarket.economics.domain.model.CountryIndicatorSnapshot;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorLatest;
+import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalEconomicIndicatorType;
 import com.thlee.stock.market.stockmarket.economics.domain.model.IndicatorValue;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedEcosFavorite;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedFavorites;
@@ -73,6 +74,7 @@ public record EnrichedFavoriteResponse(
         String indicatorCode,
         String countryName,
         String indicatorType,
+        String indicatorTypeDisplayName,
         String dataValue,
         String previousDataValue,
         String cycle,
@@ -88,6 +90,7 @@ public record EnrichedFavoriteResponse(
             String[] parts = enriched.favorite().getIndicatorCode().split("::", 2);
             String parsedCountry = parts.length > 0 ? parts[0] : "";
             String parsedType = parts.length > 1 ? parts[1] : "";
+            String parsedDisplayName = resolveDisplayName(parsedType);
             FavoriteDisplayMode mode = enriched.favorite().getDisplayMode();
             String displayMode = (mode != null ? mode : FavoriteDisplayMode.INDICATOR).name();
             List<EnrichedHistoryPoint> history = toHistoryPoints(enriched.history());
@@ -95,7 +98,7 @@ public record EnrichedFavoriteResponse(
             if (enriched.isFailed()) {
                 return new GlobalItem(
                     enriched.favorite().getIndicatorCode(),
-                    parsedCountry, parsedType,
+                    parsedCountry, parsedType, parsedDisplayName,
                     null, null, null, null,
                     false, true, enriched.failureReason(), enriched.refreshable(),
                     displayMode, history
@@ -106,7 +109,7 @@ public record EnrichedFavoriteResponse(
             if (snap == null) {
                 return new GlobalItem(
                     enriched.favorite().getIndicatorCode(),
-                    parsedCountry, parsedType,
+                    parsedCountry, parsedType, parsedDisplayName,
                     null, null, null, null,
                     false, false, null, true,
                     displayMode, history
@@ -119,6 +122,7 @@ public record EnrichedFavoriteResponse(
                 enriched.favorite().getIndicatorCode(),
                 snap.getCountryName(),
                 snap.getIndicatorType().name(),
+                snap.getIndicatorType().getDisplayName(),
                 last != null ? last.getRawText() : null,
                 prev != null ? prev.getRawText() : null,
                 snap.getReferenceText(),
@@ -127,6 +131,14 @@ public record EnrichedFavoriteResponse(
                 false, null, true,
                 displayMode, history
             );
+        }
+
+        private static String resolveDisplayName(String parsedType) {
+            try {
+                return GlobalEconomicIndicatorType.valueOf(parsedType).getDisplayName();
+            } catch (IllegalArgumentException e) {
+                return parsedType;
+            }
         }
     }
 

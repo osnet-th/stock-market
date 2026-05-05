@@ -1,0 +1,38 @@
+name: Harness Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  documented-workflow-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve base branch
+        id: base
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "branch=${{ github.base_ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch base branch
+        shell: bash
+        run: git fetch origin "${{ steps.base.outputs.branch }}" --depth=1
+
+      - name: Make scripts executable
+        run: chmod +x scripts/check-documented-workflow.sh scripts/run-harness-checks.sh
+
+      - name: Run harness checks
+        env:
+          BASE_BRANCH: ${{ steps.base.outputs.branch }}
+        run: scripts/run-harness-checks.sh ci-documented

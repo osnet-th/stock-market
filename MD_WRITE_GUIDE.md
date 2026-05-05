@@ -1,9 +1,5 @@
 # 설계 및 분석 문서 작성 가이드
 
-이 파일은 `.claude/designs/` 및 `.claude/analyzes/` 하위의 설계 및 분석 문서 작성 규칙을 정의합니다.
-
----
-
 ## 작성 원칙: 실용적 균형
 
 **목표**: 구현에 필요한 핵심 정보만 간결하게 제공
@@ -101,20 +97,6 @@
                 └── {컴포넌트명}-example.md
 ```
 
-### 작성 규칙
-
-- **설계 문서**: `.claude/designs/{모듈명}/{기능명}/{기능명}.md`
-- **코드 예시**: `.claude/designs/{모듈명}/{기능명}/examples/{컴포넌트명}-example.md`
-- **예시**:
-  - 설계: `.claude/designs/tableau/port-facade/port-facade.md`
-  - 예시: `.claude/designs/tableau/port-facade/examples/tableau-query-facade-example.md`
-  - 예시: `.claude/designs/tableau/port-facade/examples/port-config-example.md`
-
-### 파일명 규칙
-
-- **모듈명**: 축약형 사용 (ground, tableau, hub, lens 등)
-- **기능명**: kebab-case 사용 (port-facade, connection-management 등)
-- **컴포넌트명**: kebab-case 사용 (tableau-query-facade, port-config 등)
 
 ### 내용 규칙
 

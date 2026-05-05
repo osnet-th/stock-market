@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+[[ -n "$repo_root" ]] || exit 0
+
+kind="$("$repo_root/scripts/check-worktree.sh" --print-kind)"
+
+if [[ "$kind" == "linked" ]]; then
+  "$repo_root/scripts/run-harness-checks.sh" local-documented
+else
+  "$repo_root/scripts/run-harness-checks.sh" local-lightweight
+fi

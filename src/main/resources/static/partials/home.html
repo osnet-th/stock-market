@@ -1,0 +1,473 @@
+            <!-- ========== HOME ========== -->
+            <div x-show="currentPage === 'home'" x-cloak>
+                <h2 class="text-xl font-bold text-gray-800 mb-6">대시보드</h2>
+
+                <!-- ===== 메인 대시보드 요약 카드 (이슈 #34) ===== -->
+                <section aria-label="기능 요약" class="mb-8">
+                    <h3 class="text-base font-semibold text-gray-700 mb-3">기능 요약</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+                        <!-- 뉴스 기록 카드 -->
+                        <a href="#news-journal" @click.prevent="navigateTo('news-journal')"
+                           :aria-busy="dashboardSummary.loading.news ? 'true' : 'false'"
+                           aria-label="뉴스 기록 — 최근 등록 사건 페이지로 이동"
+                           class="summary-card bg-white rounded-xl border border-gray-200 p-5 block no-underline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none">
+                            <p class="text-sm text-gray-500 mb-2">뉴스 기록</p>
+                            <template x-if="dashboardSummary.loading.news">
+                                <div class="space-y-2">
+                                    <div class="h-3 bg-gray-100 rounded animate-pulse"></div>
+                                    <div class="h-3 bg-gray-100 rounded animate-pulse w-5/6"></div>
+                                    <div class="h-3 bg-gray-100 rounded animate-pulse w-4/6"></div>
+                                </div>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.news && dashboardSummary.error.news">
+                                <p class="text-xs text-gray-400" x-text="dashboardSummary.error.news"></p>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.news && !dashboardSummary.error.news && dashboardSummary.news && dashboardSummary.news.recentEvents.length === 0">
+                                <p class="text-xs text-gray-400">아직 등록한 사건이 없습니다.</p>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.news && !dashboardSummary.error.news && dashboardSummary.news && dashboardSummary.news.recentEvents.length > 0">
+                                <div>
+                                    <ul class="space-y-1">
+                                        <template x-for="ev in dashboardSummary.news.recentEvents" :key="ev.id">
+                                            <li class="text-xs text-gray-700 truncate">
+                                                <span class="font-medium" x-text="ev.title"></span>
+                                                <span class="text-gray-400 ml-1" x-text="(ev.createdAt || '').slice(0, 10)"></span>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                    <div class="mt-2 flex flex-wrap gap-1" x-show="dashboardSummary.news.categoryCounts.length > 0">
+                                        <template x-for="cc in dashboardSummary.news.categoryCounts" :key="cc.categoryId">
+                                            <span class="inline-block text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+                                                <span x-text="cc.name"></span>
+                                                <span class="ml-1 font-semibold" x-text="cc.count"></span>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </a>
+
+                        <!-- 투자 노트 카드 -->
+                        <a href="#stocknote" @click.prevent="navigateTo('stocknote')"
+                           :aria-busy="dashboardSummary.loading.note ? 'true' : 'false'"
+                           aria-label="투자 노트 — 최근 작성 노트 페이지로 이동"
+                           class="summary-card bg-white rounded-xl border border-gray-200 p-5 block no-underline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none">
+                            <p class="text-sm text-gray-500 mb-2">투자 노트</p>
+                            <template x-if="dashboardSummary.loading.note">
+                                <div class="space-y-2">
+                                    <div class="h-3 bg-gray-100 rounded animate-pulse"></div>
+                                    <div class="h-3 bg-gray-100 rounded animate-pulse w-5/6"></div>
+                                    <div class="h-3 bg-gray-100 rounded animate-pulse w-4/6"></div>
+                                </div>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.note && dashboardSummary.error.note">
+                                <p class="text-xs text-gray-400" x-text="dashboardSummary.error.note"></p>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.note && !dashboardSummary.error.note && dashboardSummary.note && (!dashboardSummary.note.items || dashboardSummary.note.items.length === 0)">
+                                <p class="text-xs text-gray-400">아직 작성한 노트가 없습니다.</p>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.note && !dashboardSummary.error.note && dashboardSummary.note && dashboardSummary.note.items && dashboardSummary.note.items.length > 0">
+                                <ul class="space-y-1">
+                                    <template x-for="item in dashboardSummary.note.items.slice(0, 3)" :key="item.id">
+                                        <li class="text-xs text-gray-700">
+                                            <div class="flex items-center justify-between">
+                                                <span class="font-medium truncate mr-2" x-text="item.stockName || item.stockCode"></span>
+                                                <span class="text-gray-400 text-xs flex-shrink-0" x-text="(item.noteDate || '').slice(0, 10)"></span>
+                                            </div>
+                                            <p class="text-xs text-gray-500 truncate" x-text="item.triggerTextSummary"></p>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                        </a>
+
+                        <!-- 월급 사용 비율 카드 -->
+                        <a href="#salary" @click.prevent="navigateTo('salary')"
+                           :aria-busy="dashboardSummary.loading.salary ? 'true' : 'false'"
+                           aria-label="월급 사용 비율 — 월급 사용 비율 페이지로 이동"
+                           class="summary-card bg-white rounded-xl border border-gray-200 p-5 block no-underline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none">
+                            <p class="text-sm text-gray-500 mb-2">월급 사용 비율</p>
+                            <template x-if="dashboardSummary.loading.salary">
+                                <div class="h-32 bg-gray-100 rounded animate-pulse"></div>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.salary && dashboardSummary.error.salary">
+                                <p class="text-xs text-gray-400" x-text="dashboardSummary.error.salary"></p>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.salary && !dashboardSummary.error.salary && (!dashboardSummary.salary || !dashboardSummary.salary.totalSpending || Number(dashboardSummary.salary.totalSpending) === 0)">
+                                <p class="text-xs text-gray-400">이번 달 지출 정보가 없습니다.</p>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.salary && !dashboardSummary.error.salary && dashboardSummary.salary && dashboardSummary.salary.totalSpending && Number(dashboardSummary.salary.totalSpending) > 0">
+                                <div>
+                                    <div class="relative h-40">
+                                        <canvas id="dashboardSalaryDonut" aria-describedby="dashboardSalaryDonutDesc"></canvas>
+                                    </div>
+                                    <table id="dashboardSalaryDonutDesc" class="sr-only">
+                                        <caption>이번 달 카테고리별 지출 비율</caption>
+                                        <thead><tr><th>카테고리</th><th>금액</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="s in dashboardSummary.salary.spendings.filter(s => Number(s.amount) > 0)" :key="s.category">
+                                                <tr>
+                                                    <td x-text="s.categoryLabel || s.category"></td>
+                                                    <td x-text="s.amount"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                    <p class="text-xs text-gray-500 mt-2" x-show="dashboardSummary.salary.incomeInheritedFromMonth">
+                                        ※ 월급 정보는 이전 월에서 상속됨
+                                    </p>
+                                </div>
+                            </template>
+                        </a>
+
+                        <!-- 프로필 로드 실패 안내 — 운영자 카드 silent 미노출 대신 사용자에게 시그널 -->
+                        <div x-show="auth.profileLoadFailed && !auth.isAdmin" class="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-700 text-sm">
+                            <p class="font-semibold mb-1">프로필 로드 실패</p>
+                            <p class="text-xs">관리자 권한 확인이 일시적으로 실패했습니다. 새로고침해 주세요. (문제가 지속되면 운영자에게 문의)</p>
+                        </div>
+
+                        <!-- 운영자 로그 카드 (관리자 전용) -->
+                        <a x-show="auth.isAdmin" href="#admin-logs" @click.prevent="navigateTo('admin-logs')"
+                           :aria-busy="dashboardSummary.loading.incident ? 'true' : 'false'"
+                           aria-label="운영자 로그 — 오늘 발생 장애 건수 페이지로 이동"
+                           class="summary-card bg-white rounded-xl border border-gray-200 p-5 block no-underline focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none">
+                            <p class="text-sm text-gray-500 mb-2">운영자 로그</p>
+                            <template x-if="dashboardSummary.loading.incident">
+                                <div class="h-12 w-20 bg-gray-100 rounded animate-pulse"></div>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.incident && dashboardSummary.error.incident">
+                                <p class="text-xs text-gray-400" x-text="dashboardSummary.error.incident"></p>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.incident && !dashboardSummary.error.incident && dashboardSummary.incident && !dashboardSummary.incident.available">
+                                <p class="text-xs text-gray-400">데이터를 불러올 수 없음</p>
+                            </template>
+                            <template x-if="!dashboardSummary.loading.incident && !dashboardSummary.error.incident && dashboardSummary.incident && dashboardSummary.incident.available">
+                                <div>
+                                    <p class="text-4xl font-bold" :class="dashboardSummary.incident.count > 0 ? 'text-red-600' : 'text-gray-700'" x-text="dashboardSummary.incident.count"></p>
+                                    <p class="text-xs mt-1" :class="dashboardSummary.incident.count > 0 ? 'text-red-500' : 'text-gray-400'">
+                                        <span x-text="dashboardSummary.incident.count > 0 ? '오늘 장애' : '오늘 장애 없음'"></span>
+                                    </p>
+                                </div>
+                            </template>
+                        </a>
+
+                    </div>
+                </section>
+                <!-- ===== /메인 대시보드 요약 카드 ===== -->
+
+                <!-- 요약 카드 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <!-- 키워드 요약 -->
+                    <div @click="navigateTo('keywords')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
+                        <p class="text-sm text-gray-500 mb-1">등록 키워드</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.keywordCount"></p>
+                        <p class="text-xs text-green-600 mt-1">
+                            활성 <span x-text="homeSummary.activeKeywordCount" class="font-medium"></span>개
+                        </p>
+                        <p class="text-xs text-gray-400 mt-0.5">
+                            국내 <span x-text="homeSummary.domesticKeywordCount" class="font-medium text-blue-600"></span>개
+                            · 해외 <span x-text="homeSummary.internationalKeywordCount" class="font-medium text-purple-600"></span>개
+                        </p>
+                    </div>
+                    <!-- ECOS 요약 -->
+                    <div @click="navigateTo('ecos')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
+                        <p class="text-sm text-gray-500 mb-1">국내 경제지표</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.ecosCategories.length"></p>
+                        <p class="text-xs text-gray-400 mt-1">카테고리</p>
+                    </div>
+                    <!-- 글로벌 요약 -->
+                    <div @click="navigateTo('global')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
+                        <p class="text-sm text-gray-500 mb-1">글로벌 경제지표</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.globalCategories.length"></p>
+                        <p class="text-xs text-gray-400 mt-1">카테고리</p>
+                    </div>
+                    <!-- 포트폴리오 요약 -->
+                    <div @click="navigateTo('portfolio')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
+                        <p class="text-sm text-gray-500 mb-1">포트폴리오</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.portfolioItemCount || 0"></p>
+                        <p class="text-xs text-gray-400 mt-1">
+                            자산 항목 · <span x-text="homeSummary.portfolioTypeSummary || ''" class="font-medium text-blue-600"></span>
+                            · 뉴스 <span x-text="homeSummary.portfolioNewsEnabledCount || 0" class="font-medium text-green-600"></span>개 활성
+                        </p>
+                    </div>
+                </div>
+
+                <!-- ===== 국내 경제지표 영역 ===== -->
+                <template x-if="hasEcosDashboardContent()">
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <span class="text-xl">&#127472;&#127479;</span> 국내 경제지표
+                        </h3>
+
+                        <!-- 최신 업데이트 요약 -->
+                        <template x-if="homeSummary.recentUpdates?.ecos?.length > 0">
+                            <div class="bg-blue-50 rounded-xl p-4 mb-4">
+                                <p class="text-xs text-blue-600 font-semibold mb-2">최근 업데이트</p>
+                                <div class="flex flex-wrap gap-3">
+                                    <template x-for="item in homeSummary.recentUpdates.ecos.slice(0, 5)" :key="item.keystatName">
+                                        <div class="bg-white rounded-lg px-3 py-2 border border-blue-100 text-sm">
+                                            <span class="text-gray-600" x-text="item.keystatName"></span>
+                                            <span class="font-mono-num font-medium text-gray-800 ml-1" x-text="item.dataValue"></span>
+                                            <span class="text-xs text-gray-400 ml-1" x-text="item.cycle"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- 관심 지표 — 그래프 영역 -->
+                        <template x-if="homeSummary.enrichedFavorites?.ecos?.filter(c => c.displayMode === 'GRAPH').length > 0">
+                            <div class="mb-4">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-sm font-semibold text-gray-600 flex items-center gap-1">
+                                        <span class="text-yellow-400">&#9733;</span> 관심 지표 — 그래프
+                                    </p>
+                                    <div class="flex gap-1">
+                                        <button @click="scrollFavorites(-1, 'ecos-fav-graph-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9664;</button>
+                                        <button @click="scrollFavorites(1, 'ecos-fav-graph-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9654;</button>
+                                    </div>
+                                </div>
+                                <div id="ecos-fav-graph-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
+                                    <template x-for="card in homeSummary.enrichedFavorites.ecos.filter(c => c.displayMode === 'GRAPH')" :key="card.indicatorCode">
+                                        <div class="snap-start flex-shrink-0 w-[400px] sm:w-[440px]">
+                                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                                                <!-- 해제 버튼 -->
+                                                <button @click="removeDashboardFavorite('ECOS', card.indicatorCode)"
+                                                        class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
+                                                <!-- 표시 모드 토글 버튼 -->
+                                                <button @click="toggleDisplayMode(card, 'ECOS')"
+                                                        :disabled="!!card._displayModePending"
+                                                        title="지표로 보기"
+                                                        class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">지표</button>
+                                                <div class="mb-2 pr-16">
+                                                    <span class="text-sm font-semibold text-gray-700" x-text="card.keystatName"></span>
+                                                    <p class="text-[11px] text-gray-400 mt-0.5" x-text="card.className"></p>
+                                                </div>
+                                                <div class="h-40">
+                                                    <template x-if="card.history && card.history.length > 0">
+                                                        <canvas x-init="$nextTick(() => renderFavoriteChart($el, card.history, card.indicatorCode))"></canvas>
+                                                    </template>
+                                                    <template x-if="!card.history || card.history.length === 0">
+                                                        <p class="text-gray-300 text-sm">시계열 데이터 없음</p>
+                                                    </template>
+                                                </div>
+                                                <template x-if="card.cycle">
+                                                    <p class="text-[10px] text-gray-400 mt-2" x-text="card.cycle"></p>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- 관심 지표 — 단순 지표 영역 -->
+                        <template x-if="homeSummary.enrichedFavorites?.ecos?.filter(c => c.displayMode !== 'GRAPH').length > 0">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-sm font-semibold text-gray-600 flex items-center gap-1">
+                                        <span class="text-yellow-400">&#9733;</span> 관심 지표 — 지표
+                                    </p>
+                                    <div class="flex gap-1">
+                                        <button @click="scrollFavorites(-1, 'ecos-fav-indicator-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9664;</button>
+                                        <button @click="scrollFavorites(1, 'ecos-fav-indicator-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9654;</button>
+                                    </div>
+                                </div>
+                                <div id="ecos-fav-indicator-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
+                                    <template x-for="card in homeSummary.enrichedFavorites.ecos.filter(c => c.displayMode !== 'GRAPH')" :key="card.indicatorCode">
+                                        <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
+                                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                                                <!-- 해제 버튼 -->
+                                                <button @click="removeDashboardFavorite('ECOS', card.indicatorCode)"
+                                                        class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
+                                                <!-- 표시 모드 토글 버튼 -->
+                                                <button @click="toggleDisplayMode(card, 'ECOS')"
+                                                        :disabled="!!card._displayModePending"
+                                                        title="그래프로 보기"
+                                                        class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">그래프</button>
+                                                <div class="mb-2 pr-16">
+                                                    <span class="text-sm font-semibold text-gray-700" x-text="card.keystatName"></span>
+                                                    <p class="text-[11px] text-gray-400 mt-0.5" x-text="card.className"></p>
+                                                </div>
+                                                <template x-if="card.hasData">
+                                                    <div class="flex items-end justify-between">
+                                                        <p class="text-2xl font-bold font-mono-num leading-none text-gray-800">
+                                                            <span x-text="card.dataValue"></span>
+                                                        </p>
+                                                        <template x-if="card.previousDataValue">
+                                                            <span class="text-xs font-mono-num"
+                                                                  :class="Format.change(card.dataValue, card.previousDataValue).className">
+                                                                <span x-text="Format.change(card.dataValue, card.previousDataValue).symbol"></span>
+                                                                <span x-text="Format.changeRate(card.dataValue, card.previousDataValue)"></span>
+                                                            </span>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="!card.hasData">
+                                                    <p class="text-gray-300 text-sm">데이터 없음</p>
+                                                </template>
+                                                <template x-if="card.cycle">
+                                                    <p class="text-[10px] text-gray-400 mt-2" x-text="card.cycle"></p>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- ===== 글로벌 경제지표 영역 ===== -->
+                <template x-if="hasGlobalDashboardContent()">
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <span class="text-xl">&#127758;</span> 글로벌 경제지표
+                        </h3>
+
+                        <!-- 최신 업데이트 요약 -->
+                        <template x-if="homeSummary.recentUpdates?.global?.length > 0">
+                            <div class="bg-emerald-50 rounded-xl p-4 mb-4">
+                                <p class="text-xs text-emerald-600 font-semibold mb-2">최근 업데이트</p>
+                                <div class="flex flex-wrap gap-3">
+                                    <template x-for="item in homeSummary.recentUpdates.global.slice(0, 5)" :key="item.countryName + item.indicatorType">
+                                        <div class="bg-white rounded-lg px-3 py-2 border border-emerald-100 text-sm">
+                                            <span class="text-gray-600" x-text="item.countryName"></span>
+                                            <span class="text-gray-400 text-xs ml-0.5" x-text="item.indicatorTypeDisplayName"></span>
+                                            <span class="font-mono-num font-medium text-gray-800 ml-1" x-text="item.dataValue"></span>
+                                            <span class="text-xs text-gray-400 ml-0.5" x-text="item.unit"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- 관심 지표 — 그래프 영역 -->
+                        <template x-if="homeSummary.enrichedFavorites?.global?.filter(c => c.displayMode === 'GRAPH' && !c.failed).length > 0">
+                            <div class="mb-4">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-sm font-semibold text-gray-600 flex items-center gap-1">
+                                        <span class="text-yellow-400">&#9733;</span> 관심 지표 — 그래프
+                                    </p>
+                                    <div class="flex gap-1">
+                                        <button @click="scrollFavorites(-1, 'global-fav-graph-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9664;</button>
+                                        <button @click="scrollFavorites(1, 'global-fav-graph-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9654;</button>
+                                    </div>
+                                </div>
+                                <div id="global-fav-graph-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
+                                    <template x-for="card in homeSummary.enrichedFavorites.global.filter(c => c.displayMode === 'GRAPH' && !c.failed)" :key="card.indicatorCode">
+                                        <div class="snap-start flex-shrink-0 w-[400px] sm:w-[440px]">
+                                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                                                <!-- 해제 버튼 -->
+                                                <button @click="removeDashboardFavorite('GLOBAL', card.indicatorCode)"
+                                                        class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
+                                                <!-- 표시 모드 토글 버튼 -->
+                                                <button @click="toggleDisplayMode(card, 'GLOBAL')"
+                                                        :disabled="!!card._displayModePending"
+                                                        title="지표로 보기"
+                                                        class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">지표</button>
+                                                <div class="mb-2 pr-16">
+                                                    <span class="text-sm font-semibold text-gray-700" x-text="card.countryName"></span>
+                                                    <p class="text-[11px] text-gray-400 mt-0.5" x-text="card.indicatorTypeDisplayName"></p>
+                                                </div>
+                                                <template x-if="card.failed">
+                                                    <p class="text-red-400 text-sm" x-text="globalFailureMessage(card)"></p>
+                                                </template>
+                                                <template x-if="!card.failed">
+                                                    <div class="h-40">
+                                                        <template x-if="card.history && card.history.length > 0">
+                                                            <canvas x-init="$nextTick(() => renderFavoriteChart($el, card.history, card.indicatorCode, card.unit))"></canvas>
+                                                        </template>
+                                                        <template x-if="!card.history || card.history.length === 0">
+                                                            <p class="text-gray-300 text-sm">시계열 데이터 없음</p>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="card.cycle">
+                                                    <p class="text-[10px] text-gray-400 mt-2" x-text="card.cycle"></p>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- 관심 지표 — 단순 지표 영역 -->
+                        <template x-if="homeSummary.enrichedFavorites?.global?.filter(c => c.displayMode !== 'GRAPH' || c.failed).length > 0">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-sm font-semibold text-gray-600 flex items-center gap-1">
+                                        <span class="text-yellow-400">&#9733;</span> 관심 지표 — 지표
+                                    </p>
+                                    <div class="flex gap-1">
+                                        <button @click="scrollFavorites(-1, 'global-fav-indicator-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9664;</button>
+                                        <button @click="scrollFavorites(1, 'global-fav-indicator-scroll')"
+                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9654;</button>
+                                    </div>
+                                </div>
+                                <div id="global-fav-indicator-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
+                                    <template x-for="card in homeSummary.enrichedFavorites.global.filter(c => c.displayMode !== 'GRAPH' || c.failed)" :key="card.indicatorCode">
+                                        <div class="snap-start flex-shrink-0 w-[280px] sm:w-[300px]">
+                                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                                                <!-- 해제 버튼 -->
+                                                <button @click="removeDashboardFavorite('GLOBAL', card.indicatorCode)"
+                                                        class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
+                                                <!-- 표시 모드 토글 버튼 -->
+                                                <button @click="toggleDisplayMode(card, 'GLOBAL')"
+                                                        :disabled="!!card._displayModePending"
+                                                        title="그래프로 보기"
+                                                        class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">그래프</button>
+                                                <!-- 재조회 버튼: 실시간 조회 실패 시 표시 -->
+                                                <template x-if="card.failed">
+                                                    <button @click="refreshGlobal(card)"
+                                                            :disabled="!card.refreshable || card.refreshing"
+                                                            :title="card.refreshable ? '다시 조회' : '현재 재조회로 해결되지 않는 실패입니다'"
+                                                            class="absolute top-2 right-[5.5rem] text-gray-500 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed cursor-pointer text-base"
+                                                            :class="card.refreshing ? 'animate-spin' : ''">&#10227;</button>
+                                                </template>
+                                                <div class="mb-2 pr-24">
+                                                    <span class="text-sm font-semibold text-gray-700" x-text="card.countryName"></span>
+                                                    <p class="text-[11px] text-gray-400 mt-0.5" x-text="card.indicatorTypeDisplayName"></p>
+                                                </div>
+                                                <template x-if="card.failed">
+                                                    <p class="text-red-400 text-sm" x-text="globalFailureMessage(card)"></p>
+                                                </template>
+                                                <template x-if="!card.failed && card.hasData">
+                                                    <div class="flex items-end justify-between">
+                                                        <p class="text-2xl font-bold font-mono-num leading-none text-gray-800">
+                                                            <span x-text="card.dataValue"></span>
+                                                            <span class="text-sm font-normal text-gray-400 ml-0.5" x-text="card.unit"></span>
+                                                        </p>
+                                                        <template x-if="card.previousDataValue">
+                                                            <span class="text-xs font-mono-num"
+                                                                  :class="Format.change(card.dataValue, card.previousDataValue).className">
+                                                                <span x-text="Format.change(card.dataValue, card.previousDataValue).symbol"></span>
+                                                                <span x-text="Format.changeRate(card.dataValue, card.previousDataValue)"></span>
+                                                            </span>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="!card.failed && !card.hasData">
+                                                    <p class="text-gray-300 text-sm">데이터 없음</p>
+                                                </template>
+                                                <template x-if="card.cycle">
+                                                    <p class="text-[10px] text-gray-400 mt-2" x-text="card.cycle"></p>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>

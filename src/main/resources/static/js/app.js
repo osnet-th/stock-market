@@ -73,10 +73,18 @@ function dashboard() {
             if (this._mqlCleanup) return;
 
             // ==================== Partial 부트스트랩 ====================
-            // _header / _sidebar partial mount + Alpine.initTree. 모든 메뉴 partial 은 후속 unit 에서 추가.
+            // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
             // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
-            const partialNames = ['_header', '_sidebar'];
-            const cleanupRegistry = {};      // 후속 unit 에서 'home', 'portfolio' 등 cleanup 매핑 추가
+            const partialNames = ['_header', '_sidebar', 'home'];
+            const cleanupRegistry = {
+                // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
+                // home: dashboardSummary 차트 + favorite 위젯 차트를 정리해 중복 인스턴스 방지.
+                home: (dash) => {
+                    if (typeof dash.destroyDashboardSummaryChart === 'function') {
+                        try { dash.destroyDashboardSummaryChart(); } catch (e) { /* ignore */ }
+                    }
+                }
+            };
             const securedNames = [];          // 후속 unit 에서 'admin-logs' 추가
             await PartialLoader.mountAllPartials(this, partialNames, cleanupRegistry, securedNames);
             this.bootReady = true;

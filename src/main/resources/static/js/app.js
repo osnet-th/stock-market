@@ -75,7 +75,7 @@ function dashboard() {
             // ==================== Partial 부트스트랩 ====================
             // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
             // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
-            const partialNames = ['_header', '_sidebar', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'ecos', 'global'];
+            const partialNames = ['_header', '_sidebar', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'ecos', 'global', 'salary', 'stocknote'];
             const cleanupRegistry = {
                 // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
                 // home: dashboardSummary 차트 + favorite 위젯 차트를 정리해 중복 인스턴스 방지.
@@ -90,6 +90,18 @@ function dashboard() {
                     if (map && typeof map.forEach === 'function') {
                         map.forEach(c => { try { c && c.destroy(); } catch (e) { /* ignore */ } });
                         map.clear();
+                    }
+                },
+                // salary: 5개 차트 destroy
+                salary: (dash) => {
+                    if (typeof dash.destroySalaryCharts === 'function') {
+                        try { dash.destroySalaryCharts(); } catch (e) { /* ignore */ }
+                    }
+                },
+                // stocknote: module-scope registry 차트 destroy
+                stocknote: (dash) => {
+                    if (typeof dash.destroyStocknoteCharts === 'function') {
+                        try { dash.destroyStocknoteCharts(); } catch (e) { /* ignore */ }
                     }
                 }
                 // news-search / admin-logs / keywords / news-journal / global: 차트 없음, cleanup 불필요

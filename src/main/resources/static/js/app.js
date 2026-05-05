@@ -75,7 +75,7 @@ function dashboard() {
             // ==================== Partial 부트스트랩 ====================
             // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
             // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
-            const partialNames = ['_header', '_sidebar', 'home'];
+            const partialNames = ['_header', '_sidebar', 'home', 'news-search', 'admin-logs'];
             const cleanupRegistry = {
                 // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
                 // home: dashboardSummary 차트 + favorite 위젯 차트를 정리해 중복 인스턴스 방지.
@@ -84,8 +84,9 @@ function dashboard() {
                         try { dash.destroyDashboardSummaryChart(); } catch (e) { /* ignore */ }
                     }
                 }
+                // news-search / admin-logs: 차트 없음, cleanup 불필요
             };
-            const securedNames = [];          // 후속 unit 에서 'admin-logs' 추가
+            const securedNames = ['admin-logs'];      // /secured-partials/admin-logs.html (hasRole ADMIN)
             await PartialLoader.mountAllPartials(this, partialNames, cleanupRegistry, securedNames);
             this.bootReady = true;
 

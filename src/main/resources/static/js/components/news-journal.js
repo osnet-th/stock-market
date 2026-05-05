@@ -54,6 +54,8 @@ const NewsJournalComponent = {
     },
 
     async newsJournalLoad() {
+        // idempotency 가드: partial 재 mount 시 x-init 중복 trigger 방지 (Unit 4)
+        if (this.newsJournal.loading) return;
         this.newsJournal.loading = true;
         this.newsJournal.error = null;
         try {

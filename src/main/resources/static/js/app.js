@@ -8,6 +8,9 @@ function dashboard() {
             return validPages.includes(hash) ? hash : 'home';
         })(),
 
+        // 부트 게이트 — partial mount + Alpine.initTree 완료 전까지 false. popstate/navigateTo 차단에 사용.
+        bootReady: false,
+
         menus: [
             { key: 'home', label: '대시보드', icon: 'home' },
             { key: 'keywords', label: '키워드', icon: 'tag' },
@@ -69,6 +72,55 @@ function dashboard() {
             // 중복 초기화 방지
             if (this._mqlCleanup) return;
 
+            // ==================== Partial 부트스트랩 ====================
+            // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
+            // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
+            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'ecos', 'global', 'salary', 'stocknote', 'portfolio', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial'];
+            const cleanupRegistry = {
+                // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
+                // home: dashboardSummary 차트 + favorite 위젯 차트를 정리해 중복 인스턴스 방지.
+                home: (dash) => {
+                    if (typeof dash.destroyDashboardSummaryChart === 'function') {
+                        try { dash.destroyDashboardSummaryChart(); } catch (e) { /* ignore */ }
+                    }
+                },
+                // ecos: _chartInstances Map 안의 차트 destroy. initEcosCharts 가 navigateTo 재 dispatch 시 새로 정의.
+                ecos: (dash) => {
+                    const map = dash.ecos && dash.ecos._chartInstances;
+                    if (map && typeof map.forEach === 'function') {
+                        map.forEach(c => { try { c && c.destroy(); } catch (e) { /* ignore */ } });
+                        map.clear();
+                    }
+                },
+                // salary: 5개 차트 destroy
+                salary: (dash) => {
+                    if (typeof dash.destroySalaryCharts === 'function') {
+                        try { dash.destroySalaryCharts(); } catch (e) { /* ignore */ }
+                    }
+                },
+                // stocknote: module-scope registry 차트 destroy
+                stocknote: (dash) => {
+                    if (typeof dash.destroyStocknoteCharts === 'function') {
+                        try { dash.destroyStocknoteCharts(); } catch (e) { /* ignore */ }
+                    }
+                },
+                // portfolio: navigateTo 인라인 destroy 흐름과 동일 — chartInstance 3종 정리
+                portfolio: (dash) => {
+                    if (!dash.portfolio) return;
+                    ['chartInstance', 'financialChartInstance', '_secChartInstance'].forEach(key => {
+                        const c = dash.portfolio[key];
+                        if (c) {
+                            try { c.destroy(); } catch (e) { /* ignore */ }
+                            dash.portfolio[key] = null;
+                        }
+                    });
+                }
+                // news-search / admin-logs / keywords / news-journal / global: 차트 없음, cleanup 불필요
+            };
+            const securedNames = ['admin-logs'];      // /secured-partials/admin-logs.html (hasRole ADMIN)
+            await PartialLoader.mountAllPartials(this, partialNames, cleanupRegistry, securedNames);
+            this.bootReady = true;
+
             // 반응형 breakpoint 감지 (matchMedia 전용 — resize 이벤트 사용 안 함)
             const mql = window.matchMedia('(max-width: 1023px)');
             const handleChange = (e) => {
@@ -83,6 +135,7 @@ function dashboard() {
 
             // 브라우저 뒤로가기/앞으로가기 대응
             window.addEventListener('popstate', () => {
+                if (!this.bootReady) return;  // 부트 게이트: partial mount 완료 전 popstate 차단
                 const hash = location.hash.replace('#', '');
                 const validPages = this.menus.map(m => m.key);
                 const page = validPages.includes(hash) ? hash : 'home';
@@ -106,6 +159,11 @@ function dashboard() {
                 window.location.href = '/signup.html';
                 return;
             }
+
+            // hash 재읽기: bootstrap await 동안 사용자가 back/forward 눌러 hash 가 바뀐 경우 마지막 상태 honor
+            const finalHash = location.hash.replace('#', '');
+            const validPages = this.menus.map(m => m.key);
+            this.currentPage = validPages.includes(finalHash) ? finalHash : 'home';
 
             // hash 기반 초기 페이지 로드
             if (this.currentPage !== 'home') {

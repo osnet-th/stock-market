@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -59,6 +60,13 @@ public class ProdSecurityConfig {
                 // Static 리소스 허용
                 .requestMatchers("/", "/index.html", "/login.html", "/signup.html").permitAll()
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
+
+                // Partial 마크업: GET 만 비인증 허용 (POST/PUT/DELETE 는 미래 컨트롤러 shadowing 차단 위해 인증 규칙 적용)
+                // 인증 우회 범위는 시크릿 미포함 정적 마크업으로 한정
+                .requestMatchers(HttpMethod.GET, "/partials/**").permitAll()
+
+                // 보호 partial: admin 전용 마크업 (50GB 임계값·도메인 enum 등 운영 정보 포함)
+                .requestMatchers("/secured-partials/**").hasRole("ADMIN")
 
                 // 인증 엔드포인트는 permitAll
                 .requestMatchers("/api/auth/**").permitAll()

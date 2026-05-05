@@ -1,0 +1,177 @@
+            <!-- ========== GLOBAL ========== -->
+            <div x-show="currentPage === 'global'" x-cloak>
+                <h2 class="text-xl font-bold text-gray-800 mb-6">글로벌 경제지표</h2>
+
+                <!-- 카테고리 선택 -->
+                <div class="flex gap-1 mb-4 overflow-x-auto pb-2 border-b border-gray-200">
+                    <template x-for="cat in globalData.categories" :key="cat.key">
+                        <button @click="selectGlobalCategory(cat.key)"
+                            :class="globalData.selectedCategory === cat.key
+                                ? 'text-blue-700 font-bold tab-active'
+                                : 'text-gray-500 hover:text-gray-700'"
+                            class="px-4 py-2 text-sm whitespace-nowrap transition"
+                            x-text="cat.displayName">
+                        </button>
+                    </template>
+                </div>
+
+                <!-- 지표 선택 -->
+                <div class="flex gap-2 mb-6 overflow-x-auto pb-1 flex-wrap">
+                    <template x-for="ind in getCurrentCategoryIndicators()" :key="ind.key">
+                        <button @click="selectGlobalIndicator(ind.key)"
+                            :class="globalData.selectedIndicator === ind.key
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                            class="px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap"
+                            x-text="ind.displayName">
+                        </button>
+                    </template>
+                </div>
+
+                <!-- 로딩 -->
+                <template x-if="globalData.loading">
+                    <div class="flex justify-center py-12">
+                        <div class="spinner"></div>
+                    </div>
+                </template>
+
+                <!-- 지표 데이터 -->
+                <template x-if="!globalData.loading && globalData.indicatorData">
+                    <div>
+                        <!-- 지표 헤더 -->
+                        <div class="bg-white rounded-t-xl border border-gray-200 border-b-0 px-5 py-4">
+                            <h3 class="text-base font-bold text-gray-800" x-text="globalData.indicatorData.displayName"></h3>
+                            <div class="flex gap-3 mt-1 text-xs text-gray-500">
+                                <span x-text="globalData.indicatorData.category"></span>
+                                <span>|</span>
+                                <span><span x-text="globalData.indicatorData.count"></span>개국</span>
+                            </div>
+                            <template x-if="getGlobalIndicatorDescription(globalData.selectedIndicator)">
+                                <p class="text-xs text-gray-400 mt-2 leading-relaxed"
+                                   x-text="getGlobalIndicatorDescription(globalData.selectedIndicator)"></p>
+                            </template>
+                        </div>
+
+                        <!-- 뷰 모드 토글 -->
+                        <div class="bg-white border-x border-gray-200 px-5 py-3">
+                            <div class="flex items-center gap-4">
+                                <span class="text-sm font-medium text-gray-600">보기 방식</span>
+                                <div class="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+                                    <button @click="switchGlobalViewMode('table')"
+                                            :class="globalData.viewMode === 'table' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'"
+                                            class="px-3 py-1.5 text-xs font-medium rounded-md transition-all">
+                                        표 보기
+                                    </button>
+                                    <button @click="switchGlobalViewMode('chart')"
+                                            :class="globalData.viewMode === 'chart' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'"
+                                            class="px-3 py-1.5 text-xs font-medium rounded-md transition-all">
+                                        그래프 보기
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ===== 차트 뷰 ===== -->
+                        <template x-if="globalData.viewMode === 'chart'">
+                            <div class="rounded-b-xl border border-gray-200 border-t-0 overflow-hidden">
+                                <!-- 차트 로딩 -->
+                                <template x-if="globalData.historyLoading">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
+                                        <template x-for="i in 6" :key="'skeleton-global-chart-'+i">
+                                            <div class="bg-white rounded-xl border border-gray-200 p-4 animate-pulse">
+                                                <div class="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
+                                                <div class="h-48 bg-gray-100 rounded"></div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- 차트 카드 그리드 -->
+                                <template x-if="!globalData.historyLoading && globalData.historyData && globalData.historyData.countries && globalData.historyData.countries.length > 0">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
+                                        <template x-for="country in globalData.historyData.countries" :key="country.countryName">
+                                            <div class="bg-white rounded-xl border border-gray-200 p-4">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <h3 class="text-sm font-semibold text-gray-800" x-text="country.countryName"></h3>
+                                                    <span class="text-xs text-gray-400 ml-2 shrink-0" x-text="globalData.historyData.unit"></span>
+                                                </div>
+                                                <template x-if="country.history.length >= 2">
+                                                    <div class="h-48">
+                                                        <canvas :id="'global-chart-' + country.countryName.replace(/[^a-zA-Z0-9가-힣]/g, '_')"></canvas>
+                                                    </div>
+                                                </template>
+                                                <template x-if="country.history.length < 2">
+                                                    <div class="h-48 flex items-center justify-center text-sm text-gray-400">
+                                                        데이터 부족
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- 히스토리 없음 -->
+                                <template x-if="!globalData.historyLoading && (!globalData.historyData || !globalData.historyData.countries || globalData.historyData.countries.length === 0)">
+                                    <div class="bg-white p-8 text-center text-gray-400 text-sm">
+                                        히스토리 데이터가 없습니다.
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- ===== 테이블 뷰 ===== -->
+                        <template x-if="globalData.viewMode === 'table'">
+                            <div class="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden">
+                                <div class="overflow-x-auto">
+                                    <table class="data-table w-full text-sm">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="w-8"></th>
+                                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">국가</th>
+                                                <th class="text-right py-3 px-4 text-gray-600 font-semibold">최신값</th>
+                                                <th class="text-right py-3 px-4 text-gray-600 font-semibold">이전값</th>
+                                                <th class="text-center py-3 px-4 text-gray-600 font-semibold">변화</th>
+                                                <th class="text-right py-3 px-4 text-gray-600 font-semibold">변화율</th>
+                                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">단위</th>
+                                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">참고</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="country in globalData.indicatorData.countries" :key="country.countryName">
+                                                <tr class="border-b border-gray-100">
+                                                    <td class="py-3 px-2 text-center w-8">
+                                                        <button @click="toggleFavorite('GLOBAL', globalIndicatorCode(country.countryName, globalData.selectedIndicator))"
+                                                                class="text-lg cursor-pointer hover:scale-110 transition-transform"
+                                                                :class="isFavorited('GLOBAL', globalIndicatorCode(country.countryName, globalData.selectedIndicator)) ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'">
+                                                            <span x-text="isFavorited('GLOBAL', globalIndicatorCode(country.countryName, globalData.selectedIndicator)) ? '★' : '☆'"></span>
+                                                        </button>
+                                                    </td>
+                                                    <td class="py-3 px-4 text-gray-800 font-medium" x-text="country.countryName"></td>
+                                                    <td class="py-3 px-4 text-right font-mono text-gray-800 font-medium" x-text="Format.number(country.lastValue)"></td>
+                                                    <td class="py-3 px-4 text-right font-mono text-gray-500" x-text="Format.number(country.previousValue)"></td>
+                                                    <td class="py-3 px-4 text-center text-base">
+                                                        <span :class="getChangeInfo(country.lastValue, country.previousValue).className"
+                                                            x-text="getChangeInfo(country.lastValue, country.previousValue).symbol"></span>
+                                                    </td>
+                                                    <td class="py-3 px-4 text-right font-mono text-xs"
+                                                        :class="getChangeInfo(country.lastValue, country.previousValue).className"
+                                                        x-text="Format.changeRate(country.lastValue, country.previousValue)"></td>
+                                                    <td class="py-3 px-4 text-gray-500" x-text="country.unit"></td>
+                                                    <td class="py-3 px-4 text-gray-400 text-xs" x-text="country.reference || '-'"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- 빈 상태 -->
+                <template x-if="!globalData.loading && !globalData.indicatorData && globalData.selectedCategory">
+                    <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
+                        지표를 선택하세요.
+                    </div>
+                </template>
+            </div>

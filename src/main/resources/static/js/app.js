@@ -8,6 +8,9 @@ function dashboard() {
             return validPages.includes(hash) ? hash : 'home';
         })(),
 
+        // 부트 게이트 — partial mount + Alpine.initTree 완료 전까지 false. popstate/navigateTo 차단에 사용.
+        bootReady: false,
+
         menus: [
             { key: 'home', label: '대시보드', icon: 'home' },
             { key: 'keywords', label: '키워드', icon: 'tag' },
@@ -69,6 +72,15 @@ function dashboard() {
             // 중복 초기화 방지
             if (this._mqlCleanup) return;
 
+            // ==================== Partial 부트스트랩 ====================
+            // _header / _sidebar partial mount + Alpine.initTree. 모든 메뉴 partial 은 후속 unit 에서 추가.
+            // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
+            const partialNames = ['_header', '_sidebar'];
+            const cleanupRegistry = {};      // 후속 unit 에서 'home', 'portfolio' 등 cleanup 매핑 추가
+            const securedNames = [];          // 후속 unit 에서 'admin-logs' 추가
+            await PartialLoader.mountAllPartials(this, partialNames, cleanupRegistry, securedNames);
+            this.bootReady = true;
+
             // 반응형 breakpoint 감지 (matchMedia 전용 — resize 이벤트 사용 안 함)
             const mql = window.matchMedia('(max-width: 1023px)');
             const handleChange = (e) => {
@@ -83,6 +95,7 @@ function dashboard() {
 
             // 브라우저 뒤로가기/앞으로가기 대응
             window.addEventListener('popstate', () => {
+                if (!this.bootReady) return;  // 부트 게이트: partial mount 완료 전 popstate 차단
                 const hash = location.hash.replace('#', '');
                 const validPages = this.menus.map(m => m.key);
                 const page = validPages.includes(hash) ? hash : 'home';
@@ -106,6 +119,11 @@ function dashboard() {
                 window.location.href = '/signup.html';
                 return;
             }
+
+            // hash 재읽기: bootstrap await 동안 사용자가 back/forward 눌러 hash 가 바뀐 경우 마지막 상태 honor
+            const finalHash = location.hash.replace('#', '');
+            const validPages = this.menus.map(m => m.key);
+            this.currentPage = validPages.includes(finalHash) ? finalHash : 'home';
 
             // hash 기반 초기 페이지 로드
             if (this.currentPage !== 'home') {

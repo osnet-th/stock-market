@@ -1,7 +1,40 @@
 ---
 review_agents: [code-simplicity-reviewer, security-sentinel, performance-oracle, architecture-strategist]
 plan_review_agents: [code-simplicity-reviewer]
+workflow: brainstorm-plan-work-review
 ---
+
+# Compound Engineering Context
+
+이 문서는 이 저장소에서 compound-engineering workflow를 적용할 때의 공식 컨텍스트입니다.
+
+## Workflow Contract
+- 표준 흐름은 `brainstorm -> plan -> work -> review`
+- 모든 작업은 같은 흐름을 따르며, 차이는 산출물 보존 방식만 있다
+- documented workflow:
+  - `docs/brainstorms/*.md`, `docs/plans/*.md`를 사용
+  - 로직, API, Entity, 구조 변경 또는 고리스크 작업에 적용
+  - current plan은 `docs/plans/*.md`
+- lightweight workflow:
+  - 같은 순서를 따르되 문서를 파일로 남기지 않을 수 있음
+  - 오타, 명백한 컴파일 에러, 문서 수정, 국소적 비로직 변경에 적용
+  - current plan은 현재 대화에서 명시된 작업 범위와 단계
+  - 범위 확대나 해석 필요 시 documented workflow로 승격
+- 공식 산출물 경로:
+  - brainstorm: `docs/brainstorms/*.md`
+  - plan: `docs/plans/*.md`
+  - solution: `docs/solutions/**/*.md`
+- `.claude/analyzes/**`, `.claude/designs/**`는 레거시 참고 자료이며 신규 기본 경로가 아님
+
+## Context Priority
+- 사용자 최신 지시
+- `ARCHITECTURE.md`
+- `docs/policies/code-convention.md`
+- `docs/policies/git-worktree.md`
+- 현재 작업의 plan
+- 관련 brainstorm
+- `docs/solutions/**`
+- 레거시 analyze/design 문서
 
 # Review Context
 
@@ -15,6 +48,8 @@ plan_review_agents: [code-simplicity-reviewer]
 - DTO/Entity 경계: presentation DTO 는 application 에서만 생성 → domain/infra 로 누수 금지
 
 ## 코드 스타일 / 규칙
+- 코드 컨벤션의 원본 기준은 `docs/policies/code-convention.md`
+- worktree 사용 원본 기준은 `docs/policies/git-worktree.md`
 - Lombok 필수 (`@Getter`, `@Setter`, `@RequiredArgsConstructor`). 수동 getter/setter 금지
 - YAGNI 원칙 엄수. 이번 작업 범위에 없는 메서드/클래스/인터페이스 신규 생성 금지
 - 테스트는 명시 요청 시에만. 코드 구현 시 테스트 가능성(의존성 주입 등) 확보만 요구
@@ -26,7 +61,7 @@ plan_review_agents: [code-simplicity-reviewer]
 - Spring Security + JWT Stateless. dev 환경은 `permitAll`, 운영은 인증 강제
 
 ## 안전장치
-- 문제 발견 시 즉시 수정 금지. `docs/analyzes/` → `docs/designs/` → 승인 → 수정
+- 문제 발견 시 즉시 수정 금지. 같은 `brainstorm -> plan -> work` 순서를 따르되, documented workflow면 `docs/brainstorms/`와 `docs/plans/`를 남기고 lightweight workflow면 현재 대화에서 정리
 - `docs/plans/*.md`, `docs/solutions/*.md`, `docs/brainstorms/*.md` 는 파이프라인 산출물 — 삭제/무시 권고 금지
 - 정적 프론트 스택은 Alpine.js + Tailwind. 신규 JS 라이브러리 도입 제안 시 사전 승인 필요 명시
 

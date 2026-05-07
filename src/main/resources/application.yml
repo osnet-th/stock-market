@@ -175,6 +175,50 @@ app:
       # .env: ADMIN_USER_IDS=1,2,3 형식 (쉼표 구분 Long)
       user-ids: ${ADMIN_USER_IDS:}
 
+# Real Estate Market API (8개 공공 출처)
+# 인증키 미설정 출처는 부팅 정상, fetch 시점에 어댑터가 IllegalStateException으로 skip 처리.
+realestate:
+  molit:
+    base-url: https://apis.data.go.kr/1613000
+    api-key: ${MOLIT_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  reb:
+    base-url: https://www.reb.or.kr/r-one/openapi
+    api-key: ${REB_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  hub:
+    base-url: https://apis.data.go.kr/1613000
+    api-key: ${HUB_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  kosis:
+    base-url: https://kosis.kr/openapi
+    api-key: ${KOSIS_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  subscription-home:
+    base-url: https://api.odcloud.kr/api
+    api-key: ${SUBSCRIPTION_HOME_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  hug:
+    base-url: https://apis.data.go.kr/B551408
+    api-key: ${HUG_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  seoul-open-data:
+    base-url: http://openapi.seoul.go.kr:8088
+    api-key: ${SEOUL_OPEN_DATA_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  gg-data-dream:
+    base-url: https://openapi.gg.go.kr
+    api-key: ${GG_DATA_DREAM_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+
 # Economics API
 economics:
   api:

@@ -1,0 +1,216 @@
+<!-- ==================== 부동산 시장 데이터 ==================== -->
+<section x-show="currentPage === 'realestate'"
+         x-init="initRealEstate()"
+         x-cloak class="space-y-4">
+
+    <!-- 헤더 + 관심지역 칩 -->
+    <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-gray-800">부동산 시장 데이터</h2>
+            <p class="text-xs text-gray-500">데이터 출처/기준일은 각 카드에 표시됩니다. 판단/추천 정보는 제공하지 않습니다.</p>
+        </div>
+
+        <!-- 관심지역 칩 -->
+        <div class="flex flex-wrap gap-2 mb-3" x-show="realestate.favorites.length > 0">
+            <template x-for="fav in realestate.favorites" :key="fav.id">
+                <button @click="openRealEstateFavorite(fav)"
+                        class="px-3 py-1 text-xs rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
+                    <span x-text="(fav.sidoName || '') + ' ' + (fav.sigunguName || '') + (fav.emdName ? ' ' + fav.emdName : '')"></span>
+                </button>
+            </template>
+        </div>
+
+        <!-- 필터 -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+            <select x-model="realestate.selectedSidoCode" @change="onRealEstateSidoChange()"
+                    class="border border-gray-300 rounded px-2 py-1.5 text-sm">
+                <template x-for="sido in realestate.sidos" :key="sido.sidoCode">
+                    <option :value="sido.sidoCode" x-text="sido.sidoName"></option>
+                </template>
+            </select>
+            <select x-model="realestate.selectedRegionCode" @change="onRealEstateRegionChange()"
+                    class="border border-gray-300 rounded px-2 py-1.5 text-sm">
+                <template x-for="sg in realestate.sigungus" :key="sg.regionCode">
+                    <option :value="sg.regionCode" x-text="sg.sigunguName"></option>
+                </template>
+            </select>
+            <select x-model="realestate.selectedEmdCode" @change="refreshRealEstate()"
+                    class="border border-gray-300 rounded px-2 py-1.5 text-sm">
+                <option value="">시군구 단위</option>
+                <template x-for="emd in realestate.emds" :key="emd.emdCode">
+                    <option :value="emd.emdCode" x-text="emd.emdName"></option>
+                </template>
+            </select>
+            <div class="flex gap-2">
+                <select x-model="realestate.period" @change="loadRealEstateActiveTab()"
+                        class="flex-1 border border-gray-300 rounded px-2 py-1.5 text-sm">
+                    <option value="ONE_MONTH">최근 1개월</option>
+                    <option value="THREE_MONTHS">최근 3개월</option>
+                    <option value="SIX_MONTHS">최근 6개월</option>
+                    <option value="ONE_YEAR">최근 1년</option>
+                </select>
+                <button @click="toggleRealEstateFavorite()"
+                        class="px-3 py-1.5 text-sm rounded border transition"
+                        :class="isRealEstateFavoriteActive()
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 text-gray-600 hover:bg-gray-50'"
+                        :title="isRealEstateFavoriteActive() ? '관심지역 해제' : '관심지역 등록'">
+                    <span x-text="isRealEstateFavoriteActive() ? '★' : '☆'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 로딩 -->
+    <div x-show="realestate.loading" class="text-center text-sm text-gray-500 py-8">데이터를 불러오는 중…</div>
+
+    <!-- 요약 카드 -->
+    <div x-show="!realestate.loading && realestate.summary && realestate.summary.headlineCards" class="bg-white border border-gray-200 rounded-lg p-4">
+        <h3 class="text-sm font-medium text-gray-700 mb-3">요약</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <template x-for="card in (realestate.summary && realestate.summary.headlineCards) || []" :key="card.indicatorCode + '_' + card.source">
+                <div class="border border-gray-100 rounded p-3">
+                    <div class="text-xs text-gray-500 truncate" x-text="card.displayName"></div>
+                    <div class="text-lg font-semibold text-gray-800 mt-1">
+                        <span x-text="formatRealEstateValue(card.value, card.unit)"></span>
+                    </div>
+                    <div class="text-xs mt-1"
+                         :class="(card.changeRate || 0) >= 0 ? 'text-red-600' : 'text-blue-600'"
+                         x-text="formatRealEstateChangeRate(card.changeRate)"></div>
+                    <div class="text-[10px] text-gray-400 mt-2 truncate" :title="card.source + ' / ' + card.referenceText">
+                        <span x-text="card.source"></span> · <span x-text="card.referenceText || ''"></span>
+                    </div>
+                </div>
+            </template>
+        </div>
+        <div class="text-[10px] text-gray-400 mt-3" x-show="realestate.summary">
+            마지막 갱신: <span x-text="(realestate.summary && realestate.summary.lastUpdatedAt) || '—'"></span>
+            · 다음 예정: <span x-text="(realestate.summary && realestate.summary.nextScheduledAt) || '—'"></span>
+        </div>
+    </div>
+
+    <!-- 카테고리 탭 -->
+    <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="flex flex-wrap gap-2 mb-4 border-b border-gray-100 pb-3">
+            <template x-for="cat in realestate.categories" :key="cat.key">
+                <button @click="selectRealEstateCategory(cat.key)"
+                        :class="realestate.selectedCategory === cat.key
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                        class="px-3 py-1 text-xs rounded transition">
+                    <span x-text="cat.label"></span>
+                </button>
+            </template>
+        </div>
+
+        <!-- 일반 탭 (TRADE..GYEONGGI_LOCAL) -->
+        <div x-show="!['COMPARISON', 'SOURCES'].includes(realestate.selectedCategory)">
+            <div x-show="realestate.tab && realestate.tab.cards && realestate.tab.cards.length > 0" class="space-y-4">
+                <template x-for="card in (realestate.tab && realestate.tab.cards) || []" :key="card.indicatorCode + '_' + card.source">
+                    <div class="border border-gray-100 rounded p-4">
+                        <div class="flex items-baseline justify-between">
+                            <div>
+                                <div class="text-sm font-medium text-gray-800" x-text="card.displayName"></div>
+                                <div class="text-xs text-gray-500 mt-0.5" x-text="card.description"></div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-2xl font-semibold text-gray-800">
+                                    <span x-text="formatRealEstateValue(card.value, card.unit)"></span>
+                                </div>
+                                <div class="text-xs"
+                                     :class="(card.changeRate || 0) >= 0 ? 'text-red-600' : 'text-blue-600'"
+                                     x-text="formatRealEstateChangeRate(card.changeRate)"></div>
+                            </div>
+                        </div>
+                        <!-- 차트 -->
+                        <div x-show="card.history && card.history.length >= 2" class="mt-3" style="height: 160px;">
+                            <canvas :id="'re-chart-' + card.indicatorCode"></canvas>
+                        </div>
+                        <!-- 메타 (출처/기준일) -->
+                        <div class="text-[10px] text-gray-400 mt-2 flex justify-between">
+                            <span>
+                                <span x-text="card.source"></span>
+                                <span x-show="card.estimated" class="ml-1 px-1 rounded bg-yellow-100 text-yellow-700">추정값</span>
+                            </span>
+                            <span>
+                                기준: <span x-text="card.referenceText || '—'"></span>
+                                <span x-show="card.snapshotDate"> · 갱신: <span x-text="card.snapshotDate"></span></span>
+                            </span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <div x-show="!realestate.tab || !realestate.tab.cards || realestate.tab.cards.length === 0"
+                 class="text-center text-sm text-gray-500 py-8">
+                <p>데이터가 없습니다.</p>
+                <p class="text-xs text-gray-400 mt-2" x-show="realestate.tab && realestate.tab.nextScheduledAt">
+                    다음 갱신 예정: <span x-text="realestate.tab.nextScheduledAt"></span>
+                </p>
+            </div>
+        </div>
+
+        <!-- 지역 비교 탭 -->
+        <div x-show="realestate.selectedCategory === 'COMPARISON'">
+            <div class="text-xs text-gray-500 mb-3">선택 지역과 비교 지역의 같은 지표를 한 표로 모아 보여줍니다.</div>
+            <table class="w-full text-xs" x-show="realestate.comparison && realestate.comparison.rows && realestate.comparison.rows.length > 0">
+                <thead class="text-gray-500 border-b border-gray-100">
+                    <tr>
+                        <th class="text-left py-2">지역</th>
+                        <th class="text-left py-2">지표</th>
+                        <th class="text-right py-2">값</th>
+                        <th class="text-right py-2">변화율</th>
+                        <th class="text-left py-2">기준</th>
+                        <th class="text-left py-2">출처</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="row in (realestate.comparison && realestate.comparison.rows) || []"
+                              :key="row.regionCode + '_' + row.indicatorCode">
+                        <tr class="border-b border-gray-50">
+                            <td class="py-2" x-text="row.regionLabel"></td>
+                            <td class="py-2" x-text="row.displayName"></td>
+                            <td class="py-2 text-right font-mono" x-text="formatRealEstateValue(row.value, row.unit)"></td>
+                            <td class="py-2 text-right"
+                                :class="(row.changeRate || 0) >= 0 ? 'text-red-600' : 'text-blue-600'"
+                                x-text="formatRealEstateChangeRate(row.changeRate)"></td>
+                            <td class="py-2" x-text="row.referenceText || '—'"></td>
+                            <td class="py-2 text-gray-500" x-text="row.source"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            <div x-show="!realestate.comparison || !realestate.comparison.rows || realestate.comparison.rows.length === 0"
+                 class="text-center text-sm text-gray-500 py-6">
+                <p>비교할 지역이 부족합니다 (선택 지역 + 비교 지역 ≥ 2).</p>
+            </div>
+        </div>
+
+        <!-- 데이터 출처 탭 -->
+        <div x-show="realestate.selectedCategory === 'SOURCES'">
+            <table class="w-full text-xs" x-show="realestate.sources && realestate.sources.sources">
+                <thead class="text-gray-500 border-b border-gray-100">
+                    <tr>
+                        <th class="text-left py-2">출처</th>
+                        <th class="text-right py-2">지표 수</th>
+                        <th class="text-left py-2">마지막 갱신</th>
+                        <th class="text-left py-2">다음 예정</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="entry in (realestate.sources && realestate.sources.sources) || []"
+                              :key="entry.source">
+                        <tr class="border-b border-gray-50">
+                            <td class="py-2">
+                                <span class="font-medium text-gray-800" x-text="entry.label"></span>
+                                <span class="text-gray-400 ml-1" x-text="'(' + entry.source + ')'"></span>
+                            </td>
+                            <td class="py-2 text-right font-mono" x-text="entry.indicatorCount"></td>
+                            <td class="py-2" x-text="entry.lastSuccessAt || '—'"></td>
+                            <td class="py-2 text-gray-500" x-text="entry.nextScheduledAt || '—'"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

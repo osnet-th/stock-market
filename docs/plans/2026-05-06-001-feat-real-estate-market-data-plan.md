@@ -1,7 +1,7 @@
 ---
 title: "feat: Add Real Estate Market Data Dashboard"
 type: feat
-status: active
+status: completed
 date: 2026-05-06
 origin: docs/brainstorms/2026-05-06-real-estate-market-data-requirements.md
 issue: 41
@@ -216,7 +216,7 @@ real_estate_market_metadata
 
 ## Implementation Units
 
-- [ ] **Unit 1: realestate 도메인 골격 + 데이터 모델 + 메타데이터 yml**
+- [x] **Unit 1: realestate 도메인 골격 + 데이터 모델 + 메타데이터 yml**
 
 **Goal:** 신규 도메인 패키지 + Entity 3종 + Repository 포트/어댑터 + 메타데이터 yml 시딩까지 — 후속 어댑터/스케줄러가 의존하는 골격.
 
@@ -263,7 +263,7 @@ real_estate_market_metadata
 
 ---
 
-- [ ] **Unit 2: 외부 API 공통 인프라 (Properties + per-item Executor + Cache + Adapter 포트)**
+- [x] **Unit 2: 외부 API 공통 인프라 (Properties + per-item Executor + Cache + Adapter 포트)**
 
 **Goal:** 8개 출처가 공유할 공통 인프라(Properties, RestClient timeout 설정, bounded executor, named CacheManager, source adapter 포트) 마련.
 
@@ -307,7 +307,7 @@ real_estate_market_metadata
 
 ---
 
-- [ ] **Unit 3: 출처별 어댑터 8종 (per-source Adapter + 카테고리 Registry)**
+- [x] **Unit 3: 출처별 어댑터 8종 (per-source Adapter + 카테고리 Registry)**
 
 **Goal:** 8개 출처에 대해 동일 패턴의 Source Adapter 구현. 각 출처 내부에서 카테고리/지표는 Registry로 매핑.
 
@@ -352,7 +352,7 @@ real_estate_market_metadata
 
 ---
 
-- [ ] **Unit 4: 일배치 스케줄러 + Warmup + Save 서비스 (per-item transaction 격리)**
+- [x] **Unit 4: 일배치 스케줄러 + Warmup + Save 서비스 (per-item transaction 격리)**
 
 **Goal:** 매일 06:00 KST 일배치로 모든 출처를 호출, per-item 트랜잭션 격리로 부분 실패 흡수. Warmup은 **외부 API 호출 없이** DB latest를 메모리 캐시로만 hot-load (재기동 시 외부 쿼터 소모/부팅 지연 회피).
 
@@ -394,7 +394,7 @@ real_estate_market_metadata
 
 ---
 
-- [ ] **Unit 5: REST API + Application 유스케이스 (11개 탭 + 지역 비교 + 출처 메타)**
+- [x] **Unit 5: REST API + Application 유스케이스 (11개 탭 + 지역 비교 + 출처 메타)**
 
 **Goal:** 11개 탭에 필요한 모든 수치/시계열/비교 데이터를 백엔드에서 집계하여 응답하는 API.
 
@@ -438,7 +438,7 @@ real_estate_market_metadata
 
 ---
 
-- [ ] **Unit 6: 관심지역(region 즐겨찾기) — realestate 도메인 자체 entity로 분리**
+- [x] **Unit 6: 관심지역(region 즐겨찾기) — realestate 도메인 자체 entity로 분리**
 
 **Goal:** 사용자별 부동산 관심지역 등록/해제. 기존 `favorite` 도메인은 "지표 즐겨찾기"(ECOS/GLOBAL indicator) 의미가 명확하므로 **건드리지 않고**, realestate 도메인 자체에 region 즐겨찾기 entity를 신설한다. 즐겨찾기 단위는 brainstorm R12에 따라 시도+시군구+읍면동(선택). **주택유형/면적 등 필터 상태는 즐겨찾기에 포함하지 않음** — 칩은 "지역"이지 "지역+필터 상태"가 아님.
 
@@ -485,7 +485,7 @@ real_estate_market_metadata
 
 ---
 
-- [ ] **Unit 7: 프론트엔드 partial + component + 11개 탭 차트**
+- [x] **Unit 7: 프론트엔드 partial + component + 11개 탭 차트**
 
 **Goal:** `index.html`에 부동산 partial 슬롯 추가, `partials/realestate.html` + `js/components/realestate.js`로 11개 탭 + 필터 + 관심지역 칩 렌더링.
 
@@ -527,7 +527,7 @@ real_estate_market_metadata
 
 ---
 
-- [ ] **Unit 8: 데이터 출처 탭 + 운영/문서/스모크 검증**
+- [x] **Unit 8: 데이터 출처 탭 + 운영/문서/스모크 검증**
 
 **Goal:** T11 데이터 출처 탭의 메타 정보 노출 + 모든 카드/차트에 출처/기준일이 빠짐없이 표기되는지 운영 검증 + 신규 도메인 학습 적재.
 
@@ -610,6 +610,9 @@ real_estate_market_metadata
 
 - 일배치 시간대: 06:00 KST 고정. ECOS(07:00)/Global(07:30)과 분리.
 - 인증키 미설정 시에도 부팅은 정상 진행. `@ConditionalOnProperty`로 어댑터 자체를 비활성화하지 않고, 일배치 `fetch()` 시점에서 `IllegalStateException`을 던져 스케줄러가 해당 항목만 skip하고 로그를 남긴다(Unit 3 Approach와 동일). 다른 도메인 영향 없음.
+- 읍면동 전체 import: `realestate-region-codes.yml`에는 시군구 56개 + 샘플 읍면동 5개만 시드되어 있다. 서울 약 500개 + 경기 약 700개 전체 법정동은 운영 단계에서 별도 데이터 import 스크립트(SQL/CSV)로 적재한다. yml 단일 파일 비대화를 회피하고, 행정구역 개편 시 별도 스크립트만 갱신한다.
+- 외부 통계표 ID 매핑: R-ONE STATBL_ID, KOSIS orgId/tblId/itmId, 청약홈 odcloud uddi 경로는 인증키 발급 후 명세 확인 → properties 단계에서 분리 적재. 본 plan 시점에는 임시값으로 두고 운영 시 확정.
+- 학습 적재: `docs/solutions/architecture-patterns/realestate-public-open-api-pitfalls-2026-05-07.md` (한국 공공 Open API 다중 출처 어댑터링 함정).
 - 모니터링: 기존 application logging Elasticsearch 인덱스에 `domain=realestate` 라벨로 적재(별도 인프라 추가 없음).
 - Rollback: 신규 도메인이라 feature flag 미사용. 문제 발생 시 사이드바 메뉴 항목 hide만으로 사용자 노출 차단 가능.
 

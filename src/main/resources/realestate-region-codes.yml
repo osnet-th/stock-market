@@ -1,0 +1,73 @@
+realestate:
+  region:
+    # 행정안전부 시군구 표준 코드 (5자리). emd-code가 빈 문자열이면 시군구 단위 row.
+    # 읍면동 전체(서울 ~500, 경기 ~700)는 Phase 2 별도 데이터 import 스크립트로 적재한다.
+    # 본 yml은 시군구 56개 + 샘플 읍면동 5개로 시딩 동작을 검증한다.
+    entries:
+      # ===== 서울특별시 (sido-code: 11) — 25개 자치구 =====
+      - { region-code: "11110", sido-code: "11", sido-name: "서울특별시", sigungu-name: "종로구", emd-code: "", emd-name: null }
+      - { region-code: "11140", sido-code: "11", sido-name: "서울특별시", sigungu-name: "중구", emd-code: "", emd-name: null }
+      - { region-code: "11170", sido-code: "11", sido-name: "서울특별시", sigungu-name: "용산구", emd-code: "", emd-name: null }
+      - { region-code: "11200", sido-code: "11", sido-name: "서울특별시", sigungu-name: "성동구", emd-code: "", emd-name: null }
+      - { region-code: "11215", sido-code: "11", sido-name: "서울특별시", sigungu-name: "광진구", emd-code: "", emd-name: null }
+      - { region-code: "11230", sido-code: "11", sido-name: "서울특별시", sigungu-name: "동대문구", emd-code: "", emd-name: null }
+      - { region-code: "11260", sido-code: "11", sido-name: "서울특별시", sigungu-name: "중랑구", emd-code: "", emd-name: null }
+      - { region-code: "11290", sido-code: "11", sido-name: "서울특별시", sigungu-name: "성북구", emd-code: "", emd-name: null }
+      - { region-code: "11305", sido-code: "11", sido-name: "서울특별시", sigungu-name: "강북구", emd-code: "", emd-name: null }
+      - { region-code: "11320", sido-code: "11", sido-name: "서울특별시", sigungu-name: "도봉구", emd-code: "", emd-name: null }
+      - { region-code: "11350", sido-code: "11", sido-name: "서울특별시", sigungu-name: "노원구", emd-code: "", emd-name: null }
+      - { region-code: "11380", sido-code: "11", sido-name: "서울특별시", sigungu-name: "은평구", emd-code: "", emd-name: null }
+      - { region-code: "11410", sido-code: "11", sido-name: "서울특별시", sigungu-name: "서대문구", emd-code: "", emd-name: null }
+      - { region-code: "11440", sido-code: "11", sido-name: "서울특별시", sigungu-name: "마포구", emd-code: "", emd-name: null }
+      - { region-code: "11470", sido-code: "11", sido-name: "서울특별시", sigungu-name: "양천구", emd-code: "", emd-name: null }
+      - { region-code: "11500", sido-code: "11", sido-name: "서울특별시", sigungu-name: "강서구", emd-code: "", emd-name: null }
+      - { region-code: "11530", sido-code: "11", sido-name: "서울특별시", sigungu-name: "구로구", emd-code: "", emd-name: null }
+      - { region-code: "11545", sido-code: "11", sido-name: "서울특별시", sigungu-name: "금천구", emd-code: "", emd-name: null }
+      - { region-code: "11560", sido-code: "11", sido-name: "서울특별시", sigungu-name: "영등포구", emd-code: "", emd-name: null }
+      - { region-code: "11590", sido-code: "11", sido-name: "서울특별시", sigungu-name: "동작구", emd-code: "", emd-name: null }
+      - { region-code: "11620", sido-code: "11", sido-name: "서울특별시", sigungu-name: "관악구", emd-code: "", emd-name: null }
+      - { region-code: "11650", sido-code: "11", sido-name: "서울특별시", sigungu-name: "서초구", emd-code: "", emd-name: null }
+      - { region-code: "11680", sido-code: "11", sido-name: "서울특별시", sigungu-name: "강남구", emd-code: "", emd-name: null }
+      - { region-code: "11710", sido-code: "11", sido-name: "서울특별시", sigungu-name: "송파구", emd-code: "", emd-name: null }
+      - { region-code: "11740", sido-code: "11", sido-name: "서울특별시", sigungu-name: "강동구", emd-code: "", emd-name: null }
+
+      # ===== 경기도 (sido-code: 41) — 31개 시군 =====
+      - { region-code: "41110", sido-code: "41", sido-name: "경기도", sigungu-name: "수원시", emd-code: "", emd-name: null }
+      - { region-code: "41130", sido-code: "41", sido-name: "경기도", sigungu-name: "성남시", emd-code: "", emd-name: null }
+      - { region-code: "41150", sido-code: "41", sido-name: "경기도", sigungu-name: "의정부시", emd-code: "", emd-name: null }
+      - { region-code: "41170", sido-code: "41", sido-name: "경기도", sigungu-name: "안양시", emd-code: "", emd-name: null }
+      - { region-code: "41190", sido-code: "41", sido-name: "경기도", sigungu-name: "부천시", emd-code: "", emd-name: null }
+      - { region-code: "41210", sido-code: "41", sido-name: "경기도", sigungu-name: "광명시", emd-code: "", emd-name: null }
+      - { region-code: "41220", sido-code: "41", sido-name: "경기도", sigungu-name: "평택시", emd-code: "", emd-name: null }
+      - { region-code: "41250", sido-code: "41", sido-name: "경기도", sigungu-name: "동두천시", emd-code: "", emd-name: null }
+      - { region-code: "41270", sido-code: "41", sido-name: "경기도", sigungu-name: "안산시", emd-code: "", emd-name: null }
+      - { region-code: "41280", sido-code: "41", sido-name: "경기도", sigungu-name: "고양시", emd-code: "", emd-name: null }
+      - { region-code: "41290", sido-code: "41", sido-name: "경기도", sigungu-name: "과천시", emd-code: "", emd-name: null }
+      - { region-code: "41310", sido-code: "41", sido-name: "경기도", sigungu-name: "구리시", emd-code: "", emd-name: null }
+      - { region-code: "41360", sido-code: "41", sido-name: "경기도", sigungu-name: "남양주시", emd-code: "", emd-name: null }
+      - { region-code: "41370", sido-code: "41", sido-name: "경기도", sigungu-name: "오산시", emd-code: "", emd-name: null }
+      - { region-code: "41390", sido-code: "41", sido-name: "경기도", sigungu-name: "시흥시", emd-code: "", emd-name: null }
+      - { region-code: "41410", sido-code: "41", sido-name: "경기도", sigungu-name: "군포시", emd-code: "", emd-name: null }
+      - { region-code: "41430", sido-code: "41", sido-name: "경기도", sigungu-name: "의왕시", emd-code: "", emd-name: null }
+      - { region-code: "41450", sido-code: "41", sido-name: "경기도", sigungu-name: "하남시", emd-code: "", emd-name: null }
+      - { region-code: "41460", sido-code: "41", sido-name: "경기도", sigungu-name: "용인시", emd-code: "", emd-name: null }
+      - { region-code: "41480", sido-code: "41", sido-name: "경기도", sigungu-name: "파주시", emd-code: "", emd-name: null }
+      - { region-code: "41500", sido-code: "41", sido-name: "경기도", sigungu-name: "이천시", emd-code: "", emd-name: null }
+      - { region-code: "41550", sido-code: "41", sido-name: "경기도", sigungu-name: "안성시", emd-code: "", emd-name: null }
+      - { region-code: "41570", sido-code: "41", sido-name: "경기도", sigungu-name: "김포시", emd-code: "", emd-name: null }
+      - { region-code: "41590", sido-code: "41", sido-name: "경기도", sigungu-name: "화성시", emd-code: "", emd-name: null }
+      - { region-code: "41610", sido-code: "41", sido-name: "경기도", sigungu-name: "광주시", emd-code: "", emd-name: null }
+      - { region-code: "41630", sido-code: "41", sido-name: "경기도", sigungu-name: "양주시", emd-code: "", emd-name: null }
+      - { region-code: "41650", sido-code: "41", sido-name: "경기도", sigungu-name: "포천시", emd-code: "", emd-name: null }
+      - { region-code: "41670", sido-code: "41", sido-name: "경기도", sigungu-name: "여주시", emd-code: "", emd-name: null }
+      - { region-code: "41800", sido-code: "41", sido-name: "경기도", sigungu-name: "연천군", emd-code: "", emd-name: null }
+      - { region-code: "41820", sido-code: "41", sido-name: "경기도", sigungu-name: "가평군", emd-code: "", emd-name: null }
+      - { region-code: "41830", sido-code: "41", sido-name: "경기도", sigungu-name: "양평군", emd-code: "", emd-name: null }
+
+      # ===== 샘플 읍면동 (5개) — 시딩 동작 검증용 =====
+      # 전체 읍면동 import는 Phase 2 별도 데이터 스크립트로 처리
+      - { region-code: "11740", sido-code: "11", sido-name: "서울특별시", sigungu-name: "강동구", emd-code: "11740105", emd-name: "고덕동" }
+      - { region-code: "11680", sido-code: "11", sido-name: "서울특별시", sigungu-name: "강남구", emd-code: "11680101", emd-name: "역삼동" }
+      - { region-code: "11710", sido-code: "11", sido-name: "서울특별시", sigungu-name: "송파구", emd-code: "11710125", emd-name: "잠실동" }
+      - { region-code: "41450", sido-code: "41", sido-name: "경기도", sigungu-name: "하남시", emd-code: "41450103", emd-name: "미사동" }
+      - { region-code: "41130", sido-code: "41", sido-name: "경기도", sigungu-name: "성남시", emd-code: "41135101", emd-name: "정자동" }

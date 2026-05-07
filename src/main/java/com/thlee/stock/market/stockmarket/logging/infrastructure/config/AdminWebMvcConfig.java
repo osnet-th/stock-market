@@ -24,6 +24,6 @@ public class AdminWebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(adminGuardInterceptor)
-                .addPathPatterns("/api/admin/logs/**", "/api/admin/dashboard/**");
+                .addPathPatterns("/api/admin/logs/**", "/api/admin/dashboard/**", "/api/admin/realestate/**");
     }
 }

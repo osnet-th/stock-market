@@ -8,9 +8,10 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchResult;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.seoulopendata.exception.SeoulOpenDataApiException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -26,7 +27,6 @@ import java.util.Set;
  * 서울 열린데이터광장 어댑터 — 서울 자치구만 지원 (region prefix 11).
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class SeoulOpenDataAdapter implements RealEstateMarketSourceAdapter {
 
@@ -35,6 +35,12 @@ public class SeoulOpenDataAdapter implements RealEstateMarketSourceAdapter {
 
     private final RestClient restClient;
     private final RealEstateMarketProperties properties;
+
+    public SeoulOpenDataAdapter(@Qualifier(RealEstateRestClientConfig.CLIENT_BEAN) RestClient restClient,
+                                RealEstateMarketProperties properties) {
+        this.restClient = restClient;
+        this.properties = properties;
+    }
 
     @Override
     public RealEstateMarketSource supportedSource() {
@@ -47,15 +53,18 @@ public class SeoulOpenDataAdapter implements RealEstateMarketSourceAdapter {
     }
 
     @Override
+    public boolean supportsRegion(RegionCode region) {
+        return region.isSeoul();
+    }
+
+    @Override
     public FetchResult fetch(RegionCode region,
                              RealEstateMarketCategory category,
                              FetchWindow window) {
         if (category != RealEstateMarketCategory.SEOUL_LOCAL) {
             return FetchResult.failure("unsupported category: " + category);
         }
-        if (!region.isSeoul()) {
-            return FetchResult.success(List.of());
-        }
+        // region 가드는 supportsRegion() 으로 사전 필터됨 — Scheduler 가 호출 시점에 차단
         RealEstateMarketProperties.SourceProps props = properties.getSeoulOpenData();
         if (props.getApiKey() == null || props.getApiKey().isBlank()) {
             throw new IllegalStateException("SEOUL_OPEN_DATA api-key not configured");

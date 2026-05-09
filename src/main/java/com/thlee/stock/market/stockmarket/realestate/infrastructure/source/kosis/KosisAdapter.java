@@ -8,9 +8,10 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchResult;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.kosis.exception.KosisApiException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -28,7 +29,6 @@ import java.util.Set;
  * orgId=116, tblId=DT_MLTM_2082 기본. itmId/objL1 코드는 실제 명세 확인 후 properties로 분리.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class KosisAdapter implements RealEstateMarketSourceAdapter {
 
@@ -38,6 +38,12 @@ public class KosisAdapter implements RealEstateMarketSourceAdapter {
 
     private final RestClient restClient;
     private final RealEstateMarketProperties properties;
+
+    public KosisAdapter(@Qualifier(RealEstateRestClientConfig.CLIENT_BEAN) RestClient restClient,
+                        RealEstateMarketProperties properties) {
+        this.restClient = restClient;
+        this.properties = properties;
+    }
 
     @Override
     public RealEstateMarketSource supportedSource() { return RealEstateMarketSource.KOSIS; }

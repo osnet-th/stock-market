@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -70,6 +71,9 @@ public class RealEstateMarketBatchScheduler {
             for (RealEstateRegion region : regions) {
                 RegionCode regionCode = RegionCode.of(region.getRegionCode());
                 for (RealEstateMarketSourceAdapter adapter : adapters) {
+                    if (!adapter.supportsRegion(regionCode)) {
+                        continue;  // 지역 특화 출처(서울/경기) 헛 submit 사전 차단
+                    }
                     for (RealEstateMarketCategory category : adapter.supportedCategories()) {
                         futures.add(submit(adapter, regionCode, category, window));
                     }
@@ -106,14 +110,21 @@ public class RealEstateMarketBatchScheduler {
                                                RegionCode region,
                                                RealEstateMarketCategory category,
                                                FetchWindow window) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return captureExecutor.captureOne(adapter, region, category, window);
-            } catch (IllegalStateException e) {
-                log.debug("[realestate.batch] skip (api-key not configured): source={}",
-                        adapter.supportedSource());
-                return 0;
-            }
-        }, fetchExecutor);
+        try {
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    return captureExecutor.captureOne(adapter, region, category, window);
+                } catch (IllegalStateException e) {
+                    log.debug("[realestate.batch] skip (api-key not configured): source={}",
+                            adapter.supportedSource());
+                    return 0;
+                }
+            }, fetchExecutor);
+        } catch (RejectedExecutionException e) {
+            // CallerRunsPolicy 가 1차 방어선이지만, executor shutdown 등 거부 시 항목 단위 격리 (다른 항목 진행).
+            log.warn("[realestate.batch] submit rejected: source={}, region={}, category={}",
+                    adapter.supportedSource(), region, category);
+            return CompletableFuture.completedFuture(-1);
+        }
     }
 }

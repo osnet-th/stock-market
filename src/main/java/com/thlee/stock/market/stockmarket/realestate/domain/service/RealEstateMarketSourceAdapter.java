@@ -25,6 +25,16 @@ public interface RealEstateMarketSourceAdapter {
     Set<RealEstateMarketCategory> supportedCategories();
 
     /**
+     * 해당 출처가 처리할 수 있는 region인지 여부.
+     * <p>
+     * 기본값 true. 지역 특화 출처(서울/경기 등)는 prefix 검사로 false 반환하여
+     * 스케줄러가 헛된 submit을 사전 차단하도록 한다.
+     */
+    default boolean supportsRegion(RegionCode region) {
+        return true;
+    }
+
+    /**
      * 한 (region, category) 단위 fetch.
      */
     FetchResult fetch(RegionCode region,

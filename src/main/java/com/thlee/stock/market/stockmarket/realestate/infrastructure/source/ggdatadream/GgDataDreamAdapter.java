@@ -8,9 +8,10 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchResult;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.ggdatadream.exception.GgDataDreamApiException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -27,7 +28,6 @@ import java.util.Set;
  * 경기도 데이터드림 어댑터 — 경기 시군만 지원 (region prefix 41).
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class GgDataDreamAdapter implements RealEstateMarketSourceAdapter {
 
@@ -35,6 +35,12 @@ public class GgDataDreamAdapter implements RealEstateMarketSourceAdapter {
 
     private final RestClient restClient;
     private final RealEstateMarketProperties properties;
+
+    public GgDataDreamAdapter(@Qualifier(RealEstateRestClientConfig.CLIENT_BEAN) RestClient restClient,
+                              RealEstateMarketProperties properties) {
+        this.restClient = restClient;
+        this.properties = properties;
+    }
 
     @Override
     public RealEstateMarketSource supportedSource() {
@@ -46,6 +52,11 @@ public class GgDataDreamAdapter implements RealEstateMarketSourceAdapter {
         return EnumSet.of(RealEstateMarketCategory.GYEONGGI_LOCAL);
     }
 
+    @Override
+    public boolean supportsRegion(RegionCode region) {
+        return region.isGyeonggi();
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public FetchResult fetch(RegionCode region,
@@ -54,9 +65,7 @@ public class GgDataDreamAdapter implements RealEstateMarketSourceAdapter {
         if (category != RealEstateMarketCategory.GYEONGGI_LOCAL) {
             return FetchResult.failure("unsupported category: " + category);
         }
-        if (!region.isGyeonggi()) {
-            return FetchResult.success(List.of());
-        }
+        // region 가드는 supportsRegion() 으로 사전 필터됨
         RealEstateMarketProperties.SourceProps props = properties.getGgDataDream();
         if (props.getApiKey() == null || props.getApiKey().isBlank()) {
             throw new IllegalStateException("GG_DATA_DREAM api-key not configured");

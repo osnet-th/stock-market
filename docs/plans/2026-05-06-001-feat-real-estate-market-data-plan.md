@@ -558,6 +558,54 @@ real_estate_market_metadata
 - 운영 스모크 5개 sample 모두 11개 탭 정상 노출 + 출처/기준일 표기.
 - 학습 문서 1편 작성.
 
+---
+
+- [x] **Unit 9: P0 fix bundle (review 결과 반영) + admin endpoint 정합 (Approval Gate)**
+
+**Goal:** `/ce:review` 식별 P0 3건 (executor 큐 포화로 batch abort, admin trigger Tomcat 동기 차단, RestClient 무 timeout 좀비 워커) 일괄 해소 + admin endpoint를 plan/아키텍처에 정합 (P1 #12, #13 동시 해결).
+
+**Requirements:** R7 (일배치 06:00 KST가 운영에서 정상 완주), R10 (관심지역 인증), R17 (누락 시 다음 갱신 시각 노출 — batch abort 시 의미 상실 방지)
+
+**Dependencies:** Unit 1–8 모두 완료
+
+**Files:**
+- Create:
+  - `realestate/infrastructure/config/RealEstateRestClientConfig.java` — Apache HttpClient 5 기반, connect 5s / response 30s
+  - `realestate/application/RealEstateBatchTriggerService.java` — admin 트리거를 application 계층에 신설 (presentation→infrastructure 직접 의존 제거)
+- Modify:
+  - `build.gradle` — `org.apache.httpcomponents.client5:httpclient5` 의존성 추가
+  - `realestate/infrastructure/config/RealEstateMarketAsyncConfig.java` — fetchExecutor 큐 800 + CallerRunsPolicy + admin 전용 single-thread executor bean 추가
+  - `realestate/infrastructure/scheduler/RealEstateMarketBatchScheduler.java` — region prefix 사전 필터 + submit try-catch (RejectedExecutionException 항목 단위 격리)
+  - `realestate/domain/service/RealEstateMarketSourceAdapter.java` — `default boolean supportsRegion(RegionCode)` 추가
+  - `realestate/infrastructure/source/seoulopendata/SeoulOpenDataAdapter.java` — `supportsRegion = isSeoul`, 내부 가드 제거
+  - `realestate/infrastructure/source/ggdatadream/GgDataDreamAdapter.java` — `supportsRegion = isGyeonggi`, 내부 가드 제거
+  - 8 어댑터/Client (`MolitClient`, `RebClient`, `HubAdapter`, `KosisAdapter`, `SubscriptionHomeAdapter`, `HugAdapter`, `SeoulOpenDataAdapter`, `GgDataDreamAdapter`) — RestClient 생성자 주입에 `@Qualifier(RealEstateRestClientConfig.CLIENT_BEAN)` 추가
+  - `realestate/presentation/RealEstateAdminController.java` — `BatchTriggerService` 만 의존, 즉시 ack + in-flight guard
+
+**Approach:**
+- P0 #3 — Apache HttpClient 5 기반 realestate 전용 RestClient bean. JDK HttpURLConnection의 interrupt 미지원 문제 회피. connect 5s / response 30s. 8 어댑터/Client는 `@Qualifier`로 명시 주입.
+- P0 #1 — region prefix 사전 필터 (Option D). `supportedCategories` + `supportsRegion` 조합으로 SeoulOpenData/GgDataDream 헛 submit 56건 제거. 산정: 56 region × 12 카테고리 - 56 헛 submit = 616 실 submit. 큐 capacity 800(=616 + 30%) + CallerRunsPolicy로 다중 방어선. submit try-catch로 RejectedExecutionException 항목 단위 격리.
+- P0 #2 — `RealEstateBatchTriggerService` 신설 (application 계층). 단일 스레드 admin executor + AtomicBoolean in-flight guard. 응답 즉시 ack: `{"status":"triggered","triggeredAt":...}`. 동시 호출은 409 rejected. cron과 admin이 같은 fetchExecutor 풀 공유 (의도된 큐 통합 — 단 admin은 single-thread executor에서 dispatch).
+- P1 #13 동시 해결 — Controller가 application service만 의존.
+
+**Patterns to follow:**
+- `economics/infrastructure/korea/ecos/EcosApiClient.java` (RestClient + 예외 변환)
+- `stocknote/infrastructure/async/StocknoteAsyncConfig.java` (named ThreadPoolTaskExecutor)
+- 학습: `external-http-per-item-transaction-isolation-2026-04-26`, `parallel-external-fetch-resilience-2026-04-23`
+
+**Test scenarios:**
+- Test expectation: none (정책 그대로). 단 후속 단위 테스트 추가 시 RejectedExecutionException 시나리오, in-flight guard 동시 호출 2건 시 409 동작이 우선 필요.
+
+**Verification:**
+- compileJava SUCCESSFUL.
+- 부팅 시 fetchExecutor 큐 800 + admin executor 큐 0(single-thread) 둘 다 정상 등록.
+- Apache HttpClient 5가 RestClient bean 등록 (`HttpComponentsClientHttpRequestFactory`).
+- admin endpoint 호출 → 즉시 200 ack 반환 (1초 미만), 동시 2번 호출 시 두 번째는 409.
+- region prefix 검사 실측: SeoulOpenDataAdapter는 경기 region에 대해 submit되지 않음 (debug 로그 또는 future count 차이로 확인).
+- 학습 정합 확인: `parallel-external-fetch-resilience-2026-04-23.md` 함정 (1) "AbortPolicy 항목 단위 거부", "하위 HTTP 클라이언트 connect/read timeout 고정" 둘 다 충족.
+
+---
+
 ## System-Wide Impact
 
 - **Interaction graph**: 신규 도메인 단독 구성. `favorite` 도메인은 변경하지 않음(region 즐겨찾기는 realestate 도메인 자체 entity). 사이드바 메뉴 + partial-loader 추가. 그 외 기존 도메인 영향 없음.

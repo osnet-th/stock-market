@@ -1,8 +1,9 @@
 package com.thlee.stock.market.stockmarket.realestate.infrastructure.source.reb;
 
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.reb.exception.RebApiException;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -16,11 +17,16 @@ import java.util.Map;
  * R-ONE 응답 envelope은 Map으로 받아 어댑터에서 정규화.
  */
 @Component
-@RequiredArgsConstructor
 public class RebClient {
 
     private final RestClient restClient;
     private final RealEstateMarketProperties properties;
+
+    public RebClient(@Qualifier(RealEstateRestClientConfig.CLIENT_BEAN) RestClient restClient,
+                     RealEstateMarketProperties properties) {
+        this.restClient = restClient;
+        this.properties = properties;
+    }
 
     public Map<String, Object> fetch(String path, Map<String, String> queryParams) {
         RealEstateMarketProperties.SourceProps reb = properties.getReb();

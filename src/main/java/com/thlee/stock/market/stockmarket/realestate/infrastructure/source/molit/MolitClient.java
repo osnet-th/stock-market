@@ -1,9 +1,10 @@
 package com.thlee.stock.market.stockmarket.realestate.infrastructure.source.molit;
 
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.molit.dto.MolitApiResponse;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.molit.exception.MolitApiException;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -14,7 +15,6 @@ import org.springframework.web.client.RestClientException;
  * 인증키 미설정 시 즉시 {@link IllegalStateException} — 일배치 스케줄러가 항목 단위 skip.
  */
 @Component
-@RequiredArgsConstructor
 public class MolitClient {
 
     private static final String APT_TRADE_PATH = "/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev";
@@ -22,6 +22,12 @@ public class MolitClient {
 
     private final RestClient restClient;
     private final RealEstateMarketProperties properties;
+
+    public MolitClient(@Qualifier(RealEstateRestClientConfig.CLIENT_BEAN) RestClient restClient,
+                       RealEstateMarketProperties properties) {
+        this.restClient = restClient;
+        this.properties = properties;
+    }
 
     public MolitApiResponse fetchAptTrade(String regionCode, String dealYearMonth) {
         return invoke(APT_TRADE_PATH, regionCode, dealYearMonth);

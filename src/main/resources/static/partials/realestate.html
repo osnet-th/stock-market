@@ -35,8 +35,10 @@
                 </template>
             </select>
             <select x-model="realestate.selectedEmdCode" @change="refreshRealEstate()"
-                    class="border border-gray-300 rounded px-2 py-1.5 text-sm">
-                <option value="">시군구 단위</option>
+                    :disabled="realestate.emds.length === 0"
+                    :title="realestate.emds.length === 0 ? '이 시군구에는 등록된 읍면동이 없습니다' : ''"
+                    class="border border-gray-300 rounded px-2 py-1.5 text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
+                <option value="" x-text="realestate.emds.length === 0 ? '읍면동 (없음)' : '읍면동 전체'"></option>
                 <template x-for="emd in realestate.emds" :key="emd.emdCode">
                     <option :value="emd.emdCode" x-text="emd.emdName"></option>
                 </template>

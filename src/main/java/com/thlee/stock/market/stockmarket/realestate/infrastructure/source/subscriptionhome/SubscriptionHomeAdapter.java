@@ -8,9 +8,10 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchResult;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.subscriptionhome.exception.SubscriptionHomeApiException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -29,7 +30,6 @@ import java.util.Set;
  * odcloud 표준 응답: {data:[{...}], totalCount}.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class SubscriptionHomeAdapter implements RealEstateMarketSourceAdapter {
 
@@ -37,6 +37,12 @@ public class SubscriptionHomeAdapter implements RealEstateMarketSourceAdapter {
 
     private final RestClient restClient;
     private final RealEstateMarketProperties properties;
+
+    public SubscriptionHomeAdapter(@Qualifier(RealEstateRestClientConfig.CLIENT_BEAN) RestClient restClient,
+                                   RealEstateMarketProperties properties) {
+        this.restClient = restClient;
+        this.properties = properties;
+    }
 
     @Override
     public RealEstateMarketSource supportedSource() {

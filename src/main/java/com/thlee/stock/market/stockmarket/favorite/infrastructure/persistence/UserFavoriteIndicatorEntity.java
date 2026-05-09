@@ -46,6 +46,15 @@ public class UserFavoriteIndicatorEntity {
     )
     private FavoriteDisplayMode displayMode;
 
+    /**
+     * 표시 우선순위. (user_id, source_type) 그룹 내 dense 0..N-1 시퀀스.
+     * 신규 추가 시 SQL이 MAX(priority)+1로 부여하므로 도메인/Entity 생성 시 null 허용.
+     * UNIQUE 제약은 Entity가 아닌 db/migration SQL이 DEFERRABLE INITIALLY DEFERRED로 관리한다
+     * (Hibernate @UniqueConstraint는 DEFERRABLE 미지원 → 절대 unique=true로 두지 말 것).
+     */
+    @Column(name = "priority")
+    private Integer priority;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -57,12 +66,14 @@ public class UserFavoriteIndicatorEntity {
                                        FavoriteIndicatorSourceType sourceType,
                                        String indicatorCode,
                                        FavoriteDisplayMode displayMode,
+                                       Integer priority,
                                        LocalDateTime createdAt) {
         this.id = id;
         this.userId = userId;
         this.sourceType = sourceType;
         this.indicatorCode = indicatorCode;
         this.displayMode = displayMode;
+        this.priority = priority;
         this.createdAt = createdAt;
     }
 

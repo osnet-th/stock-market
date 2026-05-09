@@ -173,6 +173,13 @@ const API = {
         return this.request('PUT', '/api/favorites/display-mode', { sourceType, indicatorCode, displayMode });
     },
 
+    /**
+     * 컨테이너 (sourceType × displayMode) 단위 일괄 순서 갱신.
+     */
+    reorderFavorites(sourceType, displayMode, indicatorCodes) {
+        return this.request('PUT', '/api/favorites/order', { sourceType, displayMode, indicatorCodes });
+    },
+
     getRecentUpdates() {
         return this.request('GET', '/api/economics/indicators/recent-updates');
     },

@@ -15,6 +15,7 @@ public class FavoriteIndicator {
     private final FavoriteIndicatorSourceType sourceType;
     private final String indicatorCode;
     private final FavoriteDisplayMode displayMode;
+    private final Integer priority;
     private final LocalDateTime createdAt;
 
     public FavoriteIndicator(Long id,
@@ -22,23 +23,32 @@ public class FavoriteIndicator {
                              FavoriteIndicatorSourceType sourceType,
                              String indicatorCode,
                              FavoriteDisplayMode displayMode,
+                             Integer priority,
                              LocalDateTime createdAt) {
         this.id = id;
         this.userId = userId;
         this.sourceType = sourceType;
         this.indicatorCode = indicatorCode;
         this.displayMode = displayMode != null ? displayMode : FavoriteDisplayMode.INDICATOR;
+        this.priority = priority;
         this.createdAt = createdAt;
     }
 
+    /**
+     * 신규 관심지표 생성. priority는 SQL이 산출하므로 도메인에서는 null로 둔다.
+     */
     public static FavoriteIndicator create(Long userId,
                                            FavoriteIndicatorSourceType sourceType,
                                            String indicatorCode) {
         return new FavoriteIndicator(null, userId, sourceType, indicatorCode,
-                FavoriteDisplayMode.INDICATOR, LocalDateTime.now());
+                FavoriteDisplayMode.INDICATOR, null, LocalDateTime.now());
     }
 
     public FavoriteIndicator changeDisplayMode(FavoriteDisplayMode newDisplayMode) {
-        return new FavoriteIndicator(id, userId, sourceType, indicatorCode, newDisplayMode, createdAt);
+        return new FavoriteIndicator(id, userId, sourceType, indicatorCode, newDisplayMode, priority, createdAt);
+    }
+
+    public FavoriteIndicator withPriority(Integer newPriority) {
+        return new FavoriteIndicator(id, userId, sourceType, indicatorCode, displayMode, newPriority, createdAt);
     }
 }

@@ -661,6 +661,7 @@ real_estate_market_metadata
 - 읍면동 전체 import: `realestate-region-codes.yml`에는 시군구 56개 + 샘플 읍면동 5개만 시드되어 있다. 서울 약 500개 + 경기 약 700개 전체 법정동은 운영 단계에서 별도 데이터 import 스크립트(SQL/CSV)로 적재한다. yml 단일 파일 비대화를 회피하고, 행정구역 개편 시 별도 스크립트만 갱신한다.
 - 외부 통계표 ID 매핑: R-ONE STATBL_ID, KOSIS orgId/tblId/itmId, 청약홈 odcloud uddi 경로는 인증키 발급 후 명세 확인 → properties 단계에서 분리 적재. 본 plan 시점에는 임시값으로 두고 운영 시 확정.
 - 학습 적재: `docs/solutions/architecture-patterns/realestate-public-open-api-pitfalls-2026-05-07.md` (한국 공공 Open API 다중 출처 어댑터링 함정).
+- **Follow-up plan** (P1 잔여 10건 + P2 핵심): [`docs/plans/2026-05-10-001-refactor-realestate-review-findings-plan.md`](./2026-05-10-001-refactor-realestate-review-findings-plan.md). parent PR 머지 후 별도 worktree로 incremental 진행 권장 (Unit 10–14).
 - 모니터링: 기존 application logging Elasticsearch 인덱스에 `domain=realestate` 라벨로 적재(별도 인프라 추가 없음).
 - Rollback: 신규 도메인이라 feature flag 미사용. 문제 발생 시 사이드바 메뉴 항목 hide만으로 사용자 노출 차단 가능.
 

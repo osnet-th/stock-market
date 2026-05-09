@@ -30,12 +30,7 @@ public class RealEstateMarketLatest {
     private String previousReferenceText;
     private LocalDateTime updatedAt;
 
-    public String compareKey() {
-        return String.join("::",
-                regionCode,
-                category.name(),
-                source.name(),
-                indicatorCode,
-                referenceText == null ? "" : referenceText);
+    public IndicatorKey pkKey() {
+        return new IndicatorKey(regionCode, category, source, indicatorCode);
     }
 }

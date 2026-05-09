@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface RealEstateMarketLatestRepository {
 
     /**
-     * Source 단위까지 좁힌 1회 조회 — compareKey 비교에 사용.
+     * Source 단위까지 좁힌 1회 조회 — pkKey 기반 변경 감지 비교에 사용.
      */
     List<RealEstateMarketLatest> findAllByRegionAndCategoryAndSource(String regionCode,
                                                                      RealEstateMarketCategory category,

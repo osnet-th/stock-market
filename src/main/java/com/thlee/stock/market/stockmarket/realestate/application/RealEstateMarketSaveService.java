@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.realestate.application;
 
+import com.thlee.stock.market.stockmarket.realestate.domain.model.IndicatorKey;
 import com.thlee.stock.market.stockmarket.realestate.domain.model.RealEstateMarketCategory;
 import com.thlee.stock.market.stockmarket.realestate.domain.model.RealEstateMarketIndicator;
 import com.thlee.stock.market.stockmarket.realestate.domain.model.RealEstateMarketLatest;
@@ -20,8 +21,9 @@ import java.util.Map;
 /**
  * 어댑터의 fetch 결과를 latest와 비교해 변경분만 history에 적재하고 latest를 upsert.
  * <p>
- * compareKey = regionCode::category::source::indicatorCode::referenceText.
- * source까지 포함해야 같은 region×category에 복수 출처 row가 들어와도 덮어써지지 않음.
+ * Map lookup 키는 PK 단위 {@link IndicatorKey} (regionCode, category, source, indicatorCode).
+ * referenceText는 row 단위 메타이므로 키에서 제외 — 롤오버 시 lookup miss를 방지하고
+ * previousReferenceText 보존을 정상화한다.
  */
 @Slf4j
 @Service
@@ -43,7 +45,7 @@ public class RealEstateMarketSaveService {
             return 0;
         }
 
-        Map<String, RealEstateMarketLatest> latestMap = loadLatestMap(regionCode, category, source);
+        Map<IndicatorKey, RealEstateMarketLatest> latestMap = loadLatestMap(regionCode, category, source);
 
         List<RealEstateMarketIndicator> changed = filterChanged(fetched, latestMap);
         if (!changed.isEmpty()) {
@@ -58,22 +60,22 @@ public class RealEstateMarketSaveService {
         return changed.size();
     }
 
-    private Map<String, RealEstateMarketLatest> loadLatestMap(String regionCode,
-                                                               RealEstateMarketCategory category,
-                                                               RealEstateMarketSource source) {
-        Map<String, RealEstateMarketLatest> map = new HashMap<>();
+    private Map<IndicatorKey, RealEstateMarketLatest> loadLatestMap(String regionCode,
+                                                                     RealEstateMarketCategory category,
+                                                                     RealEstateMarketSource source) {
+        Map<IndicatorKey, RealEstateMarketLatest> map = new HashMap<>();
         for (RealEstateMarketLatest latest : latestRepository.findAllByRegionAndCategoryAndSource(
                 regionCode, category, source)) {
-            map.put(latest.compareKey(), latest);
+            map.put(latest.pkKey(), latest);
         }
         return map;
     }
 
     private List<RealEstateMarketIndicator> filterChanged(List<RealEstateMarketIndicator> fetched,
-                                                           Map<String, RealEstateMarketLatest> latestMap) {
+                                                           Map<IndicatorKey, RealEstateMarketLatest> latestMap) {
         List<RealEstateMarketIndicator> result = new ArrayList<>();
         for (RealEstateMarketIndicator indicator : fetched) {
-            RealEstateMarketLatest existing = latestMap.get(indicator.compareKey());
+            RealEstateMarketLatest existing = latestMap.get(indicator.pkKey());
             if (existing == null || !sameValue(existing, indicator)) {
                 result.add(indicator);
             }
@@ -93,11 +95,11 @@ public class RealEstateMarketSaveService {
     }
 
     private List<RealEstateMarketLatest> mergeLatest(List<RealEstateMarketIndicator> fetched,
-                                                      Map<String, RealEstateMarketLatest> latestMap) {
+                                                      Map<IndicatorKey, RealEstateMarketLatest> latestMap) {
         LocalDateTime now = LocalDateTime.now();
         List<RealEstateMarketLatest> result = new ArrayList<>(fetched.size());
         for (RealEstateMarketIndicator ind : fetched) {
-            RealEstateMarketLatest existing = latestMap.get(ind.compareKey());
+            RealEstateMarketLatest existing = latestMap.get(ind.pkKey());
             String previousReference = existing == null
                     ? null
                     : (referenceChanged(existing, ind) ? existing.getReferenceText() : existing.getPreviousReferenceText());

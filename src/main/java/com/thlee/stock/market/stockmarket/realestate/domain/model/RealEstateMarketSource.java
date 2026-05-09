@@ -4,7 +4,7 @@ package com.thlee.stock.market.stockmarket.realestate.domain.model;
  * 부동산 시장 데이터 출처 (8종).
  * <p>
  * 같은 region×category에 복수 출처 데이터가 들어올 수 있어
- * latest unique key 및 compareKey에 source가 포함된다.
+ * latest unique key 및 PK 식별자({@link IndicatorKey})에 source가 포함된다.
  */
 public enum RealEstateMarketSource {
 

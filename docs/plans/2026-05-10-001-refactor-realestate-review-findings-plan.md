@@ -38,7 +38,7 @@ branch: TBD (별도 worktree 권장)
 
 ## Implementation Units
 
-- [ ] **Unit 10: 데이터 정합성 — compareKey VO + previousReferenceText fix**
+- [x] **Unit 10: 데이터 정합성 — compareKey VO + previousReferenceText fix**
 
 **Goal:** P1 #4 + #11 묶음 해소. compareKey 정의 중복 제거 + referenceText 롤오버 시 previous 보존.
 

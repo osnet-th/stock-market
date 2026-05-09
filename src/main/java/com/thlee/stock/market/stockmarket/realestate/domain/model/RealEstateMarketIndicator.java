@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  * 부동산 시장 지표 히스토리 도메인 모델.
  * <p>
  * 단일 history 테이블에 카테고리 enum + payload(JSONB)로 다양한 데이터 형태를 흡수한다.
- * compareKey = regionCode::category::source::indicatorCode::referenceText
+ * pkKey = (regionCode, category, source, indicatorCode) — Latest unique key와 동일.
  */
 @Getter
 @Builder
@@ -34,12 +34,7 @@ public class RealEstateMarketIndicator {
     private LocalDateTime snapshotDate;
     private LocalDateTime createdAt;
 
-    public String compareKey() {
-        return String.join("::",
-                regionCode,
-                category.name(),
-                source.name(),
-                indicatorCode,
-                referenceText == null ? "" : referenceText);
+    public IndicatorKey pkKey() {
+        return new IndicatorKey(regionCode, category, source, indicatorCode);
     }
 }

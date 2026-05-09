@@ -82,23 +82,6 @@ public class RealEstateMarketLatestEntity {
         this.updatedAt = updatedAt;
     }
 
-    /**
-     * 값 갱신 — referenceText 변경 시 직전 값 보존.
-     */
-    public void update(String newReferenceText,
-                       BigDecimal newValue,
-                       String newPayload,
-                       boolean referenceChanged,
-                       LocalDateTime updatedAt) {
-        if (referenceChanged) {
-            this.previousReferenceText = this.referenceText;
-        }
-        this.referenceText = newReferenceText;
-        this.value = newValue;
-        this.payload = newPayload;
-        this.updatedAt = updatedAt;
-    }
-
     public static class LatestId implements Serializable {
         private String regionCode;
         private RealEstateMarketCategory category;

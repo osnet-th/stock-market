@@ -627,14 +627,14 @@ const API = {
         return this.request('GET', `/api/realestate/regions/${regionCode}/emds`);
     },
     getRealEstateSummary(regionCode) {
-        return this.request('GET', `/api/realestate/market/summary?region_code=${encodeURIComponent(regionCode)}`);
+        return this.request('GET', `/api/realestate/market/summary?regionCode=${encodeURIComponent(regionCode)}`);
     },
     getRealEstateTab(regionCode, category, period = 'ONE_MONTH') {
-        const q = `region_code=${encodeURIComponent(regionCode)}&period=${encodeURIComponent(period)}`;
+        const q = `regionCode=${encodeURIComponent(regionCode)}&period=${encodeURIComponent(period)}`;
         return this.request('GET', `/api/realestate/market/tabs/${encodeURIComponent(category)}?${q}`);
     },
     getRealEstateComparison(regionCodes, category, period = 'ONE_MONTH') {
-        const list = regionCodes.map(c => `region_codes=${encodeURIComponent(c)}`).join('&');
+        const list = regionCodes.map(c => `regionCodes=${encodeURIComponent(c)}`).join('&');
         return this.request('GET', `/api/realestate/market/comparison?${list}&category=${encodeURIComponent(category)}&period=${encodeURIComponent(period)}`);
     },
     getRealEstateSources() {
@@ -647,6 +647,8 @@ const API = {
         return this.request('POST', '/api/realestate/favorites/regions', { regionCode, emdCode });
     },
     removeRealEstateFavoriteRegion(regionCode, emdCode = null) {
-        return this.request('DELETE', '/api/realestate/favorites/regions', { regionCode, emdCode });
+        const params = new URLSearchParams({ regionCode });
+        if (emdCode) params.set('emdCode', emdCode);
+        return this.request('DELETE', `/api/realestate/favorites/regions?${params.toString()}`);
     }
 };

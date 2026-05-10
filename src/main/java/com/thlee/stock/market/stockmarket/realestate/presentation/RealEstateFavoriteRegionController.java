@@ -3,17 +3,22 @@ package com.thlee.stock.market.stockmarket.realestate.presentation;
 import com.thlee.stock.market.stockmarket.realestate.application.RealEstateFavoriteRegionService;
 import com.thlee.stock.market.stockmarket.realestate.presentation.dto.FavoriteRegionRequest;
 import com.thlee.stock.market.stockmarket.realestate.presentation.dto.FavoriteRegionResponse;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -28,6 +33,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/realestate/favorites/regions")
 @RequiredArgsConstructor
+@Validated
 public class RealEstateFavoriteRegionController {
 
     private final RealEstateFavoriteRegionService favoriteService;
@@ -38,7 +44,7 @@ public class RealEstateFavoriteRegionController {
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> register(@RequestBody FavoriteRegionRequest request) {
+    public ResponseEntity<Map<String, Object>> register(@Valid @RequestBody FavoriteRegionRequest request) {
         var saved = favoriteService.register(currentUserId(), request.regionCode(), request.emdCode());
         return ResponseEntity.ok(Map.of(
                 "id", saved.getId(),
@@ -47,8 +53,10 @@ public class RealEstateFavoriteRegionController {
     }
 
     @DeleteMapping
-    public ResponseEntity<Map<String, Object>> unregister(@RequestBody FavoriteRegionRequest request) {
-        boolean removed = favoriteService.unregister(currentUserId(), request.regionCode(), request.emdCode());
+    public ResponseEntity<Map<String, Object>> unregister(
+            @RequestParam @NotBlank @Pattern(regexp = "\\d{5}") String regionCode,
+            @RequestParam(required = false) @Pattern(regexp = "\\d{8}") String emdCode) {
+        boolean removed = favoriteService.unregister(currentUserId(), regionCode, emdCode);
         return ResponseEntity.ok(Map.of("removed", removed));
     }
 

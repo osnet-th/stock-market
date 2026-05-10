@@ -115,7 +115,7 @@ branch: TBD (별도 worktree 권장)
 
 ---
 
-- [ ] **Unit 12: API contract polish — DELETE body 제거 + 검증 + 케이스 통일**
+- [x] **Unit 12: API contract polish — DELETE body 제거 + 검증 + 케이스 통일**
 
 **Goal:** P1 #7, #8, #15 묶음. shipped 전 contract lock-in 회피.
 

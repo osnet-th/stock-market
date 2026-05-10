@@ -7,8 +7,13 @@ import com.thlee.stock.market.stockmarket.realestate.presentation.dto.PeriodOpti
 import com.thlee.stock.market.stockmarket.realestate.presentation.dto.SourceMetaResponse;
 import com.thlee.stock.market.stockmarket.realestate.presentation.dto.SummaryResponse;
 import com.thlee.stock.market.stockmarket.realestate.presentation.dto.TabResponse;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,26 +30,28 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/realestate/market")
 @RequiredArgsConstructor
+@Validated
 public class RealEstateMarketController {
 
     private final RealEstateMarketQueryService queryService;
 
     @GetMapping("/summary")
-    public ResponseEntity<SummaryResponse> summary(@RequestParam("region_code") String regionCode) {
+    public ResponseEntity<SummaryResponse> summary(
+            @RequestParam @NotBlank @Pattern(regexp = "\\d{5}") String regionCode) {
         return ResponseEntity.ok(queryService.getSummary(regionCode));
     }
 
     @GetMapping("/tabs/{category}")
     public ResponseEntity<TabResponse> tab(
             @PathVariable("category") RealEstateMarketCategory category,
-            @RequestParam("region_code") String regionCode,
+            @RequestParam @NotBlank @Pattern(regexp = "\\d{5}") String regionCode,
             @RequestParam(value = "period", defaultValue = "ONE_MONTH") PeriodOption period) {
         return ResponseEntity.ok(queryService.getTab(regionCode, category, period));
     }
 
     @GetMapping("/comparison")
     public ResponseEntity<ComparisonResponse> comparison(
-            @RequestParam("region_codes") List<String> regionCodes,
+            @RequestParam @NotEmpty @Size(min = 1, max = 10) List<@Pattern(regexp = "\\d{5}") String> regionCodes,
             @RequestParam("category") RealEstateMarketCategory category,
             @RequestParam(value = "period", defaultValue = "ONE_MONTH") PeriodOption period) {
         return ResponseEntity.ok(queryService.getComparison(regionCodes, category, period));

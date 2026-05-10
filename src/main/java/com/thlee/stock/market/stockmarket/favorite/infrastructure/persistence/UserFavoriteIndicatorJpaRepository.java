@@ -63,15 +63,6 @@ public interface UserFavoriteIndicatorJpaRepository
                           @Param("displayMode") FavoriteDisplayMode displayMode);
 
     /**
-     * priority가 NULL인 행을 (user_id, source_type, created_at, id) 정렬로 조회.
-     * Bootstrap backfill 전용.
-     */
-    @Query("SELECT e FROM UserFavoriteIndicatorEntity e " +
-           "WHERE e.priority IS NULL " +
-           "ORDER BY e.userId ASC, e.sourceType ASC, e.createdAt ASC, e.id ASC")
-    List<UserFavoriteIndicatorEntity> findAllWithNullPriority();
-
-    /**
      * 신규 관심지표를 단일 SQL로 INSERT — priority는 동일 (user_id, source_type) 그룹의 MAX(priority)+1로 산출.
      * READ_COMMITTED isolation에서 SELECT MAX → 별도 INSERT는 race를 못 막으므로 단일 statement로 atomicity 확보.
      * 동시 트랜잭션이 같은 priority를 도출하면 DEFERRABLE UNIQUE가 commit 시 SQLState 23505로 거부 → 호출자가 1회 retry.

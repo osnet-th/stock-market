@@ -203,6 +203,12 @@ realestate:
     api-key: ${SUBSCRIPTION_HOME_API_KEY:}
     connect-timeout-ms: 5000
     read-timeout-ms: 30000
+  # HUG 분양보증사고 — 현재 비활성화 (2026-05-10 결정)
+  # · data.go.kr는 링크데이터셋만 등록 (Open API 미제공) — 아래 base-url은 실제 작동 안 함
+  # · HUG 자체 OPEN API(www.khug.or.kr)는 존재하나 응답 envelope/파라미터 schema가
+  #   data.go.kr 표준과 달라 어댑터 전면 재작성 필요
+  # · HUG_API_KEY 빈값 유지 시 BatchScheduler가 자동 skip
+  # · 후속 sprint에서 폐기 vs 재작성 vs KOSIS 우회 결정. 자세한 내용은 HugAdapter javadoc 참조
   hug:
     base-url: https://apis.data.go.kr/B551408
     api-key: ${HUG_API_KEY:}

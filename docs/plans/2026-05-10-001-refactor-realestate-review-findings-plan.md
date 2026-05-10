@@ -243,6 +243,19 @@ branch: TBD (별도 worktree 권장)
 | Unit 12 query param 케이스 변경이 이미 shipped 클라이언트에 영향 | parent PR이 아직 머지 전 → contract lock-in 전이라 안전. 머지 후 진행 시 deprecation 경로 필요 |
 | Unit 13 메소드 분리가 가독성을 해칠 가능성 | framework callback/builder 패턴은 §예외 적용 후 주석 명시. 무차별 분리 금지 |
 
+## Operations Follow-up (운영 시점 확인 — 본 plan 범위 밖)
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| MOLIT 주택유형 확장 (오피스텔/연립다세대/단독다가구/토지) | ⏸ 미정 | parent plan에서 정의됐으나 구현은 아파트만. Entity·API contract 변경 → 별도 brainstorm/plan 필요 |
+| HUB endpoint 결정 (raw `getHpBasisOulnInfo` vs KOSIS 대체) | ⏸ 비활성화 | 16개 endpoint 모두 raw microdata. `HUB_API_KEY` 빈값 유지로 자동 skip |
+| HUG 분양보증사고 어댑터 재작성 vs 폐기 vs KOSIS 우회 | ⏸ 비활성화 | data.go.kr 링크데이터셋. HUG 자체 OPEN API(www.khug.or.kr) 존재하나 envelope/schema 별도 — `HugAdapter` javadoc 참조 |
+| 청약홈 응답 필드 dry-run 검증 (`HSSPLY_AREA_CODE`, `PBLANC_CMPET_RT`) | ⏸ 미검증 | endpoint path 정정 완료(`cc65f23`). 운영 호출로 필드명 일치 확인 필요 |
+| 청약홈 추가 operation (오피스텔/공공임대 등 7개) | ⏸ 미정 | 주택유형 확장과 함께 도입 |
+| REB 통계표 ID 매핑 (STATBL_ID/DTL_STATBL_ID/GRP_ID) | ⏸ 미정 | 인증키 발급 후 R-ONE 명세에서 확인 |
+| KOSIS orgId/tblId 매핑 (인허가실적/미분양 등) | ⏸ 미정 | 인증키 발급 후 KOSIS Open API 명세에서 확인 |
+| `SecretMasker` path-segment 키 마스킹 보강 | ⏸ 미보강 | 서울 OpenData가 path-segment에 키 노출(`/{KEY}/json/...`). Unit 11의 query-param 정규식만으로 미커버 |
+
 ## Sources & References
 
 - **Origin**: parent plan `docs/plans/2026-05-06-001-feat-real-estate-market-data-plan.md`

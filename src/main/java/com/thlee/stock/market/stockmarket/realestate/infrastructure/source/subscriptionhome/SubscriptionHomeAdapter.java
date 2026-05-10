@@ -29,13 +29,19 @@ import java.util.Set;
 /**
  * 청약홈 청약 경쟁률 어댑터.
  * <p>
- * odcloud 표준 응답: {data:[{...}], totalCount}.
+ * 출처: 한국부동산원 청약홈 분양정보/경쟁률 서비스 (odcloud 게시).
+ * odcloud 표준 응답: {data:[{...}], totalCount, currentCount, page, perPage}.
+ * <p>
+ * MVP는 APT 경쟁률(getAPTLttotPblancCmpet)만 수집한다. 오피스텔/도시형/공공임대 등
+ * 다른 operation은 후속 sprint에서 주택유형 확장과 함께 도입.
+ * 응답 필드명({@code HSSPLY_AREA_CODE}, {@code PBLANC_CMPET_RT})은 운영 dry-run으로 검증 필요.
  */
 @Component
 @Slf4j
 public class SubscriptionHomeAdapter implements RealEstateMarketSourceAdapter {
 
-    private static final String COMPETITION_PATH = "/15098905/v1/uddi:..."; // 운영 시 odcloud 경로 확정
+    private static final String COMPETITION_PATH =
+            "/ApplyhomeInfoCmpetRtSvc/v1/getAPTLttotPblancCmpet";
 
     private final RestClient restClient;
     private final RealEstateMarketProperties properties;

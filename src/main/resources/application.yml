@@ -209,7 +209,7 @@ realestate:
     connect-timeout-ms: 5000
     read-timeout-ms: 30000
   seoul-open-data:
-    base-url: http://openapi.seoul.go.kr:8088
+    base-url: https://openapi.seoul.go.kr:8088
     api-key: ${SEOUL_OPEN_DATA_API_KEY:}
     connect-timeout-ms: 5000
     read-timeout-ms: 30000

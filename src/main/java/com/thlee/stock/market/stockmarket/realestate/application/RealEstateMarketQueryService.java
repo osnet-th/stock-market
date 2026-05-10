@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -60,19 +61,10 @@ public class RealEstateMarketQueryService {
 
     public SummaryResponse getSummary(String regionCode) {
         Map<MetaKey, RealEstateMarketMetadata> metaMap = loadMetadataMap();
+        Predicate<MetaKey> headlineOnly = key -> HEADLINE_CODES.contains(key.indicatorCode());
         List<IndicatorCard> cards = new ArrayList<>();
-
         for (RealEstateMarketCategory category : RealEstateMarketCategory.values()) {
-            for (Map.Entry<MetaKey, RealEstateMarketMetadata> entry : metaMap.entrySet()) {
-                MetaKey key = entry.getKey();
-                if (key.category() != category) continue;
-                if (!HEADLINE_CODES.contains(key.indicatorCode())) continue;
-
-                List<RealEstateMarketIndicator> history = indicatorRepository.findHistory(
-                        regionCode, key.category(), key.source(), key.indicatorCode(), HISTORY_LIMIT);
-                IndicatorCard card = aggregator.toCard(entry.getValue(), history);
-                if (card != null) cards.add(card);
-            }
+            cards.addAll(buildCardsFor(regionCode, category, metaMap, HISTORY_LIMIT, headlineOnly));
         }
 
         LocalDateTime lastUpdated = latestUpdatedAt(regionCode);
@@ -90,16 +82,9 @@ public class RealEstateMarketQueryService {
         Map<MetaKey, RealEstateMarketMetadata> metaMap = loadMetadataMap();
         List<RealEstateMarketIndicator> latestPerSource =
                 indicatorRepository.findLatestByRegionAndCategory(regionCode, category);
-        List<IndicatorCard> cards = new ArrayList<>();
 
-        for (Map.Entry<MetaKey, RealEstateMarketMetadata> entry : metaMap.entrySet()) {
-            MetaKey key = entry.getKey();
-            if (key.category() != category) continue;
-            List<RealEstateMarketIndicator> history = indicatorRepository.findHistory(
-                    regionCode, key.category(), key.source(), key.indicatorCode(), HISTORY_LIMIT);
-            IndicatorCard card = aggregator.toCard(entry.getValue(), history);
-            if (card != null) cards.add(card);
-        }
+        List<IndicatorCard> cards = new ArrayList<>(
+                buildCardsFor(regionCode, category, metaMap, HISTORY_LIMIT, null));
 
         if (category == RealEstateMarketCategory.RENT) {
             attachJeonseRatioEstimate(regionCode, metaMap, cards);
@@ -126,16 +111,9 @@ public class RealEstateMarketQueryService {
                                              PeriodOption period) {
         Map<MetaKey, RealEstateMarketMetadata> metaMap = loadMetadataMap();
         List<ComparisonResponse.ComparisonRow> rows = new ArrayList<>();
-
         for (String code : regionCodes) {
             String label = regionService.regionLabel(code);
-            for (Map.Entry<MetaKey, RealEstateMarketMetadata> entry : metaMap.entrySet()) {
-                MetaKey key = entry.getKey();
-                if (key.category() != category) continue;
-                List<RealEstateMarketIndicator> history = indicatorRepository.findHistory(
-                        code, key.category(), key.source(), key.indicatorCode(), 2);
-                IndicatorCard card = aggregator.toCard(entry.getValue(), history);
-                if (card == null) continue;
+            for (IndicatorCard card : buildCardsFor(code, category, metaMap, 2, null)) {
                 rows.add(new ComparisonResponse.ComparisonRow(
                         code, label,
                         card.indicatorCode(), card.displayName(),
@@ -144,6 +122,24 @@ public class RealEstateMarketQueryService {
             }
         }
         return new ComparisonResponse(category.name(), period.name(), rows, nowKstString());
+    }
+
+    private List<IndicatorCard> buildCardsFor(String regionCode,
+                                               RealEstateMarketCategory category,
+                                               Map<MetaKey, RealEstateMarketMetadata> metaMap,
+                                               int historyLimit,
+                                               Predicate<MetaKey> filter) {
+        List<IndicatorCard> cards = new ArrayList<>();
+        for (Map.Entry<MetaKey, RealEstateMarketMetadata> entry : metaMap.entrySet()) {
+            MetaKey key = entry.getKey();
+            if (key.category() != category) continue;
+            if (filter != null && !filter.test(key)) continue;
+            List<RealEstateMarketIndicator> history = indicatorRepository.findHistory(
+                    regionCode, key.category(), key.source(), key.indicatorCode(), historyLimit);
+            IndicatorCard card = aggregator.toCard(entry.getValue(), history);
+            if (card != null) cards.add(card);
+        }
+        return cards;
     }
 
     public SourceMetaResponse getSourceMetadata() {

@@ -9,6 +9,7 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.BaseUri;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.seoulopendata.exception.SeoulOpenDataApiException;
 import lombok.extern.slf4j.Slf4j;
@@ -93,12 +94,13 @@ public class SeoulOpenDataAdapter implements RealEstateMarketSourceAdapter {
     private BigDecimal countDataset(RealEstateMarketProperties.SourceProps props,
                                     RegionCode region,
                                     String dataset) {
+        BaseUri base = BaseUri.parse(props.getBaseUrl());
         Map<String, Object> response = restClient.get()
                 .uri(builder -> builder
-                        .scheme("http")
-                        .host(stripScheme(props.getBaseUrl()))
-                        .port(extractPort(props.getBaseUrl()))
-                        .path(String.format("/%s/json/%s/1/1/", props.getApiKey(), dataset))
+                        .scheme(base.scheme())
+                        .host(base.host())
+                        .port(base.port())
+                        .path(base.contextPath() + String.format("/%s/json/%s/1/1/", props.getApiKey(), dataset))
                         .build())
                 .retrieve()
                 .body(Map.class);
@@ -132,24 +134,4 @@ public class SeoulOpenDataAdapter implements RealEstateMarketSourceAdapter {
                 .build();
     }
 
-    private String stripScheme(String baseUrl) {
-        String t = baseUrl.replaceFirst("^https?://", "");
-        int colon = t.indexOf(':');
-        int slash = t.indexOf('/');
-        int end = colon > 0 ? colon : (slash > 0 ? slash : t.length());
-        return t.substring(0, end);
-    }
-
-    private int extractPort(String baseUrl) {
-        String t = baseUrl.replaceFirst("^https?://", "");
-        int colon = t.indexOf(':');
-        if (colon < 0) return -1;
-        int slash = t.indexOf('/', colon);
-        String portStr = slash > 0 ? t.substring(colon + 1, slash) : t.substring(colon + 1);
-        try {
-            return Integer.parseInt(portStr);
-        } catch (NumberFormatException e) {
-            return -1;
-        }
-    }
 }

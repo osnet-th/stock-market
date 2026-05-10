@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.realestate.infrastructure.source.reb;
 
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.BaseUri;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.reb.exception.RebApiException;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -34,11 +35,14 @@ public class RebClient {
         if (reb.getApiKey() == null || reb.getApiKey().isBlank()) {
             throw new IllegalStateException("REB api-key not configured");
         }
+        BaseUri base = BaseUri.parse(reb.getBaseUrl());
         try {
             return restClient.get()
                     .uri(builder -> {
-                        var uri = builder.scheme("https")
-                                .host(stripScheme(reb.getBaseUrl()))
+                        var uri = builder.scheme(base.scheme())
+                                .host(base.host())
+                                .port(base.port())
+                                // 기존 동작 유지: REB는 contextPath 합치지 않고 path만 사용
                                 .path(path)
                                 .queryParam("KEY", reb.getApiKey())
                                 .queryParam("Type", "json");
@@ -50,9 +54,5 @@ public class RebClient {
         } catch (RestClientException e) {
             throw new RebApiException("REB API call failed: " + path, SecretMasker.sanitize(e));
         }
-    }
-
-    private String stripScheme(String url) {
-        return url.replaceFirst("^https?://", "").replaceFirst("/.*$", "");
     }
 }

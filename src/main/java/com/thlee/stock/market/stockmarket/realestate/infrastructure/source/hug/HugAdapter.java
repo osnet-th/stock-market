@@ -9,6 +9,7 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.BaseUri;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.hug.exception.HugApiException;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.molit.dto.MolitApiResponse;
@@ -62,12 +63,14 @@ public class HugAdapter implements RealEstateMarketSourceAdapter {
         if (hug.getApiKey() == null || hug.getApiKey().isBlank()) {
             throw new IllegalStateException("HUG api-key not configured");
         }
+        BaseUri base = BaseUri.parse(hug.getBaseUrl());
         try {
             MolitApiResponse response = restClient.get()
                     .uri(builder -> builder
-                            .scheme("https")
-                            .host(stripScheme(hug.getBaseUrl()))
-                            .path(stripContext(hug.getBaseUrl()) + INCIDENT_PATH)
+                            .scheme(base.scheme())
+                            .host(base.host())
+                            .port(base.port())
+                            .path(base.contextPath() + INCIDENT_PATH)
                             .queryParam("serviceKey", hug.getApiKey())
                             .queryParam("sigunguCd", region.value())
                             .queryParam("strtYm", window.from().toString().replace("-", "").substring(0, 6))
@@ -140,15 +143,4 @@ public class HugAdapter implements RealEstateMarketSourceAdapter {
                 .build();
     }
 
-    private String stripScheme(String baseUrl) {
-        String t = baseUrl.replaceFirst("^https?://", "");
-        int slash = t.indexOf('/');
-        return slash > 0 ? t.substring(0, slash) : t;
-    }
-
-    private String stripContext(String baseUrl) {
-        String t = baseUrl.replaceFirst("^https?://", "");
-        int slash = t.indexOf('/');
-        return slash > 0 ? t.substring(slash) : "";
-    }
 }

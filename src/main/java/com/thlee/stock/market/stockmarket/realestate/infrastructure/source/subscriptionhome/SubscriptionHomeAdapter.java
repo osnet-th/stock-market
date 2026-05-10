@@ -9,6 +9,7 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.BaseUri;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.subscriptionhome.exception.SubscriptionHomeApiException;
 import lombok.extern.slf4j.Slf4j;
@@ -67,12 +68,14 @@ public class SubscriptionHomeAdapter implements RealEstateMarketSourceAdapter {
         if (props.getApiKey() == null || props.getApiKey().isBlank()) {
             throw new IllegalStateException("SUBSCRIPTION_HOME api-key not configured");
         }
+        BaseUri base = BaseUri.parse(props.getBaseUrl());
         try {
             Map<String, Object> response = restClient.get()
                     .uri(builder -> builder
-                            .scheme("https")
-                            .host(stripScheme(props.getBaseUrl()))
-                            .path(stripContext(props.getBaseUrl()) + COMPETITION_PATH)
+                            .scheme(base.scheme())
+                            .host(base.host())
+                            .port(base.port())
+                            .path(base.contextPath() + COMPETITION_PATH)
                             .queryParam("serviceKey", props.getApiKey())
                             .queryParam("page", 1)
                             .queryParam("perPage", 200)
@@ -164,15 +167,4 @@ public class SubscriptionHomeAdapter implements RealEstateMarketSourceAdapter {
                 .build();
     }
 
-    private String stripScheme(String baseUrl) {
-        String t = baseUrl.replaceFirst("^https?://", "");
-        int slash = t.indexOf('/');
-        return slash > 0 ? t.substring(0, slash) : t;
-    }
-
-    private String stripContext(String baseUrl) {
-        String t = baseUrl.replaceFirst("^https?://", "");
-        int slash = t.indexOf('/');
-        return slash > 0 ? t.substring(slash) : "";
-    }
 }

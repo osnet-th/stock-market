@@ -37,23 +37,40 @@ public class RealEstateFavoriteRegionService {
         validateRegionExists(regionCode, normalizedEmd);
 
         return favoriteRepository.findOne(userId, regionCode, normalizedEmd)
-                .orElseGet(() -> {
-                    int order = favoriteRepository.countByUser(userId);
-                    UserFavoriteRealEstateRegion candidate = UserFavoriteRealEstateRegion.builder()
-                            .userId(userId)
-                            .sidoCode(regionCode.substring(0, 2))
-                            .regionCode(regionCode)
-                            .emdCode(normalizedEmd)
-                            .displayOrder(order)
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    try {
-                        return favoriteRepository.save(candidate);
-                    } catch (DataIntegrityViolationException e) {
-                        return favoriteRepository.findOne(userId, regionCode, normalizedEmd)
-                                .orElseThrow(() -> e);
-                    }
-                });
+                .orElseGet(() -> persistOrRecover(userId, regionCode, normalizedEmd));
+    }
+
+    private UserFavoriteRealEstateRegion persistOrRecover(Long userId,
+                                                          String regionCode,
+                                                          String normalizedEmd) {
+        UserFavoriteRealEstateRegion candidate = buildCandidate(userId, regionCode, normalizedEmd);
+        try {
+            return favoriteRepository.save(candidate);
+        } catch (DataIntegrityViolationException e) {
+            return recoverDuplicate(userId, regionCode, normalizedEmd, e);
+        }
+    }
+
+    private UserFavoriteRealEstateRegion buildCandidate(Long userId,
+                                                        String regionCode,
+                                                        String normalizedEmd) {
+        int order = favoriteRepository.countByUser(userId);
+        return UserFavoriteRealEstateRegion.builder()
+                .userId(userId)
+                .sidoCode(regionCode.substring(0, 2))
+                .regionCode(regionCode)
+                .emdCode(normalizedEmd)
+                .displayOrder(order)
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    private UserFavoriteRealEstateRegion recoverDuplicate(Long userId,
+                                                          String regionCode,
+                                                          String normalizedEmd,
+                                                          DataIntegrityViolationException cause) {
+        return favoriteRepository.findOne(userId, regionCode, normalizedEmd)
+                .orElseThrow(() -> cause);
     }
 
     @Transactional

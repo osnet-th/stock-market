@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.realestate.infrastructure.source.moli
 
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.BaseUri;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.molit.dto.MolitApiResponse;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.molit.exception.MolitApiException;
@@ -41,12 +42,14 @@ public class MolitClient {
     private MolitApiResponse invoke(String path, String regionCode, String dealYearMonth) {
         RealEstateMarketProperties.SourceProps molit = properties.getMolit();
         requireApiKey(molit);
+        BaseUri base = BaseUri.parse(molit.getBaseUrl());
         try {
             return restClient.get()
                     .uri(builder -> builder
-                            .scheme("https")
-                            .host(extractHost(molit.getBaseUrl()))
-                            .path(extractContextPath(molit.getBaseUrl()) + path)
+                            .scheme(base.scheme())
+                            .host(base.host())
+                            .port(base.port())
+                            .path(base.contextPath() + path)
                             .queryParam("serviceKey", molit.getApiKey())
                             .queryParam("LAWD_CD", regionCode)
                             .queryParam("DEAL_YMD", dealYearMonth)
@@ -64,17 +67,5 @@ public class MolitClient {
         if (props.getApiKey() == null || props.getApiKey().isBlank()) {
             throw new IllegalStateException("MOLIT api-key not configured");
         }
-    }
-
-    private String extractHost(String baseUrl) {
-        String trimmed = baseUrl.replaceFirst("^https?://", "");
-        int slash = trimmed.indexOf('/');
-        return slash > 0 ? trimmed.substring(0, slash) : trimmed;
-    }
-
-    private String extractContextPath(String baseUrl) {
-        String trimmed = baseUrl.replaceFirst("^https?://", "");
-        int slash = trimmed.indexOf('/');
-        return slash > 0 ? trimmed.substring(slash) : "";
     }
 }

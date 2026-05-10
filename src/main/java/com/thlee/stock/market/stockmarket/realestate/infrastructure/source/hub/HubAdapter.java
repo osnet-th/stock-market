@@ -9,6 +9,7 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.BaseUri;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.hub.exception.HubApiException;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.molit.dto.MolitApiResponse;
@@ -63,12 +64,14 @@ public class HubAdapter implements RealEstateMarketSourceAdapter {
         if (hub.getApiKey() == null || hub.getApiKey().isBlank()) {
             throw new IllegalStateException("HUB api-key not configured");
         }
+        BaseUri base = BaseUri.parse(hub.getBaseUrl());
         try {
             MolitApiResponse response = restClient.get()
                     .uri(builder -> builder
-                            .scheme("https")
-                            .host(stripScheme(hub.getBaseUrl()))
-                            .path(stripContext(hub.getBaseUrl()) + HOUSING_PERMIT_PATH)
+                            .scheme(base.scheme())
+                            .host(base.host())
+                            .port(base.port())
+                            .path(base.contextPath() + HOUSING_PERMIT_PATH)
                             .queryParam("serviceKey", hub.getApiKey())
                             .queryParam("sigunguCd", region.value())
                             .queryParam("strtYm", window.from().toString().replace("-", "").substring(0, 6))
@@ -141,15 +144,4 @@ public class HubAdapter implements RealEstateMarketSourceAdapter {
                 .build();
     }
 
-    private String stripScheme(String baseUrl) {
-        String t = baseUrl.replaceFirst("^https?://", "");
-        int slash = t.indexOf('/');
-        return slash > 0 ? t.substring(0, slash) : t;
-    }
-
-    private String stripContext(String baseUrl) {
-        String t = baseUrl.replaceFirst("^https?://", "");
-        int slash = t.indexOf('/');
-        return slash > 0 ? t.substring(slash) : "";
-    }
 }

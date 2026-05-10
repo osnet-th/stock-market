@@ -59,55 +59,68 @@ public class RealEstateMarketBatchScheduler {
         try (var ctx = LoggingContext.forScheduler("realestate-market-batch")) {
             log.info("[realestate.batch] start");
             long startNs = System.nanoTime();
-
             FetchWindow window = FetchWindow.lastNDays(LocalDate.now(), DEFAULT_WINDOW_DAYS);
-            List<RealEstateRegion> regions = regionRepository.findAllSigunguOnly();
-            List<RealEstateMarketSourceAdapter> adapters = sourceFactory.getAll();
 
-            int success = 0;
-            int failure = 0;
-            int totalSaved = 0;
-            List<CompletableFuture<Integer>> futures = new ArrayList<>();
+            List<CompletableFuture<Integer>> futures = submitAll(window);
+            BatchStats stats = awaitFutures(futures);
 
-            for (RealEstateRegion region : regions) {
-                RegionCode regionCode = RegionCode.of(region.getRegionCode());
-                for (RealEstateMarketSourceAdapter adapter : adapters) {
-                    if (!adapter.supportsRegion(regionCode)) {
-                        continue;  // 지역 특화 출처(서울/경기) 헛 submit 사전 차단
-                    }
-                    for (RealEstateMarketCategory category : adapter.supportedCategories()) {
-                        futures.add(submit(adapter, regionCode, category, window));
-                    }
-                }
-            }
-
-            for (CompletableFuture<Integer> future : futures) {
-                try {
-                    int saved = future.get(ITEM_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                    totalSaved += saved;
-                    success++;
-                } catch (TimeoutException e) {
-                    log.warn("[realestate.batch] item timeout after {}s", ITEM_TIMEOUT_SECONDS);
-                    future.cancel(true);
-                    failure++;
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    failure++;
-                } catch (ExecutionException e) {
-                    Throwable cause = e.getCause();
-                    log.warn("[realestate.batch] item failed: {} ({})",
-                            SecretMasker.mask(String.valueOf(cause == null ? null : cause.getMessage())),
-                            cause == null ? null : cause.getClass().getSimpleName());
-                    failure++;
-                }
-            }
-
-            long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
-            log.info("[realestate.batch] completed: success={}, failure={}, savedRows={}, elapsedMs={}",
-                    success, failure, totalSaved, elapsedMs);
+            logSummary(stats, startNs);
         } catch (Exception e) {
             log.error("[realestate.batch] unexpected failure", e);
         }
+    }
+
+    private List<CompletableFuture<Integer>> submitAll(FetchWindow window) {
+        List<RealEstateRegion> regions = regionRepository.findAllSigunguOnly();
+        List<RealEstateMarketSourceAdapter> adapters = sourceFactory.getAll();
+        List<CompletableFuture<Integer>> futures = new ArrayList<>();
+        for (RealEstateRegion region : regions) {
+            RegionCode regionCode = RegionCode.of(region.getRegionCode());
+            for (RealEstateMarketSourceAdapter adapter : adapters) {
+                if (!adapter.supportsRegion(regionCode)) {
+                    continue;  // 지역 특화 출처(서울/경기) 헛 submit 사전 차단
+                }
+                for (RealEstateMarketCategory category : adapter.supportedCategories()) {
+                    futures.add(submit(adapter, regionCode, category, window));
+                }
+            }
+        }
+        return futures;
+    }
+
+    private BatchStats awaitFutures(List<CompletableFuture<Integer>> futures) {
+        int success = 0;
+        int failure = 0;
+        int totalSaved = 0;
+        for (CompletableFuture<Integer> future : futures) {
+            try {
+                totalSaved += future.get(ITEM_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                success++;
+            } catch (TimeoutException e) {
+                log.warn("[realestate.batch] item timeout after {}s", ITEM_TIMEOUT_SECONDS);
+                future.cancel(true);
+                failure++;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                failure++;
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                log.warn("[realestate.batch] item failed: {} ({})",
+                        SecretMasker.mask(String.valueOf(cause == null ? null : cause.getMessage())),
+                        cause == null ? null : cause.getClass().getSimpleName());
+                failure++;
+            }
+        }
+        return new BatchStats(success, failure, totalSaved);
+    }
+
+    private void logSummary(BatchStats stats, long startNs) {
+        long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+        log.info("[realestate.batch] completed: success={}, failure={}, savedRows={}, elapsedMs={}",
+                stats.success(), stats.failure(), stats.totalSaved(), elapsedMs);
+    }
+
+    private record BatchStats(int success, int failure, int totalSaved) {
     }
 
     private CompletableFuture<Integer> submit(RealEstateMarketSourceAdapter adapter,

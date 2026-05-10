@@ -9,6 +9,7 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.BaseUri;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.ggdatadream.exception.GgDataDreamApiException;
 import lombok.extern.slf4j.Slf4j;
@@ -71,12 +72,14 @@ public class GgDataDreamAdapter implements RealEstateMarketSourceAdapter {
         if (props.getApiKey() == null || props.getApiKey().isBlank()) {
             throw new IllegalStateException("GG_DATA_DREAM api-key not configured");
         }
+        BaseUri base = BaseUri.parse(props.getBaseUrl());
         try {
             Map<String, Object> response = restClient.get()
                     .uri(builder -> builder
-                            .scheme("https")
-                            .host(stripScheme(props.getBaseUrl()))
-                            .path(stripContext(props.getBaseUrl()) + DATASET_PATH)
+                            .scheme(base.scheme())
+                            .host(base.host())
+                            .port(base.port())
+                            .path(base.contextPath() + DATASET_PATH)
                             .queryParam("KEY", props.getApiKey())
                             .queryParam("Type", "json")
                             .queryParam("SIGUNGU_CODE", region.value())
@@ -162,15 +165,4 @@ public class GgDataDreamAdapter implements RealEstateMarketSourceAdapter {
                 .build();
     }
 
-    private String stripScheme(String baseUrl) {
-        String t = baseUrl.replaceFirst("^https?://", "");
-        int slash = t.indexOf('/');
-        return slash > 0 ? t.substring(0, slash) : t;
-    }
-
-    private String stripContext(String baseUrl) {
-        String t = baseUrl.replaceFirst("^https?://", "");
-        int slash = t.indexOf('/');
-        return slash > 0 ? t.substring(slash) : "";
-    }
 }

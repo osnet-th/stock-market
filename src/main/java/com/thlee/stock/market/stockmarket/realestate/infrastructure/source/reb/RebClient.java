@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.realestate.infrastructure.source.reb;
 
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.reb.exception.RebApiException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -47,7 +48,7 @@ public class RebClient {
                     .retrieve()
                     .body(Map.class);
         } catch (RestClientException e) {
-            throw new RebApiException("REB API call failed: " + path, e);
+            throw new RebApiException("REB API call failed: " + path, SecretMasker.sanitize(e));
         }
     }
 

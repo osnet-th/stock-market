@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.realestate.infrastructure.source.moli
 
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.molit.dto.MolitApiResponse;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.molit.exception.MolitApiException;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -55,7 +56,7 @@ public class MolitClient {
                     .retrieve()
                     .body(MolitApiResponse.class);
         } catch (RestClientException e) {
-            throw new MolitApiException("MOLIT API 호출 실패: " + path, e);
+            throw new MolitApiException("MOLIT API 호출 실패: " + path, SecretMasker.sanitize(e));
         }
     }
 

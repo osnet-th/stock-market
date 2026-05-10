@@ -75,7 +75,7 @@ branch: TBD (별도 worktree 권장)
 
 ---
 
-- [ ] **Unit 11: 보안 hardening — 인증키 로그 마스킹 + auth 가드**
+- [x] **Unit 11: 보안 hardening — 인증키 로그 마스킹 + auth 가드**
 
 **Goal:** P1 #5 + #6 묶음. 외부 API 인증키가 로그/예외 메시지로 누출되지 않게 + anonymous principal에 401 (500 X) 응답.
 

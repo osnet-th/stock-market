@@ -9,6 +9,7 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.hub.exception.HubApiException;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.molit.dto.MolitApiResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -82,7 +83,7 @@ public class HubAdapter implements RealEstateMarketSourceAdapter {
             }
             return FetchResult.success(buildIndicators(region, response.rows(), window));
         } catch (RestClientException e) {
-            throw new HubApiException("HUB API call failed", e);
+            throw new HubApiException("HUB API call failed", SecretMasker.sanitize(e));
         } catch (IllegalStateException e) {
             throw e;
         } catch (Exception e) {

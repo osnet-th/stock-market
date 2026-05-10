@@ -4,7 +4,10 @@ import com.thlee.stock.market.stockmarket.realestate.application.RealEstateFavor
 import com.thlee.stock.market.stockmarket.realestate.presentation.dto.FavoriteRegionRequest;
 import com.thlee.stock.market.stockmarket.realestate.presentation.dto.FavoriteRegionResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -49,6 +53,12 @@ public class RealEstateFavoriteRegionController {
     }
 
     private Long currentUserId() {
-        return (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null
+                || auth instanceof AnonymousAuthenticationToken
+                || !(auth.getPrincipal() instanceof Long id)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        }
+        return id;
     }
 }

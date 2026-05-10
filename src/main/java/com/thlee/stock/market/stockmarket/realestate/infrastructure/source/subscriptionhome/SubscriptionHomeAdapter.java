@@ -9,6 +9,7 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketProperties;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateRestClientConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.subscriptionhome.exception.SubscriptionHomeApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -84,7 +85,7 @@ public class SubscriptionHomeAdapter implements RealEstateMarketSourceAdapter {
             List<Map<String, Object>> filtered = filterByRegion(rows, region);
             return FetchResult.success(buildIndicators(region, filtered, window));
         } catch (RestClientException e) {
-            throw new SubscriptionHomeApiException("SUBSCRIPTION_HOME API call failed", e);
+            throw new SubscriptionHomeApiException("SUBSCRIPTION_HOME API call failed", SecretMasker.sanitize(e));
         } catch (IllegalStateException e) {
             throw e;
         } catch (Exception e) {

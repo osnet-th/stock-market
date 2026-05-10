@@ -9,6 +9,7 @@ import com.thlee.stock.market.stockmarket.realestate.domain.service.FetchWindow;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceAdapter;
 import com.thlee.stock.market.stockmarket.realestate.domain.service.RealEstateMarketSourceFactory;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.config.RealEstateMarketAsyncConfig;
+import com.thlee.stock.market.stockmarket.realestate.infrastructure.source.common.SecretMasker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -93,7 +94,10 @@ public class RealEstateMarketBatchScheduler {
                     Thread.currentThread().interrupt();
                     failure++;
                 } catch (ExecutionException e) {
-                    log.warn("[realestate.batch] item failed", e.getCause());
+                    Throwable cause = e.getCause();
+                    log.warn("[realestate.batch] item failed: {} ({})",
+                            SecretMasker.mask(String.valueOf(cause == null ? null : cause.getMessage())),
+                            cause == null ? null : cause.getClass().getSimpleName());
                     failure++;
                 }
             }

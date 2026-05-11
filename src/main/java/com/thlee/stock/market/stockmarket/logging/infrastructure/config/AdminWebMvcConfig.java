@@ -11,8 +11,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * 운영자 전용 인터셉터 등록 + {@link AdminProperties} 활성화.
  *
  * <p>{@code /api/admin/logs/**} (운영자 로그 페이지) 와 {@code /api/admin/dashboard/**}
- * (메인 대시보드 운영자 카드) 두 경로에 {@link AdminGuardInterceptor} 를 연결해 Spring Security
- * 체인 이후의 HandlerInterceptor 단계에서 인가를 수행한다.
+ * (메인 대시보드 운영자 카드), {@code /secured-partials/**} (운영 정보 포함 정적 마크업) 세 경로에
+ * {@link AdminGuardInterceptor} 를 연결해 Spring Security 체인 이후의 HandlerInterceptor
+ * 단계에서 인가를 수행한다.
  */
 @Configuration
 @RequiredArgsConstructor
@@ -24,6 +25,6 @@ public class AdminWebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(adminGuardInterceptor)
-                .addPathPatterns("/api/admin/logs/**", "/api/admin/dashboard/**");
+                .addPathPatterns("/api/admin/logs/**", "/api/admin/dashboard/**", "/secured-partials/**");
     }
 }

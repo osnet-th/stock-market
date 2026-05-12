@@ -17,6 +17,9 @@ import org.springframework.web.client.RestClient;
  * Apache HttpClient 5 기반 — JDK HttpURLConnection은 socket read 중 interrupt를 무시하므로
  * future.cancel(true)이 좀비 워커를 정리하지 못하는 문제(P0 #3)를 회피한다.
  * connect 5s / response 30s 명시 — 외부 공공 API hang 시 30초 후 socket close 보장.
+ * <p>
+ * default User-Agent — data.go.kr WAF가 빈 User-Agent를 "Request Blocked"(HTTP 400)로
+ * 거부하는 패턴이 운영 dry-run에서 확인됨. 모든 출처에 일괄 적용.
  */
 @Configuration
 public class RealEstateRestClientConfig {
@@ -27,6 +30,8 @@ public class RealEstateRestClientConfig {
     private static final int RESPONSE_TIMEOUT_SECONDS = 30;
     private static final int MAX_TOTAL = 50;
     private static final int MAX_PER_ROUTE = 10;
+    private static final String USER_AGENT =
+            "stock-market-realestate/1.0 (Java RestClient)";
 
     @Bean(name = CLIENT_BEAN)
     public RestClient realEstateRestClient() {
@@ -47,6 +52,7 @@ public class RealEstateRestClientConfig {
 
         return RestClient.builder()
                 .requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient))
+                .defaultHeader("User-Agent", USER_AGENT)
                 .build();
     }
 }

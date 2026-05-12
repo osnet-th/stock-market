@@ -214,8 +214,11 @@ realestate:
     api-key: ${HUG_API_KEY:}
     connect-timeout-ms: 5000
     read-timeout-ms: 30000
+  # 서울 OpenData는 https 미지원 확정 (TLS protocol version 에러) — http 유지
+  # 보안 한계: 인증키가 URL path-segment(/{KEY}/json/...)로 노출되며 http 평문 전송
+  # 후속: SecretMasker 정규식을 path-segment 형식까지 커버하도록 보강 권장
   seoul-open-data:
-    base-url: https://openapi.seoul.go.kr:8088
+    base-url: http://openapi.seoul.go.kr:8088
     api-key: ${SEOUL_OPEN_DATA_API_KEY:}
     connect-timeout-ms: 5000
     read-timeout-ms: 30000

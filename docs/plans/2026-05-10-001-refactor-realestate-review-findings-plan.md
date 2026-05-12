@@ -245,16 +245,24 @@ branch: TBD (별도 worktree 권장)
 
 ## Operations Follow-up (운영 시점 확인 — 본 plan 범위 밖)
 
+운영 dry-run(2026-05-12) 결과를 반영해 상태를 갱신한다.
+
 | 항목 | 상태 | 비고 |
 |------|------|------|
 | MOLIT 주택유형 확장 (오피스텔/연립다세대/단독다가구/토지) | ⏸ 미정 | parent plan에서 정의됐으나 구현은 아파트만. Entity·API contract 변경 → 별도 brainstorm/plan 필요 |
 | HUB endpoint 결정 (raw `getHpBasisOulnInfo` vs KOSIS 대체) | ⏸ 비활성화 | 16개 endpoint 모두 raw microdata. `HUB_API_KEY` 빈값 유지로 자동 skip |
 | HUG 분양보증사고 어댑터 재작성 vs 폐기 vs KOSIS 우회 | ⏸ 비활성화 | data.go.kr 링크데이터셋. HUG 자체 OPEN API(www.khug.or.kr) 존재하나 envelope/schema 별도 — `HugAdapter` javadoc 참조 |
-| 청약홈 응답 필드 dry-run 검증 (`HSSPLY_AREA_CODE`, `PBLANC_CMPET_RT`) | ⏸ 미검증 | endpoint path 정정 완료(`cc65f23`). 운영 호출로 필드명 일치 확인 필요 |
+| 청약홈 응답 정상 적재 확인 | ✅ 완료 | dry-run에서 56 region × count=3 = 168 row 저장 확인. 응답 필드명 일치 검증됨 |
 | 청약홈 추가 operation (오피스텔/공공임대 등 7개) | ⏸ 미정 | 주택유형 확장과 함께 도입 |
-| REB 통계표 ID 매핑 (STATBL_ID/DTL_STATBL_ID/GRP_ID) | ⏸ 미정 | 인증키 발급 후 R-ONE 명세에서 확인 |
-| KOSIS orgId/tblId 매핑 (인허가실적/미분양 등) | ⏸ 미정 | 인증키 발급 후 KOSIS Open API 명세에서 확인 |
-| `SecretMasker` path-segment 키 마스킹 보강 | ⏸ 미보강 | 서울 OpenData가 path-segment에 키 노출(`/{KEY}/json/...`). Unit 11의 query-param 정규식만으로 미커버 |
+| MOLIT WAF 차단 (User-Agent 누락 시 HTTP 400) | ✅ 완료 | `RealEstateRestClientConfig`에 default User-Agent 헤더 적용. 직접 호출 시 정상 응답 확인 |
+| MOLIT 일부 region에서 응답 envelope 매핑 실패 | ⏸ 부분 미해소 | User-Agent 적용 후에도 batch에서 일부 region이 `MolitApiResponse` 매핑 실패 — region별 응답 본문 sample 추가 분석 필요 |
+| REB endpoint contextPath 누락 (HTTP 404) | ✅ 완료 | `RebClient`에서 `base.contextPath()` 합쳐서 호출 — `/r-one/openapi/SttsApiTblData.do`로 정정 |
+| REB 통계표 ID 매핑 (STATBL_ID/DTL_STATBL_ID/GRP_ID) | ⏸ 미완료 | contextPath fix 후 호출은 통과하나 통계표 ID 미매핑이라 HTML 에러 페이지 응답. R-ONE 명세에서 통계표 ID 매핑 작업 별도 필요 |
+| KOSIS endpoint deprecated | ⏸ 차단 | `/openapi/statisticsParameterData.do` 호출 시 "국가통계포털 서비스 개편 — 새 주소로 변경" 안내 페이지(HTTP 404). KOSIS 신규 endpoint URL 조사 필요 |
+| GG_DATA_DREAM 보안 정책 차단 | ⏸ 차단 | "보안 정책에 의해 차단되었습니다 — 사이버침해대응센터 031-8008-4114" 응답. User-Agent 추가에도 풀리지 않음 → IP/계정 차단으로 추정. 데이터드림에 문의 필요 |
+| SEOUL_OPEN_DATA https 호환성 | ✅ 완료 | https 미지원 확정(TLS protocol version 에러). `application.yml` http로 되돌림. dry-run에서 25 region × count=1 = 25 row 저장 확인 |
+| `SecretMasker` path-segment 키 마스킹 보강 | ⏸ 미보강 | 서울 OpenData가 path-segment에 키 노출(`/{KEY}/json/...`). Unit 11의 query-param 정규식만으로 미커버 — http로 복귀하면서 우선순위 ↑ |
+| `SecretMasker` 응답 body snippet 포함 (진단성 강화) | ✅ 완료 | 4xx/5xx 응답 시 status·body 300자 snippet을 `sanitize()` 결과 message에 포함 — caused by 로그로 root cause 즉시 식별 가능 |
 
 ## Sources & References
 

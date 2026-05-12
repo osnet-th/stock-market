@@ -42,8 +42,9 @@ public class RebClient {
                         var uri = builder.scheme(base.scheme())
                                 .host(base.host())
                                 .port(base.port())
-                                // 기존 동작 유지: REB는 contextPath 합치지 않고 path만 사용
-                                .path(path)
+                                // baseUrl의 contextPath(/r-one/openapi)와 path를 합쳐야 정상 호출
+                                // (이전 broken 동작이 운영 dry-run에서 404로 노출되어 정정)
+                                .path(base.contextPath() + path)
                                 .queryParam("KEY", reb.getApiKey())
                                 .queryParam("Type", "json");
                         queryParams.forEach(uri::queryParam);

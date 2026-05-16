@@ -258,10 +258,10 @@
                             <button type="button" @click="newsJournalCloseModal()"
                                     class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800">취소</button>
                             <button type="button" @click="newsJournalSave()"
-                                    :disabled="newsJournal.loading"
+                                    :disabled="newsJournal.saving"
                                     class="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50">
-                                <span x-show="!newsJournal.loading">저장</span>
-                                <span x-show="newsJournal.loading">저장 중…</span>
+                                <span x-show="!newsJournal.saving">저장</span>
+                                <span x-show="newsJournal.saving">저장 중…</span>
                             </button>
                         </div>
                     </div>

@@ -31,6 +31,7 @@ function _newsJournalEmptyForm() {
 const NewsJournalComponent = {
     newsJournal: {
         loading: false,
+        saving: false,
         error: null,
         items: [],                                   // [{ id, title, occurredDate, impact, category: {id, name}, what, why, how, links: [...] , createdAt, updatedAt }]
         pagination: { page: 0, size: 20, totalCount: 0 },
@@ -223,7 +224,9 @@ const NewsJournalComponent = {
             links: cleanLinks
         };
 
-        this.newsJournal.loading = true;
+        // saving 은 loading 과 분리 — newsJournalLoad 의 idempotency 가드(loading 체크)에
+        // 걸려 저장 후 목록 새로고침이 스킵되던 버그 방지.
+        this.newsJournal.saving = true;
         this.newsJournal.formError = null;
         try {
             if (this.newsJournal.mode === 'edit' && f.id != null) {
@@ -236,21 +239,21 @@ const NewsJournalComponent = {
         } catch (e) {
             this.newsJournal.formError = e?.message || '저장에 실패했습니다.';
         } finally {
-            this.newsJournal.loading = false;
+            this.newsJournal.saving = false;
         }
     },
 
     async newsJournalDelete(id) {
         if (id == null) return;
         if (!confirm('이 사건을 삭제할까요? 되돌릴 수 없습니다.')) return;
-        this.newsJournal.loading = true;
+        this.newsJournal.saving = true;
         try {
             await API.deleteNewsEvent(id);
             await this.newsJournalLoad();
         } catch (e) {
             alert(e?.message || '삭제에 실패했습니다.');
         } finally {
-            this.newsJournal.loading = false;
+            this.newsJournal.saving = false;
         }
     },
 

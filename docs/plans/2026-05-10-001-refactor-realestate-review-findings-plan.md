@@ -255,7 +255,7 @@ branch: TBD (별도 worktree 권장)
 | 청약홈 응답 정상 적재 확인 | ✅ 완료 | dry-run에서 56 region × count=3 = 168 row 저장 확인. 응답 필드명 일치 검증됨 |
 | 청약홈 추가 operation (오피스텔/공공임대 등 7개) | ⏸ 미정 | 주택유형 확장과 함께 도입 |
 | MOLIT WAF 차단 (User-Agent 누락 시 HTTP 400) | ✅ 완료 | `RealEstateRestClientConfig`에 default User-Agent 헤더 적용. 직접 호출 시 정상 응답 확인 |
-| MOLIT 일부 region에서 응답 envelope 매핑 실패 | ⏸ 부분 미해소 | User-Agent 적용 후에도 batch에서 일부 region이 `MolitApiResponse` 매핑 실패 — region별 응답 본문 sample 추가 분석 필요 |
+| MOLIT 일부 region에서 응답 envelope 매핑 실패 | ✅ 완료 | 빈 응답 시 MOLIT이 `items: ""`(빈 문자열) 반환하는 케이스 + resultCode `"000"`(3자리) 호환 처리. `MolitApiResponse.Body.items`를 `Object`로 받고 `rows()`에서 String/Map 분기. dry-run에서 MOLIT 144 row 적재 확인 |
 | REB endpoint contextPath 누락 (HTTP 404) | ✅ 완료 | `RebClient`에서 `base.contextPath()` 합쳐서 호출 — `/r-one/openapi/SttsApiTblData.do`로 정정 |
 | REB 통계표 ID 매핑 (STATBL_ID/DTL_STATBL_ID/GRP_ID) | ⏸ 미완료 | contextPath fix 후 호출은 통과하나 통계표 ID 미매핑이라 HTML 에러 페이지 응답. R-ONE 명세에서 통계표 ID 매핑 작업 별도 필요 |
 | KOSIS endpoint deprecated | ⏸ 차단 | `/openapi/statisticsParameterData.do` 호출 시 "국가통계포털 서비스 개편 — 새 주소로 변경" 안내 페이지(HTTP 404). KOSIS 신규 endpoint URL 조사 필요 |

@@ -257,7 +257,7 @@ branch: TBD (별도 worktree 권장)
 | MOLIT WAF 차단 (User-Agent 누락 시 HTTP 400) | ✅ 완료 | `RealEstateRestClientConfig`에 default User-Agent 헤더 적용. 직접 호출 시 정상 응답 확인 |
 | MOLIT 일부 region에서 응답 envelope 매핑 실패 | ✅ 완료 | 빈 응답 시 MOLIT이 `items: ""`(빈 문자열) 반환하는 케이스 + resultCode `"000"`(3자리) 호환 처리. `MolitApiResponse.Body.items`를 `Object`로 받고 `rows()`에서 String/Map 분기. dry-run에서 MOLIT 144 row 적재 확인 |
 | REB endpoint contextPath 누락 (HTTP 404) | ✅ 완료 | `RebClient`에서 `base.contextPath()` 합쳐서 호출 — `/r-one/openapi/SttsApiTblData.do`로 정정 |
-| REB 통계표 ID 매핑 (STATBL_ID/DTL_STATBL_ID/GRP_ID) | ⏸ 미완료 | contextPath fix 후 호출은 통과하나 통계표 ID 미매핑이라 HTML 에러 페이지 응답. R-ONE 명세에서 통계표 ID 매핑 작업 별도 필요 |
+| REB 통계표 ID 매핑 (STATBL_ID/ITM_ID) | ⏸ 미완료 (모델 재설계 필요) | **2026-05-17 분석 결과**: R-ONE API 3-step 모델 확인. (1) `SttsApiTbl.do` = 통계표 목록(738건). (2) `SttsApiTblItm.do` = 항목(지역분류) 목록. (3) `SttsApiTblData.do` = 실제 데이터. 핵심 STATBL_ID 식별 완료: `A_2024_00017`(매매지수 주택종합), `A_2024_00020`(전세지수 주택종합), `A_2024_00048`(매매지수 아파트), `A_2024_00053`(전세지수 아파트), `A_2024_00604`(주택매매거래량). 단, **R-ONE은 시군구 단위 ITM_ID를 부분만 제공**(전국/수도권/광역시도+일부 시군구). 본 plan의 시군구 X 카테고리 호출 모델과 호환 안 됨 → REB 어댑터 전면 재설계 + 모델 변경 별도 brainstorm 필요. `SttsApiTblData.do` 추가 필수 파라미터(DTACYCLE_SE/WRTTIME_IDTFR_ID/PER_NM 등) 명세도 R-ONE 가이드 PDF 미확보 |
 | KOSIS endpoint deprecated | ⏸ 차단 | `/openapi/statisticsParameterData.do` 호출 시 "국가통계포털 서비스 개편 — 새 주소로 변경" 안내 페이지(HTTP 404). KOSIS 신규 endpoint URL 조사 필요 |
 | GG_DATA_DREAM 보안 정책 차단 | ⏸ 차단 | "보안 정책에 의해 차단되었습니다 — 사이버침해대응센터 031-8008-4114" 응답. User-Agent 추가에도 풀리지 않음 → IP/계정 차단으로 추정. 데이터드림에 문의 필요 |
 | SEOUL_OPEN_DATA https 호환성 | ✅ 완료 | https 미지원 확정(TLS protocol version 에러). `application.yml` http로 되돌림. dry-run에서 25 region × count=1 = 25 row 저장 확인 |

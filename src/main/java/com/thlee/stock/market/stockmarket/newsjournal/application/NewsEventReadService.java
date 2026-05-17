@@ -7,9 +7,11 @@ import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsJourna
 import com.thlee.stock.market.stockmarket.newsjournal.application.exception.NewsEventNotFoundException;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEvent;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventCategory;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventKeyword;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventLink;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventCategoryCount;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventCategoryRepository;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventKeywordRepository;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventLinkRepository;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventListFilter;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventRepository;
@@ -37,6 +39,7 @@ public class NewsEventReadService {
 
     private final NewsEventRepository eventRepository;
     private final NewsEventLinkRepository linkRepository;
+    private final NewsEventKeywordRepository keywordRepository;
     private final NewsEventCategoryRepository categoryRepository;
 
     public NewsEventDetailResult findById(Long id, Long userId) {
@@ -46,7 +49,8 @@ public class NewsEventReadService {
                 ? null
                 : categoryRepository.findByIdAndUserId(event.getCategoryId(), userId).orElse(null);
         List<NewsEventLink> links = linkRepository.findByEventId(id);
-        return new NewsEventDetailResult(event, category, links);
+        List<NewsEventKeyword> keywords = keywordRepository.findByEventId(id);
+        return new NewsEventDetailResult(event, category, links, keywords);
     }
 
     /**
@@ -87,6 +91,7 @@ public class NewsEventReadService {
             eventIds.add(e.getId());
         }
         Map<Long, List<NewsEventLink>> linksByEventId = linkRepository.findAllByEventIds(eventIds);
+        Map<Long, List<NewsEventKeyword>> keywordsByEventId = keywordRepository.findAllByEventIds(eventIds);
 
         Map<Long, NewsEventCategory> categoryById = new HashMap<>();
         for (NewsEventCategory c : categoryRepository.findByUserIdOrderByNameAsc(userId)) {
@@ -96,8 +101,9 @@ public class NewsEventReadService {
         List<NewsEventListItemResult> items = new ArrayList<>(events.size());
         for (NewsEvent e : events) {
             List<NewsEventLink> links = linksByEventId.getOrDefault(e.getId(), List.of());
+            List<NewsEventKeyword> keywords = keywordsByEventId.getOrDefault(e.getId(), List.of());
             NewsEventCategory category = e.getCategoryId() == null ? null : categoryById.get(e.getCategoryId());
-            items.add(new NewsEventListItemResult(e, category, links));
+            items.add(new NewsEventListItemResult(e, category, links, keywords));
         }
         return new NewsEventListResult(items, totalCount, filter.page(), filter.size());
     }

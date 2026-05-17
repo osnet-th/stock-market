@@ -29,31 +29,43 @@
 ## 작업 체크리스트
 
 ### 백엔드 — 도메인 / 영속화
-- [ ] `NewsEventKeyword` 도메인 모델 (`create()` 팩토리 + `assignId()`)
-- [ ] `NewsEventKeywordEntity` (table `news_event_keyword`, index `idx_news_event_keyword_event`)
-- [ ] `NewsEventKeywordJpaRepository` (`findByEventIdOrderBy...`, `findByEventIdIn...`, `deleteByEventId`)
-- [ ] `NewsEventKeywordRepository` 포트 (`findByEventId`, `findAllByEventIds`, `replaceAll`, `deleteByEventId`)
-- [ ] `NewsEventKeywordRepositoryImpl` 어댑터
-- [ ] `NewsEventMapper`에 `toEntity`/`toDomain`(`NewsEventKeyword`) 추가
+- [x] `NewsEventKeyword` 도메인 모델 (`create()` 팩토리 + `assignId()`)
+- [x] `NewsEventKeywordEntity` (table `news_event_keyword`, index `idx_news_event_keyword_event`)
+- [x] `NewsEventKeywordJpaRepository` (`findByEventIdOrderBy...`, `findByEventIdIn...`, `deleteByEventId`)
+- [x] `NewsEventKeywordRepository` 포트 (`findByEventId`, `findAllByEventIds`, `replaceAll`, `deleteByEventId`)
+- [x] `NewsEventKeywordRepositoryImpl` 어댑터
+- [x] `NewsEventMapper`에 `toEntity`/`toDomain`(`NewsEventKeyword`) 추가
 
 ### 백엔드 — 애플리케이션
-- [ ] `CreateNewsEventCommand` / `UpdateNewsEventCommand`에 `List<String> keywords` 추가
-- [ ] `NewsEventDetailResult` / `NewsEventListItemResult`에 `List<NewsEventKeyword> keywords` 추가
-- [ ] `NewsEventWriteService`: `keywordRepository` 주입, create/update `replaceAll`, delete `deleteByEventId`
-- [ ] `NewsEventReadService`: `keywordRepository` 주입, `findById`/`findList`에 keywords 동봉 (N+1 회피)
+- [x] `CreateNewsEventCommand` / `UpdateNewsEventCommand`에 `List<String> keywords` 추가
+- [x] `NewsEventDetailResult` / `NewsEventListItemResult`에 `List<NewsEventKeyword> keywords` 추가
+- [x] `NewsEventWriteService`: `keywordRepository` 주입, create/update `replaceAll`, delete `deleteByEventId`
+- [x] `NewsEventReadService`: `keywordRepository` 주입, `findById`/`findList`에 keywords 동봉 (N+1 회피)
 
 ### 백엔드 — 표현
-- [ ] `CreateNewsEventRequest` / `UpdateNewsEventRequest`에 `keywords` 필드 + 검증 추가
-- [ ] `NewsEventDetailResponse` / `NewsEventListResponse.ItemDto`에 `List<String> keywords` 추가
+- [x] `CreateNewsEventRequest` / `UpdateNewsEventRequest`에 `keywords` 필드 + 검증 추가
+- [x] `NewsEventDetailResponse` / `NewsEventListResponse.ItemDto`에 `List<String> keywords` 추가
 
 ### 프론트엔드
-- [ ] `news-journal.js`: 폼 `keywords` + `keywordDraft` 상태, add/remove 핸들러, save body 포함
-- [ ] `news-journal.html`: 모달 키워드 입력 섹션(칩 + Enter 입력), 타임라인 카드 키워드 칩 표시
+- [x] `news-journal.js`: 폼 `keywords` + `keywordDraft` 상태, add/remove 핸들러, save body 포함
+- [x] `news-journal.html`: 모달 키워드 입력 섹션(칩 + Enter 입력), 타임라인 카드 키워드 칩 표시
 
 ### 검증
-- [ ] `./gradlew compileJava` 통과
-- [ ] 앱 기동 → `news_event_keyword` 테이블 자동 생성 확인
-- [ ] 키워드 포함 생성/수정/삭제/조회 골든패스 확인 (UI 확인 불가 시 명시)
+- [x] `./gradlew compileJava` 통과
+- [x] 앱 기동 → `news_event_keyword` 테이블 자동 생성 확인
+- [x] 키워드 포함 생성/수정/삭제/조회 골든패스 확인 (UI 확인 불가 시 명시)
+
+## 검증 결과
+
+- `./gradlew compileJava` 통과, `node --check` 프론트 JS 통과.
+- 앱 기동(dev) → `news_event_keyword` 테이블 + `idx_news_event_keyword_event` 인덱스 자동 생성 확인.
+- REST 라운드트립 (JWT 인증):
+  - POST 생성 → 키워드 저장 (201).
+  - GET 상세 / GET 목록 → `keywords` 응답 포함.
+  - PUT 수정 → replace-all 동작 확인 (기존 행 삭제 후 신규 행 재생성, displayOrder 0..n).
+  - DELETE → 키워드 자식 cascade 삭제 확인 (잔여 0건).
+  - 빈 키워드 요청 → 400 `keywords[1]: must not be blank` (container-element 검증 동작).
+- 프론트 UI는 본 샌드박스에서 브라우저 검증 불가 — JS 문법 검사만 수행.
 
 ## 리스크 / 주의
 

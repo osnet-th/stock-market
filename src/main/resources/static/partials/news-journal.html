@@ -143,6 +143,16 @@
                                         </ul>
                                     </div>
                                 </template>
+
+                                <!-- 키워드 -->
+                                <template x-if="item.keywords && item.keywords.length > 0">
+                                    <div class="mt-3 flex flex-wrap gap-1.5">
+                                        <template x-for="(kw, idx) in item.keywords" :key="idx">
+                                            <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-full"
+                                                  x-text="'#' + kw"></span>
+                                        </template>
+                                    </div>
+                                </template>
                             </div>
                         </li>
                     </template>
@@ -250,6 +260,28 @@
                                                 class="text-xs text-gray-400 hover:text-red-500 px-1">삭제</button>
                                     </div>
                                 </template>
+                            </div>
+                            <!-- 키워드 (해시태그) -->
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">키워드 (선택)</label>
+                                <div x-show="newsJournal.form.keywords.length > 0"
+                                     class="flex flex-wrap items-center gap-1.5 mb-1.5">
+                                    <template x-for="(kw, idx) in newsJournal.form.keywords" :key="idx">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
+                                            <span x-text="'#' + kw"></span>
+                                            <button type="button" @click="newsJournalRemoveKeyword(idx)"
+                                                    class="text-blue-400 hover:text-red-500 leading-none">&times;</button>
+                                        </span>
+                                    </template>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input type="text" x-model="newsJournal.keywordDraft" maxlength="50"
+                                           @keydown.enter.prevent="newsJournalAddKeyword()"
+                                           placeholder="키워드 입력 후 Enter (예: 금리, 반도체)"
+                                           class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                    <button type="button" @click="newsJournalAddKeyword()"
+                                            class="text-xs px-3 border border-gray-300 rounded hover:bg-gray-50 whitespace-nowrap">추가</button>
+                                </div>
                             </div>
                             <!-- 폼 에러 -->
                             <div x-show="newsJournal.formError" class="text-sm text-red-600" x-text="newsJournal.formError"></div>

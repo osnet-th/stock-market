@@ -28,13 +28,26 @@ import java.util.Set;
 /**
  * KOSIS 시군구별 미분양현황 어댑터.
  * <p>
- * orgId=116, tblId=DT_MLTM_2082 기본. itmId/objL1 코드는 실제 명세 확인 후 properties로 분리.
+ * 호출 API: KOSIS Open API "통계자료 — 매개변수 입력 방식(통계표선택)".
+ * 2026-05-17 운영 dry-run에서 endpoint deprecated 확인되어 신규 path로 정정:
+ * <ul>
+ *   <li>기존: {@code /openapi/statisticsParameterData.do}</li>
+ *   <li>신규: {@code /openapi/Param/statisticsParameterData.do}</li>
+ * </ul>
+ * <p>
+ * <b>미완료 — 필수 파라미터 매핑 필요:</b>
+ * 신규 가이드에 {@code itmId}(항목 ID)가 필수로 명시되어 있으나 plan 작성 시 추정 매핑된
+ * {@code orgId=116} / {@code tblId=DT_MLTM_2082} 모두 실제 KOSIS 통계DB에서 정확한 값이
+ * 검증되지 않음. 신규 endpoint로 호출은 통과하나 {@code itmId} 누락 또는 {@code tblId} 오류로
+ * 실패할 가능성 — KOSIS 통계DB 검색으로 미분양 통계표의 {@code orgId/tblId/itmId} 매핑이
+ * 별도 필요.
  */
 @Component
 @Slf4j
 public class KosisAdapter implements RealEstateMarketSourceAdapter {
 
-    private static final String STAT_PATH = "/statisticsParameterData.do";
+    /** KOSIS 신규 매개변수 방식 endpoint (Param path 추가). */
+    private static final String STAT_PATH = "/Param/statisticsParameterData.do";
     private static final String DEFAULT_ORG_ID = "116";
     private static final String DEFAULT_TBL_ID = "DT_MLTM_2082";
 
@@ -84,7 +97,8 @@ public class KosisAdapter implements RealEstateMarketSourceAdapter {
                             .queryParam("startPrdDe", window.from().toString().replace("-", "").substring(0, 6))
                             .queryParam("endPrdDe", window.to().toString().replace("-", "").substring(0, 6))
                             .queryParam("format", "json")
-                            .queryParam("jsonVD", "Y")
+                            // jsonVD는 deprecated. 신규 가이드에서 미정의.
+                            // itmId(필수)는 통계표별 매핑이 필요해 plan에서 미설정 — 후속 작업.
                             .build())
                     .retrieve()
                     .body(List.class);

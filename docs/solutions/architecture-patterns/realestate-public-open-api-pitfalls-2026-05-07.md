@@ -2,6 +2,7 @@
 title: "한국 공공 Open API 다중 출처 어댑터 — envelope/인증/포맷 함정"
 category: architecture-patterns
 date: 2026-05-07
+last_updated: 2026-05-20
 module: realestate, scheduler, source-adapter
 problem_type: best_practice
 component: source_adapter
@@ -16,6 +17,9 @@ tags:
   - response-envelope
   - api-key-management
   - region-routing
+  - waf-blocking
+  - content-type-spoofing
+  - endpoint-migration
 applies_when: "data.go.kr / KOSIS / R-ONE / 시·도 자체 포털 등 다중 한국 공공 Open API를 한 도메인이 통합 어댑터링할 때"
 ---
 
@@ -123,6 +127,170 @@ restClient.get()
 
 운영 시 한 번 깨지면 RestClient 전역 설정으로 강제 UTF-8 + EUC-KR 출처는 어댑터 단위 override.
 
+## Operational Findings (2026-05-20 운영 dry-run)
+
+위 1~7번은 plan 작성 시점의 가설. 본 sprint(2026-05-12 ~ 05-20)에서 8회 dry-run을 거치며 추가로 확정된 함정 9개. **다음 공공 API 어댑터를 작성하는 사람은 1~7번 위에 이 9개를 먼저 검토하면 디버깅 시간이 큰 폭으로 단축된다.**
+
+### 8) WAF가 빈 User-Agent를 HTTP 400으로 차단 (data.go.kr)
+
+**현상**: data.go.kr의 모든 endpoint(MOLIT/HUB/HUG/odcloud)가 인증키 정상에도 HTTP 400 응답:
+```html
+<TITLE>400 Bad Request</TITLE>
+<H1>Request Blocked</H1>
+```
+**원인**: Spring `RestClient` default가 User-Agent 헤더를 보내지 않거나 비표준 형식 → data.go.kr 게이트웨이 WAF가 사전 차단.
+**해결**: RestClient bean에 default User-Agent 1줄 추가하면 모든 어댑터 일괄 적용:
+```java
+return RestClient.builder()
+    .requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient))
+    .defaultHeader("User-Agent", "stock-market-realestate/1.0 (Java RestClient)")
+    .build();
+```
+**금지**: 어댑터별 헤더 추가는 누락 위험. RestClient bean 단일 지점에서 처리.
+
+### 9) Endpoint deprecation은 신규 path가 안내 HTML로 알려준다 (KOSIS)
+
+**현상**: KOSIS `/openapi/statisticsParameterData.do` 호출 시 HTTP 404 + HTML "국가통계포털 서비스 개편에 따라 새 주소로 변경" 안내 페이지. 5초 후 `/openapi/index.jsp`로 redirect.
+**해결**: 신규 path는 `/openapi/Param/statisticsParameterData.do` (Param 경로 추가).
+**진단 패턴**: 정부 API가 deprecated되면 보통 5초 redirect HTML 안내가 표준. Content-Type이 `text/html`이고 본문에 "주소로 변경" / "개편" 같은 키워드 있으면 endpoint 마이그레이션 의심.
+
+### 10) items 빈 문자열 — totalCount=0 시 객체 대신 `""` 반환 (MOLIT)
+
+**현상**: 강남구는 `items:{item:[...]}` 정상, 수원 장안구(데이터 없음)는 `items:""` (빈 문자열) 반환. Jackson이 String → Items 객체 매핑 실패로 RestClient `Error while extracting response`.
+**해결**: DTO `Body.items` 타입을 `Object`로 받고 `rows()`에서 String/Map 분기:
+```java
+public static class Body {
+    private Object items; // String("") | Map{item:[...]} | null
+    // ...
+}
+public List<Map<String, Object>> rows() {
+    Object items = response.body.items;
+    if (items == null || items instanceof String) return Collections.emptyList();
+    if (items instanceof Map<?, ?> itemsMap) { /* item 분기 */ }
+    return Collections.emptyList();
+}
+```
+**금지**: Items 강타입 클래스 + `ACCEPT_SINGLE_VALUE_AS_ARRAY` 조합 — 빈 응답 케이스를 못 잡음.
+
+### 11) resultCode 2자리 vs 3자리 혼용 (MOLIT)
+
+**현상**: 같은 data.go.kr 표준이라도 endpoint에 따라 `"00"`(2자리) 또는 `"000"`(3자리). isSuccess() 검증을 `"00".equals(code)` 한쪽만 하면 정상 응답도 실패로 분류.
+**해결**: 양쪽 모두 정상으로 처리:
+```java
+public boolean isSuccess() {
+    String code = response.header.resultCode;
+    return "00".equals(code) || "000".equals(code);
+}
+```
+
+### 12) Content-Type이 `text/html`이어도 본문은 JSON (KOSIS, GG)
+
+**현상**: KOSIS / 경기데이터드림이 정상 JSON 응답을 Content-Type `text/html;charset=UTF-8`로 보냄. Spring RestClient `.body(List.class)` 또는 `.body(Map.class)`는 Content-Type 기반 매핑이라 실패: `Could not extract response: no suitable HttpMessageConverter found for response type [Map] and content type [text/html;charset=UTF-8]`.
+**해결**: `.body(String.class)`로 본문을 raw String으로 받고 `ObjectMapper`로 직접 파싱:
+```java
+String body = restClient.get().uri(...).retrieve().body(String.class);
+List<Map<String, Object>> rows = parseRows(body);
+
+private List<Map<String, Object>> parseRows(String body) {
+    if (body == null || body.isBlank()) return Collections.emptyList();
+    if (body.trim().startsWith("{") && body.contains("\"err\"")) {
+        return Collections.emptyList(); // 에러 envelope
+    }
+    return objectMapper.readValue(body, new TypeReference<>() {});
+}
+```
+**일반화**: 공공 API의 Content-Type은 신뢰 불가 — 본문 첫 글자(`[`/`{`)로 JSON 여부 판단이 더 안전.
+
+### 13) 시점 기준은 발표 lag 큰 통계에서 위험 — `newEstPrdCnt`가 안정 (KOSIS)
+
+**현상**: KOSIS 미분양 통계는 발표 lag 1~2개월. `startPrdDe=202604&endPrdDe=202605` 호출 시 `{err:"30","데이터가 존재하지 않습니다"}` 응답. 일배치가 항상 빈 응답 받음.
+**해결**: 시점기준 대신 최근 N개월 기준 사용:
+```java
+.queryParam("newEstPrdCnt", 3)  // 최근 3개월 자동 선택
+// (startPrdDe/endPrdDe 제거)
+```
+KOSIS 가이드 명세: "시점기준 또는 최신자료기준 택1".
+**일반화**: 통계 출처는 발표 lag을 모를 때 `newEstPrdCnt` 안정. 실거래 출처(MOLIT)는 lag이 작아 시점기준 OK.
+
+### 14) 한글 시도명 약식 vs 정식 표기 차이 (KOSIS)
+
+**현상**: KOSIS 응답 `C1_NM`은 약식 한글 ("서울", "경기", "강원"). DB region entity의 `sidoName`은 정식 행정구역명 ("서울특별시", "경기도", "강원특별자치도"). 직접 비교 시 매칭 0건.
+**해결**: 매핑 테이블 1개 추가:
+```java
+private static final Map<String, String> KOSIS_SIDO_TO_OFFICIAL = Map.ofEntries(
+    Map.entry("서울", "서울특별시"),
+    Map.entry("경기", "경기도"),
+    Map.entry("강원", "강원특별자치도"),
+    Map.entry("전북", "전북특별자치도"),
+    // ... 17개 시도
+);
+```
+**일반화**: 공공 API의 지역명은 출처마다 표기 다름. region 매칭은 한글명보다 행정구역코드(SIGUNGU_CODE 5자리) 기반이 안전하나, 출처가 코드를 안 주는 경우 매핑 테이블 1개 추가.
+
+### 15) contextPath 누락 시 호스트 홈페이지 404로 떨어진다 (REB)
+
+**현상**: REB 호출 시 응답이 REB 홈페이지의 404 페이지: "홈페이지 오류 알림 - 요청하신 페이지가 정상적으로 처리되지 않았습니다... `/reb/main.do`로 이동". 즉 endpoint 자체가 매핑 안 되어 호스트의 기본 404 핸들러로 떨어짐.
+**원인**: baseUrl이 `https://www.reb.or.kr/r-one/openapi`인데 어댑터가 contextPath(`/r-one/openapi`)를 합치지 않고 `/SttsApiTblData.do` 만으로 호출 → 실제 URL `https://www.reb.or.kr/SttsApiTblData.do` → 404.
+**해결**: BaseUri 파싱 후 contextPath 명시적 합산:
+```java
+BaseUri base = BaseUri.parse(props.getBaseUrl());
+.path(base.contextPath() + endpointPath)  // contextPath 합치기
+```
+**일반화**: 호스트 홈페이지의 404 HTML이 응답으로 오면 endpoint path 누락 의심. baseUrl이 path 일부를 포함하는 경우 BaseUri parsing으로 명시.
+
+### 16) 부분 실패 허용 — 한 어댑터가 다수 endpoint 호출 시 첫 실패에 throw 금지
+
+**현상**: 경기데이터드림 어댑터가 4개 dataset 순차 호출. 첫 dataset의 `RestClientException`을 `throw new GgDataDreamApiException(...)`로 처리 → for loop 종료 → 나머지 3개 dataset 호출 시도 안 됨. SSL handshake 일시 실패 1건이 전체 region을 막음.
+**해결**: try-catch + continue 패턴:
+```java
+List<RealEstateMarketIndicator> indicators = new ArrayList<>();
+for (Dataset ds : Dataset.values()) {
+    try {
+        indicators.addAll(callDataset(ds, region));
+    } catch (RestClientException e) {
+        log.warn("[gg] dataset fetch failed: {}, cause={}", ds.path,
+                SecretMasker.sanitize(e).getMessage());
+        // continue — 다른 dataset 호출은 계속
+    }
+}
+return FetchResult.success(indicators);  // 부분 적재
+```
+**금지**: 첫 실패에 throw — 일시 네트워크 이슈가 전체 region의 데이터 누락으로 번짐.
+
+### 17) 진단성 — 4xx/5xx 응답 body snippet을 caused by에 자동 포함
+
+**현상**: 어댑터 catch에서 `throw new XxxApiException(msg, cause)`로 wrap 시 cause의 message만 보존. 4xx/5xx 응답 본문(에러 안내)은 stacktrace에 안 들어가 디버깅 시 별도 호출 재현이 필요.
+**해결**: `SecretMasker.sanitize()`에 `RestClientResponseException`일 때 status + body 300자 자동 포함:
+```java
+public static Throwable sanitize(Throwable original) {
+    String message = String.valueOf(original.getMessage());
+    if (original instanceof RestClientResponseException rcre) {
+        String body = String.valueOf(rcre.getResponseBodyAsString()).replaceAll("\\s+", " ");
+        String snippet = body.length() > 300 ? body.substring(0, 300) + "...(truncated)" : body;
+        message = String.format("HTTP %d | %s | body: %s",
+                rcre.getStatusCode().value(), message, snippet);
+    }
+    Throwable copy = new RuntimeException(mask(message));
+    copy.setStackTrace(original.getStackTrace());
+    return copy;
+}
+```
+이제 운영 로그의 `Caused by: java.lang.RuntimeException: HTTP 404 | ... | body: <!DOCTYPE html>...홈페이지 오류 알림...`로 root cause 즉시 식별 가능. 동일 호출 재현 없이 endpoint 잘못/응답 형식 다름/인증 거부를 한 번에 분류.
+
+## 다음 어댑터 작성자를 위한 체크리스트 (TL;DR)
+
+새 한국 공공 Open API 어댑터를 작성한다면 **이 순서로** 검증:
+
+1. RestClient bean에 default User-Agent 있는지 (#8)
+2. 응답 Content-Type 무시하고 `body(String.class)` + ObjectMapper로 받기 (#12)
+3. 빈 응답이 `""`(문자열) / `null` / `{err:...}` / `{data:[]}` 중 어떤 형태인지 직접 호출로 확인 (#10, #13)
+4. resultCode 2자리/3자리 혼용 가능성 (#11)
+5. baseUrl에 contextPath 포함되어 있으면 `BaseUri.parse` + 명시적 합산 (#15)
+6. 지역 매칭은 한글명보다 코드 우선, 한글명 매칭 시 시도명 매핑 테이블 (#14)
+7. 다수 endpoint 호출 시 try-catch + continue 패턴 (#16)
+8. catch wrap 시 `SecretMasker.sanitize()`로 body snippet 포함 (#17)
+9. endpoint 404 응답이 호스트 홈페이지 HTML이면 deprecated/마이그레이션 의심 (#9, #15)
+
 ## Trade-offs
 
 - **출처별 DTO 분리** vs **공통 DTO 1개**: 분리 채택 — 각 출처 응답 변동의 폭발 반경이 자기 폴더 안에 갇힘. 단점은 코드 중복(envelope 재선언) 이지만, data.go.kr 계열은 `MolitApiResponse` 1개를 4개 출처가 재사용해서 완화.
@@ -137,9 +305,26 @@ restClient.get()
 - 한 출처의 RestClient timeout (예: KOSIS 정전) → 해당 항목만 격리(captureExecutor) → 다른 출처/지역 진행.
 - T11 출처 탭에 8개 출처 모두 표시됨 (lastSuccessAt 가 null이면 미설정/실패 상태로 명시).
 
+### 2026-05-20 운영 dry-run 검증 결과 (8회 batch)
+
+8개 출처 중 6개 정상 (HUB/HUG는 의도된 비활성화):
+
+| Source | 적재 row | 검증된 함정 |
+|---|---|---|
+| MOLIT | 336 | #8(WAF), #10(빈 문자열), #11(resultCode 혼용) |
+| GG_DATA_DREAM | 248 | #12(Content-Type), #15(endpoint 변경), #16(부분 실패) |
+| SUBSCRIPTION_HOME | 168 | endpoint placeholder 정정 |
+| KOSIS | 56 | #9(deprecated), #12(Content-Type), #13(newEstPrdCnt), #14(시도명) |
+| SEOUL_OPEN_DATA | 50 | https 미지원 → http (재발견) |
+| REB | 0 | #15(contextPath) — 호출 정상화, 통계표 ID 매핑 별도 |
+
+batch 메트릭: `success=616, failure=0, savedRows=585, elapsedMs=80,494`
+
 ## See Also
 
 - `docs/solutions/architecture-patterns/external-http-per-item-transaction-isolation-2026-04-26.md`
 - `docs/solutions/architecture-patterns/global-indicator-history-mirroring.md`
 - `docs/solutions/performance-issues/parallel-external-fetch-resilience-2026-04-23.md`
 - `docs/plans/2026-05-06-001-feat-real-estate-market-data-plan.md`
+- `docs/plans/2026-05-10-001-refactor-realestate-review-findings-plan.md` (Operations Follow-up 섹션)
+- `docs/brainstorms/2026-05-17-reb-adapter-redesign-requirements.md` (REB 어댑터 재설계 후속)

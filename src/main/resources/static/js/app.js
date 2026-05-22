@@ -4,7 +4,7 @@ function dashboard() {
         // ==================== 코어 상태 ====================
         currentPage: (() => {
             const hash = location.hash.replace('#', '');
-            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'salary', 'stocknote', 'news-journal', 'admin-logs'];
+            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'salary', 'stocknote', 'news-journal', 'glossary', 'admin-logs'];
             return validPages.includes(hash) ? hash : 'home';
         })(),
 
@@ -21,6 +21,7 @@ function dashboard() {
             { key: 'salary', label: '월급 사용 비율', icon: 'wallet' },
             { key: 'stocknote', label: '투자 노트', icon: 'note' },
             { key: 'news-journal', label: '뉴스 기록', icon: 'journal' },
+            { key: 'glossary', label: '용어 사전', icon: 'book' },
             { key: 'admin-logs', label: '운영자 로그', icon: 'logs' }
         ],
 
@@ -46,6 +47,7 @@ function dashboard() {
         ...SalaryComponent,
         ...StocknoteComponent,
         ...NewsJournalComponent,
+        ...GlossaryComponent,
         ...AdminLogsComponent,
         ...DashboardSummaryComponent,
 
@@ -75,7 +77,7 @@ function dashboard() {
             // ==================== Partial 부트스트랩 ====================
             // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
             // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
-            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'ecos', 'global', 'salary', 'stocknote', 'portfolio', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial'];
+            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'stocknote', 'portfolio', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial'];
             const cleanupRegistry = {
                 // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
                 // home: dashboardSummary 차트 + favorite 위젯 차트를 정리해 중복 인스턴스 방지.
@@ -256,6 +258,9 @@ function dashboard() {
                     break;
                 case 'admin-logs':
                     await this.loadAdminLogs();
+                    break;
+                case 'glossary':
+                    await this.glossaryLoad();
                     break;
             }
         }

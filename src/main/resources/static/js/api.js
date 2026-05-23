@@ -658,6 +658,10 @@ const API = {
         if (emdCode) params.set('emdCode', emdCode);
         return this.request('DELETE', `/api/realestate/favorites/regions?${params.toString()}`);
     },
+    // 관리자 전용: 부동산 일배치 수동 트리거 (202 triggered / 409 rejected)
+    triggerRealEstateBatch() {
+        return this.request('POST', '/api/admin/realestate/batch/run');
+    },
 
     // Glossary (개인 용어 사전)
     getGlossaryCategories() {

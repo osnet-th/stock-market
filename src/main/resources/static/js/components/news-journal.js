@@ -24,13 +24,15 @@ function _newsJournalEmptyForm() {
         what: '',
         why: '',
         how: '',
-        links: []
+        links: [],
+        keywords: []
     };
 }
 
 const NewsJournalComponent = {
     newsJournal: {
         loading: false,
+        saving: false,
         error: null,
         items: [],                                   // [{ id, title, occurredDate, impact, category: {id, name}, what, why, how, links: [...] , createdAt, updatedAt }]
         pagination: { page: 0, size: 20, totalCount: 0 },
@@ -39,6 +41,7 @@ const NewsJournalComponent = {
         activeCategoryId: null,                      // null = 전체
         mode: null,                                  // null | 'create' | 'edit'
         form: _newsJournalEmptyForm(),
+        keywordDraft: '',                            // 입력 중인 키워드 (Enter 시 form.keywords 로 반영)
         formError: null
     },
 
@@ -117,6 +120,7 @@ const NewsJournalComponent = {
     // ---------- 모달 (생성/수정) ----------
     newsJournalOpenCreate() {
         this.newsJournal.form = _newsJournalEmptyForm();
+        this.newsJournal.keywordDraft = '';
         this.newsJournal.formError = null;
         this.newsJournal.mode = 'create';
     },
@@ -131,14 +135,17 @@ const NewsJournalComponent = {
             what: item.what || '',
             why: item.why || '',
             how: item.how || '',
-            links: (item.links || []).map(l => ({ title: l.title || '', url: l.url || '' }))
+            links: (item.links || []).map(l => ({ title: l.title || '', url: l.url || '' })),
+            keywords: [...(item.keywords || [])]
         };
+        this.newsJournal.keywordDraft = '';
         this.newsJournal.formError = null;
         this.newsJournal.mode = 'edit';
     },
 
     newsJournalCloseModal() {
         this.newsJournal.mode = null;
+        this.newsJournal.keywordDraft = '';
         this.newsJournal.formError = null;
     },
 
@@ -152,6 +159,29 @@ const NewsJournalComponent = {
 
     newsJournalRemoveLink(index) {
         this.newsJournal.form.links.splice(index, 1);
+    },
+
+    newsJournalAddKeyword() {
+        const raw = (this.newsJournal.keywordDraft || '').trim().replace(/^#+/, '').trim();
+        if (!raw) return;
+        if (raw.length > 50) {
+            this.newsJournal.formError = '키워드는 50자 이하여야 합니다.';
+            return;
+        }
+        if (this.newsJournal.form.keywords.length >= 20) {
+            this.newsJournal.formError = '키워드는 최대 20개까지 추가할 수 있습니다.';
+            return;
+        }
+        if (this.newsJournal.form.keywords.includes(raw)) {
+            this.newsJournal.keywordDraft = '';
+            return;
+        }
+        this.newsJournal.form.keywords.push(raw);
+        this.newsJournal.keywordDraft = '';
+    },
+
+    newsJournalRemoveKeyword(index) {
+        this.newsJournal.form.keywords.splice(index, 1);
     },
 
     async newsJournalSave() {
@@ -212,6 +242,25 @@ const NewsJournalComponent = {
             }
         }
 
+        // 입력 중인 키워드 draft 가 있으면 먼저 반영 (Enter 누르지 않고 저장한 경우)
+        if ((this.newsJournal.keywordDraft || '').trim()) {
+            this.newsJournalAddKeyword();
+            if ((this.newsJournal.keywordDraft || '').trim()) {
+                return;  // addKeyword 실패 — formError 설정됨
+            }
+        }
+        const keywords = (f.keywords || []).map(k => (k || '').trim()).filter(Boolean);
+        if (keywords.length > 20) {
+            this.newsJournal.formError = '키워드는 최대 20개까지 추가할 수 있습니다.';
+            return;
+        }
+        for (const k of keywords) {
+            if (k.length > 50) {
+                this.newsJournal.formError = '키워드는 50자 이하여야 합니다.';
+                return;
+            }
+        }
+
         const body = {
             title: f.title.trim(),
             occurredDate: f.occurredDate,
@@ -220,10 +269,13 @@ const NewsJournalComponent = {
             what: f.what || null,
             why: f.why || null,
             how: f.how || null,
-            links: cleanLinks
+            links: cleanLinks,
+            keywords: keywords
         };
 
-        this.newsJournal.loading = true;
+        // saving 은 loading 과 분리 — newsJournalLoad 의 idempotency 가드(loading 체크)에
+        // 걸려 저장 후 목록 새로고침이 스킵되던 버그 방지.
+        this.newsJournal.saving = true;
         this.newsJournal.formError = null;
         try {
             if (this.newsJournal.mode === 'edit' && f.id != null) {
@@ -236,21 +288,21 @@ const NewsJournalComponent = {
         } catch (e) {
             this.newsJournal.formError = e?.message || '저장에 실패했습니다.';
         } finally {
-            this.newsJournal.loading = false;
+            this.newsJournal.saving = false;
         }
     },
 
     async newsJournalDelete(id) {
         if (id == null) return;
         if (!confirm('이 사건을 삭제할까요? 되돌릴 수 없습니다.')) return;
-        this.newsJournal.loading = true;
+        this.newsJournal.saving = true;
         try {
             await API.deleteNewsEvent(id);
             await this.newsJournalLoad();
         } catch (e) {
             alert(e?.message || '삭제에 실패했습니다.');
         } finally {
-            this.newsJournal.loading = false;
+            this.newsJournal.saving = false;
         }
     },
 

@@ -6,6 +6,7 @@
     <title>Stock Market Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <link rel="stylesheet" href="/css/custom.css">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
@@ -65,6 +66,26 @@
             <!-- ========== REAL ESTATE (partial) ========== -->
             <div data-partial="realestate" aria-busy="true" aria-live="polite"></div>
 
+
+            <!-- ========== SALARY USAGE RATIO (partial) ========== -->
+            <div data-partial="salary" aria-busy="true" aria-live="polite"></div>
+
+
+            <!-- ========== STOCK NOTE (partial) ========== -->
+            <div data-partial="stocknote" aria-busy="true" aria-live="polite"></div>
+
+
+            <!-- ========== NEWS JOURNAL (partial) ========== -->
+            <div data-partial="news-journal" aria-busy="true" aria-live="polite"></div>
+
+
+            <!-- ========== GLOSSARY (개인 용어 사전, partial) ========== -->
+            <div data-partial="glossary" aria-busy="true" aria-live="polite"></div>
+
+
+            <!-- ========== ADMIN LOGS (partial, secured) ========== -->
+            <div data-partial="admin-logs" data-secured="true" aria-busy="true" aria-live="polite"></div>
+
         </div>
     </div>
 
@@ -93,6 +114,7 @@
     <script src="/js/components/salary.js"></script>
     <script src="/js/components/stocknote.js"></script>
     <script src="/js/components/news-journal.js"></script>
+    <script src="/js/components/glossary.js"></script>
     <script src="/js/components/admin-logs.js"></script>
     <script src="/js/components/dashboardSummary.js"></script>
     <script src="/js/components/realestate.js"></script>

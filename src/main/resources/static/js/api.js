@@ -173,6 +173,13 @@ const API = {
         return this.request('PUT', '/api/favorites/display-mode', { sourceType, indicatorCode, displayMode });
     },
 
+    /**
+     * 컨테이너 (sourceType × displayMode) 단위 일괄 순서 갱신.
+     */
+    reorderFavorites(sourceType, displayMode, indicatorCodes) {
+        return this.request('PUT', '/api/favorites/order', { sourceType, displayMode, indicatorCodes });
+    },
+
     getRecentUpdates() {
         return this.request('GET', '/api/economics/indicators/recent-updates');
     },
@@ -650,5 +657,37 @@ const API = {
         const params = new URLSearchParams({ regionCode });
         if (emdCode) params.set('emdCode', emdCode);
         return this.request('DELETE', `/api/realestate/favorites/regions?${params.toString()}`);
+    },
+
+    // Glossary (개인 용어 사전)
+    getGlossaryCategories() {
+        return this.request('GET', '/api/glossary/categories');
+    },
+    createGlossaryCategory(body) {
+        return this.request('POST', '/api/glossary/categories', body);
+    },
+    updateGlossaryCategory(id, body) {
+        return this.request('PUT', `/api/glossary/categories/${id}`, body);
+    },
+    deleteGlossaryCategory(id) {
+        return this.request('DELETE', `/api/glossary/categories/${id}`);
+    },
+    previewGlossaryCategoryDelete(id) {
+        return this.request('GET', `/api/glossary/categories/${id}/delete-impact`);
+    },
+    getGlossaryTerms(filters = {}) {
+        return this.request('GET', '/api/glossary/terms' + this._buildLogQuery(filters));
+    },
+    getGlossaryTerm(id) {
+        return this.request('GET', `/api/glossary/terms/${id}`);
+    },
+    createGlossaryTerm(body) {
+        return this.request('POST', '/api/glossary/terms', body);
+    },
+    updateGlossaryTerm(id, body) {
+        return this.request('PUT', `/api/glossary/terms/${id}`, body);
+    },
+    deleteGlossaryTerm(id) {
+        return this.request('DELETE', `/api/glossary/terms/${id}`);
     }
 };

@@ -34,8 +34,12 @@ const PartialLoader = {
 
     async fetchPartial(name, opts = {}) {
         const url = this._buildUrl(name, opts.secured);
+        // /secured-partials/** 는 hasRole(ADMIN) 필요 — STATELESS JWT 인증이라 Authorization 헤더 누락 시 403.
+        const headers = { 'Accept': 'text/html' };
+        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') : null;
+        if (token) headers['Authorization'] = 'Bearer ' + token;
         const response = await fetch(url, {
-            headers: { 'Accept': 'text/html' },
+            headers,
             credentials: 'same-origin'
         });
         if (response.status === 401 || response.status === 403) {

@@ -27,6 +27,8 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -51,6 +53,25 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
         publishError(e);
         return buildResponse(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage());
+    }
+
+    /**
+     * @Valid 위반 (Bean Validation) — 신규/기존 컨트롤러에서 일관된 400 응답 보장.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException e) {
+        publishError(e);
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        for (FieldError fieldError : e.getBindingResult().getFieldErrors()) {
+            fieldErrors.put(fieldError.getField(),
+                fieldError.getDefaultMessage() != null ? fieldError.getDefaultMessage() : "invalid");
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "VALIDATION_FAILED");
+        body.put("message", "요청 본문 검증에 실패했습니다.");
+        body.put("fieldErrors", fieldErrors);
+        body.put("timestamp", LocalDateTime.now().toString());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     /**

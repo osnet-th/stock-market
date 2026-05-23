@@ -66,7 +66,9 @@ public class ProdSecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/partials/**").permitAll()
 
                 // 보호 partial: admin 전용 마크업 (50GB 임계값·도메인 enum 등 운영 정보 포함)
-                .requestMatchers("/secured-partials/**").hasRole("ADMIN")
+                // 인가는 AdminGuardInterceptor 가 화이트리스트({@code app.logging.admin.user-ids}) 로 처리 —
+                // JWT 의 UserRole enum 에는 ADMIN 이 없으므로 hasRole 사용 불가.
+                .requestMatchers("/secured-partials/**").authenticated()
 
                 // 인증 엔드포인트는 permitAll
                 .requestMatchers("/api/auth/**").permitAll()
@@ -77,6 +79,9 @@ public class ProdSecurityConfig {
 
                 // 뉴스 검색 엔드포인트는 permitAll
                 .requestMatchers("/api/news/search").permitAll()
+
+                // glossary(개인 용어 사전) 엔드포인트는 모두 인증 필수 — 회귀 가드
+                .requestMatchers("/api/glossary/**").authenticated()
 
                 // 나머지 요청은 인증 필요 (백필 포함)
                 .anyRequest().authenticated()

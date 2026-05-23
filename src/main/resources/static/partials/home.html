@@ -224,21 +224,33 @@
                                         <span class="text-yellow-400">&#9733;</span> 관심 지표 — 그래프
                                     </p>
                                     <div class="flex gap-1">
-                                        <button @click="scrollFavorites(-1, 'ecos-fav-graph-scroll')"
-                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9664;</button>
-                                        <button @click="scrollFavorites(1, 'ecos-fav-graph-scroll')"
-                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9654;</button>
+                                        <template x-if="!isEditing('ECOS', 'GRAPH')">
+                                            <button @click="enterEditMode('ECOS', 'GRAPH', 'ecos-fav-graph-scroll')"
+                                                    :disabled="!canEnterEditMode('ECOS', 'GRAPH')"
+                                                    title="순서 편집"
+                                                    class="px-2 py-0.5 text-[11px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">순서 편집</button>
+                                        </template>
+                                        <template x-if="isEditing('ECOS', 'GRAPH')">
+                                            <div class="flex gap-1">
+                                                <button @click="saveOrder()"
+                                                        :disabled="favoriteEdit.saving"
+                                                        class="px-2 py-0.5 text-[11px] rounded bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white cursor-pointer">저장</button>
+                                                <button @click="cancelOrder()"
+                                                        :disabled="favoriteEdit.saving"
+                                                        class="px-2 py-0.5 text-[11px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">취소</button>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
-                                <div id="ecos-fav-graph-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
+                                <div id="ecos-fav-graph-scroll" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                     <template x-for="card in homeSummary.enrichedFavorites.ecos.filter(c => c.displayMode === 'GRAPH')" :key="card.indicatorCode">
-                                        <div class="snap-start flex-shrink-0 w-[400px] sm:w-[440px]">
+                                        <div>
                                             <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
                                                 <!-- 해제 버튼 -->
                                                 <button @click="removeDashboardFavorite('ECOS', card.indicatorCode)"
                                                         class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
                                                 <!-- 표시 모드 토글 버튼 -->
-                                                <button @click="toggleDisplayMode(card, 'ECOS')"
+                                                <button @click="attemptToggleDisplayMode(card, 'ECOS')"
                                                         :disabled="!!card._displayModePending"
                                                         title="지표로 보기"
                                                         class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">지표</button>
@@ -286,7 +298,7 @@
                                                 <button @click="removeDashboardFavorite('ECOS', card.indicatorCode)"
                                                         class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
                                                 <!-- 표시 모드 토글 버튼 -->
-                                                <button @click="toggleDisplayMode(card, 'ECOS')"
+                                                <button @click="attemptToggleDisplayMode(card, 'ECOS')"
                                                         :disabled="!!card._displayModePending"
                                                         title="그래프로 보기"
                                                         class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">그래프</button>
@@ -355,21 +367,33 @@
                                         <span class="text-yellow-400">&#9733;</span> 관심 지표 — 그래프
                                     </p>
                                     <div class="flex gap-1">
-                                        <button @click="scrollFavorites(-1, 'global-fav-graph-scroll')"
-                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9664;</button>
-                                        <button @click="scrollFavorites(1, 'global-fav-graph-scroll')"
-                                                class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-sm cursor-pointer">&#9654;</button>
+                                        <template x-if="!isEditing('GLOBAL', 'GRAPH')">
+                                            <button @click="enterEditMode('GLOBAL', 'GRAPH', 'global-fav-graph-scroll')"
+                                                    :disabled="!canEnterEditMode('GLOBAL', 'GRAPH')"
+                                                    title="순서 편집"
+                                                    class="px-2 py-0.5 text-[11px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">순서 편집</button>
+                                        </template>
+                                        <template x-if="isEditing('GLOBAL', 'GRAPH')">
+                                            <div class="flex gap-1">
+                                                <button @click="saveOrder()"
+                                                        :disabled="favoriteEdit.saving"
+                                                        class="px-2 py-0.5 text-[11px] rounded bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white cursor-pointer">저장</button>
+                                                <button @click="cancelOrder()"
+                                                        :disabled="favoriteEdit.saving"
+                                                        class="px-2 py-0.5 text-[11px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">취소</button>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
-                                <div id="global-fav-graph-scroll" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory" style="scrollbar-width: thin;">
+                                <div id="global-fav-graph-scroll" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                     <template x-for="card in homeSummary.enrichedFavorites.global.filter(c => c.displayMode === 'GRAPH' && !c.failed)" :key="card.indicatorCode">
-                                        <div class="snap-start flex-shrink-0 w-[400px] sm:w-[440px]">
+                                        <div>
                                             <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
                                                 <!-- 해제 버튼 -->
                                                 <button @click="removeDashboardFavorite('GLOBAL', card.indicatorCode)"
                                                         class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
                                                 <!-- 표시 모드 토글 버튼 -->
-                                                <button @click="toggleDisplayMode(card, 'GLOBAL')"
+                                                <button @click="attemptToggleDisplayMode(card, 'GLOBAL')"
                                                         :disabled="!!card._displayModePending"
                                                         title="지표로 보기"
                                                         class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">지표</button>
@@ -422,7 +446,7 @@
                                                 <button @click="removeDashboardFavorite('GLOBAL', card.indicatorCode)"
                                                         class="absolute top-2 right-2 text-yellow-400 hover:text-yellow-500 cursor-pointer text-lg">&#9733;</button>
                                                 <!-- 표시 모드 토글 버튼 -->
-                                                <button @click="toggleDisplayMode(card, 'GLOBAL')"
+                                                <button @click="attemptToggleDisplayMode(card, 'GLOBAL')"
                                                         :disabled="!!card._displayModePending"
                                                         title="그래프로 보기"
                                                         class="absolute top-2 right-9 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 cursor-pointer">그래프</button>

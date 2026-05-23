@@ -15,6 +15,7 @@ public class FavoriteIndicatorMapper {
             domain.getSourceType(),
             domain.getIndicatorCode(),
             domain.getDisplayMode() != null ? domain.getDisplayMode() : FavoriteDisplayMode.INDICATOR,
+            domain.getPriority(),
             domain.getCreatedAt()
         );
     }
@@ -26,6 +27,7 @@ public class FavoriteIndicatorMapper {
             entity.getSourceType(),
             entity.getIndicatorCode(),
             entity.getDisplayMode() != null ? entity.getDisplayMode() : FavoriteDisplayMode.INDICATOR,
+            entity.getPriority(),
             entity.getCreatedAt()
         );
     }

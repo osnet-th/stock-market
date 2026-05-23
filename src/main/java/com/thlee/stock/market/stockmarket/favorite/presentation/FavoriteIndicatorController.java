@@ -9,6 +9,7 @@ import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicato
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.EnrichedFavoriteResponse;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteDisplayModeRequest;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteIndicatorResponse;
+import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteOrderRequest;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteToggleRequest;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.GlobalRefreshResponse;
 import jakarta.validation.Valid;
@@ -95,6 +96,17 @@ public class FavoriteIndicatorController {
         Long userId = getCurrentUserId();
         favoriteIndicatorService.changeDisplayMode(
             userId, request.sourceType(), request.indicatorCode(), request.displayMode());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 컨테이너 (sourceType × displayMode) 단위 일괄 순서 갱신.
+     */
+    @PutMapping("/order")
+    public ResponseEntity<Void> reorder(@Valid @RequestBody FavoriteOrderRequest request) {
+        Long userId = getCurrentUserId();
+        favoriteIndicatorService.reorder(
+            userId, request.sourceType(), request.displayMode(), request.indicatorCodes());
         return ResponseEntity.noContent().build();
     }
 

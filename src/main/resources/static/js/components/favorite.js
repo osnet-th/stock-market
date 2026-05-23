@@ -8,6 +8,19 @@ const FavoriteComponent = {
         loading: false,
     },
 
+    /**
+     * 우선순위 편집 모드 상태.
+     * 한 번에 한 컨테이너만 편집 가능. dirty가 true이면 표시 모드 전환·새로고침 시 confirm 다이얼로그.
+     */
+    favoriteEdit: {
+        active: null,      // null | { sourceType, displayMode, containerId }
+        dirty: false,      // 드래그로 변경된 미저장 순서 존재 여부
+        snapshotIds: [],   // 편집 진입 시점 카드 indicatorCode 순서 (취소용)
+        snapshotKey: null, // snapshot이 어느 컨테이너용인지 검증
+        sortable: null,    // SortableJS 인스턴스
+        saving: false,
+    },
+
     initFavorites() {
         Object.defineProperty(this.favorites, '_set', {
             value: new Set(), writable: true, enumerable: false
@@ -15,6 +28,18 @@ const FavoriteComponent = {
         Object.defineProperty(this.favorites, '_togglePending', {
             value: false, writable: true, enumerable: false
         });
+        // beforeunload 한 번만 등록.
+        if (!this.favorites._beforeunloadAttached) {
+            window.addEventListener('beforeunload', (e) => {
+                if (this.favoriteEdit.dirty) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
+            Object.defineProperty(this.favorites, '_beforeunloadAttached', {
+                value: true, writable: false, enumerable: false
+            });
+        }
     },
 
     async loadFavorites() {
@@ -98,6 +123,174 @@ const FavoriteComponent = {
         const container = document.getElementById(containerId);
         if (!container) return;
         container.scrollBy({ left: direction * 320, behavior: 'smooth' });
+    },
+
+    // ==================== 우선순위 편집 모드 ====================
+    isEditing(sourceType, displayMode) {
+        const a = this.favoriteEdit.active;
+        return a !== null && a.sourceType === sourceType && a.displayMode === displayMode;
+    },
+
+    canEnterEditMode(sourceType, displayMode) {
+        if (this.favoriteEdit.active !== null) return false;
+        const items = this.containerCards(sourceType, displayMode);
+        return items.length >= 2;
+    },
+
+    containerCards(sourceType, displayMode) {
+        const enriched = this.homeSummary?.enrichedFavorites;
+        if (!enriched) return [];
+        const bucket = sourceType === 'ECOS' ? enriched.ecos : enriched.global;
+        if (!Array.isArray(bucket)) return [];
+        if (sourceType === 'GLOBAL' && displayMode === 'GRAPH') {
+            return bucket.filter(c => c.displayMode === 'GRAPH' && !c.failed);
+        }
+        if (displayMode === 'GRAPH') {
+            return bucket.filter(c => c.displayMode === 'GRAPH');
+        }
+        // GLOBAL+INDICATOR: home.html에서 `c.displayMode !== 'GRAPH' || c.failed`(failed GRAPH 카드 fallback 렌더링)
+        // 패턴을 사용하므로 동일 필터를 적용해 향후 INDICATOR 편집 모드 도입 시 snapshotIds 정합성 유지.
+        if (sourceType === 'GLOBAL') {
+            return bucket.filter(c => c.displayMode !== 'GRAPH' || c.failed);
+        }
+        return bucket.filter(c => c.displayMode !== 'GRAPH');
+    },
+
+    enterEditMode(sourceType, displayMode, containerId) {
+        if (!this.canEnterEditMode(sourceType, displayMode)) return;
+        this.favoriteEdit.active = { sourceType, displayMode, containerId };
+        this.favoriteEdit.dirty = false;
+        this.favoriteEdit.snapshotIds = this.containerCards(sourceType, displayMode)
+            .map(c => c.indicatorCode);
+        this.favoriteEdit.snapshotKey = sourceType + '::' + displayMode;
+        this.$nextTick(() => this.attachSortable(containerId));
+    },
+
+    attachSortable(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container || typeof Sortable === 'undefined') return;
+        if (this.favoriteEdit.sortable) {
+            try { this.favoriteEdit.sortable.destroy(); } catch (_) { /* noop */ }
+        }
+        this.favoriteEdit.sortable = Sortable.create(container, {
+            animation: 150,
+            delay: 200,
+            delayOnTouchOnly: true,
+            touchStartThreshold: 5,
+            ghostClass: 'opacity-40',
+            onEnd: (evt) => this.handleSortEnd(evt),
+        });
+    },
+
+    /**
+     * SortableJS onEnd 콜백.
+     *
+     * Alpine x-for + reactive splice 충돌 회피를 위해 revert-then-splice 패턴 사용.
+     * 알고리즘:
+     *  (1) SortableJS가 옮긴 DOM을 즉시 되돌려 Alpine이 reactive array를 source-of-truth로 다시 그리게 한다.
+     *  (2) `containerCards` 결과(현재 컨테이너 카드들의 *pre-revert* 순서)에서 oldIndex → newIndex 로 항목을 재배치한 새 컨테이너 순서를 만든다.
+     *  (3) bucket 내 컨테이너 카드 위치(절대 인덱스)는 그대로 두고, 그 슬롯들에 새 컨테이너 순서를 차례로 다시 채워 넣는다.
+     *      → 다른 displayMode 항목의 절대 위치는 보존되며, 인덱스 보정이 필요 없는 안전한 슬롯-기반 갱신.
+     */
+    handleSortEnd(evt) {
+        if (evt.oldIndex === evt.newIndex) return;
+        const a = this.favoriteEdit.active;
+        if (!a) return;
+        const parent = evt.from;
+        const children = Array.from(parent.children);
+        if (evt.oldIndex < children.length) {
+            parent.insertBefore(evt.item, children[evt.oldIndex] === evt.item ? children[evt.oldIndex + 1] : children[evt.oldIndex]);
+        }
+        const enriched = this.homeSummary?.enrichedFavorites;
+        if (!enriched) return;
+        const bucket = a.sourceType === 'ECOS' ? enriched.ecos : enriched.global;
+        const items = this.containerCards(a.sourceType, a.displayMode);
+        if (evt.oldIndex >= items.length || evt.newIndex >= items.length) return;
+        // (2) 컨테이너 카드들의 새 순서 계산 — splice on copy.
+        const reordered = items.slice();
+        const [moving] = reordered.splice(evt.oldIndex, 1);
+        reordered.splice(evt.newIndex, 0, moving);
+        // (3) bucket 내 컨테이너 슬롯 절대 인덱스 수집 후 새 순서로 채워 넣기.
+        const slots = items.map(card => bucket.indexOf(card)).filter(idx => idx >= 0);
+        if (slots.length !== items.length) return;
+        slots.forEach((slot, i) => { bucket[slot] = reordered[i]; });
+        this.favoriteEdit.dirty = true;
+    },
+
+    async saveOrder() {
+        const a = this.favoriteEdit.active;
+        if (!a || this.favoriteEdit.saving) return;
+        this.favoriteEdit.saving = true;
+        const codes = this.containerCards(a.sourceType, a.displayMode).map(c => c.indicatorCode);
+        try {
+            await API.reorderFavorites(a.sourceType, a.displayMode, codes);
+            this.exitEditMode(true);
+        } catch (e) {
+            console.error('관심지표 순서 저장 실패:', e);
+            alert('순서 저장에 실패했어요. 잠시 후 다시 시도해주세요');
+        } finally {
+            this.favoriteEdit.saving = false;
+        }
+    },
+
+    cancelOrder() {
+        const a = this.favoriteEdit.active;
+        if (!a) return;
+        this.restoreSnapshot();
+        this.exitEditMode(false);
+    },
+
+    /**
+     * 편집 진입 시점의 컨테이너 카드 순서로 되돌린다.
+     *
+     * Slot-based 갱신: 컨테이너 카드들이 점유한 bucket 절대 인덱스 슬롯들에 snapshot 순서로 다시 채워 넣는다.
+     * 다른 컨테이너 항목의 절대 위치는 변경하지 않는다 — handleSortEnd와 동일 패턴이라 cancel/save 동작 일관성 확보.
+     * snapshot에 있던 카드가 그 사이 다른 탭/액션으로 사라졌으면 silent skip(R8 즉시 반영 정책과 정합).
+     */
+    restoreSnapshot() {
+        const a = this.favoriteEdit.active;
+        if (!a) return;
+        if (this.favoriteEdit.snapshotKey !== a.sourceType + '::' + a.displayMode) return;
+        const enriched = this.homeSummary?.enrichedFavorites;
+        if (!enriched) return;
+        const bucket = a.sourceType === 'ECOS' ? enriched.ecos : enriched.global;
+        const items = this.containerCards(a.sourceType, a.displayMode);
+        const slots = items.map(card => bucket.indexOf(card)).filter(idx => idx >= 0);
+        if (slots.length !== items.length) return;
+        const restored = this.favoriteEdit.snapshotIds
+            .map(code => bucket.find(c => c.indicatorCode === code))
+            .filter(c => c !== undefined);
+        // snapshot보다 현재 컨테이너에 항목이 더 적거나 많으면(추가/해제 발생) 가능한 만큼만 복원.
+        const fillCount = Math.min(slots.length, restored.length);
+        for (let i = 0; i < fillCount; i++) {
+            bucket[slots[i]] = restored[i];
+        }
+    },
+
+    exitEditMode(saved) {
+        if (this.favoriteEdit.sortable) {
+            try { this.favoriteEdit.sortable.destroy(); } catch (_) { /* noop */ }
+            this.favoriteEdit.sortable = null;
+        }
+        this.favoriteEdit.active = null;
+        this.favoriteEdit.dirty = false;
+        this.favoriteEdit.snapshotIds = [];
+        this.favoriteEdit.snapshotKey = null;
+    },
+
+    /**
+     * R8: 표시 모드 전환은 편집 종료를 트리거한다. dirty이면 confirm.
+     */
+    attemptToggleDisplayMode(card, sourceType) {
+        const a = this.favoriteEdit.active;
+        if (a && this.favoriteEdit.dirty) {
+            const ok = confirm('저장하지 않은 순서 변경이 있어요. 폐기하고 표시 모드를 전환할까요?');
+            if (!ok) return;
+            this.cancelOrder();
+        } else if (a) {
+            this.exitEditMode(false);
+        }
+        return this.toggleDisplayMode(card, sourceType);
     },
 
     /**

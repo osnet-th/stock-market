@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 
 @Repository
 @RequiredArgsConstructor
@@ -20,6 +21,13 @@ public class FavoriteIndicatorRepositoryImpl implements FavoriteIndicatorReposit
     @Override
     public void save(FavoriteIndicator favoriteIndicator) {
         jpaRepository.save(mapper.toEntity(favoriteIndicator));
+    }
+
+    @Override
+    public void insertWithNextPriority(Long userId,
+                                       FavoriteIndicatorSourceType sourceType,
+                                       String indicatorCode) {
+        jpaRepository.insertWithNextPriority(userId, sourceType.name(), indicatorCode);
     }
 
     @Override
@@ -49,5 +57,22 @@ public class FavoriteIndicatorRepositoryImpl implements FavoriteIndicatorReposit
                                  String indicatorCode,
                                  FavoriteDisplayMode displayMode) {
         return jpaRepository.updateDisplayMode(userId, sourceType, indicatorCode, displayMode);
+    }
+
+    @Override
+    public List<FavoriteIndicator> findForReorderUpdate(Long userId, FavoriteIndicatorSourceType sourceType) {
+        return jpaRepository.findForReorderUpdate(userId, sourceType).stream()
+            .map(mapper::toDomain)
+            .toList();
+    }
+
+    @Override
+    public int bulkUpdatePriority(Map<Long, Integer> idToPriority) {
+        return jpaRepository.bulkUpdatePriority(idToPriority);
+    }
+
+    @Override
+    public List<Integer> findPriorities(Long userId, FavoriteIndicatorSourceType sourceType) {
+        return jpaRepository.findPrioritiesByUserIdAndSourceType(userId, sourceType);
     }
 }

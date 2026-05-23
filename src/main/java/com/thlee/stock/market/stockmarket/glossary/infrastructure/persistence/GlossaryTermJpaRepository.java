@@ -43,19 +43,24 @@ public interface GlossaryTermJpaRepository extends JpaRepository<GlossaryTermEnt
     /**
      * 용어 목록 조회. 옵셔널 필터:
      * <ul>
-     *   <li>{@code q} (용어명) — null/blank 면 비활성, 아니면 {@code LOWER(name) LIKE LOWER(:q) ESCAPE '\\'}</li>
+     *   <li>{@code q} (용어명) — null/blank 면 비활성, 아니면 {@code LOWER(name) LIKE :q ESCAPE '\\'}
+     *       ({@code :q} 는 application 계층에서 이미 소문자/와일드카드 escape된 패턴)</li>
      *   <li>{@code definitionQ} — 동일 패턴</li>
      *   <li>{@code categoryId} — null = 비활성, 값 = 일치</li>
      *   <li>{@code uncategorizedOnly} — true 면 categoryId IS NULL</li>
      * </ul>
+     *
+     * <p>주의: 패턴 측에 {@code LOWER(:q)} 를 호출하지 않는다. PostgreSQL prepared statement 가
+     * null 파라미터를 {@code bytea} 로 추론해 {@code lower(?)} 가 실패하기 때문.
+     * 대소문자 무시는 application 계층 {@code LikeEscaper.toContainsPattern()} 에서 이미 보장.
      *
      * <p>정렬은 호출자가 Pageable.Sort 로 주입 (REGISTERED_DESC/REGISTERED_ASC/ALPHA_ASC).
      */
     @Query("""
             SELECT t FROM GlossaryTermEntity t
              WHERE t.userId = :userId
-               AND (:q IS NULL OR LOWER(t.name) LIKE LOWER(:q) ESCAPE '\\')
-               AND (:definitionQ IS NULL OR LOWER(t.definition) LIKE LOWER(:definitionQ) ESCAPE '\\')
+               AND (:q IS NULL OR LOWER(t.name) LIKE :q ESCAPE '\\')
+               AND (:definitionQ IS NULL OR LOWER(t.definition) LIKE :definitionQ ESCAPE '\\')
                AND (
                     (:uncategorizedOnly = TRUE AND t.categoryId IS NULL)
                  OR (:uncategorizedOnly = FALSE AND (:categoryId IS NULL OR t.categoryId = :categoryId))
@@ -73,8 +78,8 @@ public interface GlossaryTermJpaRepository extends JpaRepository<GlossaryTermEnt
     @Query("""
             SELECT COUNT(t) FROM GlossaryTermEntity t
              WHERE t.userId = :userId
-               AND (:q IS NULL OR LOWER(t.name) LIKE LOWER(:q) ESCAPE '\\')
-               AND (:definitionQ IS NULL OR LOWER(t.definition) LIKE LOWER(:definitionQ) ESCAPE '\\')
+               AND (:q IS NULL OR LOWER(t.name) LIKE :q ESCAPE '\\')
+               AND (:definitionQ IS NULL OR LOWER(t.definition) LIKE :definitionQ ESCAPE '\\')
                AND (
                     (:uncategorizedOnly = TRUE AND t.categoryId IS NULL)
                  OR (:uncategorizedOnly = FALSE AND (:categoryId IS NULL OR t.categoryId = :categoryId))

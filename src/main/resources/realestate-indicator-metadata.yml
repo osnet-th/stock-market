@@ -1,0 +1,56 @@
+realestate:
+  indicator:
+    metadata:
+      # 카테고리 × 출처 × 지표 단위 메타.
+      # 출처별 같은 카테고리에서 복수 row가 들어오므로 PK는 (category, source, indicator-code).
+      # 추가 지표는 어댑터 구현 시 yml에 누적하고, count() == 0이 아닐 경우에는 시딩이 skip됨에 유의.
+      indicators:
+        # ===== TRADE (T1 매매 거래) — MOLIT =====
+        - { category: "TRADE", source: "MOLIT", indicator-code: "APT_TRADE_VOLUME", display-name: "아파트 매매 거래량", description: "최근 30일 아파트 매매 거래 건수", unit: "건", default-visible: true }
+        - { category: "TRADE", source: "MOLIT", indicator-code: "APT_TRADE_AVG_PRICE", display-name: "아파트 매매 평균 실거래가", description: "최근 30일 평균 거래금액", unit: "만원", default-visible: true }
+        - { category: "TRADE", source: "MOLIT", indicator-code: "APT_TRADE_MEDIAN_PRICE", display-name: "아파트 매매 중위 실거래가", description: "최근 30일 중위 거래금액", unit: "만원", default-visible: true }
+        - { category: "TRADE", source: "MOLIT", indicator-code: "APT_TRADE_CANCEL_RATIO", display-name: "해제 거래 비율", description: "신고 거래 중 해제된 거래 비율", unit: "%", default-visible: true }
+
+        # ===== PRICE_INDEX (T2 매매 가격) — MOLIT 실거래 + REB 가격지수 =====
+        - { category: "PRICE_INDEX", source: "MOLIT", indicator-code: "PRICE_PER_SQM", display-name: "㎡당 가격", description: "최근 30일 평균 ㎡당 가격", unit: "만원/㎡", default-visible: true }
+        - { category: "PRICE_INDEX", source: "REB", indicator-code: "SALE_PRICE_INDEX", display-name: "매매가격지수", description: "한국부동산원 R-ONE 매매가격지수", unit: "포인트", default-visible: true }
+        - { category: "PRICE_INDEX", source: "REB", indicator-code: "ACTUAL_TRANSACTION_PRICE_INDEX", display-name: "공동주택 실거래가격지수", description: "R-ONE 공동주택 실거래가격지수", unit: "포인트", default-visible: true }
+
+        # ===== RENT (T3 전월세) — MOLIT + REB =====
+        - { category: "RENT", source: "MOLIT", indicator-code: "JEONSE_DEPOSIT_AVG", display-name: "전세보증금 평균", description: "최근 30일 전세 보증금 평균", unit: "만원", default-visible: true }
+        - { category: "RENT", source: "MOLIT", indicator-code: "MONTHLY_RENT_RATIO", display-name: "월세 거래 비중", description: "임대차 거래 중 월세 비율", unit: "%", default-visible: true }
+        - { category: "RENT", source: "MOLIT", indicator-code: "JEONSE_RATIO_ESTIMATE", display-name: "전세가율 추정", description: "전세보증금 ÷ 매매가격 (추정값)", unit: "%", default-visible: true }
+        - { category: "RENT", source: "REB", indicator-code: "JEONSE_PRICE_INDEX", display-name: "전세가격지수", description: "R-ONE 전세가격지수", unit: "포인트", default-visible: true }
+        - { category: "RENT", source: "REB", indicator-code: "MONTHLY_RENT_PRICE_INDEX", display-name: "월세가격지수", description: "R-ONE 월세가격지수", unit: "포인트", default-visible: true }
+
+        # ===== OFFICIAL_STATS (T4 공식 통계) — REB =====
+        - { category: "OFFICIAL_STATS", source: "REB", indicator-code: "APT_TRANSACTION_COUNT", display-name: "아파트 매매거래호수", description: "한국부동산원 부동산거래현황", unit: "호", default-visible: true }
+        - { category: "OFFICIAL_STATS", source: "REB", indicator-code: "LAND_PRICE_CHANGE_RATE", display-name: "지가변동률", description: "전국지가변동률조사", unit: "%", default-visible: false }
+
+        # ===== SUPPLY (T5 공급) — HUB =====
+        - { category: "SUPPLY", source: "HUB", indicator-code: "PERMIT_HOUSEHOLDS_12M", display-name: "최근 12개월 인허가 세대수", description: "건축HUB 주택건설사업 승인", unit: "세대", default-visible: true }
+        - { category: "SUPPLY", source: "HUB", indicator-code: "STARTED_HOUSEHOLDS_12M", display-name: "최근 12개월 착공 세대수", description: "건축HUB 착공 신고", unit: "세대", default-visible: true }
+        - { category: "SUPPLY", source: "HUB", indicator-code: "APPROVED_HOUSEHOLDS_12M", display-name: "최근 12개월 사용승인 세대수", description: "건축HUB 사용승인", unit: "세대", default-visible: true }
+
+        # ===== UNSOLD (T6 미분양) — KOSIS + MOLIT =====
+        - { category: "UNSOLD", source: "KOSIS", indicator-code: "UNSOLD_HOUSEHOLDS", display-name: "미분양 세대수", description: "KOSIS 시군구별 미분양현황", unit: "세대", default-visible: true }
+        - { category: "UNSOLD", source: "KOSIS", indicator-code: "POST_COMPLETION_UNSOLD", display-name: "준공 후 미분양 세대수", description: "준공 후 남은 미분양", unit: "세대", default-visible: true }
+        - { category: "UNSOLD", source: "MOLIT", indicator-code: "UNSOLD_REPORT", display-name: "미분양주택현황 (보고)", description: "국토교통 통계누리 보고치", unit: "세대", default-visible: false }
+
+        # ===== SUBSCRIPTION (T7 청약) — SUBSCRIPTION_HOME =====
+        - { category: "SUBSCRIPTION", source: "SUBSCRIPTION_HOME", indicator-code: "AVG_FIRST_PRIORITY_RATIO", display-name: "평균 1순위 경쟁률", description: "최근 6개월 단지 평균", unit: ":1", default-visible: true }
+        - { category: "SUBSCRIPTION", source: "SUBSCRIPTION_HOME", indicator-code: "RECENT_SUPPLY_COUNT", display-name: "최근 분양 단지 수", description: "최근 6개월 분양 단지 건수", unit: "단지", default-visible: true }
+        - { category: "SUBSCRIPTION", source: "SUBSCRIPTION_HOME", indicator-code: "FAILED_SUPPLY_COUNT", display-name: "미달 단지 수", description: "1순위 경쟁률 미달 단지", unit: "단지", default-visible: true }
+
+        # ===== GUARANTEE_RISK (T8 분양 리스크) — HUG =====
+        - { category: "GUARANTEE_RISK", source: "HUG", indicator-code: "GUARANTEE_INCIDENT_COUNT", display-name: "분양보증 사고 건수", description: "HUG 분양보증사고현황", unit: "건", default-visible: true }
+        - { category: "GUARANTEE_RISK", source: "HUG", indicator-code: "GUARANTEE_INCIDENT_AMOUNT", display-name: "분양보증 사고금액", description: "HUG 사고금액 누계", unit: "억원", default-visible: true }
+        - { category: "GUARANTEE_RISK", source: "HUG", indicator-code: "GUARANTEE_INCIDENT_HOUSEHOLDS", display-name: "분양보증 사고세대수", description: "HUG 사고세대수 누계", unit: "세대", default-visible: true }
+
+        # ===== SEOUL_LOCAL (T9 서울 지역 특화) — SEOUL_OPEN_DATA =====
+        - { category: "SEOUL_LOCAL", source: "SEOUL_OPEN_DATA", indicator-code: "SEOUL_TRADE_COUNT", display-name: "서울시 실거래 건수", description: "서울시 부동산 실거래가 정보", unit: "건", default-visible: true }
+        - { category: "SEOUL_LOCAL", source: "SEOUL_OPEN_DATA", indicator-code: "REDEVELOPMENT_AREA_COUNT", display-name: "정비사업 구역 수", description: "서울시 재개발/재건축 정비사업 현황", unit: "구역", default-visible: true }
+
+        # ===== GYEONGGI_LOCAL (T9 경기 지역 특화) — GG_DATA_DREAM =====
+        - { category: "GYEONGGI_LOCAL", source: "GG_DATA_DREAM", indicator-code: "GG_TRADE_COUNT", display-name: "경기도 아파트 실거래 건수", description: "경기도 아파트 매매 실거래 자료 현황", unit: "건", default-visible: true }
+        - { category: "GYEONGGI_LOCAL", source: "GG_DATA_DREAM", indicator-code: "GG_TRADE_AVG_PRICE", display-name: "경기도 아파트 평균 거래금액", description: "경기도 시군분석마트 실거래가 기본", unit: "만원", default-visible: true }

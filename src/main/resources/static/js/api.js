@@ -626,6 +626,39 @@ const API = {
         return this.request('GET', '/api/news-journal/categories');
     },
 
+    // ========== Real Estate Market (부동산 시장 데이터) ==========
+    getRealEstateRegions() {
+        return this.request('GET', '/api/realestate/regions');
+    },
+    getRealEstateEmds(regionCode) {
+        return this.request('GET', `/api/realestate/regions/${regionCode}/emds`);
+    },
+    getRealEstateSummary(regionCode) {
+        return this.request('GET', `/api/realestate/market/summary?regionCode=${encodeURIComponent(regionCode)}`);
+    },
+    getRealEstateTab(regionCode, category, period = 'ONE_MONTH') {
+        const q = `regionCode=${encodeURIComponent(regionCode)}&period=${encodeURIComponent(period)}`;
+        return this.request('GET', `/api/realestate/market/tabs/${encodeURIComponent(category)}?${q}`);
+    },
+    getRealEstateComparison(regionCodes, category, period = 'ONE_MONTH') {
+        const list = regionCodes.map(c => `regionCodes=${encodeURIComponent(c)}`).join('&');
+        return this.request('GET', `/api/realestate/market/comparison?${list}&category=${encodeURIComponent(category)}&period=${encodeURIComponent(period)}`);
+    },
+    getRealEstateSources() {
+        return this.request('GET', '/api/realestate/market/sources');
+    },
+    getRealEstateFavoriteRegions() {
+        return this.request('GET', '/api/realestate/favorites/regions');
+    },
+    addRealEstateFavoriteRegion(regionCode, emdCode = null) {
+        return this.request('POST', '/api/realestate/favorites/regions', { regionCode, emdCode });
+    },
+    removeRealEstateFavoriteRegion(regionCode, emdCode = null) {
+        const params = new URLSearchParams({ regionCode });
+        if (emdCode) params.set('emdCode', emdCode);
+        return this.request('DELETE', `/api/realestate/favorites/regions?${params.toString()}`);
+    },
+
     // Glossary (개인 용어 사전)
     getGlossaryCategories() {
         return this.request('GET', '/api/glossary/categories');

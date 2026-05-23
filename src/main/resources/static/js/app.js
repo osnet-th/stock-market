@@ -4,7 +4,7 @@ function dashboard() {
         // ==================== 코어 상태 ====================
         currentPage: (() => {
             const hash = location.hash.replace('#', '');
-            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'salary', 'stocknote', 'news-journal', 'glossary', 'admin-logs'];
+            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'salary', 'stocknote', 'news-journal', 'glossary', 'realestate', 'admin-logs'];
             return validPages.includes(hash) ? hash : 'home';
         })(),
 
@@ -22,6 +22,7 @@ function dashboard() {
             { key: 'stocknote', label: '투자 노트', icon: 'note' },
             { key: 'news-journal', label: '뉴스 기록', icon: 'journal' },
             { key: 'glossary', label: '용어 사전', icon: 'book' },
+            { key: 'realestate', label: '부동산 시장', icon: 'building' },
             { key: 'admin-logs', label: '운영자 로그', icon: 'logs' }
         ],
 
@@ -50,6 +51,7 @@ function dashboard() {
         ...GlossaryComponent,
         ...AdminLogsComponent,
         ...DashboardSummaryComponent,
+        ...RealEstateComponent,
 
         // ==================== 코어 메서드 ====================
         toggleSidebar() {
@@ -77,7 +79,7 @@ function dashboard() {
             // ==================== Partial 부트스트랩 ====================
             // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
             // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
-            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'stocknote', 'portfolio', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial'];
+            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'stocknote', 'portfolio', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate'];
             const cleanupRegistry = {
                 // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
                 // home: dashboardSummary 차트 + favorite 위젯 차트를 정리해 중복 인스턴스 방지.
@@ -89,6 +91,14 @@ function dashboard() {
                 // ecos: _chartInstances Map 안의 차트 destroy. initEcosCharts 가 navigateTo 재 dispatch 시 새로 정의.
                 ecos: (dash) => {
                     const map = dash.ecos && dash.ecos._chartInstances;
+                    if (map && typeof map.forEach === 'function') {
+                        map.forEach(c => { try { c && c.destroy(); } catch (e) { /* ignore */ } });
+                        map.clear();
+                    }
+                },
+                // realestate: _chartInstances Map 안의 차트 destroy.
+                realestate: (dash) => {
+                    const map = dash.realestate && dash.realestate._chartInstances;
                     if (map && typeof map.forEach === 'function') {
                         map.forEach(c => { try { c && c.destroy(); } catch (e) { /* ignore */ } });
                         map.clear();

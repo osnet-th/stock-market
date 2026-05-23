@@ -5,10 +5,39 @@
 
     <!-- 헤더 + 관심지역 칩 -->
     <div class="bg-white border border-gray-200 rounded-lg p-4">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
             <h2 class="text-lg font-semibold text-gray-800">부동산 시장 데이터</h2>
-            <p class="text-xs text-gray-500">데이터 출처/기준일은 각 카드에 표시됩니다. 판단/추천 정보는 제공하지 않습니다.</p>
+            <div class="flex items-center gap-3 ml-auto">
+                <!-- 관리자 전용: 수동 배치 동기화 -->
+                <button x-show="auth.isAdmin"
+                        @click="triggerRealEstateAdminBatch()"
+                        :disabled="realestate.adminBatch.triggering"
+                        class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium border rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        :class="realestate.adminBatch.triggering
+                                ? 'border-gray-300 text-gray-400 bg-gray-50'
+                                : 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100'"
+                        title="관리자 전용: 일배치를 즉시 실행합니다.">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5"
+                         :class="realestate.adminBatch.triggering ? 'animate-spin' : ''"
+                         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span x-text="realestate.adminBatch.triggering ? '동기화 중…' : '지금 동기화'"></span>
+                </button>
+                <p class="text-xs text-gray-500">데이터 출처/기준일은 각 카드에 표시됩니다. 판단/추천 정보는 제공하지 않습니다.</p>
+            </div>
         </div>
+
+        <!-- 관리자 트리거 결과 메시지 -->
+        <div x-show="auth.isAdmin && realestate.adminBatch.message"
+             x-cloak
+             class="mb-3 px-3 py-2 text-xs rounded border"
+             :class="{
+                 'bg-emerald-50 border-emerald-200 text-emerald-700': realestate.adminBatch.messageType === 'success',
+                 'bg-amber-50 border-amber-200 text-amber-700': realestate.adminBatch.messageType === 'warning',
+                 'bg-rose-50 border-rose-200 text-rose-700': realestate.adminBatch.messageType === 'error'
+             }"
+             x-text="realestate.adminBatch.message"></div>
 
         <!-- 관심지역 칩 -->
         <div class="flex flex-wrap gap-2 mb-3" x-show="realestate.favorites.length > 0">

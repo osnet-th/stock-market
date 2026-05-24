@@ -8,6 +8,7 @@ const ChatComponent = {
         expanded: false,
         chatMode: 'PORTFOLIO',
         stockCode: null,
+        portfolioItemId: null,
         stockName: null,
         stockSearchQuery: '',
         stockSearchResults: [],
@@ -42,6 +43,7 @@ const ChatComponent = {
             this.chat.inputText = '';
             this.chat.isLoading = false;
             this.chat.stockCode = null;
+            this.chat.portfolioItemId = null;
             this.chat.stockName = null;
             this.chat.stockSearchQuery = '';
             this.chat.stockSearchResults = [];
@@ -65,6 +67,7 @@ const ChatComponent = {
     setChatMode(mode) {
         this.chat.chatMode = mode;
         this.chat.stockCode = null;
+        this.chat.portfolioItemId = null;
         this.chat.stockName = null;
         this.chat.stockSearchQuery = '';
         this.chat.stockSearchResults = [];
@@ -86,6 +89,7 @@ const ChatComponent = {
 
     selectChatStock(stock) {
         this.chat.stockCode = stock.stockCode;
+        this.chat.portfolioItemId = null;
         this.chat.stockName = stock.stockName;
         this.chat.stockSearchQuery = '';
         this.chat.stockSearchResults = [];
@@ -93,7 +97,29 @@ const ChatComponent = {
 
     clearChatStock() {
         this.chat.stockCode = null;
+        this.chat.portfolioItemId = null;
         this.chat.stockName = null;
+    },
+
+    openChatForPortfolioStockAnalysis(item) {
+        if (!item || !item.stockDetail || item.stockDetail.subType === 'ETF') return;
+        if (item.stockDetail.country !== 'KR' && item.stockDetail.country !== 'US') return;
+
+        if (this.chat._abortController) {
+            this.chat._abortController.abort();
+        }
+        this.chat.isOpen = true;
+        this.chat.chatMode = 'FINANCIAL';
+        this.chat.stockCode = item.stockDetail.stockCode;
+        this.chat.portfolioItemId = item.id;
+        this.chat.stockName = item.itemName;
+        this.chat.stockSearchQuery = '';
+        this.chat.stockSearchResults = [];
+        this.chat.indicatorCategory = null;
+        this.chat.inputText = '';
+        this.chat.messages = [];
+        this.chat.isLoading = false;
+        this.chat.dragPos = { x: null, y: null };
     },
 
     canRequestAnalysis() {
@@ -162,6 +188,7 @@ const ChatComponent = {
             rawText,
             this.chat.chatMode,
             this.chat.stockCode,
+            this.chat.portfolioItemId,
             this.chat.indicatorCategory,
             analysisTask,
             history,

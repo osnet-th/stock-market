@@ -49,8 +49,10 @@ public class PortfolioController {
      */
     @PostMapping("/items/stock")
     public ResponseEntity<PortfolioItemResponse> addStockItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @RequestBody StockItemAddRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addStockItem(
                 userId, request.getItemName(),
                 request.getRegion(), request.getMemo(),
@@ -67,8 +69,10 @@ public class PortfolioController {
      */
     @PostMapping("/items/bond")
     public ResponseEntity<PortfolioItemResponse> addBondItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @RequestBody BondItemAddRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addBondItem(
                 userId, request.getItemName(), request.getInvestedAmount(),
                 request.getRegion(), request.getMemo(),
@@ -82,8 +86,10 @@ public class PortfolioController {
      */
     @PostMapping("/items/real-estate")
     public ResponseEntity<PortfolioItemResponse> addRealEstateItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @RequestBody RealEstateItemAddRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addRealEstateItem(
                 userId, request.getItemName(), request.getInvestedAmount(),
                 request.getRegion(), request.getMemo(),
@@ -96,8 +102,10 @@ public class PortfolioController {
      */
     @PostMapping("/items/fund")
     public ResponseEntity<PortfolioItemResponse> addFundItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @RequestBody FundItemAddRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addFundItem(
                 userId, request.getItemName(), request.getInvestedAmount(),
                 request.getRegion(), request.getMemo(),
@@ -111,8 +119,10 @@ public class PortfolioController {
      */
     @PostMapping("/items/cash")
     public ResponseEntity<PortfolioItemResponse> addCashItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @RequestBody CashItemAddRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addCashItem(
                 userId, request.getItemName(), request.getInvestedAmount(),
                 request.getRegion(), request.getMemo(),
@@ -128,8 +138,10 @@ public class PortfolioController {
      */
     @PostMapping("/items/general")
     public ResponseEntity<PortfolioItemResponse> addGeneralItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @RequestBody GeneralItemAddRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addGeneralItem(
                 userId, request.getAssetType(), request.getItemName(),
                 request.getInvestedAmount(), request.getRegion(), request.getMemo());
@@ -140,7 +152,10 @@ public class PortfolioController {
      * 포트폴리오 항목 목록 조회
      */
     @GetMapping("/items")
-    public ResponseEntity<List<PortfolioItemResponse>> getItems(@RequestParam Long userId) {
+    public ResponseEntity<List<PortfolioItemResponse>> getItems(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId) {
+        assertUserMatches(jwtUserId, userId);
         List<PortfolioItemResponse> responses = portfolioService.getItems(userId);
         return ResponseEntity.ok(responses);
     }
@@ -150,9 +165,11 @@ public class PortfolioController {
      */
     @PutMapping("/items/stock/{itemId}")
     public ResponseEntity<PortfolioItemResponse> updateStockItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @RequestBody StockItemUpdateRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateStockItem(
                 userId, itemId,
                 request.getItemName(), request.getMemo(),
@@ -169,9 +186,11 @@ public class PortfolioController {
      */
     @PutMapping("/items/bond/{itemId}")
     public ResponseEntity<PortfolioItemResponse> updateBondItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @RequestBody BondItemUpdateRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateBondItem(
                 userId, itemId,
                 request.getItemName(), request.getInvestedAmount(), request.getMemo(),
@@ -185,9 +204,11 @@ public class PortfolioController {
      */
     @PutMapping("/items/real-estate/{itemId}")
     public ResponseEntity<PortfolioItemResponse> updateRealEstateItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @RequestBody RealEstateItemUpdateRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateRealEstateItem(
                 userId, itemId,
                 request.getItemName(), request.getInvestedAmount(), request.getMemo(),
@@ -200,9 +221,11 @@ public class PortfolioController {
      */
     @PutMapping("/items/fund/{itemId}")
     public ResponseEntity<PortfolioItemResponse> updateFundItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @RequestBody FundItemUpdateRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateFundItem(
                 userId, itemId,
                 request.getItemName(), request.getInvestedAmount(), request.getMemo(),
@@ -216,9 +239,11 @@ public class PortfolioController {
      */
     @PutMapping("/items/cash/{itemId}")
     public ResponseEntity<PortfolioItemResponse> updateCashItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @RequestBody CashItemUpdateRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateCashItem(
                 userId, itemId,
                 request.getItemName(), request.getInvestedAmount(), request.getMemo(),
@@ -233,9 +258,11 @@ public class PortfolioController {
      */
     @PutMapping("/items/general/{itemId}")
     public ResponseEntity<PortfolioItemResponse> updateGeneralItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @RequestBody GeneralItemUpdateRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateGeneralItem(
                 userId, itemId,
                 request.getItemName(), request.getInvestedAmount(), request.getMemo());
@@ -247,9 +274,11 @@ public class PortfolioController {
      */
     @PostMapping("/items/stock/{itemId}/purchase")
     public ResponseEntity<PortfolioItemResponse> addStockPurchase(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @RequestBody StockPurchaseRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addStockPurchase(
                 userId, itemId, request.getQuantity(), request.getPurchasePrice(),
                 request.getInvestedAmountKrw());
@@ -261,8 +290,10 @@ public class PortfolioController {
      */
     @GetMapping("/items/stock/{itemId}/purchases")
     public ResponseEntity<List<StockPurchaseHistoryResponse>> getPurchaseHistories(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId) {
+        assertUserMatches(jwtUserId, userId);
         List<StockPurchaseHistoryResponse> responses = portfolioService.getPurchaseHistories(userId, itemId);
         return ResponseEntity.ok(responses);
     }
@@ -272,10 +303,12 @@ public class PortfolioController {
      */
     @PutMapping("/items/stock/{itemId}/purchases/{historyId}")
     public ResponseEntity<PortfolioItemResponse> updatePurchaseHistory(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @PathVariable Long historyId,
             @RequestBody StockPurchaseHistoryUpdateRequest request) {
+        assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updatePurchaseHistory(
                 userId, itemId, historyId,
                 request.getQuantity(), request.getPurchasePrice(),
@@ -288,9 +321,11 @@ public class PortfolioController {
      */
     @DeleteMapping("/items/stock/{itemId}/purchases/{historyId}")
     public ResponseEntity<Void> deletePurchaseHistory(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @PathVariable Long historyId) {
+        assertUserMatches(jwtUserId, userId);
         portfolioService.deletePurchaseHistory(userId, itemId, historyId);
         return ResponseEntity.noContent().build();
     }
@@ -410,9 +445,11 @@ public class PortfolioController {
      */
     @PostMapping("/items/{itemId}/deposits")
     public ResponseEntity<DepositHistoryResponse> addDeposit(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @Valid @RequestBody DepositRequest request) {
+        assertUserMatches(jwtUserId, userId);
         DepositHistoryResponse response = portfolioService.addDeposit(
                 userId, itemId, request.getDepositDate(), request.getAmount(),
                 request.getUnits(), request.getMemo());
@@ -424,8 +461,10 @@ public class PortfolioController {
      */
     @GetMapping("/items/{itemId}/deposits")
     public ResponseEntity<List<DepositHistoryResponse>> getDepositHistories(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId) {
+        assertUserMatches(jwtUserId, userId);
         List<DepositHistoryResponse> responses = portfolioService.getDepositHistories(userId, itemId);
         return ResponseEntity.ok(responses);
     }
@@ -435,10 +474,12 @@ public class PortfolioController {
      */
     @PutMapping("/items/{itemId}/deposits/{historyId}")
     public ResponseEntity<DepositHistoryResponse> updateDeposit(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @PathVariable Long historyId,
             @Valid @RequestBody DepositRequest request) {
+        assertUserMatches(jwtUserId, userId);
         DepositHistoryResponse response = portfolioService.updateDeposit(
                 userId, itemId, historyId,
                 request.getDepositDate(), request.getAmount(),
@@ -451,9 +492,11 @@ public class PortfolioController {
      */
     @DeleteMapping("/items/{itemId}/deposits/{historyId}")
     public ResponseEntity<Void> deleteDeposit(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @PathVariable Long historyId) {
+        assertUserMatches(jwtUserId, userId);
         portfolioService.deleteDeposit(userId, itemId, historyId);
         return ResponseEntity.noContent().build();
     }
@@ -463,8 +506,10 @@ public class PortfolioController {
      */
     @GetMapping("/items/{itemId}/expected-maturity")
     public ResponseEntity<BigDecimal> getExpectedMaturityAmount(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId) {
+        assertUserMatches(jwtUserId, userId);
         BigDecimal amount = portfolioService.calculateExpectedMaturityAmount(userId, itemId);
         return ResponseEntity.ok(amount);
     }
@@ -474,9 +519,11 @@ public class PortfolioController {
      */
     @PatchMapping("/items/{itemId}/news")
     public ResponseEntity<Void> toggleNews(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @RequestBody PortfolioNewsToggleRequest request) {
+        assertUserMatches(jwtUserId, userId);
         portfolioService.toggleNews(userId, itemId, request.isEnabled());
         return ResponseEntity.noContent().build();
     }
@@ -486,10 +533,12 @@ public class PortfolioController {
      */
     @DeleteMapping("/items/{itemId}")
     public ResponseEntity<Void> deleteItem(
+            @AuthenticationPrincipal Long jwtUserId,
             @RequestParam Long userId,
             @PathVariable Long itemId,
             @RequestParam(required = false, defaultValue = "false") boolean restoreCash,
             @RequestParam(required = false) BigDecimal restoreAmount) {
+        assertUserMatches(jwtUserId, userId);
         portfolioService.deleteItem(userId, itemId, restoreCash, restoreAmount);
         return ResponseEntity.noContent().build();
     }
@@ -498,7 +547,10 @@ public class PortfolioController {
      * 자산 비중 조회
      */
     @GetMapping("/allocation")
-    public ResponseEntity<List<AllocationResponse>> getAllocation(@RequestParam Long userId) {
+    public ResponseEntity<List<AllocationResponse>> getAllocation(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId) {
+        assertUserMatches(jwtUserId, userId);
         List<AllocationResponse> responses = portfolioAllocationService.getAllocation(userId);
         return ResponseEntity.ok(responses);
     }

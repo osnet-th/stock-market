@@ -75,9 +75,11 @@ const PartialLoader = {
             host.setAttribute('aria-busy', 'false');
             this._retryCount.delete(name);
 
+            // skipDispatch: ensureMounted 경로처럼 호출자가 직접 후속 로직을 이어가는 경우 navigateTo 재dispatch 를 막아 중복 진입 방지.
             const isActive = this._dashboard
                 && this._dashboard.currentPage === name
-                && this._dashboard.bootReady === true;
+                && this._dashboard.bootReady === true
+                && !opts.skipDispatch;
             if (isActive && typeof this._dashboard.navigateTo === 'function') {
                 try { await this._dashboard.navigateTo(name); } catch (e) {
                     console.warn('[partial-loader] navigateTo dispatch after remount failed for ' + name, e);
@@ -119,6 +121,22 @@ const PartialLoader = {
         host.setAttribute('aria-busy', 'true');
         const secured = host.getAttribute('data-secured') === 'true';
         await this.mountPartial(name, host, { secured });
+    },
+
+    /**
+     * navigateTo 진입 시점에 secured partial 이 부트 시 401/403 으로 비어 있을 경우 lazy mount.
+     * - host 가 비어 있으면(data-secured 여부 무관) mountPartial 재호출
+     * - 이미 마운트되어 있으면 no-op
+     * - skipDispatch: true 로 호출해 mountPartial 내부의 navigateTo 재dispatch 를 막음
+     *   (호출자가 후속 데이터 로드를 직접 이어서 실행하므로 중복 진입 방지)
+     */
+    async ensureMounted(name) {
+        const host = document.querySelector('[data-partial="' + name + '"]');
+        if (!host) return;
+        if (host.children.length > 0) return;
+        const secured = host.getAttribute('data-secured') === 'true';
+        host.setAttribute('aria-busy', 'true');
+        await this.mountPartial(name, host, { secured, skipDispatch: true });
     },
 
     _renderErrorCard(host, name, attempt) {

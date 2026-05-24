@@ -175,7 +175,7 @@
                  class="text-center text-sm text-gray-500 py-8">
                 <p>데이터가 없습니다.</p>
                 <p class="text-xs text-gray-400 mt-2" x-show="realestate.tab && realestate.tab.nextScheduledAt">
-                    다음 갱신 예정: <span x-text="realestate.tab.nextScheduledAt"></span>
+                    다음 갱신 예정: <span x-text="realestate.tab?.nextScheduledAt"></span>
                 </p>
             </div>
         </div>

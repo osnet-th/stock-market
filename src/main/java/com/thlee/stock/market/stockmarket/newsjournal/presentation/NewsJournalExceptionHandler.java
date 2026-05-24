@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 /**
  * newsjournal 컨트롤러 전용 예외 매핑.
  *
- * <p>응답 shape 는 stocknote / GlobalExceptionHandler 와 동일 — {@code {error, message, timestamp}}.
+ * <p>응답 shape 는 GlobalExceptionHandler 와 동일 — {@code {error, message, timestamp}}.
  * {@code @Valid} 검증 실패는 추가로 {@code fieldErrors} 를 포함한다.
  */
 @Slf4j

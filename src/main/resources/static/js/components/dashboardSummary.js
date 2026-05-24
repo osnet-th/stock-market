@@ -7,25 +7,22 @@
  * - mixin 객체 패턴(nested x-data 사용 안 함). app.js 의 dashboard() 에 spread.
  * - top-level 키는 dashboardSummary 객체 + loadDashboardSummary/destroyDashboardSummaryChart
  *   메서드만 노출 — HomeComponent 와의 키 충돌 회피.
- * - 4개 fetch 를 Promise.allSettled 로 병렬. admin 이 아닌 경우 incident 호출은 발사 안 함.
+ * - 3개 fetch 를 Promise.allSettled 로 병렬. admin 이 아닌 경우 incident 호출은 발사 안 함.
  * - 차트는 매 loadDashboardSummary 마다 destroy + recreate. canvas id: dashboardSalaryDonut.
  */
 const DashboardSummaryComponent = {
     dashboardSummary: {
         news: null,        // { recentEvents: [...], categoryCounts: [...] }
-        note: null,        // StockNoteListResponse — items[]
         salary: null,      // MonthlySalaryResponse
         incident: null,    // { count, asOf, available }
 
         loading: {
             news: false,
-            note: false,
             salary: false,
             incident: false
         },
         error: {
             news: null,
-            note: null,
             salary: null,
             incident: null
         },
@@ -42,10 +39,8 @@ const DashboardSummaryComponent = {
         const ds = this.dashboardSummary;
         // 진입 시 상태 초기화 (재진입 시 이전 에러/로딩 잔재 제거)
         ds.loading.news = true;
-        ds.loading.note = true;
         ds.loading.salary = true;
         ds.error.news = null;
-        ds.error.note = null;
         ds.error.salary = null;
 
         const tasks = [
@@ -56,14 +51,6 @@ const DashboardSummaryComponent = {
                     ds.error.news = '데이터를 불러올 수 없습니다';
                 })
                 .finally(() => { ds.loading.news = false; }),
-
-            API.getStockNoteList({ size: 3 })
-                .then(r => { ds.note = r; })
-                .catch(e => {
-                    console.error('dashboardSummary:note:fetch-failed');
-                    ds.error.note = '데이터를 불러올 수 없습니다';
-                })
-                .finally(() => { ds.loading.note = false; }),
 
             (async () => {
                 try {

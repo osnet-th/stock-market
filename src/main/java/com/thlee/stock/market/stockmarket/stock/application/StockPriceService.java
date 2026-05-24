@@ -84,8 +84,8 @@ public class StockPriceService {
     }
 
     /**
-     * 일봉 히스토리. stocknote 종목 차트(line + scatter overlay) 에서 사용.
-     * 현재 포트 기본 구현은 빈 리스트 반환 — 실제 KIS inquire-daily-itemchartprice 연동은 후속.
+     * 일봉 히스토리 조회. 현재 포트 기본 구현은 빈 리스트 반환 — 실제 KIS
+     * inquire-daily-itemchartprice 연동은 후속.
      */
     public List<DailyPrice> getDailyHistory(String stockCode, MarketType marketType, ExchangeCode exchangeCode,
                                             LocalDate from, LocalDate to) {

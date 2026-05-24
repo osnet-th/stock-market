@@ -122,6 +122,12 @@ function dashboard() {
                 // news-search / admin-logs / keywords / news-journal / global: 차트 없음, cleanup 불필요
             };
             const securedNames = ['admin-logs'];      // /secured-partials/admin-logs.html (hasRole ADMIN)
+
+            // OAuth 콜백 토큰을 partial mount 이전에 저장.
+            // x-init(예: realestate initRealEstate)이 mount 시점에 인증 API를 호출하므로,
+            // 토큰 저장이 늦으면 Authorization 헤더 누락 → 401 → 재로그인 리다이렉트.
+            this.handleOAuthCallback();
+
             await PartialLoader.mountAllPartials(this, partialNames, cleanupRegistry, securedNames);
             this.bootReady = true;
 
@@ -147,8 +153,6 @@ function dashboard() {
                     this.navigateTo(page);
                 }
             });
-
-            this.handleOAuthCallback();
 
             if (!this.checkLoggedIn()) {
                 window.location.href = '/login.html';
@@ -251,6 +255,8 @@ function dashboard() {
                     await this.loadSalaryInitial();
                     break;
                 case 'admin-logs':
+                    // 부트 시 401/403 으로 partial 이 비어 있을 수 있어 진입 시점에 lazy mount 보장
+                    await PartialLoader.ensureMounted('admin-logs');
                     await this.loadAdminLogs();
                     break;
                 case 'glossary':

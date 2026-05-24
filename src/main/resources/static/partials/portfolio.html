@@ -166,6 +166,9 @@
                                                                 <button x-show="item.assetType === 'STOCK' && (item.stockDetail?.country === 'KR' || item.stockDetail?.country === 'US') && item.stockDetail?.subType !== 'ETF'"
                                                                     @click.stop="openStockDetail(item)"
                                                                     class="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition">재무상세 ▸</button>
+                                                                <button x-show="item.assetType === 'STOCK' && (item.stockDetail?.country === 'KR' || item.stockDetail?.country === 'US') && item.stockDetail?.subType !== 'ETF'"
+                                                                    @click.stop="openChatForPortfolioStockAnalysis(item)"
+                                                                    class="text-xs text-violet-600 hover:text-violet-800 font-medium transition">AI분석</button>
                                                                 <!-- 추가 매수 (주식만) -->
                                                                 <button x-show="item.assetType === 'STOCK' && item.stockDetail"
                                                                     @click.stop="openPurchaseModal(item)"
@@ -273,6 +276,9 @@
                                                                 <button x-show="item.assetType === 'STOCK' && item.stockDetail?.country === 'US' && item.stockDetail?.subType !== 'ETF'"
                                                                     @click.stop="openStockDetail(item)"
                                                                     class="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition">재무상세 ▸</button>
+                                                                <button x-show="item.assetType === 'STOCK' && item.stockDetail?.country === 'US' && item.stockDetail?.subType !== 'ETF'"
+                                                                    @click.stop="openChatForPortfolioStockAnalysis(item)"
+                                                                    class="text-xs text-violet-600 hover:text-violet-800 font-medium transition">AI분석</button>
                                                                 <button x-show="item.assetType === 'STOCK' && item.stockDetail"
                                                                     @click.stop="openPurchaseModal(item)"
                                                                     class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">추가 매수</button>
@@ -478,4 +484,3 @@
                     </div>
                 </template>
             </div>
-

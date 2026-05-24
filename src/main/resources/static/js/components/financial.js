@@ -286,7 +286,7 @@ const FinancialComponent = {
     },
 
     getDefaultYear() {
-        return String(new Date().getFullYear());
+        return String(new Date().getFullYear() - 1);
     },
 
     async loadFinancialOptions() {
@@ -485,32 +485,11 @@ const FinancialComponent = {
         const thisGeneration = ++this.portfolio._financialRequestGeneration;
         this.portfolio.financialLoading = true;
         try {
-            let result;
-            switch (menu) {
-                case 'accounts':
-                    result = await API.getFinancialAccounts(stockCode, year, reportCode);
-                    break;
-                case 'indices':
-                    result = await API.getFinancialIndices(stockCode, year, reportCode, this.portfolio.financialIndexClass);
-                    break;
-                case 'full-statements':
-                    result = await API.getFullFinancialStatements(stockCode, year, reportCode, this.portfolio.financialFsDiv);
-                    break;
-                case 'stock-quantities':
-                    result = await API.getFinancialStockQuantities(stockCode, year, reportCode);
-                    break;
-                case 'dividends':
-                    result = await API.getFinancialDividends(stockCode, year, reportCode);
-                    break;
-                case 'lawsuits':
-                    result = await API.getLawsuits(stockCode, year + '0101', year + '1231');
-                    break;
-                case 'private-fund':
-                    result = await API.getPrivateFundUsages(stockCode, year, reportCode);
-                    break;
-                case 'public-fund':
-                    result = await API.getPublicFundUsages(stockCode, year, reportCode);
-                    break;
+            let result = await this.fetchSelectedFinancial(menu, stockCode, year, reportCode);
+            if (this.shouldFallbackFinancialYear(result, year)) {
+                const fallbackYear = String(Number(year) - 1);
+                result = await this.fetchSelectedFinancial(menu, stockCode, fallbackYear, reportCode);
+                this.portfolio.financialYear = fallbackYear;
             }
             if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
             this.portfolio.financialResult = result || [];
@@ -528,6 +507,34 @@ const FinancialComponent = {
                 }
             }
         }
+    },
+
+    async fetchSelectedFinancial(menu, stockCode, year, reportCode) {
+        switch (menu) {
+            case 'accounts':
+                return API.getFinancialAccounts(stockCode, year, reportCode);
+            case 'indices':
+                return API.getFinancialIndices(stockCode, year, reportCode, this.portfolio.financialIndexClass);
+            case 'full-statements':
+                return API.getFullFinancialStatements(stockCode, year, reportCode, this.portfolio.financialFsDiv);
+            case 'stock-quantities':
+                return API.getFinancialStockQuantities(stockCode, year, reportCode);
+            case 'dividends':
+                return API.getFinancialDividends(stockCode, year, reportCode);
+            case 'lawsuits':
+                return API.getLawsuits(stockCode, year + '0101', year + '1231');
+            case 'private-fund':
+                return API.getPrivateFundUsages(stockCode, year, reportCode);
+            case 'public-fund':
+                return API.getPublicFundUsages(stockCode, year, reportCode);
+            default:
+                return [];
+        }
+    },
+
+    shouldFallbackFinancialYear(result, year) {
+        const defaultYear = this.getDefaultYear();
+        return year === defaultYear && Array.isArray(result) && result.length === 0;
     },
 
     // === SEC (해외주식) 재무제표 ===

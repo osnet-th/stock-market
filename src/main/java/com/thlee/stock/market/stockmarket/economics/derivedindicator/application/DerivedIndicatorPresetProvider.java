@@ -44,6 +44,12 @@ public class DerivedIndicatorPresetProvider {
                 preset("interest-credit-spread", "신용 스프레드", "%p",
                         "기업 채권과 국채의 금리 차이. 벌어지면 시장이 기업 부도 위험을 높게 보는 것, 좁으면 안정적",
                         ind("시장금리", "회사채수익률(3년,AA-)"), FormulaOperator.SUB, ind("시장금리", "국고채수익률(3년)")),
+                preset("interest-call-vs-base", "단기 vs 기준금리", "%p",
+                        "콜금리가 기준금리보다 높으면 시중 자금이 부족한 상태, 낮으면 유동성이 풍부한 상태",
+                        ind("시장금리", "콜금리(익일물)"), FormulaOperator.SUB, ind("시장금리", "한국은행 기준금리")),
+                preset("interest-mid-short", "중기-단기 금리차", "%p",
+                        "양수(+)가 클수록 시장이 향후 금리 인상을 예상. 줄어들면 금리 인하 기대가 반영된 것",
+                        ind("시장금리", "국고채수익률(3년)"), FormulaOperator.SUB, ind("시장금리", "CD수익률(91일)")),
                 // ── 통화/금융(MONEY_FINANCE) ──
                 preset("money-m2-m1-ratio", "M2/M1 비율", "배",
                         "1에 가까우면 바로 쓸 수 있는 돈이 많다는 뜻. 높을수록 정기예금 등 묶인 돈이 많아 소비·투자로 바로 이어지기 어려움",

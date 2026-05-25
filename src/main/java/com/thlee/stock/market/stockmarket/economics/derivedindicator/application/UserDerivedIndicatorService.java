@@ -85,9 +85,17 @@ public class UserDerivedIndicatorService {
                 UserDerivedIndicator.create(userId, name, preset.unit(), preset.description(), preset.formula(), category));
     }
 
+    /**
+     * 현재 메타데이터로 검증 통과하는 프리셋만 노출.
+     * 메타데이터 지표명이 환경마다 다를 수 있으므로(시드 시점/출처 차이), 복제 불가한 프리셋은 숨겨
+     * 빈화면/오류를 방지한다(graceful).
+     */
     @Transactional(readOnly = true)
     public List<DerivedIndicatorPreset> presets() {
-        return presetProvider.all();
+        Map<String, EcosIndicatorCategory> meta = buildAvailableMeta();
+        return presetProvider.all().stream()
+                .filter(p -> validator.validate(p.formula(), meta, true).valid())
+                .toList();
     }
 
     @Transactional(readOnly = true)

@@ -46,86 +46,189 @@
                     </div>
                 </template>
 
-                <!-- ===== 스프레드 분석 (통합 렌더링) ===== -->
-                <template x-if="getCurrentSpreads().length > 0">
-                    <div>
-                        <!-- 섹션 타이틀 -->
-                        <div class="ecos-section-title" x-text="getSpreadSectionTitle()"></div>
+                <!-- ===== 사용자 커스텀 파생지표 (이슈 #36) ===== -->
+                <div x-effect="currentPage === 'ecos' && ensureDerivedLoaded()">
+                    <div class="flex items-center justify-between ecos-section-title">
+                        <span>파생지표</span>
+                        <button type="button" @click="openDerivedCreate()"
+                                class="text-xs font-medium px-3 py-1.5 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition">
+                            + 새 파생지표
+                        </button>
+                    </div>
 
-                        <!-- 스프레드 카드 그리드 -->
+                    <!-- 에러 -->
+                    <template x-if="derived.error">
+                        <div class="mb-3 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-xs text-red-600"
+                             x-text="derived.error"></div>
+                    </template>
+
+                    <!-- 빈 상태: 프리셋 추천 -->
+                    <template x-if="!derived.loading && derived.list.length === 0">
+                        <div class="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+                            <p class="text-sm text-gray-600 mb-1">아직 만든 파생지표가 없어요.</p>
+                            <p class="text-xs text-gray-400 mb-4">아래 추천 프리셋을 추가하거나, 직접 새 파생지표를 만들어보세요.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                <template x-for="ps in derived.presets" :key="'ps-'+ps.key">
+                                    <div class="border border-gray-200 rounded-lg p-3 flex flex-col gap-1">
+                                        <span class="text-sm font-semibold text-gray-700" x-text="ps.name"></span>
+                                        <span class="text-[11px] text-gray-400" x-text="derivedFormulaText(ps.formula)"></span>
+                                        <p class="text-xs text-gray-400 flex-1" x-text="ps.description"></p>
+                                        <button type="button" @click="copyDerivedPreset(ps.key)"
+                                                class="self-start text-xs px-2 py-1 mt-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700">
+                                            추가
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- 파생지표 목록 -->
+                    <template x-if="derived.list.length > 0">
                         <ul class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-                            <template x-for="sp in getCurrentSpreads()" :key="'sp-'+sp.name">
+                            <template x-for="item in derived.list" :key="'di-'+item.id">
                                 <li>
-                                    <div class="spread-card rounded-xl p-5 shadow-sm"
-                                         :class="'status-' + getSpreadStatus(sp)">
-                                        <!-- 헤더: 지표명 + 산식 + 툴팁 -->
-                                        <div class="mb-2">
-                                            <div class="flex items-center gap-1.5">
-                                                <span class="text-sm font-semibold text-gray-700" x-text="sp.name"></span>
-                                                <button type="button"
-                                                        @click="ecos._tooltipText = sp.description"
-                                                        class="text-gray-300 hover:text-gray-500 cursor-pointer text-xs">&#9432;</button>
+                                    <div class="spread-card rounded-xl p-5 shadow-sm">
+                                        <div class="flex items-start justify-between mb-2">
+                                            <div>
+                                                <span class="text-sm font-semibold text-gray-700" x-text="item.name"></span>
+                                                <p class="text-[11px] text-gray-400 mt-0.5" x-text="derivedFormulaText(item.formula)"></p>
                                             </div>
-                                            <p class="text-[11px] text-gray-400 mt-0.5" x-text="sp.sub"></p>
+                                            <div class="flex gap-1 shrink-0">
+                                                <button type="button" @click="openDerivedEdit(item)"
+                                                        class="text-gray-300 hover:text-blue-500 text-xs">수정</button>
+                                                <button type="button" @click="removeDerived(item.id)"
+                                                        class="text-gray-300 hover:text-red-500 text-xs">삭제</button>
+                                            </div>
                                         </div>
-
-                                        <!-- 값 + 상태 뱃지 -->
-                                        <div class="flex items-end justify-between mb-3">
-                                            <p class="text-2xl font-bold font-mono-num leading-none"
-                                               :class="getValueColorClass(sp)">
-                                                <template x-if="sp.value !== null">
-                                                    <span>
-                                                        <span x-text="sp.value > 0 && !sp.unit ? '+' : ''"></span><span x-text="sp.value"></span><span class="text-sm font-normal text-gray-400 ml-0.5" x-text="sp.unit || '%p'"></span>
-                                                    </span>
-                                                </template>
-                                                <template x-if="sp.value === null">
-                                                    <span class="text-gray-300">--</span>
-                                                </template>
-                                            </p>
-                                            <template x-if="sp.ref && sp.ref.label">
-                                                <span class="status-badge"
-                                                      :class="'badge-' + getSpreadStatus(sp)"
-                                                      x-text="sp.ref.label"></span>
+                                        <div class="mb-2">
+                                            <template x-if="item.computable">
+                                                <p class="text-2xl font-bold font-mono-num leading-none text-gray-800"
+                                                   x-text="derivedDisplayValue(item)"></p>
+                                            </template>
+                                            <template x-if="!item.computable">
+                                                <p class="text-sm text-gray-400" x-text="derivedDisplayValue(item)"></p>
                                             </template>
                                         </div>
-
-                                        <!-- 게이지 바 (ref.levels가 있는 경우) -->
-                                        <template x-if="sp.ref && sp.ref.levels && sp.value !== null">
-                                            <div class="mb-3">
-                                                <div class="gauge-bar">
-                                                    <template x-for="(seg, si) in getGaugeSegments(sp)" :key="'seg-'+si">
-                                                        <div class="gauge-bar-segment"
-                                                             :style="'left:'+seg.left+';width:'+seg.width+';background:'+seg.color"></div>
-                                                    </template>
-                                                    <div class="gauge-bar-marker"
-                                                         :style="'left:'+getGaugePosition(sp)+'%'"></div>
-                                                </div>
-                                                <!-- 레벨 범례 -->
-                                                <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                                                    <template x-for="lv in sp.ref.levels" :key="lv.label">
-                                                        <span class="inline-flex items-center gap-1 text-[11px]">
-                                                            <span class="w-2 h-2 rounded-full inline-block"
-                                                                  :class="lv.color.replace('text-', 'bg-')"></span>
-                                                            <span class="text-gray-500" x-text="lv.label"></span>
-                                                            <span class="text-gray-400"
-                                                                  x-text="lv.max === Infinity ? lv.min + '+' : (lv.min !== undefined ? lv.min + '~' + lv.max : '~' + lv.max)"></span>
-                                                        </span>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                        </template>
-
-                                        <!-- 설명 + 참고 -->
-                                        <p class="text-xs text-gray-400" x-text="sp.desc"></p>
-                                        <template x-if="sp.refNote">
-                                            <p class="mt-1 text-[10px] text-gray-400" x-text="'* ' + sp.refNote"></p>
+                                        <template x-if="item.description">
+                                            <p class="text-xs text-gray-400" x-text="item.description"></p>
                                         </template>
                                     </div>
                                 </li>
                             </template>
                         </ul>
-                    </div>
-                </template>
+                    </template>
+
+                    <!-- 생성/수정 폼 -->
+                    <template x-if="derived.showForm">
+                        <div class="bg-white rounded-xl border border-gray-200 p-5 mb-8">
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="text-sm font-semibold text-gray-700"
+                                      x-text="derived.editingId ? '파생지표 수정' : '새 파생지표'"></span>
+                                <button type="button" @click="closeDerivedForm()"
+                                        class="text-gray-400 hover:text-gray-600 text-sm">&times;</button>
+                            </div>
+
+                            <!-- 이름 / 단위 -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">이름</label>
+                                    <input type="text" x-model="derived.form.name" maxlength="100"
+                                           class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
+                                           placeholder="예: 장단기 금리차">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">단위</label>
+                                    <input type="text" x-model="derived.form.unit" maxlength="30"
+                                           class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
+                                           placeholder="예: %p, 배">
+                                </div>
+                            </div>
+
+                            <!-- 설명 -->
+                            <div class="mb-3">
+                                <label class="block text-xs text-gray-500 mb-1">설명 (선택)</label>
+                                <input type="text" x-model="derived.form.description" maxlength="500"
+                                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
+                                       placeholder="이 지표가 무엇을 의미하는지">
+                            </div>
+
+                            <!-- 카테고리 -->
+                            <div class="mb-3">
+                                <label class="block text-xs text-gray-500 mb-1">카테고리 (같은 카테고리 지표만 조합)</label>
+                                <select x-model="derived.form.category" @change="onDerivedCategoryChange()"
+                                        class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                                    <option value="">선택</option>
+                                    <template x-for="c in derivedCategories()" :key="'dc-'+c.name">
+                                        <option :value="c.name" x-text="c.label"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <!-- 항 개수 -->
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-xs text-gray-500">항 개수</span>
+                                <button type="button" @click="setDerivedTermCount(2)"
+                                        :class="derived.form.termCount === 2 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'"
+                                        class="text-xs px-2 py-1 rounded">2항</button>
+                                <button type="button" @click="setDerivedTermCount(3)"
+                                        :class="derived.form.termCount === 3 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'"
+                                        class="text-xs px-2 py-1 rounded">3항</button>
+                                <span class="text-[11px] text-gray-400">×÷가 +−보다 먼저 계산됩니다</span>
+                            </div>
+
+                            <!-- 수식 빌더 -->
+                            <div class="space-y-2 mb-4">
+                                <template x-for="i in derived.form.termCount" :key="'term-'+i">
+                                    <div>
+                                        <!-- 연산자 (2번째 항부터) -->
+                                        <template x-if="i > 1">
+                                            <div class="flex gap-1 mb-1">
+                                                <template x-for="op in DERIVED_OPERATORS" :key="'op-'+i+'-'+op.value">
+                                                    <button type="button" @click="derived.form.operators[i-2] = op.value"
+                                                            :class="derived.form.operators[i-2] === op.value ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'"
+                                                            class="text-xs w-8 py-1 rounded" x-text="op.symbol"></button>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <!-- 피연산자 -->
+                                        <div class="flex gap-2 items-center">
+                                            <select x-model="derived.form.operands[i-1].type"
+                                                    class="border border-gray-200 rounded-md px-2 py-2 text-sm shrink-0">
+                                                <option value="INDICATOR">지표</option>
+                                                <option value="CONSTANT">상수</option>
+                                            </select>
+                                            <template x-if="derived.form.operands[i-1].type === 'INDICATOR'">
+                                                <select :value="derivedOperandEncoded(derived.form.operands[i-1])"
+                                                        @change="onDerivedOperandSelect(derived.form.operands[i-1], $event.target.value)"
+                                                        class="flex-1 border border-gray-200 rounded-md px-2 py-2 text-sm">
+                                                    <option value="">지표 선택</option>
+                                                    <template x-for="ind in derivedAvailableForCategory()" :key="'ai-'+i+'-'+ind.className+'-'+ind.keystatName">
+                                                        <option :value="ind.className + '::' + ind.keystatName" x-text="ind.keystatName"></option>
+                                                    </template>
+                                                </select>
+                                            </template>
+                                            <template x-if="derived.form.operands[i-1].type === 'CONSTANT'">
+                                                <input type="number" x-model="derived.form.operands[i-1].value"
+                                                       class="flex-1 border border-gray-200 rounded-md px-3 py-2 text-sm"
+                                                       placeholder="숫자">
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <button type="button" @click="submitDerived()"
+                                        class="text-sm px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600">
+                                    <span x-text="derived.editingId ? '수정' : '만들기'"></span>
+                                </button>
+                                <button type="button" @click="closeDerivedForm()"
+                                        class="text-sm px-4 py-2 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200">취소</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
 
                 <!-- ===== 뷰 모드 토글 + AI 분석 버튼 ===== -->
                 <template x-if="!ecos.loading && ecos.indicators.length > 0">

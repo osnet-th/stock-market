@@ -62,6 +62,12 @@ public class SubscriptionHomeAdapter implements RealEstateMarketSourceAdapter {
         return EnumSet.of(RealEstateMarketCategory.SUBSCRIPTION);
     }
 
+    @Override
+    public boolean supportsRegion(RegionCode region) {
+        // 청약홈은 시군구 단위만 — SIDO row 차단
+        return region != null && region.isSigungu();
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public FetchResult fetch(RegionCode region,

@@ -37,21 +37,21 @@ public class RealEstateMarketController {
 
     @GetMapping("/summary")
     public ResponseEntity<SummaryResponse> summary(
-            @RequestParam @NotBlank @Pattern(regexp = "\\d{5}") String regionCode) {
+            @RequestParam @NotBlank @Pattern(regexp = "^(\\d{2}|\\d{5})$") String regionCode) {
         return ResponseEntity.ok(queryService.getSummary(regionCode));
     }
 
     @GetMapping("/tabs/{category}")
     public ResponseEntity<TabResponse> tab(
             @PathVariable("category") RealEstateMarketCategory category,
-            @RequestParam @NotBlank @Pattern(regexp = "\\d{5}") String regionCode,
+            @RequestParam @NotBlank @Pattern(regexp = "^(\\d{2}|\\d{5})$") String regionCode,
             @RequestParam(value = "period", defaultValue = "ONE_MONTH") PeriodOption period) {
         return ResponseEntity.ok(queryService.getTab(regionCode, category, period));
     }
 
     @GetMapping("/comparison")
     public ResponseEntity<ComparisonResponse> comparison(
-            @RequestParam @NotEmpty @Size(min = 1, max = 10) List<@Pattern(regexp = "\\d{5}") String> regionCodes,
+            @RequestParam @NotEmpty @Size(min = 1, max = 10) List<@Pattern(regexp = "^(\\d{2}|\\d{5})$") String> regionCodes,
             @RequestParam("category") RealEstateMarketCategory category,
             @RequestParam(value = "period", defaultValue = "ONE_MONTH") PeriodOption period) {
         return ResponseEntity.ok(queryService.getComparison(regionCodes, category, period));

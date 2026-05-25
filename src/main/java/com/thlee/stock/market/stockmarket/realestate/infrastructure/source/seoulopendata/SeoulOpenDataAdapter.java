@@ -56,7 +56,8 @@ public class SeoulOpenDataAdapter implements RealEstateMarketSourceAdapter {
 
     @Override
     public boolean supportsRegion(RegionCode region) {
-        return region.isSeoul();
+        // 서울 시군구만 (SIDO "11"은 광역 row이므로 차단 — REB가 처리)
+        return region != null && region.isSigungu() && region.isSeoul();
     }
 
     @Override

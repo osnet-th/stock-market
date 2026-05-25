@@ -54,7 +54,7 @@ public class RealEstateFavoriteRegionController {
 
     @DeleteMapping
     public ResponseEntity<Map<String, Object>> unregister(
-            @RequestParam @NotBlank @Pattern(regexp = "\\d{5}") String regionCode,
+            @RequestParam @NotBlank @Pattern(regexp = "^(\\d{2}|\\d{5})$") String regionCode,
             @RequestParam(required = false) @Pattern(regexp = "\\d{8}") String emdCode) {
         boolean removed = favoriteService.unregister(currentUserId(), regionCode, emdCode);
         return ResponseEntity.ok(Map.of("removed", removed));

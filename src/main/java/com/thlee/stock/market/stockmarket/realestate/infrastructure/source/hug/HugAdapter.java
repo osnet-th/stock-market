@@ -80,6 +80,12 @@ public class HugAdapter implements RealEstateMarketSourceAdapter {
     }
 
     @Override
+    public boolean supportsRegion(RegionCode region) {
+        // HUG은 시군구 단위만 — SIDO row 차단
+        return region != null && region.isSigungu();
+    }
+
+    @Override
     public FetchResult fetch(RegionCode region,
                              RealEstateMarketCategory category,
                              FetchWindow window) {

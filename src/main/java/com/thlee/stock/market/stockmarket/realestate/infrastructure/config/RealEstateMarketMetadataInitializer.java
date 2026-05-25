@@ -37,8 +37,30 @@ public class RealEstateMarketMetadataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        verifyLevelBackfilled();
         seedRegionsIfEmpty();
+        seedSidosIfMissing();
         seedMetadataIfEmpty();
+    }
+
+    /**
+     * level 컬럼 backfill 누락을 명확한 메시지로 fail-fast. JPA @PostLoad가 IllegalStateException으로
+     * 부풀려 던지기 전 단일 카운트 쿼리로 사전 검증. 마이그레이션 SQL이 적용되지 않았다면 여기서 멈춘다.
+     */
+    private void verifyLevelBackfilled() {
+        try {
+            long missing = regionRepository.countMissingLevel();
+            if (missing > 0) {
+                throw new IllegalStateException(
+                        "real_estate_region.level 컬럼 backfill 누락: " + missing + " row. "
+                                + "코드 머지 전 db/migration/add_real_estate_region_level.sql 적용 필요.");
+            }
+        } catch (org.springframework.dao.InvalidDataAccessResourceUsageException e) {
+            // 컬럼 자체가 없는 경우 (마이그레이션 SQL 미적용) — 동일한 의미로 fail-fast
+            throw new IllegalStateException(
+                    "real_estate_region.level 컬럼 부재. "
+                            + "코드 머지 전 db/migration/add_real_estate_region_level.sql 적용 필요.", e);
+        }
     }
 
     private void seedRegionsIfEmpty() {
@@ -51,6 +73,24 @@ public class RealEstateMarketMetadataInitializer implements ApplicationRunner {
             log.info("[realestate] region seed completed: {} rows", regions.size());
         } catch (Exception e) {
             log.error("[realestate] region seed failed", e);
+        }
+    }
+
+    /**
+     * SIDO row 17개를 idempotent 적재.
+     * 전체 region count()와 무관하게 SIDO row 존재 여부만 검사 — 기존 SIGUNGU 56 row가
+     * 적재된 환경에서도 SIDO만 따로 추가 가능.
+     */
+    private void seedSidosIfMissing() {
+        if (!regionRepository.findAllSidoOnly().isEmpty()) {
+            return;
+        }
+        try {
+            List<RealEstateRegion> sidos = loadSidos();
+            regionRepository.saveAll(sidos);
+            log.info("[realestate] sido seed completed: {} rows", sidos.size());
+        } catch (Exception e) {
+            log.error("[realestate] sido seed failed", e);
         }
     }
 
@@ -88,6 +128,35 @@ public class RealEstateMarketMetadataInitializer implements ApplicationRunner {
                         .sigunguName((String) entry.get("sigungu-name"))
                         .emdCode(emdCode)
                         .emdName((String) entry.get("emd-name"))
+                        .displayOrder(order++)
+                        .build());
+            }
+            return result;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<RealEstateRegion> loadSidos() throws Exception {
+        Yaml yaml = new Yaml();
+        try (InputStream is = new ClassPathResource(REGION_RESOURCE).getInputStream()) {
+            Map<String, Object> root = yaml.load(is);
+            Map<String, Object> realestate = (Map<String, Object>) root.get("realestate");
+            Map<String, Object> region = (Map<String, Object>) realestate.get("region");
+            List<Map<String, Object>> entries = (List<Map<String, Object>>) region.get("sido-entries");
+            if (entries == null) {
+                return List.of();
+            }
+
+            List<RealEstateRegion> result = new ArrayList<>();
+            int order = 0;
+            for (Map<String, Object> entry : entries) {
+                result.add(RealEstateRegion.builder()
+                        .regionCode((String) entry.get("region-code"))
+                        .sidoCode((String) entry.get("sido-code"))
+                        .sidoName((String) entry.get("sido-name"))
+                        .sigunguName((String) entry.get("sigungu-name"))
+                        .emdCode("")
+                        .emdName(null)
                         .displayOrder(order++)
                         .build());
             }

@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.realestate.application;
 
 import com.thlee.stock.market.stockmarket.realestate.domain.model.RealEstateMarketIndicator;
 import com.thlee.stock.market.stockmarket.realestate.domain.model.RealEstateMarketMetadata;
+import com.thlee.stock.market.stockmarket.realestate.domain.model.RegionLevel;
 import com.thlee.stock.market.stockmarket.realestate.presentation.dto.HistoryPoint;
 import com.thlee.stock.market.stockmarket.realestate.presentation.dto.IndicatorCard;
 import org.springframework.stereotype.Component;
@@ -52,8 +53,21 @@ public class RealEstateMarketAggregator {
                 history.size() >= 2 ? history.get(history.size() - 2).getReferenceText() : null,
                 latest.getSnapshotDate() == null ? null : latest.getSnapshotDate().toString(),
                 isEstimated(metadata.getIndicatorCode()),
+                deriveRegionLevel(latest.getRegionCode()),
                 history.stream().map(this::toPoint).toList()
         );
+    }
+
+    /**
+     * regionCode 길이 기반 derive — SoT는 length(2=SIDO, 5=SIGUNGU). null/invalid는 null 반환.
+     */
+    private RegionLevel deriveRegionLevel(String regionCode) {
+        if (regionCode == null) return null;
+        try {
+            return RegionLevel.fromCode(regionCode);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**
@@ -88,6 +102,7 @@ public class RealEstateMarketAggregator {
                 null,
                 jeonseAvg.getSnapshotDate() == null ? null : jeonseAvg.getSnapshotDate().toString(),
                 true,
+                deriveRegionLevel(jeonseAvg.getRegionCode()),
                 List.of()
         );
     }

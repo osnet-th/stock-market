@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.realestate.application;
 
 import com.thlee.stock.market.stockmarket.realestate.domain.model.RealEstateRegion;
+import com.thlee.stock.market.stockmarket.realestate.domain.model.RegionCode;
 import com.thlee.stock.market.stockmarket.realestate.domain.model.UserFavoriteRealEstateRegion;
 import com.thlee.stock.market.stockmarket.realestate.domain.repository.RealEstateRegionRepository;
 import com.thlee.stock.market.stockmarket.realestate.domain.repository.UserFavoriteRealEstateRegionRepository;
@@ -57,7 +58,7 @@ public class RealEstateFavoriteRegionService {
         int order = favoriteRepository.countByUser(userId);
         return UserFavoriteRealEstateRegion.builder()
                 .userId(userId)
-                .sidoCode(regionCode.substring(0, 2))
+                .sidoCode(RegionCode.of(regionCode).sidoCode())
                 .regionCode(regionCode)
                 .emdCode(normalizedEmd)
                 .displayOrder(order)

@@ -29,4 +29,11 @@ public class RealEstateRegion {
     public boolean hasEmd() {
         return emdCode != null && !emdCode.isEmpty();
     }
+
+    /**
+     * region_code 길이 기반 derive. SoT는 regionCode이며 별도 저장하지 않음.
+     */
+    public RegionLevel level() {
+        return RegionLevel.fromCode(regionCode);
+    }
 }

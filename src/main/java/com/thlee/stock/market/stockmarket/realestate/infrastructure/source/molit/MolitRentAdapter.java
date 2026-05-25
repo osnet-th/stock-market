@@ -49,6 +49,12 @@ public class MolitRentAdapter implements RealEstateMarketSourceAdapter {
     }
 
     @Override
+    public boolean supportsRegion(RegionCode region) {
+        // MOLIT은 시군구 단위(5자리)만 — SIDO row 차단
+        return region != null && region.isSigungu();
+    }
+
+    @Override
     public FetchResult fetch(RegionCode region,
                              RealEstateMarketCategory category,
                              FetchWindow window) {

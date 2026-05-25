@@ -647,6 +647,9 @@ const API = {
     getRealEstateSources() {
         return this.request('GET', '/api/realestate/market/sources');
     },
+    getRealEstateSourcesAvailability() {
+        return this.request('GET', '/api/realestate/sources/availability');
+    },
     getRealEstateFavoriteRegions() {
         return this.request('GET', '/api/realestate/favorites/regions');
     },

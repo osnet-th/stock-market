@@ -24,6 +24,9 @@ import java.util.Map;
  * Map lookup 키는 PK 단위 {@link IndicatorKey} (regionCode, category, source, indicatorCode).
  * referenceText는 row 단위 메타이므로 키에서 제외 — 롤오버 시 lookup miss를 방지하고
  * previousReferenceText 보존을 정상화한다.
+ * <p>
+ * regionCode는 SIDO(2자리) 또는 SIGUNGU(5자리) 모두 자연 처리 — PK가 자유 형식 string이므로
+ * 별도 분기 불필요. region_code 컬럼 length=8로 둘 다 수용.
  */
 @Slf4j
 @Service

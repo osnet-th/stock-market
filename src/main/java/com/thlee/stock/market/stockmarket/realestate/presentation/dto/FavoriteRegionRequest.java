@@ -8,7 +8,8 @@ import jakarta.validation.constraints.Pattern;
  */
 public record FavoriteRegionRequest(
         @NotBlank
-        @Pattern(regexp = "\\d{5}", message = "regionCode는 5자리 숫자여야 합니다")
+        @Pattern(regexp = "^(\\d{2}|\\d{5})$",
+                message = "regionCode는 2자리(시도) 또는 5자리(시군구) 숫자여야 합니다")
         String regionCode,
 
         @Pattern(regexp = "\\d{8}", message = "emdCode는 8자리 숫자여야 합니다")

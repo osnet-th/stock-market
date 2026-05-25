@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.realestate.infrastructure.persistence;
 
 import com.thlee.stock.market.stockmarket.realestate.domain.model.RealEstateRegion;
+import com.thlee.stock.market.stockmarket.realestate.domain.model.RegionLevel;
 import com.thlee.stock.market.stockmarket.realestate.domain.repository.RealEstateRegionRepository;
 import com.thlee.stock.market.stockmarket.realestate.infrastructure.persistence.mapper.RealEstateRegionMapper;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class RealEstateRegionRepositoryImpl implements RealEstateRegionRepository {
 
-    private static final String SIGUNGU_SENTINEL = "";
+    private static final String EMD_SENTINEL = "";
 
     private final RealEstateRegionJpaRepository jpaRepository;
     private final RealEstateRegionMapper mapper;
@@ -27,7 +28,14 @@ public class RealEstateRegionRepositoryImpl implements RealEstateRegionRepositor
 
     @Override
     public List<RealEstateRegion> findAllSigunguOnly() {
-        return jpaRepository.findAllByEmdCodeOrderByDisplayOrderAsc(SIGUNGU_SENTINEL).stream()
+        return jpaRepository.findAllByLevelOrderByDisplayOrderAsc(RegionLevel.SIGUNGU).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<RealEstateRegion> findAllSidoOnly() {
+        return jpaRepository.findAllByLevelOrderByDisplayOrderAsc(RegionLevel.SIDO).stream()
                 .map(mapper::toDomain)
                 .toList();
     }
@@ -35,14 +43,14 @@ public class RealEstateRegionRepositoryImpl implements RealEstateRegionRepositor
     @Override
     public List<RealEstateRegion> findEmdsByRegionCode(String regionCode) {
         return jpaRepository.findAllByRegionCodeOrderByDisplayOrderAsc(regionCode).stream()
-                .filter(entity -> !SIGUNGU_SENTINEL.equals(entity.getEmdCode()))
+                .filter(entity -> !EMD_SENTINEL.equals(entity.getEmdCode()))
                 .map(mapper::toDomain)
                 .toList();
     }
 
     @Override
     public Optional<RealEstateRegion> findByRegionCodeAndEmdCode(String regionCode, String emdCode) {
-        String normalizedEmd = emdCode == null ? SIGUNGU_SENTINEL : emdCode;
+        String normalizedEmd = emdCode == null ? EMD_SENTINEL : emdCode;
         return jpaRepository
                 .findByRegionCodeAndEmdCode(regionCode, normalizedEmd)
                 .map(mapper::toDomain);
@@ -59,5 +67,10 @@ public class RealEstateRegionRepositoryImpl implements RealEstateRegionRepositor
     @Override
     public long count() {
         return jpaRepository.count();
+    }
+
+    @Override
+    public long countMissingLevel() {
+        return jpaRepository.countMissingLevel();
     }
 }

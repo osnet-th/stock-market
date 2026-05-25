@@ -107,6 +107,12 @@ public class KosisAdapter implements RealEstateMarketSourceAdapter {
         return EnumSet.of(RealEstateMarketCategory.UNSOLD);
     }
 
+    @Override
+    public boolean supportsRegion(RegionCode region) {
+        // KOSIS는 시군구 단위만 — SIDO row 차단
+        return region != null && region.isSigungu();
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public FetchResult fetch(RegionCode region,

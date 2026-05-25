@@ -1,5 +1,28 @@
 realestate:
   region:
+    # 광역시도 17개 (region-code 2자리 = sido-code).
+    # REB(한국부동산원) R-ONE이 광역시도 단위로만 데이터를 제공하므로 본 row를 추가한다.
+    # sigungu-name은 NOT NULL 컬럼이라 빈 문자열 sentinel 사용 (Entity hook이 level=SIDO 강제).
+    # 참고: docs/plans/2026-05-24-001-feat-reb-adapter-redesign-plan.md (Unit 2)
+    sido-entries:
+      - { region-code: "11", sido-code: "11", sido-name: "서울특별시", sigungu-name: "" }
+      - { region-code: "26", sido-code: "26", sido-name: "부산광역시", sigungu-name: "" }
+      - { region-code: "27", sido-code: "27", sido-name: "대구광역시", sigungu-name: "" }
+      - { region-code: "28", sido-code: "28", sido-name: "인천광역시", sigungu-name: "" }
+      - { region-code: "29", sido-code: "29", sido-name: "광주광역시", sigungu-name: "" }
+      - { region-code: "30", sido-code: "30", sido-name: "대전광역시", sigungu-name: "" }
+      - { region-code: "31", sido-code: "31", sido-name: "울산광역시", sigungu-name: "" }
+      - { region-code: "36", sido-code: "36", sido-name: "세종특별자치시", sigungu-name: "" }
+      - { region-code: "41", sido-code: "41", sido-name: "경기도", sigungu-name: "" }
+      - { region-code: "43", sido-code: "43", sido-name: "충청북도", sigungu-name: "" }
+      - { region-code: "44", sido-code: "44", sido-name: "충청남도", sigungu-name: "" }
+      - { region-code: "46", sido-code: "46", sido-name: "전라남도", sigungu-name: "" }
+      - { region-code: "47", sido-code: "47", sido-name: "경상북도", sigungu-name: "" }
+      - { region-code: "48", sido-code: "48", sido-name: "경상남도", sigungu-name: "" }
+      - { region-code: "50", sido-code: "50", sido-name: "제주특별자치도", sigungu-name: "" }
+      - { region-code: "51", sido-code: "51", sido-name: "강원특별자치도", sigungu-name: "" }
+      - { region-code: "52", sido-code: "52", sido-name: "전북특별자치도", sigungu-name: "" }
+
     # 행정안전부 시군구 표준 코드 (5자리). emd-code가 빈 문자열이면 시군구 단위 row.
     # 읍면동 전체(서울 ~500, 경기 ~700)는 Phase 2 별도 데이터 import 스크립트로 적재한다.
     # 본 yml은 시군구 56개 + 샘플 읍면동 5개로 시딩 동작을 검증한다.

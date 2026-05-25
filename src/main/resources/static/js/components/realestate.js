@@ -36,6 +36,9 @@ const RealEstateComponent = {
         tab: null,
         comparison: null,
         sources: null,
+        // 광역 가용성 (/api/realestate/sources/availability)
+        // null = 미조회, {available, reason} = 조회 완료
+        sidoAvailability: null,
         // 관심지역
         favorites: [],
         // 비교 지역
@@ -257,6 +260,44 @@ const RealEstateComponent = {
         this.initRealEstateCharts();
         await this.loadRealEstateRegions();
         await this.loadRealEstateFavorites();
+        await this.loadRealEstateAvailability();
+    },
+
+    async loadRealEstateAvailability() {
+        try {
+            const result = await API.getRealEstateSourcesAvailability();
+            this.realestate.sidoAvailability = (result && result.reb) || null;
+        } catch (e) {
+            console.error('부동산 출처 가용성 로드 실패:', e);
+            // 가용성 조회 실패 = 응답이 없으므로 "준비 중" 상태로 처리
+            this.realestate.sidoAvailability = { available: false, reason: 'availability-check-failed' };
+        }
+    },
+
+    // 광역(SIDO) 섹션 카드 — regionLevel === 'SIDO' 카드만 필터
+    sidoCardsFor(cards) {
+        return (cards || []).filter(c => c && c.regionLevel === 'SIDO');
+    },
+
+    // 시군구(SIGUNGU) 섹션 카드 — regionLevel === 'SIGUNGU' 또는 미지정(default) 카드
+    sigunguCardsFor(cards) {
+        return (cards || []).filter(c => !c || c.regionLevel !== 'SIDO');
+    },
+
+    isSidoAvailable() {
+        return !!(this.realestate.sidoAvailability && this.realestate.sidoAvailability.available);
+    },
+
+    sidoUnavailableReason() {
+        const a = this.realestate.sidoAvailability;
+        if (!a || a.available) return '';
+        switch (a.reason) {
+            case 'availability-check-failed':
+                return '가용성 점검 일시 실패 — 잠시 후 다시 시도해주세요.';
+            case 'unavailable':
+            default:
+                return '광역 통계는 데이터 소스 준비가 완료되면 노출됩니다.';
+        }
     },
 
     formatRealEstateValue(value, unit) {

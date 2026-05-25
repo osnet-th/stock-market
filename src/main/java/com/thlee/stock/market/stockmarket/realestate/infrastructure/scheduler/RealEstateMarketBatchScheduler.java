@@ -71,14 +71,16 @@ public class RealEstateMarketBatchScheduler {
     }
 
     private List<CompletableFuture<Integer>> submitAll(FetchWindow window) {
-        List<RealEstateRegion> regions = regionRepository.findAllSigunguOnly();
+        List<RealEstateRegion> regions = new ArrayList<>();
+        regions.addAll(regionRepository.findAllSigunguOnly());
+        regions.addAll(regionRepository.findAllSidoOnly());
         List<RealEstateMarketSourceAdapter> adapters = sourceFactory.getAll();
         List<CompletableFuture<Integer>> futures = new ArrayList<>();
         for (RealEstateRegion region : regions) {
             RegionCode regionCode = RegionCode.of(region.getRegionCode());
             for (RealEstateMarketSourceAdapter adapter : adapters) {
                 if (!adapter.supportsRegion(regionCode)) {
-                    continue;  // 지역 특화 출처(서울/경기) 헛 submit 사전 차단
+                    continue;  // 지역 특화 출처(서울/경기, REB(SIDO 전용)) 헛 submit 사전 차단
                 }
                 for (RealEstateMarketCategory category : adapter.supportedCategories()) {
                     futures.add(submit(adapter, regionCode, category, window));

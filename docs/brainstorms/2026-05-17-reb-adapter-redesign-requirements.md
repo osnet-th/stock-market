@@ -2,9 +2,12 @@
 date: 2026-05-17
 topic: reb-adapter-redesign
 parent_issue: 41
+issue: 58
 parent_plan: docs/plans/2026-05-06-001-feat-real-estate-market-data-plan.md
 related_plan: docs/plans/2026-05-10-001-refactor-realestate-review-findings-plan.md
-status: draft
+implementation_plan: docs/plans/2026-05-24-001-feat-reb-adapter-redesign-plan.md
+status: completed
+completed_at: 2026-05-25
 ---
 
 # REB(한국부동산원 R-ONE) 어댑터 재설계

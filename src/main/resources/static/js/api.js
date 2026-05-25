@@ -110,6 +110,36 @@ const API = {
         return this.request('GET', `/api/economics/indicators/history?category=${category}`);
     },
 
+    // Derived Indicators (사용자 커스텀 파생지표) — 토큰 기반, userId 미부착
+    getDerivedIndicators() {
+        return this.request('GET', '/api/economics/derived-indicators');
+    },
+
+    createDerivedIndicator(body) {
+        return this.request('POST', '/api/economics/derived-indicators', body);
+    },
+
+    updateDerivedIndicator(id, body) {
+        return this.request('PUT', `/api/economics/derived-indicators/${id}`, body);
+    },
+
+    deleteDerivedIndicator(id) {
+        return this.request('DELETE', `/api/economics/derived-indicators/${id}`);
+    },
+
+    getDerivedAvailableIndicators(category) {
+        const q = category ? `?category=${encodeURIComponent(category)}` : '';
+        return this.request('GET', '/api/economics/derived-indicators/available-indicators' + q);
+    },
+
+    getDerivedPresets() {
+        return this.request('GET', '/api/economics/derived-indicators/presets');
+    },
+
+    copyDerivedPreset(key) {
+        return this.request('POST', `/api/economics/derived-indicators/presets/${encodeURIComponent(key)}/copy`);
+    },
+
     // News
     getNewsByKeyword(keywordId, page, size) {
         page = page || 0;

@@ -39,6 +39,7 @@ function dashboard() {
         ...NewsComponent,
         ...NewsSearchComponent,
         ...EcosComponent,
+        ...DerivedIndicatorComponent,
         ...GlobalComponent,
         ...PortfolioComponent,
         ...FinancialComponent,

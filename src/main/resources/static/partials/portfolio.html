@@ -476,6 +476,12 @@
                                                                 x-text="'기여 ' + ((sale.netContributionRate ?? sale.contributionRate) > 0 ? '+' : '') + Format.number((sale.netContributionRate ?? sale.contributionRate), 2) + '%'"></span>
                                                         </div>
                                                         <div class="text-xs text-gray-400" x-text="'실입금 ' + Format.number(saleNetProceeds(sale), 0) + '원'"></div>
+                                                        <div class="mt-2 flex justify-end gap-2">
+                                                            <button @click.stop="openSaleEditModal(sale)"
+                                                                class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
+                                                            <button @click.stop="openSaleDetailModal(sale)"
+                                                                class="text-xs text-gray-500 hover:text-gray-700 font-medium transition">상세</button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>

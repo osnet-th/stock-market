@@ -1347,6 +1347,13 @@ const PortfolioComponent = {
         this.portfolio.showSaleDetailModal = true;
     },
 
+    openSaleEditModal(history) {
+        this.portfolio.saleDetail = history;
+        this.portfolio.editSaleForm = this.createSaleEditForm(history);
+        this.portfolio.editingSaleHistory = true;
+        this.portfolio.showSaleDetailModal = true;
+    },
+
     closeSaleDetailModal() {
         this.portfolio.showSaleDetailModal = false;
         this.portfolio.saleDetail = null;

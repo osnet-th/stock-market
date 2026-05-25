@@ -47,7 +47,7 @@
                 </template>
 
                 <!-- ===== 사용자 커스텀 파생지표 (이슈 #36) ===== -->
-                <div x-effect="currentPage === 'ecos' && ensureDerivedLoaded()">
+                <div x-effect="currentPage === 'ecos' && ensureDerivedLoaded(); ecos.selectedCategory, syncDerivedFormToCategory()">
                     <div class="flex items-center justify-between ecos-section-title">
                         <span x-text="derivedSectionTitle()"></span>
                         <button type="button" @click="openDerivedCreate()"

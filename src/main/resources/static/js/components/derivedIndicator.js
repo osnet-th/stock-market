@@ -15,6 +15,7 @@ const DerivedIndicatorComponent = {
         showForm: false,
         editingId: null,
         error: '',
+        _generation: 0,
         form: {
             name: '',
             unit: '',
@@ -38,6 +39,7 @@ const DerivedIndicatorComponent = {
     ],
 
     async loadDerivedIndicators() {
+        const generation = ++this.derived._generation; // stale-response 가드
         this.derived.loading = true;
         try {
             const [list, presets, available] = await Promise.all([
@@ -45,14 +47,19 @@ const DerivedIndicatorComponent = {
                 API.getDerivedPresets(),
                 API.getDerivedAvailableIndicators(null)
             ]);
+            if (generation !== this.derived._generation) return; // 더 최신 로드가 시작됨 → 무시
             this.derived.list = list || [];
             this.derived.presets = presets || [];
             this.derived.available = available || [];
             this.derived.loaded = true;
         } catch (e) {
-            console.error('파생지표 로드 실패:', e);
+            if (generation === this.derived._generation) {
+                console.error('파생지표 로드 실패:', e);
+            }
         } finally {
-            this.derived.loading = false;
+            if (generation === this.derived._generation) {
+                this.derived.loading = false;
+            }
         }
     },
 
@@ -103,12 +110,10 @@ const DerivedIndicatorComponent = {
         return found ? found.symbol : op;
     },
 
-    openDerivedCreate() {
-        this.derived.error = '';
-        this.derived.editingId = null;
-        this.derived.form = {
+    blankDerivedForm(category) {
+        return {
             name: '', unit: '', description: '',
-            category: this.ecos.selectedCategory || '', // 현재 보고 있는 카테고리 자동 적용
+            category: category || '',
             termCount: 2,
             operands: [
                 { type: 'INDICATOR', className: '', keystatName: '', value: null },
@@ -117,6 +122,12 @@ const DerivedIndicatorComponent = {
             ],
             operators: ['SUB', 'SUB']
         };
+    },
+
+    openDerivedCreate() {
+        this.derived.error = '';
+        this.derived.editingId = null;
+        this.derived.form = this.blankDerivedForm(this.ecos.selectedCategory); // 현재 카테고리 자동 적용
         this.derived.showForm = true;
     },
 
@@ -154,7 +165,19 @@ const DerivedIndicatorComponent = {
 
     closeDerivedForm() {
         this.derived.showForm = false;
+        this.derived.editingId = null;
         this.derived.error = '';
+        this.derived.form = this.blankDerivedForm(); // 잔존 상태 제거(다음 열기 시 깨끗)
+    },
+
+    /**
+     * ECOS 카테고리 탭이 바뀌면 열려 있던 폼은 이전 카테고리 기준이므로 닫는다(혼선 방지).
+     * 마크업의 x-effect에서 selectedCategory 변화에 반응해 호출.
+     */
+    syncDerivedFormToCategory() {
+        if (this.derived.showForm && this.derived.form.category !== this.ecos.selectedCategory) {
+            this.closeDerivedForm();
+        }
     },
 
     setDerivedTermCount(n) {

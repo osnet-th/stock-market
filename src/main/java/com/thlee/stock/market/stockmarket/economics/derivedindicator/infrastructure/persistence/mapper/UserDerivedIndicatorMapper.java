@@ -21,6 +21,7 @@ public class UserDerivedIndicatorMapper {
                 domain.getUserId(),
                 domain.getName(),
                 domain.getUnit(),
+                domain.getDescription(),
                 formulaJsonConverter.toJson(domain.getFormula()),
                 domain.getCategory(),
                 domain.getCreatedAt()
@@ -33,6 +34,7 @@ public class UserDerivedIndicatorMapper {
                 entity.getUserId(),
                 entity.getName(),
                 entity.getUnit(),
+                entity.getDescription(),
                 formulaJsonConverter.fromJson(entity.getFormulaJson()),
                 entity.getCategory(),
                 entity.getCreatedAt()

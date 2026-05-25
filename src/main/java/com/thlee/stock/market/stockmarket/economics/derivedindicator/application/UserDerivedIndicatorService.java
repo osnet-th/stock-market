@@ -44,10 +44,10 @@ public class UserDerivedIndicatorService {
     private final DerivedFormulaValidator validator = new DerivedFormulaValidator();
     private final DerivedFormulaEvaluator evaluator = new DerivedFormulaEvaluator();
 
-    public UserDerivedIndicator create(Long userId, String name, String unit, DerivedFormula formula) {
+    public UserDerivedIndicator create(Long userId, String name, String unit, String description, DerivedFormula formula) {
         checkCreatable(userId, name);
         EcosIndicatorCategory category = validateFormula(formula, false);
-        return repository.save(UserDerivedIndicator.create(userId, name, unit, formula, category));
+        return repository.save(UserDerivedIndicator.create(userId, name, unit, description, formula, category));
     }
 
     @Transactional(readOnly = true)
@@ -59,14 +59,14 @@ public class UserDerivedIndicatorService {
                 .toList();
     }
 
-    public UserDerivedIndicator update(Long userId, Long id, String name, String unit, DerivedFormula formula) {
+    public UserDerivedIndicator update(Long userId, Long id, String name, String unit, String description, DerivedFormula formula) {
         UserDerivedIndicator existing = repository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new DerivedIndicatorNotFoundException(id));
         if (!existing.getName().equals(name) && repository.existsByUserIdAndName(userId, name)) {
             throw new DuplicateDerivedIndicatorNameException(name);
         }
         EcosIndicatorCategory category = validateFormula(formula, false);
-        return repository.save(existing.update(name, unit, formula, category));
+        return repository.save(existing.update(name, unit, description, formula, category));
     }
 
     public void delete(Long userId, Long id) {
@@ -81,7 +81,8 @@ public class UserDerivedIndicatorService {
         checkLimit(userId);
         EcosIndicatorCategory category = validateFormula(preset.formula(), true); // 프리셋 R3 예외
         String name = resolveUniqueName(userId, preset.name());
-        return repository.save(UserDerivedIndicator.create(userId, name, preset.unit(), preset.formula(), category));
+        return repository.save(
+                UserDerivedIndicator.create(userId, name, preset.unit(), preset.description(), preset.formula(), category));
     }
 
     @Transactional(readOnly = true)

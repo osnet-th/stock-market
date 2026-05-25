@@ -18,6 +18,7 @@ public class UserDerivedIndicator {
     private final Long userId;
     private final String name;
     private final String unit;
+    private final String description;
     private final DerivedFormula formula;
     private final EcosIndicatorCategory category;
     private final LocalDateTime createdAt;
@@ -26,6 +27,7 @@ public class UserDerivedIndicator {
                                 Long userId,
                                 String name,
                                 String unit,
+                                String description,
                                 DerivedFormula formula,
                                 EcosIndicatorCategory category,
                                 LocalDateTime createdAt) {
@@ -33,29 +35,32 @@ public class UserDerivedIndicator {
         this.userId = userId;
         this.name = name;
         this.unit = unit;
+        this.description = description;
         this.formula = formula;
         this.category = category;
         this.createdAt = createdAt;
     }
 
     /**
-     * 신규 파생지표 생성. id는 영속 시 부여.
+     * 신규 파생지표 생성. id는 영속 시 부여. description은 선택(사용자가 지표 의미 설명).
      */
     public static UserDerivedIndicator create(Long userId,
                                               String name,
                                               String unit,
+                                              String description,
                                               DerivedFormula formula,
                                               EcosIndicatorCategory category) {
-        return new UserDerivedIndicator(null, userId, name, unit, formula, category, LocalDateTime.now());
+        return new UserDerivedIndicator(null, userId, name, unit, description, formula, category, LocalDateTime.now());
     }
 
     /**
-     * 수정. 소유권/식별자는 유지하고 표시·수식만 교체.
+     * 수정. 소유권/식별자는 유지하고 표시·설명·수식만 교체.
      */
     public UserDerivedIndicator update(String newName,
                                        String newUnit,
+                                       String newDescription,
                                        DerivedFormula newFormula,
                                        EcosIndicatorCategory newCategory) {
-        return new UserDerivedIndicator(id, userId, newName, newUnit, newFormula, newCategory, createdAt);
+        return new UserDerivedIndicator(id, userId, newName, newUnit, newDescription, newFormula, newCategory, createdAt);
     }
 }

@@ -42,6 +42,9 @@ public class UserDerivedIndicatorEntity {
     @Column(name = "unit", length = 30)
     private String unit;
 
+    @Column(name = "description", length = 500)
+    private String description;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "formula", columnDefinition = "jsonb", nullable = false)
     private String formulaJson;
@@ -60,6 +63,7 @@ public class UserDerivedIndicatorEntity {
                                       Long userId,
                                       String name,
                                       String unit,
+                                      String description,
                                       String formulaJson,
                                       EcosIndicatorCategory category,
                                       LocalDateTime createdAt) {
@@ -67,6 +71,7 @@ public class UserDerivedIndicatorEntity {
         this.userId = userId;
         this.name = name;
         this.unit = unit;
+        this.description = description;
         this.formulaJson = formulaJson;
         this.category = category;
         this.createdAt = createdAt;

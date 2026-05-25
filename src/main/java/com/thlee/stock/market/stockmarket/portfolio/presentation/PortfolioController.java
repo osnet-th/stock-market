@@ -363,6 +363,8 @@ public class PortfolioController {
                 request.getReason(),
                 request.getMemo(),
                 request.getFxRate(),
+                request.getDeductionAmountKrw(),
+                request.getNetProceedsKrw(),
                 request.getDepositCashItemId()
         );
         return ResponseEntity.ok(portfolioService.addStockSale(userId, itemId, param));
@@ -394,6 +396,8 @@ public class PortfolioController {
         UpdateSaleParam param = new UpdateSaleParam(
                 request.getQuantity(),
                 request.getSalePrice(),
+                request.getDeductionAmountKrw(),
+                request.getNetProceedsKrw(),
                 request.getReason(),
                 request.getMemo()
         );

@@ -6,11 +6,13 @@ import java.math.BigDecimal;
 
 /**
  * 매도 이력 사후 수정 파라미터.
- * quantity / salePrice / reason / memo만 변경 가능 (soldAt·fxRate·totalAssetAtSale은 스냅샷 유지).
+ * quantity / salePrice / 정산금 / reason / memo만 변경 가능 (soldAt·fxRate·totalAssetAtSale은 스냅샷 유지).
  */
 public record UpdateSaleParam(
         int quantity,
         BigDecimal salePrice,
+        BigDecimal deductionAmountKrw,
+        BigDecimal netProceedsKrw,
         SaleReason reason,
         String memo
 ) {

@@ -48,6 +48,71 @@ class StockSaleHistoryTest {
             // contributionRate = 100,000 / 10,000,000 * 100 = 1.00
             assertThat(history.getContributionRate()).isEqualByComparingTo(new BigDecimal("1.00"));
             assertThat(history.isUnrecordedDeposit()).isFalse();
+            assertThat(history.getDeductionAmountKrw()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(history.getNetProceedsKrw()).isEqualByComparingTo(BigDecimal.valueOf(800_000));
+            assertThat(history.getNetProfitKrw()).isEqualByComparingTo(BigDecimal.valueOf(100_000));
+        }
+
+        @Test
+        @DisplayName("KRW 매도 + 차감액: 실입금액과 실입금 기준 손익을 계산한다")
+        void create_krwWithDeduction_computesNetAmounts() {
+            StockSaleHistory history = StockSaleHistory.create(
+                    ITEM_ID, 10,
+                    BigDecimal.valueOf(70_000),
+                    BigDecimal.valueOf(80_000),
+                    "KRW",
+                    BigDecimal.ONE,
+                    BigDecimal.valueOf(10_000_000),
+                    BigDecimal.valueOf(500),
+                    null,
+                    SaleReason.TARGET_PRICE_REACHED,
+                    "익절",
+                    "005930", "삼성전자",
+                    false,
+                    TODAY, TODAY
+            );
+
+            assertThat(history.getSalePriceKrw()).isEqualByComparingTo(BigDecimal.valueOf(800_000));
+            assertThat(history.getDeductionAmountKrw()).isEqualByComparingTo(BigDecimal.valueOf(500));
+            assertThat(history.getNetProceedsKrw()).isEqualByComparingTo(BigDecimal.valueOf(799_500));
+            assertThat(history.getNetProfitKrw()).isEqualByComparingTo(BigDecimal.valueOf(99_500));
+            assertThat(history.getNetProfitRate()).isEqualByComparingTo(new BigDecimal("14.21"));
+        }
+
+        @Test
+        @DisplayName("실입금액 직접 입력: 차감액은 총 체결금액과의 차이로 역산한다")
+        void create_directNetProceeds_backfillsDeduction() {
+            StockSaleHistory history = StockSaleHistory.create(
+                    ITEM_ID, 10,
+                    BigDecimal.valueOf(70_000),
+                    BigDecimal.valueOf(80_000),
+                    "KRW",
+                    BigDecimal.ONE,
+                    BigDecimal.valueOf(10_000_000),
+                    BigDecimal.valueOf(500),
+                    BigDecimal.valueOf(799_480),
+                    SaleReason.TARGET_PRICE_REACHED,
+                    null,
+                    "005930", "삼성전자",
+                    false,
+                    TODAY, TODAY
+            );
+
+            assertThat(history.getDeductionAmountKrw()).isEqualByComparingTo(BigDecimal.valueOf(520));
+            assertThat(history.getNetProceedsKrw()).isEqualByComparingTo(BigDecimal.valueOf(799_480));
+            assertThat(history.getNetProfitKrw()).isEqualByComparingTo(BigDecimal.valueOf(99_480));
+        }
+
+        @Test
+        @DisplayName("실입금액이 총 체결금액보다 크면 IllegalArgumentException")
+        void create_netProceedsGreaterThanGross_throws() {
+            assertThatThrownBy(() -> StockSaleHistory.create(
+                    ITEM_ID, 1,
+                    BigDecimal.valueOf(100), BigDecimal.valueOf(150),
+                    "KRW", BigDecimal.ONE, BigDecimal.ZERO,
+                    null, BigDecimal.valueOf(151),
+                    SaleReason.OTHER, null, "X", "X", false, TODAY, TODAY
+            )).isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test

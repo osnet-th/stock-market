@@ -5,6 +5,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
@@ -34,6 +35,14 @@ public class StockSaleRequest {
 
     /** 외화 종목용. null이면 서버가 자동 조회 */
     private BigDecimal fxRate;
+
+    /** 제세금·수수료·기타 비용 합계(KRW). netProceedsKrw가 있으면 netProceedsKrw가 우선 */
+    @PositiveOrZero
+    private BigDecimal deductionAmountKrw;
+
+    /** 증권사 기록 기준 최종 실입금액(KRW). 입력 시 정산 SoT로 사용 */
+    @PositiveOrZero
+    private BigDecimal netProceedsKrw;
 
     /** CashStockLink 미연결 시 사용자가 선택한 입금 대상. null이면 자동 결정/unrecorded */
     private Long depositCashItemId;

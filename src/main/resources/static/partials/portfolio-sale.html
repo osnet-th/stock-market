@@ -201,6 +201,18 @@
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
                             </div>
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">제세금·수수료 등 차감액</label>
+                                <input type="number" x-model="portfolio.saleForm.deductionAmountKrw" @input="updateSaleNetFromDeduction()"
+                                    step="1" min="0" placeholder="0"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">실입금액</label>
+                                <input type="number" x-model="portfolio.saleForm.netProceedsKrw" @input="updateSaleDeductionFromNet()"
+                                    step="1" min="0" placeholder="증권사 입금액"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                            </div>
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">매도일</label>
                                 <input type="date" x-model="portfolio.saleForm.soldAt"
                                     :max="new Date().toISOString().slice(0,10)"
@@ -241,23 +253,26 @@
                         <div class="bg-rose-50 rounded-lg p-3 mt-4 text-sm space-y-1">
                             <p class="font-medium text-rose-800 mb-1">매도 후 예상 (서버에서 최종 계산)</p>
                             <div class="flex justify-between">
-                                <span class="text-rose-700">손익</span>
-                                <span class="font-medium" :class="portfolio.salePreview.profit > 0 ? 'text-red-600' : portfolio.salePreview.profit < 0 ? 'text-blue-600' : 'text-gray-600'"
-                                    x-text="(portfolio.salePreview.profit > 0 ? '+' : '') + Format.number(portfolio.salePreview.profit, 2) + (portfolio.saleContext.currency !== 'KRW' ? ' ' + portfolio.saleContext.currency : '원')"></span>
+                                <span class="text-rose-700">실입금액</span>
+                                <span class="font-medium text-rose-800" x-text="Format.number(portfolio.salePreview.netProceedsKrw, 0) + '원'"></span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-rose-700">종목 수익률</span>
-                                <span class="font-medium" :class="portfolio.salePreview.profitRate > 0 ? 'text-red-600' : portfolio.salePreview.profitRate < 0 ? 'text-blue-600' : 'text-gray-600'"
-                                    x-text="(portfolio.salePreview.profitRate > 0 ? '+' : '') + Format.number(portfolio.salePreview.profitRate, 2) + '%'"></span>
+                                <span class="text-rose-700">실현 손익</span>
+                                <span class="font-medium" :class="portfolio.salePreview.netProfitKrw > 0 ? 'text-red-600' : portfolio.salePreview.netProfitKrw < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                    x-text="(portfolio.salePreview.netProfitKrw > 0 ? '+' : '') + Format.number(portfolio.salePreview.netProfitKrw, 0) + '원'"></span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-rose-700">자산 기여율</span>
-                                <span class="font-medium" :class="portfolio.salePreview.contributionRate > 0 ? 'text-red-600' : portfolio.salePreview.contributionRate < 0 ? 'text-blue-600' : 'text-gray-600'"
-                                    x-text="(portfolio.salePreview.contributionRate > 0 ? '+' : '') + Format.number(portfolio.salePreview.contributionRate, 2) + '%'"></span>
+                                <span class="text-rose-700">실현 수익률</span>
+                                <span class="font-medium" :class="portfolio.salePreview.netProfitRate > 0 ? 'text-red-600' : portfolio.salePreview.netProfitRate < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                    x-text="(portfolio.salePreview.netProfitRate > 0 ? '+' : '') + Format.number(portfolio.salePreview.netProfitRate, 2) + '%'"></span>
                             </div>
-                            <div x-show="portfolio.saleContext.currency !== 'KRW'" class="flex justify-between text-xs text-rose-600 pt-1 border-t border-rose-200">
-                                <span>판매 금액 (KRW 환산)</span>
+                            <div class="flex justify-between text-xs text-rose-600 pt-1 border-t border-rose-200">
+                                <span>총 체결금액</span>
                                 <span x-text="Format.number(portfolio.salePreview.salePriceKrw, 0) + '원'"></span>
+                            </div>
+                            <div class="flex justify-between text-xs text-rose-600">
+                                <span>차감액</span>
+                                <span x-text="Format.number(portfolio.salePreview.deductionAmountKrw, 0) + '원'"></span>
                             </div>
                         </div>
 
@@ -299,21 +314,24 @@
                                     <div x-show="portfolio.saleDetail.currency !== 'KRW' && portfolio.saleDetail.fxRate" class="flex justify-between"><span class="text-gray-500">매도 시 환율</span><span class="font-medium text-gray-800" x-text="Format.number(portfolio.saleDetail.fxRate, 2)"></span></div>
                                 </div>
                                 <div class="bg-rose-50 rounded-lg p-3 space-y-1">
-                                    <div class="flex justify-between"><span class="text-rose-700">손익</span>
-                                        <span class="font-medium" :class="portfolio.saleDetail.profit > 0 ? 'text-red-600' : portfolio.saleDetail.profit < 0 ? 'text-blue-600' : 'text-gray-600'"
-                                            x-text="(portfolio.saleDetail.profit > 0 ? '+' : '') + Format.number(portfolio.saleDetail.profit, 2) + (portfolio.saleDetail.currency !== 'KRW' ? ' ' + portfolio.saleDetail.currency : '원')"></span>
+                                    <div class="flex justify-between"><span class="text-rose-700">실입금액</span>
+                                        <span class="font-medium text-rose-800" x-text="Format.number(saleNetProceeds(portfolio.saleDetail), 0) + '원'"></span>
                                     </div>
-                                    <div class="flex justify-between"><span class="text-rose-700">종목 수익률</span>
-                                        <span class="font-medium" :class="portfolio.saleDetail.profitRate > 0 ? 'text-red-600' : portfolio.saleDetail.profitRate < 0 ? 'text-blue-600' : 'text-gray-600'"
-                                            x-text="(portfolio.saleDetail.profitRate > 0 ? '+' : '') + Format.number(portfolio.saleDetail.profitRate, 2) + '%'"></span>
+                                    <div class="flex justify-between"><span class="text-rose-700">실현 손익</span>
+                                        <span class="font-medium" :class="saleNetProfit(portfolio.saleDetail) > 0 ? 'text-red-600' : saleNetProfit(portfolio.saleDetail) < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                            x-text="(saleNetProfit(portfolio.saleDetail) > 0 ? '+' : '') + Format.number(saleNetProfit(portfolio.saleDetail), 0) + '원'"></span>
                                     </div>
-                                    <div class="flex justify-between"><span class="text-rose-700">자산 기여율</span>
-                                        <span class="font-medium" :class="portfolio.saleDetail.contributionRate > 0 ? 'text-red-600' : portfolio.saleDetail.contributionRate < 0 ? 'text-blue-600' : 'text-gray-600'"
-                                            x-text="(portfolio.saleDetail.contributionRate > 0 ? '+' : '') + Format.number(portfolio.saleDetail.contributionRate, 2) + '%'"></span>
+                                    <div class="flex justify-between"><span class="text-rose-700">실현 수익률</span>
+                                        <span class="font-medium" :class="(portfolio.saleDetail.netProfitRate ?? portfolio.saleDetail.profitRate) > 0 ? 'text-red-600' : (portfolio.saleDetail.netProfitRate ?? portfolio.saleDetail.profitRate) < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                            x-text="((portfolio.saleDetail.netProfitRate ?? portfolio.saleDetail.profitRate) > 0 ? '+' : '') + Format.number((portfolio.saleDetail.netProfitRate ?? portfolio.saleDetail.profitRate), 2) + '%'"></span>
                                     </div>
                                     <div x-show="portfolio.saleDetail.salePriceKrw" class="flex justify-between text-xs text-rose-600 pt-1 border-t border-rose-200">
-                                        <span>판매 금액 (KRW)</span>
+                                        <span>총 체결금액</span>
                                         <span x-text="Format.number(portfolio.saleDetail.salePriceKrw, 0) + '원'"></span>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-rose-600">
+                                        <span>차감액</span>
+                                        <span x-text="Format.number(portfolio.saleDetail.deductionAmountKrw || 0, 0) + '원'"></span>
                                     </div>
                                 </div>
                                 <div class="text-xs space-y-1">
@@ -337,6 +355,16 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">판매 단가</label>
                                     <input type="number" x-model="portfolio.editSaleForm.salePrice" step="0.01" min="0.01"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">제세금·수수료 등 차감액</label>
+                                    <input type="number" x-model="portfolio.editSaleForm.deductionAmountKrw" @input="portfolio.editSaleForm.netProceedsKrw = ''" step="1" min="0"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">실입금액</label>
+                                    <input type="number" x-model="portfolio.editSaleForm.netProceedsKrw" @input="portfolio.editSaleForm.deductionAmountKrw = ''" step="1" min="0"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
                                 </div>
                                 <div>

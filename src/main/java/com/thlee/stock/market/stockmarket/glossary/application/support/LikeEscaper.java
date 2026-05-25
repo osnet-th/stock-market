@@ -21,6 +21,10 @@ public final class LikeEscaper {
      *   <li>null / blank → null 반환 (필터 비활성)</li>
      *   <li>입력 길이 상한 초과 → 앞에서부터 {@link #MAX_QUERY_LENGTH} 자까지만 사용</li>
      *   <li>와일드카드(`\`, `%`, `_`) 이스케이프 후 양쪽에 `%` 둘러쌈 (contains 검색)</li>
+     *   <li>소문자로 정규화 → 대소문자 무시 매칭을 패턴 측에서 보장 (R7).
+     *       JPQL/SQL 측은 {@code LOWER(col) LIKE :pattern ESCAPE '\\'} 형태로 받아야 한다.
+     *       (PostgreSQL prepared statement 가 null 파라미터를 {@code bytea} 로 추론해
+     *       {@code lower(?)} 호출이 실패하는 문제 회피)</li>
      * </ul>
      *
      * @return contains 검색 패턴 또는 {@code null}
@@ -36,7 +40,7 @@ public final class LikeEscaper {
         if (trimmed.length() > MAX_QUERY_LENGTH) {
             trimmed = trimmed.substring(0, MAX_QUERY_LENGTH);
         }
-        return "%" + escapeWildcards(trimmed) + "%";
+        return "%" + escapeWildcards(trimmed).toLowerCase() + "%";
     }
 
     private static String escapeWildcards(String s) {

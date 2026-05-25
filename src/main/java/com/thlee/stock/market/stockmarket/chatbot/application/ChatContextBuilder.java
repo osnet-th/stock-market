@@ -13,11 +13,19 @@ import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioAllocat
 import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioService;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.AllocationResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockDetailResponse;
+import com.thlee.stock.market.stockmarket.stock.application.SecFinancialService;
 import com.thlee.stock.market.stockmarket.stock.application.StockFinancialService;
 import com.thlee.stock.market.stockmarket.stock.application.ValuationMetricService;
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialAccountResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialIndexResponse;
+import com.thlee.stock.market.stockmarket.stock.application.dto.SecFinancialItemResponse;
+import com.thlee.stock.market.stockmarket.stock.application.dto.SecFinancialStatementResponse;
+import com.thlee.stock.market.stockmarket.stock.application.dto.SecInvestmentMetricResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.ValuationMetricResponse;
+import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
+import com.thlee.stock.market.stockmarket.stock.domain.model.Stock;
+import com.thlee.stock.market.stockmarket.stock.domain.service.StockPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,6 +36,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -36,9 +45,10 @@ import java.util.concurrent.CompletableFuture;
 public class ChatContextBuilder {
 
     private static final String REPORT_CODE_ANNUAL = "11011";
-    private static final int HISTORY_YEARS = 3;
+    private static final String COUNTRY_KR = "KR";
+    private static final String COUNTRY_US = "US";
     private static final String DEFENSIVE_PROMPT = """
-            당신은 한국 주식 종목 분석 전문가입니다.
+            당신은 주식 종목 분석 전문가입니다.
             분석에 필요한 정보(종목 또는 분석 작업)가 누락되었습니다.
             사용자에게 종목을 선택하고 분석 버튼을 눌러달라고 정중히 안내하세요.
             """;
@@ -46,7 +56,9 @@ public class ChatContextBuilder {
     private final PortfolioService portfolioService;
     private final PortfolioAllocationService portfolioAllocationService;
     private final StockFinancialService stockFinancialService;
+    private final SecFinancialService secFinancialService;
     private final ValuationMetricService valuationMetricService;
+    private final StockPort stockPort;
     private final FinancialAnalysisPromptTemplate promptTemplate;
     private final EcosIndicatorService ecosIndicatorService;
     private final EcosDerivedIndicatorService ecosDerivedIndicatorService;
@@ -91,11 +103,78 @@ public class ChatContextBuilder {
         if (request.analysisTask() == null || request.stockCode() == null || request.stockCode().isBlank()) {
             return DEFENSIVE_PROMPT;
         }
-        String facts = assembleFacts(request.stockCode(), request.analysisTask());
+        FinancialTarget target = resolveFinancialTarget(request);
+        String facts = buildHoldingFacts(target.item()) +
+                assembleFacts(target.stockCode(), request.analysisTask(), target.country());
         return promptTemplate.render(request.analysisTask(), facts);
     }
 
-    private String assembleFacts(String stockCode, AnalysisTask task) {
+    private FinancialTarget resolveFinancialTarget(ChatRequest request) {
+        if (request.portfolioItemId() == null) {
+            return new FinancialTarget(request.stockCode(), inferCountry(request.stockCode()), null);
+        }
+        PortfolioItemResponse item = findPortfolioStock(request.userId(), request.portfolioItemId());
+        return new FinancialTarget(item.getStockDetail().getStockCode(), item.getStockDetail().getCountry(), item);
+    }
+
+    private PortfolioItemResponse findPortfolioStock(Long userId, Long portfolioItemId) {
+        return portfolioService.getItems(userId).stream()
+                .filter(item -> portfolioItemId.equals(item.getId()))
+                .filter(item -> "STOCK".equals(item.getAssetType()))
+                .filter(item -> item.getStockDetail() != null)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("보유 주식 항목을 찾을 수 없습니다."));
+    }
+
+    private String inferCountry(String stockCode) {
+        Optional<Stock> stock = stockPort.findByCode(stockCode);
+        return stock.map(Stock::exchangeCode)
+                .map(this::countryFromExchange)
+                .orElse(null);
+    }
+
+    private String countryFromExchange(ExchangeCode exchangeCode) {
+        return switch (exchangeCode) {
+            case KRX -> COUNTRY_KR;
+            case NAS, NYS, AMS -> COUNTRY_US;
+            default -> null;
+        };
+    }
+
+    private String buildHoldingFacts(PortfolioItemResponse item) {
+        if (item == null || item.getStockDetail() == null) {
+            return "";
+        }
+        StockDetailResponse stock = item.getStockDetail();
+        return """
+                ## 포트폴리오 보유 정보
+                - 보유 항목명: %s
+                - 종목코드: %s
+                - 국가/거래소: %s / %s
+                - 보유 수량: %s
+                - 평균 매수가: %s %s
+                - 투자 원금: %s원
+
+                """.formatted(
+                item.getItemName(),
+                stock.getStockCode(),
+                stock.getCountry(),
+                stock.getExchangeCode(),
+                stock.getQuantity(),
+                stock.getAvgBuyPrice(),
+                stock.getPriceCurrency(),
+                item.getInvestedAmount()
+        );
+    }
+
+    private String assembleFacts(String stockCode, AnalysisTask task, String country) {
+        if (COUNTRY_US.equals(country)) {
+            return assembleSecFacts(stockCode, task);
+        }
+        if (country != null && !COUNTRY_KR.equals(country)) {
+            return "## 지원 범위\n- 현재 챗봇 종목 분석은 국내(KR)와 미국(US) 주식만 지원합니다.\n\n";
+        }
+
         StringBuilder sb = new StringBuilder();
         int effectiveYear = resolveEffectiveYear(stockCode);
 
@@ -110,6 +189,70 @@ public class ChatContextBuilder {
             }
         }
         return sb.toString();
+    }
+
+    private String assembleSecFacts(String ticker, AnalysisTask task) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("## 데이터 출처\n- SEC company facts 기반 미국 주식 재무 데이터\n\n");
+        appendSecStatements(sb, ticker);
+        if (task.categories().contains(FinancialCategory.VALUATION)) {
+            appendSecMetrics(sb, ticker);
+        }
+        return sb.toString();
+    }
+
+    private void appendSecStatements(StringBuilder sb, String ticker) {
+        List<SecFinancialStatementResponse> statements;
+        try {
+            statements = secFinancialService.getFinancialStatements(ticker);
+        } catch (Exception e) {
+            log.warn("SEC 재무제표 조회 실패: ticker={}", ticker, e);
+            sb.append("## SEC 재무제표\n- 조회 실패: ").append(e.getMessage()).append("\n\n");
+            return;
+        }
+        if (statements.isEmpty()) {
+            sb.append("## SEC 재무제표\n- 데이터 없음\n\n");
+            return;
+        }
+        statements.forEach(statement -> appendSecStatement(sb, statement));
+    }
+
+    private void appendSecStatement(StringBuilder sb, SecFinancialStatementResponse statement) {
+        sb.append("## SEC ").append(statement.getStatementType()).append("\n");
+        statement.getItems().forEach(item -> appendSecItem(sb, item));
+        sb.append("\n");
+    }
+
+    private void appendSecItem(StringBuilder sb, SecFinancialItemResponse item) {
+        sb.append("- ").append(item.getLabel()).append(": ");
+        if (item.getValues() == null || item.getValues().isEmpty()) {
+            sb.append("데이터 없음\n");
+            return;
+        }
+        boolean first = true;
+        for (Map.Entry<String, Long> entry : item.getValues().entrySet()) {
+            if (!first) {
+                sb.append(", ");
+            }
+            sb.append(entry.getKey()).append("=").append(entry.getValue());
+            first = false;
+        }
+        sb.append("\n");
+    }
+
+    private void appendSecMetrics(StringBuilder sb, String ticker) {
+        try {
+            List<SecInvestmentMetricResponse> metrics = secFinancialService.getInvestmentMetrics(ticker);
+            sb.append("## SEC 투자지표\n");
+            metrics.forEach(metric -> sb.append("- ").append(metric.getName())
+                    .append(": ").append(metric.getValue() != null ? metric.getValue() : "N/A")
+                    .append(metric.getUnit() != null ? metric.getUnit() : "")
+                    .append(" (").append(metric.getDescription()).append(")\n"));
+            sb.append("\n");
+        } catch (Exception e) {
+            log.warn("SEC 투자지표 조회 실패: ticker={}", ticker, e);
+            sb.append("## SEC 투자지표\n- 조회 실패: ").append(e.getMessage()).append("\n\n");
+        }
     }
 
     private int resolveEffectiveYear(String stockCode) {
@@ -339,6 +482,8 @@ public class ChatContextBuilder {
 
         return sb.toString();
     }
+
+    private record FinancialTarget(String stockCode, String country, PortfolioItemResponse item) {}
 
     private record YearIndices(int year, List<FinancialIndexResponse> indices) {}
 }

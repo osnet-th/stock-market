@@ -30,7 +30,7 @@ public interface StockPricePort {
     Map<String, CachedStockPrice> getDomesticPricesWithCacheInfo(List<String> stockCodes);
 
     /**
-     * 일봉(Daily) 가격 히스토리 조회. stocknote 종목 차트 등에서 사용.
+     * 일봉(Daily) 가격 히스토리 조회.
      *
      * <p>기본 구현은 빈 리스트 (포트 확장만 추가, 실제 어댑터 구현은 후속 작업). 구현체가
      * 제공하는 경우 {@code date ASC} 정렬로 반환해야 한다.

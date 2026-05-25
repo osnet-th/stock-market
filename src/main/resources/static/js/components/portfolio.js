@@ -40,9 +40,9 @@ const PortfolioComponent = {
         activeTab: 'items',
         showSaleModal: false,
         saleItem: null,
-        saleForm: { quantity: '', salePrice: '', soldAt: '', reason: 'OTHER', memo: '', fxRate: '', depositCashItemId: '', confirmUnrecorded: false },
+        saleForm: { quantity: '', salePrice: '', soldAt: '', reason: 'OTHER', memo: '', fxRate: '', deductionAmountKrw: '', netProceedsKrw: '', depositCashItemId: '', confirmUnrecorded: false },
         saleContext: { currentPriceKrw: null, currentPriceOriginal: null, currency: 'KRW', fxRate: null, totalAsset: null },
-        salePreview: { profit: 0, profitRate: 0, contributionRate: 0, salePriceKrw: 0, profitKrw: 0 },
+        salePreview: { profit: 0, profitRate: 0, contributionRate: 0, salePriceKrw: 0, profitKrw: 0, deductionAmountKrw: 0, netProceedsKrw: 0, netProfitKrw: 0, netProfitRate: 0, netContributionRate: 0 },
         userCashItems: [],
         userSales: [],
         userSalesLoading: false,
@@ -50,7 +50,7 @@ const PortfolioComponent = {
         showSaleDetailModal: false,
         saleDetail: null,
         editingSaleHistory: false,
-        editSaleForm: { quantity: '', salePrice: '', reason: 'OTHER', memo: '' },
+        editSaleForm: { quantity: '', salePrice: '', deductionAmountKrw: '', netProceedsKrw: '', reason: 'OTHER', memo: '' },
         selectedNewsItemId: null,
         news: { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false },
         collectingItemId: null,
@@ -1091,9 +1091,9 @@ const PortfolioComponent = {
     closeSaleModal() {
         this.portfolio.showSaleModal = false;
         this.portfolio.saleItem = null;
-        this.portfolio.saleForm = { quantity: '', salePrice: '', soldAt: '', reason: 'OTHER', memo: '', fxRate: '', depositCashItemId: '', confirmUnrecorded: false };
+        this.portfolio.saleForm = { quantity: '', salePrice: '', soldAt: '', reason: 'OTHER', memo: '', fxRate: '', deductionAmountKrw: '', netProceedsKrw: '', depositCashItemId: '', confirmUnrecorded: false };
         this.portfolio.saleContext = { currentPriceKrw: null, currentPriceOriginal: null, currency: 'KRW', fxRate: null, totalAsset: null };
-        this.portfolio.salePreview = { profit: 0, profitRate: 0, contributionRate: 0, salePriceKrw: 0, profitKrw: 0 };
+        this.portfolio.salePreview = { profit: 0, profitRate: 0, contributionRate: 0, salePriceKrw: 0, profitKrw: 0, deductionAmountKrw: 0, netProceedsKrw: 0, netProfitKrw: 0, netProfitRate: 0, netContributionRate: 0 };
         this.portfolio.userCashItems = [];
     },
 
@@ -1111,11 +1111,13 @@ const PortfolioComponent = {
             reason: 'OTHER',
             memo: '',
             fxRate: '',
+            deductionAmountKrw: '',
+            netProceedsKrw: '',
             depositCashItemId: '',
             confirmUnrecorded: false
         };
         this.portfolio.saleContext = { currentPriceKrw: null, currentPriceOriginal: null, currency: item.stockDetail.priceCurrency || 'KRW', fxRate: null, totalAsset: null };
-        this.portfolio.salePreview = { profit: 0, profitRate: 0, contributionRate: 0, salePriceKrw: 0, profitKrw: 0 };
+        this.portfolio.salePreview = { profit: 0, profitRate: 0, contributionRate: 0, salePriceKrw: 0, profitKrw: 0, deductionAmountKrw: 0, netProceedsKrw: 0, netProfitKrw: 0, netProfitRate: 0, netContributionRate: 0 };
         this.portfolio.userCashItems = (this.portfolio.items || []).filter(i => i.assetType === 'CASH');
         this.portfolio.showSaleModal = true;
 
@@ -1162,14 +1164,48 @@ const PortfolioComponent = {
 
         const contributionBase = fxRate > 0 ? profitKrw : profit;
         const contributionRate = totalAsset > 0 ? (contributionBase / totalAsset) * 100 : 0;
+        const settlement = this.resolveSaleSettlement(salePriceKrw, this.portfolio.saleForm);
+        const costKrw = fxRate > 0 ? avgBuyPrice * fxRate * quantity : 0;
+        const netProfitKrw = settlement.netProceedsKrw - costKrw;
+        const netProfitRate = costKrw > 0 ? (netProfitKrw / costKrw) * 100 : 0;
+        const netContributionRate = totalAsset > 0 ? (netProfitKrw / totalAsset) * 100 : 0;
 
         this.portfolio.salePreview = {
             profit: Math.round(profit * 100) / 100,
             profitRate: Math.round(profitRate * 100) / 100,
             contributionRate: Math.round(contributionRate * 100) / 100,
             salePriceKrw: Math.round(salePriceKrw * 100) / 100,
-            profitKrw: Math.round(profitKrw * 100) / 100
+            profitKrw: Math.round(profitKrw * 100) / 100,
+            deductionAmountKrw: Math.round(settlement.deductionAmountKrw * 100) / 100,
+            netProceedsKrw: Math.round(settlement.netProceedsKrw * 100) / 100,
+            netProfitKrw: Math.round(netProfitKrw * 100) / 100,
+            netProfitRate: Math.round(netProfitRate * 100) / 100,
+            netContributionRate: Math.round(netContributionRate * 100) / 100
         };
+    },
+
+    resolveSaleSettlement(grossProceedsKrw, form) {
+        const directNet = form.netProceedsKrw !== '' && form.netProceedsKrw !== null && form.netProceedsKrw !== undefined;
+        const directDeduction = form.deductionAmountKrw !== '' && form.deductionAmountKrw !== null && form.deductionAmountKrw !== undefined;
+        if (directNet) {
+            const netProceedsKrw = Math.max(0, Number(form.netProceedsKrw) || 0);
+            return { netProceedsKrw, deductionAmountKrw: Math.max(0, grossProceedsKrw - netProceedsKrw) };
+        }
+        if (directDeduction) {
+            const deductionAmountKrw = Math.max(0, Number(form.deductionAmountKrw) || 0);
+            return { deductionAmountKrw, netProceedsKrw: Math.max(0, grossProceedsKrw - deductionAmountKrw) };
+        }
+        return { deductionAmountKrw: 0, netProceedsKrw: grossProceedsKrw };
+    },
+
+    updateSaleNetFromDeduction() {
+        this.portfolio.saleForm.netProceedsKrw = '';
+        this.recalculateSalePreview();
+    },
+
+    updateSaleDeductionFromNet() {
+        this.recalculateSalePreview();
+        this.portfolio.saleForm.deductionAmountKrw = this.portfolio.salePreview.deductionAmountKrw || '';
     },
 
     async submitSale() {
@@ -1203,6 +1239,22 @@ const PortfolioComponent = {
             alert('환율을 입력해주세요. 자동 조회에 실패한 경우 직접 입력이 필요합니다.');
             return;
         }
+        if (form.deductionAmountKrw !== '' && Number(form.deductionAmountKrw) < 0) {
+            alert('차감액은 0원 이상이어야 합니다.');
+            return;
+        }
+        if (form.netProceedsKrw !== '' && Number(form.netProceedsKrw) < 0) {
+            alert('실입금액은 0원 이상이어야 합니다.');
+            return;
+        }
+        if (form.netProceedsKrw !== '' && Number(form.netProceedsKrw) > this.portfolio.salePreview.salePriceKrw) {
+            alert('실입금액은 총 체결금액보다 클 수 없습니다.');
+            return;
+        }
+        if (form.deductionAmountKrw !== '' && Number(form.deductionAmountKrw) > this.portfolio.salePreview.salePriceKrw) {
+            alert('차감액은 총 체결금액보다 클 수 없습니다.');
+            return;
+        }
 
         const link = this.portfolio.userCashItems.length === 0;
         if (link && !form.confirmUnrecorded) {
@@ -1216,6 +1268,8 @@ const PortfolioComponent = {
             reason: form.reason,
             memo: form.memo || null,
             fxRate: form.fxRate ? Number(form.fxRate) : null,
+            deductionAmountKrw: form.deductionAmountKrw !== '' ? Number(form.deductionAmountKrw) : null,
+            netProceedsKrw: form.netProceedsKrw !== '' ? Number(form.netProceedsKrw) : null,
             depositCashItemId: form.depositCashItemId ? Number(form.depositCashItemId) : null
         };
 
@@ -1265,10 +1319,18 @@ const PortfolioComponent = {
                 groups[month] = { month, items: [], totalSaleAmount: 0, totalProfit: 0 };
             }
             groups[month].items.push(sale);
-            groups[month].totalSaleAmount += Number(sale.salePriceKrw || 0);
-            groups[month].totalProfit += Number(sale.profitKrw || sale.profit || 0);
+            groups[month].totalSaleAmount += Number(this.saleNetProceeds(sale) || 0);
+            groups[month].totalProfit += Number(this.saleNetProfit(sale) || 0);
         }
         return Object.values(groups).sort((a, b) => b.month.localeCompare(a.month));
+    },
+
+    saleNetProceeds(sale) {
+        return sale?.netProceedsKrw ?? sale?.salePriceKrw ?? 0;
+    },
+
+    saleNetProfit(sale) {
+        return sale?.netProfitKrw ?? sale?.profitKrw ?? sale?.profit ?? 0;
     },
 
     setActiveTab(tab) {
@@ -1281,12 +1343,14 @@ const PortfolioComponent = {
     openSaleDetailModal(history) {
         this.portfolio.saleDetail = history;
         this.portfolio.editingSaleHistory = false;
-        this.portfolio.editSaleForm = {
-            quantity: history.quantity,
-            salePrice: history.salePrice,
-            reason: history.reason,
-            memo: history.memo || ''
-        };
+        this.portfolio.editSaleForm = this.createSaleEditForm(history);
+        this.portfolio.showSaleDetailModal = true;
+    },
+
+    openSaleEditModal(history) {
+        this.portfolio.saleDetail = history;
+        this.portfolio.editSaleForm = this.createSaleEditForm(history);
+        this.portfolio.editingSaleHistory = true;
         this.portfolio.showSaleDetailModal = true;
     },
 
@@ -1299,13 +1363,19 @@ const PortfolioComponent = {
     startEditSaleHistory() {
         const history = this.portfolio.saleDetail;
         if (!history) return;
-        this.portfolio.editSaleForm = {
+        this.portfolio.editSaleForm = this.createSaleEditForm(history);
+        this.portfolio.editingSaleHistory = true;
+    },
+
+    createSaleEditForm(history) {
+        return {
             quantity: history.quantity,
             salePrice: history.salePrice,
+            deductionAmountKrw: '',
+            netProceedsKrw: history.netProceedsKrw ?? '',
             reason: history.reason,
             memo: history.memo || ''
         };
-        this.portfolio.editingSaleHistory = true;
     },
 
     cancelEditSaleHistory() {
@@ -1325,11 +1395,21 @@ const PortfolioComponent = {
             alert('판매 단가를 입력해주세요.');
             return;
         }
+        if (form.deductionAmountKrw !== '' && Number(form.deductionAmountKrw) < 0) {
+            alert('차감액은 0원 이상이어야 합니다.');
+            return;
+        }
+        if (form.netProceedsKrw !== '' && Number(form.netProceedsKrw) < 0) {
+            alert('실입금액은 0원 이상이어야 합니다.');
+            return;
+        }
 
         try {
             const updated = await API.updateSaleHistory(this.auth.userId, history.portfolioItemId, history.id, {
                 quantity: Number(form.quantity),
                 salePrice: Number(form.salePrice),
+                deductionAmountKrw: form.deductionAmountKrw !== '' ? Number(form.deductionAmountKrw) : null,
+                netProceedsKrw: form.netProceedsKrw !== '' ? Number(form.netProceedsKrw) : null,
                 reason: form.reason,
                 memo: form.memo || null
             });

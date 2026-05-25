@@ -29,6 +29,11 @@ public class StockSaleHistoryResponse {
     private final BigDecimal fxRate;
     private final BigDecimal salePriceKrw;
     private final BigDecimal profitKrw;
+    private final BigDecimal deductionAmountKrw;
+    private final BigDecimal netProceedsKrw;
+    private final BigDecimal netProfitKrw;
+    private final BigDecimal netProfitRate;
+    private final BigDecimal netContributionRate;
     private final SaleReason reason;
     private final String memo;
     private final String stockCode;
@@ -53,6 +58,11 @@ public class StockSaleHistoryResponse {
                 history.getFxRate(),
                 history.getSalePriceKrw(),
                 history.getProfitKrw(),
+                history.getDeductionAmountKrw(),
+                history.getNetProceedsKrw(),
+                history.getNetProfitKrw(),
+                history.getNetProfitRate(),
+                history.getNetContributionRate(),
                 history.getReason(),
                 history.getMemo(),
                 history.getStockCode(),

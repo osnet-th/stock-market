@@ -110,6 +110,36 @@ const API = {
         return this.request('GET', `/api/economics/indicators/history?category=${category}`);
     },
 
+    // Derived Indicators (사용자 커스텀 파생지표) — 토큰 기반, userId 미부착
+    getDerivedIndicators() {
+        return this.request('GET', '/api/economics/derived-indicators');
+    },
+
+    createDerivedIndicator(body) {
+        return this.request('POST', '/api/economics/derived-indicators', body);
+    },
+
+    updateDerivedIndicator(id, body) {
+        return this.request('PUT', `/api/economics/derived-indicators/${id}`, body);
+    },
+
+    deleteDerivedIndicator(id) {
+        return this.request('DELETE', `/api/economics/derived-indicators/${id}`);
+    },
+
+    getDerivedAvailableIndicators(category) {
+        const q = category ? `?category=${encodeURIComponent(category)}` : '';
+        return this.request('GET', '/api/economics/derived-indicators/available-indicators' + q);
+    },
+
+    getDerivedPresets() {
+        return this.request('GET', '/api/economics/derived-indicators/presets');
+    },
+
+    copyDerivedPreset(key) {
+        return this.request('POST', `/api/economics/derived-indicators/presets/${encodeURIComponent(key)}/copy`);
+    },
+
     // News
     getNewsByKeyword(keywordId, page, size) {
         page = page || 0;
@@ -411,12 +441,12 @@ const API = {
     },
 
     // ==================== Chat ====================
-    async streamChat(userId, message, chatMode, stockCode, indicatorCategory, analysisTask, messages, onChunk, onDone, onError, signal) {
+    async streamChat(userId, message, chatMode, stockCode, portfolioItemId, indicatorCategory, analysisTask, messages, onChunk, onDone, onError, signal) {
         try {
             const response = await fetch(`${this.baseUrl}/api/chat?userId=${userId}`, {
                 method: 'POST',
                 headers: this.getHeaders(),
-                body: JSON.stringify({ message, chatMode, stockCode, indicatorCategory, analysisTask, messages }),
+                body: JSON.stringify({ message, chatMode, stockCode, portfolioItemId, indicatorCategory, analysisTask, messages }),
                 signal: signal
             });
 
@@ -556,45 +586,6 @@ const API = {
         return '?' + parts.join('&');
     },
 
-    // ==================== Stock Note ====================
-    createStockNote(body) {
-        return this.request('POST', '/api/stock-notes', body);
-    },
-    getStockNoteList(filters = {}) {
-        return this.request('GET', '/api/stock-notes' + this._buildLogQuery(filters));
-    },
-    getStockNoteDetail(id) {
-        return this.request('GET', `/api/stock-notes/${id}`);
-    },
-    updateStockNote(id, body) {
-        return this.request('PUT', `/api/stock-notes/${id}`, body);
-    },
-    deleteStockNote(id) {
-        return this.request('DELETE', `/api/stock-notes/${id}`);
-    },
-    upsertStockNoteVerification(id, body) {
-        return this.request('PUT', `/api/stock-notes/${id}/verification`, body);
-    },
-    deleteStockNoteVerification(id) {
-        return this.request('DELETE', `/api/stock-notes/${id}/verification`);
-    },
-    getStockNoteDashboard() {
-        return this.request('GET', '/api/stock-notes/dashboard');
-    },
-    getStockNoteSimilarPatterns(id, directionFilter = null) {
-        const qs = directionFilter ? `?directionFilter=${directionFilter}` : '';
-        return this.request('GET', `/api/stock-notes/${id}/similar-patterns${qs}`);
-    },
-    getStockNoteChart(stockCode, period = 90) {
-        return this.request('GET', `/api/stock-notes/by-stock/${stockCode}/chart?period=${period}`);
-    },
-    getStockNoteCustomTags(prefix = '', limit = 10) {
-        return this.request('GET', `/api/stock-notes/custom-tags?prefix=${encodeURIComponent(prefix)}&limit=${limit}`);
-    },
-    retryStockNoteSnapshot(id, type) {
-        return this.request('POST', `/api/stock-notes/${id}/snapshots/${type}/retry`);
-    },
-
     // ==================== Dashboard Summary ====================
     /** 메인 대시보드 뉴스 기록 카드용 — 최근 등록 3건 + 카테고리별 카운트. */
     getNewsJournalDashboardSummary() {
@@ -660,6 +651,10 @@ const API = {
         const params = new URLSearchParams({ regionCode });
         if (emdCode) params.set('emdCode', emdCode);
         return this.request('DELETE', `/api/realestate/favorites/regions?${params.toString()}`);
+    },
+    // 관리자 전용: 부동산 일배치 수동 트리거 (202 triggered / 409 rejected)
+    triggerRealEstateBatch() {
+        return this.request('POST', '/api/admin/realestate/batch/run');
     },
 
     // Glossary (개인 용어 사전)

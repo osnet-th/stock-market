@@ -4,7 +4,7 @@ function dashboard() {
         // ==================== 코어 상태 ====================
         currentPage: (() => {
             const hash = location.hash.replace('#', '');
-            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'salary', 'stocknote', 'news-journal', 'glossary', 'realestate', 'admin-logs'];
+            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'salary', 'news-journal', 'glossary', 'realestate', 'admin-logs'];
             return validPages.includes(hash) ? hash : 'home';
         })(),
 
@@ -19,7 +19,6 @@ function dashboard() {
             { key: 'global', label: '글로벌 경제지표', icon: 'globe' },
             { key: 'portfolio', label: '포트폴리오', icon: 'portfolio' },
             { key: 'salary', label: '월급 사용 비율', icon: 'wallet' },
-            { key: 'stocknote', label: '투자 노트', icon: 'note' },
             { key: 'news-journal', label: '뉴스 기록', icon: 'journal' },
             { key: 'glossary', label: '용어 사전', icon: 'book' },
             { key: 'realestate', label: '부동산 시장', icon: 'building' },
@@ -40,13 +39,13 @@ function dashboard() {
         ...NewsComponent,
         ...NewsSearchComponent,
         ...EcosComponent,
+        ...DerivedIndicatorComponent,
         ...GlobalComponent,
         ...PortfolioComponent,
         ...FinancialComponent,
         ...ChatComponent,
         ...FavoriteComponent,
         ...SalaryComponent,
-        ...StocknoteComponent,
         ...NewsJournalComponent,
         ...GlossaryComponent,
         ...AdminLogsComponent,
@@ -79,7 +78,7 @@ function dashboard() {
             // ==================== Partial 부트스트랩 ====================
             // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
             // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
-            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'stocknote', 'portfolio', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate'];
+            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'portfolio', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate'];
             const cleanupRegistry = {
                 // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
                 // home: dashboardSummary 차트 + favorite 위젯 차트를 정리해 중복 인스턴스 방지.
@@ -110,12 +109,6 @@ function dashboard() {
                         try { dash.destroySalaryCharts(); } catch (e) { /* ignore */ }
                     }
                 },
-                // stocknote: module-scope registry 차트 destroy
-                stocknote: (dash) => {
-                    if (typeof dash.destroyStocknoteCharts === 'function') {
-                        try { dash.destroyStocknoteCharts(); } catch (e) { /* ignore */ }
-                    }
-                },
                 // portfolio: navigateTo 인라인 destroy 흐름과 동일 — chartInstance 3종 정리
                 portfolio: (dash) => {
                     if (!dash.portfolio) return;
@@ -130,6 +123,12 @@ function dashboard() {
                 // news-search / admin-logs / keywords / news-journal / global: 차트 없음, cleanup 불필요
             };
             const securedNames = ['admin-logs'];      // /secured-partials/admin-logs.html (hasRole ADMIN)
+
+            // OAuth 콜백 토큰을 partial mount 이전에 저장.
+            // x-init(예: realestate initRealEstate)이 mount 시점에 인증 API를 호출하므로,
+            // 토큰 저장이 늦으면 Authorization 헤더 누락 → 401 → 재로그인 리다이렉트.
+            this.handleOAuthCallback();
+
             await PartialLoader.mountAllPartials(this, partialNames, cleanupRegistry, securedNames);
             this.bootReady = true;
 
@@ -155,8 +154,6 @@ function dashboard() {
                     this.navigateTo(page);
                 }
             });
-
-            this.handleOAuthCallback();
 
             if (!this.checkLoggedIn()) {
                 window.location.href = '/login.html';
@@ -221,11 +218,6 @@ function dashboard() {
                 this.destroySalaryCharts();
             }
 
-            // 투자 노트에서 떠날 때 Chart.js 인스턴스 정리
-            if (this.currentPage === 'stocknote' && page !== 'stocknote') {
-                this.destroyStocknoteCharts();
-            }
-
             // home 떠날 때 대시보드 요약 차트 정리
             if (this.currentPage === 'home' && page !== 'home') {
                 this.destroyDashboardSummaryChart();
@@ -263,10 +255,9 @@ function dashboard() {
                 case 'salary':
                     await this.loadSalaryInitial();
                     break;
-                case 'stocknote':
-                    await this.loadStocknote();
-                    break;
                 case 'admin-logs':
+                    // 부트 시 401/403 으로 partial 이 비어 있을 수 있어 진입 시점에 lazy mount 보장
+                    await PartialLoader.ensureMounted('admin-logs');
                     await this.loadAdminLogs();
                     break;
                 case 'glossary':

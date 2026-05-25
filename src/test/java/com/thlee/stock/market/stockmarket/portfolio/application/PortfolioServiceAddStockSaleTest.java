@@ -126,7 +126,7 @@ class PortfolioServiceAddStockSaleTest {
 
     private AddStockSaleParam param(int quantity, BigDecimal salePrice, BigDecimal fxRate, Long depositCashItemId) {
         return new AddStockSaleParam(quantity, salePrice, TODAY,
-                SaleReason.TARGET_PRICE_REACHED, "익절", fxRate, depositCashItemId);
+                SaleReason.TARGET_PRICE_REACHED, "익절", fxRate, null, null, depositCashItemId);
     }
 
     @Test
@@ -153,6 +153,52 @@ class PortfolioServiceAddStockSaleTest {
         assertThat(stock.getStatus()).isEqualTo(PortfolioItemStatus.ACTIVE);
         // CASH 잔액 = 500,000 + 240,000 = 740,000
         assertThat(cash.getInvestedAmount()).isEqualByComparingTo(BigDecimal.valueOf(740_000));
+    }
+
+    @Test
+    @DisplayName("KRW 부분 매도 + 차감액: 실입금액 기준으로 CASH 입금")
+    void krwPartialSale_withDeduction_creditsNetProceeds() {
+        PortfolioItem stock = stockItemKrw(10);
+        PortfolioItem cash = cashItem(BigDecimal.valueOf(500_000));
+        given(portfolioItemRepository.findById(STOCK_ITEM_ID)).willReturn(Optional.of(stock));
+        given(portfolioItemRepository.findById(CASH_ITEM_ID)).willReturn(Optional.of(cash));
+        given(cashStockLinkRepository.findByStockItemId(STOCK_ITEM_ID))
+                .willReturn(Optional.of(new CashStockLink(1L, CASH_ITEM_ID, STOCK_ITEM_ID, LocalDateTime.now())));
+        given(portfolioEvaluationService.computeTotalAsset(USER_ID))
+                .willReturn(BigDecimal.valueOf(10_000_000));
+
+        StockSaleHistoryResponse resp = portfolioService.addStockSale(USER_ID, STOCK_ITEM_ID,
+                new AddStockSaleParam(3, BigDecimal.valueOf(80_000), TODAY,
+                        SaleReason.TARGET_PRICE_REACHED, "익절", null,
+                        BigDecimal.valueOf(500), null, null));
+
+        assertThat(resp.getSalePriceKrw()).isEqualByComparingTo(BigDecimal.valueOf(240_000));
+        assertThat(resp.getDeductionAmountKrw()).isEqualByComparingTo(BigDecimal.valueOf(500));
+        assertThat(resp.getNetProceedsKrw()).isEqualByComparingTo(BigDecimal.valueOf(239_500));
+        assertThat(resp.getNetProfitKrw()).isEqualByComparingTo(BigDecimal.valueOf(29_500));
+        assertThat(cash.getInvestedAmount()).isEqualByComparingTo(BigDecimal.valueOf(739_500));
+    }
+
+    @Test
+    @DisplayName("KRW 부분 매도 + 직접 실입금액: 차감액보다 실입금액을 우선")
+    void krwPartialSale_withDirectNetProceeds_overridesDeduction() {
+        PortfolioItem stock = stockItemKrw(10);
+        PortfolioItem cash = cashItem(BigDecimal.valueOf(500_000));
+        given(portfolioItemRepository.findById(STOCK_ITEM_ID)).willReturn(Optional.of(stock));
+        given(portfolioItemRepository.findById(CASH_ITEM_ID)).willReturn(Optional.of(cash));
+        given(cashStockLinkRepository.findByStockItemId(STOCK_ITEM_ID))
+                .willReturn(Optional.of(new CashStockLink(1L, CASH_ITEM_ID, STOCK_ITEM_ID, LocalDateTime.now())));
+        given(portfolioEvaluationService.computeTotalAsset(USER_ID))
+                .willReturn(BigDecimal.valueOf(10_000_000));
+
+        StockSaleHistoryResponse resp = portfolioService.addStockSale(USER_ID, STOCK_ITEM_ID,
+                new AddStockSaleParam(3, BigDecimal.valueOf(80_000), TODAY,
+                        SaleReason.TARGET_PRICE_REACHED, "익절", null,
+                        BigDecimal.valueOf(500), BigDecimal.valueOf(239_480), null));
+
+        assertThat(resp.getDeductionAmountKrw()).isEqualByComparingTo(BigDecimal.valueOf(520));
+        assertThat(resp.getNetProceedsKrw()).isEqualByComparingTo(BigDecimal.valueOf(239_480));
+        assertThat(cash.getInvestedAmount()).isEqualByComparingTo(BigDecimal.valueOf(739_480));
     }
 
     @Test
@@ -298,7 +344,7 @@ class PortfolioServiceAddStockSaleTest {
         given(portfolioItemRepository.findById(CASH_ITEM_ID)).willReturn(Optional.of(cashItem(BigDecimal.ZERO)));
 
         AddStockSaleParam future = new AddStockSaleParam(1, BigDecimal.valueOf(80_000),
-                TODAY.plusDays(1), SaleReason.OTHER, null, null, null);
+                TODAY.plusDays(1), SaleReason.OTHER, null, null, null, null, null);
         assertThatThrownBy(() -> portfolioService.addStockSale(USER_ID, STOCK_ITEM_ID, future))
                 .isInstanceOf(IllegalArgumentException.class);
     }

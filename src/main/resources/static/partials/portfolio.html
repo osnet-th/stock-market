@@ -166,6 +166,9 @@
                                                                 <button x-show="item.assetType === 'STOCK' && (item.stockDetail?.country === 'KR' || item.stockDetail?.country === 'US') && item.stockDetail?.subType !== 'ETF'"
                                                                     @click.stop="openStockDetail(item)"
                                                                     class="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition">재무상세 ▸</button>
+                                                                <button x-show="item.assetType === 'STOCK' && (item.stockDetail?.country === 'KR' || item.stockDetail?.country === 'US') && item.stockDetail?.subType !== 'ETF'"
+                                                                    @click.stop="openChatForPortfolioStockAnalysis(item)"
+                                                                    class="text-xs text-violet-600 hover:text-violet-800 font-medium transition">AI분석</button>
                                                                 <!-- 추가 매수 (주식만) -->
                                                                 <button x-show="item.assetType === 'STOCK' && item.stockDetail"
                                                                     @click.stop="openPurchaseModal(item)"
@@ -273,6 +276,9 @@
                                                                 <button x-show="item.assetType === 'STOCK' && item.stockDetail?.country === 'US' && item.stockDetail?.subType !== 'ETF'"
                                                                     @click.stop="openStockDetail(item)"
                                                                     class="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition">재무상세 ▸</button>
+                                                                <button x-show="item.assetType === 'STOCK' && item.stockDetail?.country === 'US' && item.stockDetail?.subType !== 'ETF'"
+                                                                    @click.stop="openChatForPortfolioStockAnalysis(item)"
+                                                                    class="text-xs text-violet-600 hover:text-violet-800 font-medium transition">AI분석</button>
                                                                 <button x-show="item.assetType === 'STOCK' && item.stockDetail"
                                                                     @click.stop="openPurchaseModal(item)"
                                                                     class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition">추가 매수</button>
@@ -424,7 +430,7 @@
                                         <h3 class="text-sm font-bold text-gray-700"
                                             x-text="group.month + ' (' + group.items.length + '건)'"></h3>
                                         <div class="text-xs text-gray-600 space-x-3">
-                                            <span>판매금
+                                            <span>실입금
                                                 <span class="font-medium text-gray-800"
                                                     x-text="Format.number(group.totalSaleAmount, 0) + '원'"></span></span>
                                             <span>손익
@@ -453,19 +459,28 @@
                                                             <span x-text="Format.number(sale.salePrice, 2) + (sale.currency !== 'KRW' ? ' ' + sale.currency : '원')"></span>
                                                             <span x-show="sale.salePriceKrw" class="text-gray-400"
                                                                 x-text="' = ' + Format.number(sale.salePriceKrw, 0) + '원'"></span>
+                                                            <span x-show="sale.deductionAmountKrw" class="text-gray-400"
+                                                                x-text="' / 차감 ' + Format.number(sale.deductionAmountKrw, 0) + '원'"></span>
                                                         </p>
                                                     </div>
                                                     <div class="text-right">
                                                         <div class="text-sm font-medium"
-                                                            :class="sale.profit > 0 ? 'text-red-600' : sale.profit < 0 ? 'text-blue-600' : 'text-gray-600'"
-                                                            x-text="(sale.profit > 0 ? '+' : '') + Format.number(sale.profit, 2) + (sale.currency !== 'KRW' ? ' ' + sale.currency : '원')"></div>
+                                                            :class="saleNetProfit(sale) > 0 ? 'text-red-600' : saleNetProfit(sale) < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                                            x-text="(saleNetProfit(sale) > 0 ? '+' : '') + Format.number(saleNetProfit(sale), 0) + '원'"></div>
                                                         <div class="text-xs space-x-2">
                                                             <span
-                                                                :class="sale.profitRate > 0 ? 'text-red-500' : sale.profitRate < 0 ? 'text-blue-500' : 'text-gray-500'"
-                                                                x-text="(sale.profitRate > 0 ? '+' : '') + Format.number(sale.profitRate, 2) + '%'"></span>
+                                                                :class="(sale.netProfitRate ?? sale.profitRate) > 0 ? 'text-red-500' : (sale.netProfitRate ?? sale.profitRate) < 0 ? 'text-blue-500' : 'text-gray-500'"
+                                                                x-text="((sale.netProfitRate ?? sale.profitRate) > 0 ? '+' : '') + Format.number((sale.netProfitRate ?? sale.profitRate), 2) + '%'"></span>
                                                             <span class="text-gray-400">|</span>
                                                             <span class="text-gray-500" title="자산 기여율"
-                                                                x-text="'기여 ' + (sale.contributionRate > 0 ? '+' : '') + Format.number(sale.contributionRate, 2) + '%'"></span>
+                                                                x-text="'기여 ' + ((sale.netContributionRate ?? sale.contributionRate) > 0 ? '+' : '') + Format.number((sale.netContributionRate ?? sale.contributionRate), 2) + '%'"></span>
+                                                        </div>
+                                                        <div class="text-xs text-gray-400" x-text="'실입금 ' + Format.number(saleNetProceeds(sale), 0) + '원'"></div>
+                                                        <div class="mt-2 flex justify-end gap-2">
+                                                            <button @click.stop="openSaleEditModal(sale)"
+                                                                class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
+                                                            <button @click.stop="openSaleDetailModal(sale)"
+                                                                class="text-xs text-gray-500 hover:text-gray-700 font-medium transition">상세</button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -478,4 +493,3 @@
                     </div>
                 </template>
             </div>
-

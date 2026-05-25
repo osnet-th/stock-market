@@ -5,7 +5,7 @@
                 <!-- ===== 메인 대시보드 요약 카드 (이슈 #34) ===== -->
                 <section aria-label="기능 요약" class="mb-8">
                     <h3 class="text-base font-semibold text-gray-700 mb-3">기능 요약</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
                         <!-- 뉴스 기록 카드 -->
                         <a href="#news-journal" @click.prevent="navigateTo('news-journal')"
@@ -45,40 +45,6 @@
                                         </template>
                                     </div>
                                 </div>
-                            </template>
-                        </a>
-
-                        <!-- 투자 노트 카드 -->
-                        <a href="#stocknote" @click.prevent="navigateTo('stocknote')"
-                           :aria-busy="dashboardSummary.loading.note ? 'true' : 'false'"
-                           aria-label="투자 노트 — 최근 작성 노트 페이지로 이동"
-                           class="summary-card bg-white rounded-xl border border-gray-200 p-5 block no-underline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none">
-                            <p class="text-sm text-gray-500 mb-2">투자 노트</p>
-                            <template x-if="dashboardSummary.loading.note">
-                                <div class="space-y-2">
-                                    <div class="h-3 bg-gray-100 rounded animate-pulse"></div>
-                                    <div class="h-3 bg-gray-100 rounded animate-pulse w-5/6"></div>
-                                    <div class="h-3 bg-gray-100 rounded animate-pulse w-4/6"></div>
-                                </div>
-                            </template>
-                            <template x-if="!dashboardSummary.loading.note && dashboardSummary.error.note">
-                                <p class="text-xs text-gray-400" x-text="dashboardSummary.error.note"></p>
-                            </template>
-                            <template x-if="!dashboardSummary.loading.note && !dashboardSummary.error.note && dashboardSummary.note && (!dashboardSummary.note.items || dashboardSummary.note.items.length === 0)">
-                                <p class="text-xs text-gray-400">아직 작성한 노트가 없습니다.</p>
-                            </template>
-                            <template x-if="!dashboardSummary.loading.note && !dashboardSummary.error.note && dashboardSummary.note && dashboardSummary.note.items && dashboardSummary.note.items.length > 0">
-                                <ul class="space-y-1">
-                                    <template x-for="item in dashboardSummary.note.items.slice(0, 3)" :key="item.id">
-                                        <li class="text-xs text-gray-700">
-                                            <div class="flex items-center justify-between">
-                                                <span class="font-medium truncate mr-2" x-text="item.stockName || item.stockCode"></span>
-                                                <span class="text-gray-400 text-xs flex-shrink-0" x-text="(item.noteDate || '').slice(0, 10)"></span>
-                                            </div>
-                                            <p class="text-xs text-gray-500 truncate" x-text="item.triggerTextSummary"></p>
-                                        </li>
-                                    </template>
-                                </ul>
                             </template>
                         </a>
 

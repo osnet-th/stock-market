@@ -42,7 +42,43 @@ const RealEstateComponent = {
         // 관심지역
         favorites: [],
         // 비교 지역
-        compareTargets: []
+        compareTargets: [],
+        // 관리자 수동 배치 트리거 상태
+        adminBatch: {
+            triggering: false,
+            message: null,
+            messageType: null  // 'success' | 'warning' | 'error'
+        }
+    },
+
+    /**
+     * 관리자 전용 — 부동산 일배치 수동 트리거.
+     * 응답: 202 triggered (성공) / 409 rejected (다른 배치 in-flight) / 401·403 (권한 없음).
+     */
+    async triggerRealEstateAdminBatch() {
+        if (this.realestate.adminBatch.triggering) return;
+        this.realestate.adminBatch.triggering = true;
+        this.realestate.adminBatch.message = null;
+        try {
+            const res = await API.triggerRealEstateBatch();
+            const at = (res && res.triggeredAt) ? ` (${res.triggeredAt})` : '';
+            this.realestate.adminBatch.message = `동기화가 시작되었습니다${at}. 완료까지 잠시 걸릴 수 있어요.`;
+            this.realestate.adminBatch.messageType = 'success';
+        } catch (e) {
+            const status = e && e.status;
+            if (status === 409) {
+                this.realestate.adminBatch.message = '다른 배치가 이미 실행 중입니다. 잠시 후 다시 시도해 주세요.';
+                this.realestate.adminBatch.messageType = 'warning';
+            } else if (status === 401 || status === 403) {
+                this.realestate.adminBatch.message = '관리자 권한이 필요합니다.';
+                this.realestate.adminBatch.messageType = 'error';
+            } else {
+                this.realestate.adminBatch.message = (e && e.message) || '동기화 요청에 실패했습니다.';
+                this.realestate.adminBatch.messageType = 'error';
+            }
+        } finally {
+            this.realestate.adminBatch.triggering = false;
+        }
     },
 
     initRealEstateCharts() {

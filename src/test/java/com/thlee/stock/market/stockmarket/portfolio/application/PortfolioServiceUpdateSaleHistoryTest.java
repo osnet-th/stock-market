@@ -128,7 +128,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
 
         StockSaleHistoryResponse resp = portfolioService.updateSaleHistory(
                 USER_ID, STOCK_ITEM_ID, HISTORY_ID,
-                new UpdateSaleParam(2, BigDecimal.valueOf(80_000), SaleReason.TARGET_PRICE_REACHED, "수정"));
+                new UpdateSaleParam(2, BigDecimal.valueOf(80_000), null, null, SaleReason.TARGET_PRICE_REACHED, "수정"));
 
         // 수량 3 → 2: 보유 수량 7 + 1 = 8
         assertThat(stock.getStockDetail().getQuantity()).isEqualTo(8);
@@ -154,12 +154,59 @@ class PortfolioServiceUpdateSaleHistoryTest {
 
         StockSaleHistoryResponse resp = portfolioService.updateSaleHistory(
                 USER_ID, STOCK_ITEM_ID, HISTORY_ID,
-                new UpdateSaleParam(3, BigDecimal.valueOf(90_000), SaleReason.TARGET_PRICE_REACHED, null));
+                new UpdateSaleParam(3, BigDecimal.valueOf(90_000), null, null, SaleReason.TARGET_PRICE_REACHED, null));
 
         // 수량 동일, salePrice 80→90 → newSalePriceKrw = 270,000, delta = +30,000
         assertThat(cash.getInvestedAmount()).isEqualByComparingTo(BigDecimal.valueOf(770_000));
         // profit = (90000 - 70000) * 3 = 60,000
         assertThat(resp.getProfit()).isEqualByComparingTo(BigDecimal.valueOf(60_000));
+    }
+
+    @Test
+    @DisplayName("매도 이력 실입금액 수정: CASH를 실입금액 차액만큼 조정")
+    void update_netProceedsChange_adjustsCashByNetDelta() {
+        PortfolioItem stock = stockItem(7, PortfolioItemStatus.ACTIVE);
+        PortfolioItem cash = cashItem(BigDecimal.valueOf(740_000));
+        StockSaleHistory history = existingHistory(3, BigDecimal.valueOf(80_000), false);
+        given(portfolioItemRepository.findById(STOCK_ITEM_ID)).willReturn(Optional.of(stock));
+        given(portfolioItemRepository.findById(CASH_ITEM_ID)).willReturn(Optional.of(cash));
+        given(stockSaleHistoryRepository.findById(HISTORY_ID)).willReturn(Optional.of(history));
+        given(cashStockLinkRepository.findByStockItemId(STOCK_ITEM_ID))
+                .willReturn(Optional.of(new CashStockLink(1L, CASH_ITEM_ID, STOCK_ITEM_ID, LocalDateTime.now())));
+
+        StockSaleHistoryResponse resp = portfolioService.updateSaleHistory(
+                USER_ID, STOCK_ITEM_ID, HISTORY_ID,
+                new UpdateSaleParam(3, BigDecimal.valueOf(80_000), null,
+                        BigDecimal.valueOf(239_480), SaleReason.TARGET_PRICE_REACHED, null));
+
+        assertThat(cash.getInvestedAmount()).isEqualByComparingTo(BigDecimal.valueOf(739_480));
+        assertThat(resp.getDeductionAmountKrw()).isEqualByComparingTo(BigDecimal.valueOf(520));
+        assertThat(resp.getNetProceedsKrw()).isEqualByComparingTo(BigDecimal.valueOf(239_480));
+        assertThat(resp.getNetProfitKrw()).isEqualByComparingTo(BigDecimal.valueOf(29_480));
+    }
+
+    @Test
+    @DisplayName("매도 이력 삭제: 실입금액 기준으로 CASH 차감")
+    void delete_withNetProceeds_deductsNetAmount() {
+        PortfolioItem stock = stockItem(7, PortfolioItemStatus.ACTIVE);
+        PortfolioItem cash = cashItem(BigDecimal.valueOf(739_500));
+        StockSaleHistory history = StockSaleHistory.create(
+                STOCK_ITEM_ID, 3,
+                BigDecimal.valueOf(70_000), BigDecimal.valueOf(80_000),
+                "KRW", BigDecimal.ONE, BigDecimal.valueOf(10_000_000),
+                BigDecimal.valueOf(500), null,
+                SaleReason.TARGET_PRICE_REACHED, null,
+                "005930", "삼성전자", false, TODAY, TODAY
+        );
+        given(portfolioItemRepository.findById(STOCK_ITEM_ID)).willReturn(Optional.of(stock));
+        given(portfolioItemRepository.findById(CASH_ITEM_ID)).willReturn(Optional.of(cash));
+        given(stockSaleHistoryRepository.findById(HISTORY_ID)).willReturn(Optional.of(history));
+        given(cashStockLinkRepository.findByStockItemId(STOCK_ITEM_ID))
+                .willReturn(Optional.of(new CashStockLink(1L, CASH_ITEM_ID, STOCK_ITEM_ID, LocalDateTime.now())));
+
+        portfolioService.deleteSaleHistory(USER_ID, STOCK_ITEM_ID, HISTORY_ID);
+
+        assertThat(cash.getInvestedAmount()).isEqualByComparingTo(BigDecimal.valueOf(500_000));
     }
 
     @Test
@@ -175,7 +222,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
                 .willReturn(Optional.empty());
 
         portfolioService.updateSaleHistory(USER_ID, STOCK_ITEM_ID, HISTORY_ID,
-                new UpdateSaleParam(8, BigDecimal.valueOf(80_000), SaleReason.TARGET_PRICE_REACHED, null));
+                new UpdateSaleParam(8, BigDecimal.valueOf(80_000), null, null, SaleReason.TARGET_PRICE_REACHED, null));
 
         // 수량 10 → 8: 잔여 0 + 2 = 2 (양수)
         assertThat(stock.getStockDetail().getQuantity()).isEqualTo(2);
@@ -195,7 +242,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
                 .willReturn(Optional.of(new CashStockLink(1L, CASH_ITEM_ID, STOCK_ITEM_ID, LocalDateTime.now())));
 
         portfolioService.updateSaleHistory(USER_ID, STOCK_ITEM_ID, HISTORY_ID,
-                new UpdateSaleParam(10, BigDecimal.valueOf(80_000), SaleReason.TARGET_PRICE_REACHED, null));
+                new UpdateSaleParam(10, BigDecimal.valueOf(80_000), null, null, SaleReason.TARGET_PRICE_REACHED, null));
 
         // 수량 8 → 10: 잔여 2 - 2 = 0 → 자동 CLOSED
         assertThat(stock.getStockDetail().getQuantity()).isZero();
@@ -212,7 +259,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
         given(cashStockLinkRepository.findByStockItemId(STOCK_ITEM_ID)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> portfolioService.updateSaleHistory(USER_ID, STOCK_ITEM_ID, HISTORY_ID,
-                new UpdateSaleParam(15, BigDecimal.valueOf(80_000), SaleReason.OTHER, null)))
+                new UpdateSaleParam(15, BigDecimal.valueOf(80_000), null, null, SaleReason.OTHER, null)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("보유 수량");
     }
@@ -267,7 +314,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
         given(portfolioItemRepository.findById(STOCK_ITEM_ID)).willReturn(Optional.of(stockOfOtherUser));
 
         assertThatThrownBy(() -> portfolioService.updateSaleHistory(USER_ID, STOCK_ITEM_ID, HISTORY_ID,
-                new UpdateSaleParam(1, BigDecimal.valueOf(80_000), SaleReason.OTHER, null)))
+                new UpdateSaleParam(1, BigDecimal.valueOf(80_000), null, null, SaleReason.OTHER, null)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -284,7 +331,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
         given(stockSaleHistoryRepository.findById(HISTORY_ID)).willReturn(Optional.of(historyForOtherItem));
 
         assertThatThrownBy(() -> portfolioService.updateSaleHistory(USER_ID, STOCK_ITEM_ID, HISTORY_ID,
-                new UpdateSaleParam(1, BigDecimal.valueOf(80_000), SaleReason.OTHER, null)))
+                new UpdateSaleParam(1, BigDecimal.valueOf(80_000), null, null, SaleReason.OTHER, null)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

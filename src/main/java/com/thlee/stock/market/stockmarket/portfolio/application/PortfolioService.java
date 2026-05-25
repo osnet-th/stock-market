@@ -676,8 +676,9 @@ public class PortfolioService {
 
         StockDetail detail = stockItem.getStockDetail();
         BigDecimal salePriceKrw = computeSalePriceKrw(param.salePrice(), param.quantity(), snapshot.fxRate());
+        BigDecimal settlementAmountKrw = resolveSettlementAmount(salePriceKrw, param.deductionAmountKrw(), param.netProceedsKrw());
 
-        DepositResolution deposit = resolveDepositTarget(userId, stockItemId, param.depositCashItemId(), salePriceKrw);
+        DepositResolution deposit = resolveDepositTarget(userId, stockItemId, param.depositCashItemId(), settlementAmountKrw);
 
         StockSaleHistory history = StockSaleHistory.create(
                 stockItemId,
@@ -687,6 +688,8 @@ public class PortfolioService {
                 snapshot.currency(),
                 snapshot.fxRate(),
                 snapshot.totalAssetAtSale(),
+                param.deductionAmountKrw(),
+                param.netProceedsKrw(),
                 param.reason(),
                 param.memo(),
                 detail.getStockCode(),
@@ -696,8 +699,9 @@ public class PortfolioService {
                 today
         );
 
-        if (deposit.cashItem() != null && salePriceKrw != null) {
-            deposit.cashItem().restoreAmount(salePriceKrw);
+        BigDecimal cashDepositAmount = history.settlementAmountKrw();
+        if (deposit.cashItem() != null && cashDepositAmount != null) {
+            deposit.cashItem().restoreAmount(cashDepositAmount);
             portfolioItemRepository.save(deposit.cashItem());
         }
 
@@ -711,7 +715,7 @@ public class PortfolioService {
         portfolioItemRepository.save(stockItem);
 
         publishSaleEvent("PORTFOLIO_STOCK_SALE_ADDED", userId, stockItemId,
-                savedHistory.getId(), param.quantity(), param.salePrice(), savedHistory.getProfit());
+                savedHistory.getId(), param.quantity(), param.salePrice(), savedHistory.getNetProfitKrw());
 
         return StockSaleHistoryResponse.from(savedHistory);
     }
@@ -814,23 +818,24 @@ public class PortfolioService {
         }
 
         BigDecimal fxRate = history.getFxRate();
-        BigDecimal oldSalePriceKrw = history.getSalePriceKrw();
-        BigDecimal newSalePriceKrw = computeSalePriceKrw(param.salePrice(), newQuantity, fxRate);
+        BigDecimal oldSettlementAmountKrw = history.settlementAmountKrw();
+
+        history.update(newQuantity, param.salePrice(), param.deductionAmountKrw(), param.netProceedsKrw(),
+                param.reason(), param.memo());
+        history.recomputeProfit(history.getTotalAssetAtSale(), fxRate);
+        BigDecimal newSettlementAmountKrw = history.settlementAmountKrw();
 
         if (!history.isUnrecordedDeposit()
-                && oldSalePriceKrw != null
-                && newSalePriceKrw != null) {
-            applyCashDelta(stockItemId, oldSalePriceKrw, newSalePriceKrw);
+                && oldSettlementAmountKrw != null
+                && newSettlementAmountKrw != null) {
+            applyCashDelta(stockItemId, oldSettlementAmountKrw, newSettlementAmountKrw);
         }
-
-        history.update(newQuantity, param.salePrice(), param.reason(), param.memo());
-        history.recomputeProfit(history.getTotalAssetAtSale(), fxRate);
         StockSaleHistory savedHistory = stockSaleHistoryRepository.save(history);
 
         portfolioItemRepository.save(stockItem);
 
         publishSaleEvent("PORTFOLIO_STOCK_SALE_UPDATED", userId, stockItemId,
-                historyId, newQuantity, param.salePrice(), savedHistory.getProfit());
+                historyId, newQuantity, param.salePrice(), savedHistory.getNetProfitKrw());
 
         return StockSaleHistoryResponse.from(savedHistory);
     }
@@ -854,7 +859,7 @@ public class PortfolioService {
         }
 
         int restoreQuantity = history.getQuantity();
-        BigDecimal restoreSalePriceKrw = history.getSalePriceKrw();
+        BigDecimal restoreSalePriceKrw = history.settlementAmountKrw();
         boolean wasUnrecorded = history.isUnrecordedDeposit();
 
         stockItem.restoreStockQuantity(restoreQuantity);
@@ -920,6 +925,38 @@ public class PortfolioService {
         return salePrice.multiply(fxRate)
                 .multiply(BigDecimal.valueOf(quantity))
                 .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal resolveSettlementAmount(BigDecimal salePriceKrw,
+                                               BigDecimal deductionAmountKrw,
+                                               BigDecimal netProceedsKrw) {
+        if (netProceedsKrw != null) {
+            validateNetProceeds(salePriceKrw, netProceedsKrw);
+            return netProceedsKrw.setScale(2, RoundingMode.HALF_UP);
+        }
+        if (deductionAmountKrw != null) {
+            validateDeduction(salePriceKrw, deductionAmountKrw);
+            return salePriceKrw == null ? null : salePriceKrw.subtract(deductionAmountKrw).setScale(2, RoundingMode.HALF_UP);
+        }
+        return salePriceKrw;
+    }
+
+    private void validateNetProceeds(BigDecimal salePriceKrw, BigDecimal netProceedsKrw) {
+        if (netProceedsKrw.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("실입금액은 0 이상이어야 합니다.");
+        }
+        if (salePriceKrw != null && netProceedsKrw.compareTo(salePriceKrw) > 0) {
+            throw new IllegalArgumentException("실입금액은 총 체결금액보다 클 수 없습니다.");
+        }
+    }
+
+    private void validateDeduction(BigDecimal salePriceKrw, BigDecimal deductionAmountKrw) {
+        if (deductionAmountKrw.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("차감액은 0 이상이어야 합니다.");
+        }
+        if (salePriceKrw != null && deductionAmountKrw.compareTo(salePriceKrw) > 0) {
+            throw new IllegalArgumentException("차감액은 총 체결금액보다 클 수 없습니다.");
+        }
     }
 
     /**

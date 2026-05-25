@@ -4,11 +4,14 @@ import com.thlee.stock.market.stockmarket.economics.derivedindicator.domain.mode
 import com.thlee.stock.market.stockmarket.economics.derivedindicator.domain.repository.UserDerivedIndicatorRepository;
 import com.thlee.stock.market.stockmarket.economics.derivedindicator.infrastructure.persistence.mapper.UserDerivedIndicatorMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class UserDerivedIndicatorRepositoryImpl implements UserDerivedIndicatorRepository {
@@ -23,9 +26,17 @@ public class UserDerivedIndicatorRepositoryImpl implements UserDerivedIndicatorR
 
     @Override
     public List<UserDerivedIndicator> findByUserId(Long userId) {
-        return jpaRepository.findByUserId(userId).stream()
-                .map(mapper::toDomain)
-                .toList();
+        // 손상 JSON 등 매핑 실패 행은 목록 전체를 깨뜨리지 않도록 skip + 경고(graceful).
+        List<UserDerivedIndicator> result = new ArrayList<>();
+        for (UserDerivedIndicatorEntity entity : jpaRepository.findByUserId(userId)) {
+            try {
+                result.add(mapper.toDomain(entity));
+            } catch (RuntimeException e) {
+                log.warn("파생지표 매핑 실패로 목록에서 제외: id={}, userId={}, cause={}",
+                        entity.getId(), userId, e.getMessage());
+            }
+        }
+        return result;
     }
 
     @Override

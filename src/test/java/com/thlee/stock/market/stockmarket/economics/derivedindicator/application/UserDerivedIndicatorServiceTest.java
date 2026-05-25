@@ -8,6 +8,7 @@ import com.thlee.stock.market.stockmarket.economics.derivedindicator.domain.mode
 import com.thlee.stock.market.stockmarket.economics.derivedindicator.domain.model.FormulaOperator;
 import com.thlee.stock.market.stockmarket.economics.derivedindicator.domain.model.UserDerivedIndicator;
 import com.thlee.stock.market.stockmarket.economics.derivedindicator.domain.repository.UserDerivedIndicatorRepository;
+import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorCategory;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,10 +58,28 @@ class UserDerivedIndicatorServiceTest {
         when(repository.existsByUserIdAndName(USER, "내지표")).thenReturn(false);
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDerivedIndicator saved = service.create(USER, "내지표", "%p", "설명", validFormula());
+        DerivedFormula formula = validFormula();
+        UserDerivedIndicator saved = service.create(USER, "내지표", "%p", "설명", formula);
 
         assertThat(saved.getName()).isEqualTo("내지표");
+        assertThat(saved.getUserId()).isEqualTo(USER);
+        assertThat(saved.getFormula()).isSameAs(formula);
+        assertThat(saved.getCategory()).isEqualTo(EcosIndicatorCategory.INTEREST_RATE);
         verify(repository).save(any());
+    }
+
+    @Test
+    void update_잘못된수식_거부() {
+        UserDerivedIndicator existing =
+                UserDerivedIndicator.create(USER, "기존", "%p", null, validFormula(), EcosIndicatorCategory.INTEREST_RATE);
+        when(repository.findByIdAndUserId(7L, USER)).thenReturn(Optional.of(existing));
+        DerivedFormula crossOrUnknown = new DerivedFormula(
+                List.of(FormulaOperand.indicator("시장금리", "A"), FormulaOperand.indicator("없음", "Z")),
+                List.of(FormulaOperator.SUB));
+
+        assertThatThrownBy(() -> service.update(USER, 7L, "기존", "%p", null, crossOrUnknown))
+                .isInstanceOf(InvalidDerivedFormulaException.class);
+        verify(repository, never()).save(any());
     }
 
     @Test

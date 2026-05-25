@@ -59,7 +59,7 @@ public class UserDerivedIndicatorController {
     @GetMapping("/available-indicators")
     public List<AvailableIndicatorResponse> availableIndicators(
             @RequestParam(required = false) EcosIndicatorCategory category) {
-        DerivedIndicatorSecurityContext.currentUserId();
+        DerivedIndicatorSecurityContext.currentUserId(); // 인증 강제(미인증 401). 읽기 전용이라 반환값 미사용 — 제거 금지.
         return service.availableIndicators(category).stream()
                 .map(AvailableIndicatorResponse::from)
                 .toList();
@@ -67,7 +67,7 @@ public class UserDerivedIndicatorController {
 
     @GetMapping("/presets")
     public List<DerivedIndicatorPresetResponse> presets() {
-        DerivedIndicatorSecurityContext.currentUserId();
+        DerivedIndicatorSecurityContext.currentUserId(); // 인증 강제(미인증 401). 읽기 전용이라 반환값 미사용 — 제거 금지.
         return service.presets().stream()
                 .map(DerivedIndicatorPresetResponse::from)
                 .toList();

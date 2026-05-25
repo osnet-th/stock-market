@@ -65,4 +65,12 @@ class DerivedFormulaEvaluatorTest {
         assertThat(r.computable()).isFalse();
         assertThat(r.reason()).isEqualTo(DerivedFormulaEvaluator.Reason.MISSING_VALUE);
     }
+
+    @Test
+    void 오버플로_결과는_계산불가_NON_FINITE() {
+        DerivedFormula f = new DerivedFormula(List.of(ind("A"), ind("B")), List.of(FormulaOperator.MUL));
+        var r = evaluator.evaluate(f, Map.of(ck("A"), Double.MAX_VALUE, ck("B"), 10.0)); // → Infinity
+        assertThat(r.computable()).isFalse();
+        assertThat(r.reason()).isEqualTo(DerivedFormulaEvaluator.Reason.NON_FINITE);
+    }
 }

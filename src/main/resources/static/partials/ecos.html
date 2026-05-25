@@ -49,7 +49,7 @@
                 <!-- ===== 사용자 커스텀 파생지표 (이슈 #36) ===== -->
                 <div x-effect="currentPage === 'ecos' && ensureDerivedLoaded()">
                     <div class="flex items-center justify-between ecos-section-title">
-                        <span>파생지표</span>
+                        <span x-text="derivedSectionTitle()"></span>
                         <button type="button" @click="openDerivedCreate()"
                                 class="text-xs font-medium px-3 py-1.5 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition">
                             + 새 파생지표
@@ -62,13 +62,18 @@
                              x-text="derived.error"></div>
                     </template>
 
-                    <!-- 빈 상태: 프리셋 추천 -->
-                    <template x-if="!derived.loading && derived.list.length === 0">
+                    <!-- 빈 상태: 현재 카테고리 프리셋 추천 -->
+                    <template x-if="!derived.loading && derivedListForCategory().length === 0">
                         <div class="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-                            <p class="text-sm text-gray-600 mb-1">아직 만든 파생지표가 없어요.</p>
-                            <p class="text-xs text-gray-400 mb-4">아래 추천 프리셋을 추가하거나, 직접 새 파생지표를 만들어보세요.</p>
+                            <p class="text-sm text-gray-600 mb-1">이 카테고리에 만든 파생지표가 없어요.</p>
+                            <template x-if="derivedPresetsForCategory().length > 0">
+                                <p class="text-xs text-gray-400 mb-4">아래 추천 프리셋을 추가하거나, 직접 새 파생지표를 만들어보세요.</p>
+                            </template>
+                            <template x-if="derivedPresetsForCategory().length === 0">
+                                <p class="text-xs text-gray-400 mb-4">상단 <b>+ 새 파생지표</b>로 직접 만들어보세요.</p>
+                            </template>
                             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                                <template x-for="ps in derived.presets" :key="'ps-'+ps.key">
+                                <template x-for="ps in derivedPresetsForCategory()" :key="'ps-'+ps.key">
                                     <div class="border border-gray-200 rounded-lg p-3 flex flex-col gap-1">
                                         <span class="text-sm font-semibold text-gray-700" x-text="ps.name"></span>
                                         <span class="text-[11px] text-gray-400" x-text="derivedFormulaText(ps.formula)"></span>
@@ -83,10 +88,10 @@
                         </div>
                     </template>
 
-                    <!-- 파생지표 목록 -->
-                    <template x-if="derived.list.length > 0">
+                    <!-- 파생지표 목록 (현재 카테고리) -->
+                    <template x-if="derivedListForCategory().length > 0">
                         <ul class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-                            <template x-for="item in derived.list" :key="'di-'+item.id">
+                            <template x-for="item in derivedListForCategory()" :key="'di-'+item.id">
                                 <li>
                                     <div class="spread-card rounded-xl p-5 shadow-sm">
                                         <div class="flex items-start justify-between mb-2">
@@ -153,16 +158,13 @@
                                        placeholder="이 지표가 무엇을 의미하는지">
                             </div>
 
-                            <!-- 카테고리 -->
+                            <!-- 카테고리 (현재 탭 자동 적용, 같은 카테고리 지표만 조합) -->
                             <div class="mb-3">
-                                <label class="block text-xs text-gray-500 mb-1">카테고리 (같은 카테고리 지표만 조합)</label>
-                                <select x-model="derived.form.category" @change="onDerivedCategoryChange()"
-                                        class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
-                                    <option value="">선택</option>
-                                    <template x-for="c in derivedCategories()" :key="'dc-'+c.name">
-                                        <option :value="c.name" x-text="c.label"></option>
-                                    </template>
-                                </select>
+                                <label class="block text-xs text-gray-500 mb-1">카테고리</label>
+                                <div class="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                                    <span x-text="derivedCurrentCategoryLabel()"></span>
+                                    <span class="text-[11px] text-gray-400 ml-1">· 같은 카테고리 지표만 조합됩니다</span>
+                                </div>
                             </div>
 
                             <!-- 항 개수 -->

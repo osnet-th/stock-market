@@ -62,19 +62,40 @@ const DerivedIndicatorComponent = {
         }
     },
 
-    derivedCategories() {
-        const seen = new Map();
-        for (const ind of this.derived.available) {
-            if (!seen.has(ind.category)) {
-                seen.set(ind.category, ind.categoryLabel || ind.category);
-            }
-        }
-        return Array.from(seen, ([name, label]) => ({ name, label }));
-    },
-
     derivedAvailableForCategory() {
         if (!this.derived.form.category) return [];
         return this.derived.available.filter(i => i.category === this.derived.form.category);
+    },
+
+    derivedAvailableByCategory(categoryName) {
+        return this.derived.available.filter(i => i.category === categoryName);
+    },
+
+    /** 현재 선택된 ECOS 카테고리 라벨(예: '금리'). */
+    derivedCurrentCategoryLabel() {
+        const c = this.ecos.categories.find(x => x.name === this.ecos.selectedCategory);
+        return c ? c.label : '';
+    },
+
+    derivedSectionTitle() {
+        const label = this.derivedCurrentCategoryLabel();
+        return label ? label + ' 파생지표' : '파생지표';
+    },
+
+    /** 현재 카테고리에 속한 사용자 파생지표만. */
+    derivedListForCategory() {
+        return this.derived.list.filter(i => i.category === this.ecos.selectedCategory);
+    },
+
+    /** 현재 카테고리 지표만으로 구성된(=이 카테고리에서 추가 가능한) 프리셋만. */
+    derivedPresetsForCategory() {
+        const keys = new Set(
+            this.derivedAvailableByCategory(this.ecos.selectedCategory).map(a => a.className + '::' + a.keystatName)
+        );
+        return this.derived.presets.filter(p => {
+            const inds = (p.formula.operands || []).filter(o => o.type === 'INDICATOR');
+            return inds.length > 0 && inds.every(o => keys.has(o.className + '::' + o.keystatName));
+        });
     },
 
     derivedOperatorSymbol(op) {
@@ -86,7 +107,9 @@ const DerivedIndicatorComponent = {
         this.derived.error = '';
         this.derived.editingId = null;
         this.derived.form = {
-            name: '', unit: '', description: '', category: '', termCount: 2,
+            name: '', unit: '', description: '',
+            category: this.ecos.selectedCategory || '', // 현재 보고 있는 카테고리 자동 적용
+            termCount: 2,
             operands: [
                 { type: 'INDICATOR', className: '', keystatName: '', value: null },
                 { type: 'INDICATOR', className: '', keystatName: '', value: null },
@@ -136,16 +159,6 @@ const DerivedIndicatorComponent = {
 
     setDerivedTermCount(n) {
         this.derived.form.termCount = n;
-    },
-
-    onDerivedCategoryChange() {
-        // 카테고리 변경 시 지표 선택 초기화(다른 카테고리 지표가 남지 않도록)
-        this.derived.form.operands.forEach(o => {
-            if (o.type === 'INDICATOR') {
-                o.className = '';
-                o.keystatName = '';
-            }
-        });
     },
 
     onDerivedOperandSelect(operand, encoded) {

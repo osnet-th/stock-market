@@ -247,9 +247,17 @@
             <template x-if="portfolio.selectedFinancialMenu">
                 <div>
                     <!-- SEC 에러 메시지 -->
-                    <template x-if="portfolio.secFinancialError">
+                    <template x-if="isSecMenu() && portfolio.secFinancialError">
                         <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
                             <span x-text="portfolio.secFinancialError"></span>
+                        </div>
+                    </template>
+
+                    <!-- KR 조회 에러 메시지 -->
+                    <template x-if="!isSecMenu() && portfolio.financialError">
+                        <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+                            <span x-text="portfolio.financialError"></span>
+                            <br><span class="text-xs">[조회] 버튼을 눌러 다시 시도해 주세요.</span>
                         </div>
                     </template>
 
@@ -323,7 +331,7 @@
                         <div class="flex items-center gap-2">
                             <label class="text-xs text-gray-500">연도</label>
                             <select x-model="portfolio.financialYear"
-                                    @change="onFinancialFilterChange()"
+                                    x-init="$nextTick(() => { $el.value = portfolio.financialYear })"
                                     class="text-sm border border-gray-300 rounded px-2 py-1">
                                 <template x-for="year in getYearOptions()" :key="year">
                                     <option :value="year" x-text="year + '년'"></option>
@@ -335,7 +343,6 @@
                              x-show="portfolio.selectedFinancialMenu !== 'lawsuits' && portfolio.financialOptions">
                             <label class="text-xs text-gray-500">보고서</label>
                             <select x-model="portfolio.financialReportCode"
-                                    @change="onFinancialFilterChange()"
                                     class="text-sm border border-gray-300 rounded px-2 py-1">
                                 <template x-for="opt in portfolio.financialOptions?.reportCodes" :key="opt.code">
                                     <option :value="opt.code" x-text="opt.label"></option>
@@ -347,7 +354,6 @@
                              x-show="portfolio.selectedFinancialMenu === 'indices' && portfolio.financialOptions">
                             <label class="text-xs text-gray-500">지표분류</label>
                             <select x-model="portfolio.financialIndexClass"
-                                    @change="onFinancialFilterChange()"
                                     class="text-sm border border-gray-300 rounded px-2 py-1">
                                 <template x-for="opt in portfolio.financialOptions?.indexClassCodes" :key="opt.code">
                                     <option :value="opt.code" x-text="opt.label"></option>
@@ -359,11 +365,19 @@
                              x-show="portfolio.selectedFinancialMenu === 'full-statements'">
                             <label class="text-xs text-gray-500">구분</label>
                             <select x-model="portfolio.financialFsDiv"
-                                    @change="onFinancialFilterChange()"
                                     class="text-sm border border-gray-300 rounded px-2 py-1">
                                 <option value="CFS">연결</option>
                                 <option value="OFS">개별</option>
                             </select>
+                        </div>
+                        <!-- 조회 버튼 -->
+                        <div class="flex items-center">
+                            <button type="button"
+                                    @click="runFinancialQuery()"
+                                    :disabled="portfolio.financialLoading || !hasFinancialOptions()"
+                                    class="text-sm px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                조회
+                            </button>
                         </div>
                         <!-- 로딩 스피너 -->
                         <div x-show="portfolio.financialLoading"
@@ -385,6 +399,13 @@
                         </svg>
                         SEC 데이터 조회 중...
                     </div>
+
+                    <!-- 미조회 안내 (KR, 조회 전) -->
+                    <template x-if="!isSecMenu() && portfolio.selectedFinancialMenu && portfolio.financialResult === null && !portfolio.financialLoading && !portfolio.financialError">
+                        <div class="text-center py-6 text-gray-400 text-sm">
+                            조회 버튼을 눌러 데이터를 조회하세요
+                        </div>
+                    </template>
 
                     <!-- 결과 영역 -->
                     <template x-if="portfolio.financialResult !== null && !portfolio.financialLoading">

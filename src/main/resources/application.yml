@@ -189,19 +189,21 @@ realestate:
     connect-timeout-ms: 5000
     read-timeout-ms: 30000
     # R-ONE STATBL 11개 매핑 — RebStatblProperties로 strong-typed 바인딩.
-    # 각 entry: (statbl-id, dtacycle-cd). dtacycle-cd는 발표 주기 메타 (월간="MM" 추정, 첫 호출 시 검증).
+    # 각 entry: (statbl-id, dtacycle-cd, [indicator-code]).
+    # Q1=A 정책: indicator-code가 있는 STATBL만 적재 (4종 묶음 중 대표 1종 = 주택종합).
+    # 미매핑 entry는 fetch 단계에서 skip — 추후 metadata yml 확장 시 indicator-code 추가만으로 활성화 가능.
     statbl:
-      sale-price-total:        { statbl-id: A_2024_00017, dtacycle-cd: MM }   # 매매가격지수 주택종합
-      sale-price-apt:          { statbl-id: A_2024_00048, dtacycle-cd: MM }   # 매매가격지수 아파트
-      sale-price-rowhouse:     { statbl-id: A_2024_00083, dtacycle-cd: MM }   # 매매가격지수 연립/다세대
-      sale-price-singlehouse:  { statbl-id: A_2024_00117, dtacycle-cd: MM }   # 매매가격지수 단독주택
-      rent-price-total:        { statbl-id: A_2024_00020, dtacycle-cd: MM }   # 전세가격지수 주택종합
-      rent-price-apt:          { statbl-id: A_2024_00053, dtacycle-cd: MM }   # 전세가격지수 아파트
-      rent-price-rowhouse:     { statbl-id: A_2024_00088, dtacycle-cd: MM }   # 전세가격지수 연립/다세대
-      rent-price-singlehouse:  { statbl-id: A_2024_00122, dtacycle-cd: MM }   # 전세가격지수 단독주택
-      trade-volume-total:      { statbl-id: A_2024_00604, dtacycle-cd: MM }   # 거래량 주택종합
-      trade-volume-apt:        { statbl-id: A_2024_00612, dtacycle-cd: MM }   # 거래량 아파트
-      land-price-change:       { statbl-id: A_2024_00903, dtacycle-cd: MM }   # 지가변동률
+      sale-price-total:        { statbl-id: A_2024_00017, dtacycle-cd: MM, indicator-code: SALE_PRICE_INDEX }    # 매매가격지수 주택종합 (대표)
+      sale-price-apt:          { statbl-id: A_2024_00048, dtacycle-cd: MM }                                       # 매매가격지수 아파트
+      sale-price-rowhouse:     { statbl-id: A_2024_00083, dtacycle-cd: MM }                                       # 매매가격지수 연립/다세대
+      sale-price-singlehouse:  { statbl-id: A_2024_00117, dtacycle-cd: MM }                                       # 매매가격지수 단독주택
+      rent-price-total:        { statbl-id: A_2024_00020, dtacycle-cd: MM, indicator-code: JEONSE_PRICE_INDEX }   # 전세가격지수 주택종합 (대표)
+      rent-price-apt:          { statbl-id: A_2024_00053, dtacycle-cd: MM }                                       # 전세가격지수 아파트
+      rent-price-rowhouse:     { statbl-id: A_2024_00088, dtacycle-cd: MM }                                       # 전세가격지수 연립/다세대
+      rent-price-singlehouse:  { statbl-id: A_2024_00122, dtacycle-cd: MM }                                       # 전세가격지수 단독주택
+      trade-volume-total:      { statbl-id: A_2024_00604, dtacycle-cd: MM }                                       # 거래량 주택종합
+      trade-volume-apt:        { statbl-id: A_2024_00612, dtacycle-cd: MM, indicator-code: APT_TRANSACTION_COUNT }# 아파트 매매거래호수 (대표)
+      land-price-change:       { statbl-id: A_2024_00903, dtacycle-cd: MM, indicator-code: LAND_PRICE_CHANGE_RATE }# 지가변동률
   hub:
     base-url: https://apis.data.go.kr/1613000
     api-key: ${HUB_API_KEY:}

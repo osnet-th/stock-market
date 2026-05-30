@@ -41,17 +41,22 @@ import java.util.Map;
 @Slf4j
 public class RebClient {
 
-    private static final String PATH_ITM = "/SttsApiTblItm";
-    private static final String PATH_DATA = "/SttsApiTblData";
+    // R-ONE endpoint는 ".do" suffix 필수 — 미부착 시 HTML 오류 페이지 반환 (학습 #15 contextPath와 별개)
+    private static final String PATH_ITM = "/SttsApiTblItm.do";
+    private static final String PATH_DATA = "/SttsApiTblData.do";
     private static final int DEFAULT_PAGE_SIZE = 100;
     /** R-ONE ERROR 336 — 한 요청에 1,000건 초과 차단. */
     private static final int MAX_PAGE_SIZE = 1000;
     /** 한 호출당 최대 페이지 수 — 무한 루프 방지. */
     private static final int MAX_PAGES = 20;
 
-    private static final String INFO_OK = "000";
-    private static final String INFO_OK_LEGACY = "00";
-    private static final String INFO_EMPTY = "200";
+    // R-ONE resultCode 실제 형식은 "INFO-000" (정상) / "INFO-200" (빈 결과) / "ERROR-NNN" (오류).
+    // 명세서엔 "000" 형식이라 적혀 있으나 실제 응답은 prefix 포함.
+    private static final String INFO_OK = "INFO-000";
+    private static final String INFO_OK_LEGACY_3 = "000";
+    private static final String INFO_OK_LEGACY_2 = "00";
+    private static final String INFO_EMPTY = "INFO-200";
+    private static final String INFO_EMPTY_LEGACY = "200";
 
     private final RestClient restClient;
     private final RealEstateMarketProperties properties;
@@ -207,33 +212,64 @@ public class RebClient {
         return new PageResponse(rows);
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * 응답 어디든 RESULT/result 키의 Map 발견 시 그 안의 CODE/MESSAGE 추출.
+     * R-ONE 형식 예: {SttsApiTblItm: [{head: [{list_total_count:N}, {RESULT: {CODE:"INFO-000", ...}}]}, ...]}
+     */
     private ResultCode extractResultCode(Map<String, Object> root) {
-        // R-ONE 응답에서 RESULT 객체 추출 (다양한 위치 가능)
-        Object resultObj = root.get("RESULT");
-        if (resultObj == null) {
-            resultObj = root.get("result");
+        Map<String, Object> resultMap = findResultMap(root);
+        if (resultMap == null) {
+            return new ResultCode("", "");
         }
-        if (resultObj instanceof Map<?, ?> map) {
-            Object codeObj = map.get("CODE");
-            if (codeObj == null) codeObj = map.get("code");
-            Object msgObj = map.get("MESSAGE");
-            if (msgObj == null) msgObj = map.get("message");
-            String code = codeObj == null ? "" : codeObj.toString();
-            String message = msgObj == null ? "" : msgObj.toString();
-            return new ResultCode(code, message);
-        }
-        // RESULT envelope이 없으면 자료 row 존재 여부로 판단
-        return new ResultCode("", "");
+        Object codeObj = resultMap.get("CODE");
+        if (codeObj == null) codeObj = resultMap.get("code");
+        Object msgObj = resultMap.get("MESSAGE");
+        if (msgObj == null) msgObj = resultMap.get("message");
+        String code = codeObj == null ? "" : codeObj.toString();
+        String message = msgObj == null ? "" : msgObj.toString();
+        return new ResultCode(code, message);
     }
 
     @SuppressWarnings("unchecked")
+    private Map<String, Object> findResultMap(Object node) {
+        if (node instanceof Map<?, ?> map) {
+            Object direct = map.get("RESULT");
+            if (direct == null) direct = map.get("result");
+            if (direct instanceof Map<?, ?> direct2) {
+                return (Map<String, Object>) direct2;
+            }
+            for (Object v : map.values()) {
+                Map<String, Object> found = findResultMap(v);
+                if (found != null) return found;
+            }
+        } else if (node instanceof List<?> list) {
+            for (Object item : list) {
+                Map<String, Object> found = findResultMap(item);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 응답에서 실제 데이터 row 리스트 추출. R-ONE은 wrapper 형식 사용:
+     * {SttsApiTblItm: [{head: [...]}, {row: [{STATBL_ID, ITM_ID, ...}, ...]}]}
+     * → "row" 키를 가진 nested wrapper의 값을 우선 탐색.
+     */
+    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> extractRows(Map<String, Object> root) {
-        // 가장 흔한 형태: root.values()를 순회하며 List<Map>을 발견
+        // 우선순위 1: 모든 위치에서 "row" 또는 "ROW" 키 가진 List<Map> 탐색 (R-ONE 표준)
+        List<Map<String, Object>> rowsByKey = findRowsByKey(root);
+        if (rowsByKey != null) {
+            return rowsByKey;
+        }
+        // 우선순위 2: legacy fallback — root values의 첫 List<Map> (다른 출처용)
         for (Map.Entry<String, Object> entry : root.entrySet()) {
             if ("RESULT".equalsIgnoreCase(entry.getKey())) continue;
             Object value = entry.getValue();
-            if (value instanceof List<?> list && !list.isEmpty() && list.get(0) instanceof Map<?, ?>) {
+            if (value instanceof List<?> list && !list.isEmpty() && list.get(0) instanceof Map<?, ?> first
+                    && !first.containsKey("head") && !first.containsKey("row")
+                    && !first.containsKey("RESULT")) {
                 return (List<Map<String, Object>>) value;
             }
             if (value instanceof Map<?, ?> wrapper) {
@@ -246,6 +282,34 @@ public class RebClient {
             }
         }
         return List.of();
+    }
+
+    /**
+     * 재귀 탐색으로 "row" / "ROW" 키 발견 시 그 값(List<Map>)을 반환.
+     * R-ONE wrapper 형식의 핵심 추출기.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> findRowsByKey(Object node) {
+        if (node instanceof Map<?, ?> map) {
+            Object direct = map.get("row");
+            if (direct == null) direct = map.get("ROW");
+            if (direct instanceof List<?> list && !list.isEmpty()
+                    && list.get(0) instanceof Map<?, ?>) {
+                return (List<Map<String, Object>>) direct;
+            }
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if ("RESULT".equalsIgnoreCase(String.valueOf(entry.getKey()))) continue;
+                if ("head".equalsIgnoreCase(String.valueOf(entry.getKey()))) continue;
+                List<Map<String, Object>> found = findRowsByKey(entry.getValue());
+                if (found != null) return found;
+            }
+        } else if (node instanceof List<?> list) {
+            for (Object item : list) {
+                List<Map<String, Object>> found = findRowsByKey(item);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private String str(Map<String, Object> row, String key) {
@@ -281,12 +345,14 @@ public class RebClient {
 
     private record ResultCode(String code, String message) {
         boolean isEmpty() {
-            return INFO_EMPTY.equals(code);
+            return INFO_EMPTY.equals(code) || INFO_EMPTY_LEGACY.equals(code);
         }
 
         boolean isSuccess() {
             return code == null || code.isBlank()
-                    || INFO_OK.equals(code) || INFO_OK_LEGACY.equals(code);
+                    || INFO_OK.equals(code)
+                    || INFO_OK_LEGACY_3.equals(code)
+                    || INFO_OK_LEGACY_2.equals(code);
         }
     }
 }

@@ -286,7 +286,7 @@ const FinancialComponent = {
     },
 
     getDefaultYear() {
-        return String(new Date().getFullYear() - 1);
+        return String(new Date().getFullYear());
     },
 
     async loadFinancialOptions() {
@@ -309,6 +309,7 @@ const FinancialComponent = {
         this.portfolio.selectedStockItem = item;
         this.portfolio.selectedFinancialMenu = null;
         this.portfolio.financialResult = null;
+        this.portfolio.financialError = null;
         this.portfolio.secFinancialData = null;
         this.portfolio.secQuarterlyData = null;
         this.portfolio.secQuarterlyPeriod = 'annual';
@@ -453,6 +454,7 @@ const FinancialComponent = {
     async selectFinancialMenu(menuKey) {
         this.portfolio.selectedFinancialMenu = menuKey;
         this.portfolio.financialResult = null;
+        this.portfolio.financialError = null;
         this.portfolio.financialAccountFsFilter = '';
         this.portfolio.financialStatementFilter = '';
 
@@ -461,17 +463,44 @@ const FinancialComponent = {
             this.portfolio._secChartInstance.destroy();
             this.portfolio._secChartInstance = null;
         }
+        if (this.portfolio.financialChartInstance) {
+            this.portfolio.financialChartInstance.destroy();
+            this.portfolio.financialChartInstance = null;
+        }
 
+        // SEC만 탭 클릭 시 자동 조회. KR은 [조회] 버튼으로만 조회(R1/R2).
         if (menuKey.startsWith('sec-')) {
             await this.loadSecFinancial(menuKey);
-        } else {
-            await this.loadSelectedFinancial();
         }
     },
 
-    async onFinancialFilterChange() {
-        if (!this.portfolio.selectedFinancialMenu) return;
+    async runFinancialQuery() {
+        const menu = this.portfolio.selectedFinancialMenu;
+        if (!menu) return;
+
+        // 진입 즉시 generation 증가 + 로딩 표시 → 버튼 disabled, 옵션 로드 중 전환 시 stale 무시(R3)
+        const thisGeneration = ++this.portfolio._financialRequestGeneration;
+        this.portfolio.financialLoading = true;
+        this.portfolio.financialError = null;
+
+        // 옵션 로드 실패 종목 복구: null이면 1회 재시도(lawsuits는 옵션 불필요)
+        if (!this.portfolio.financialOptions && menu !== 'lawsuits') {
+            await this.loadFinancialOptions();
+            if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
+            // 재시도 후에도 null이면 네트워크/서버 실패 → "0건" 오인 방지를 위해 에러로 분기
+            if (!this.portfolio.financialOptions) {
+                this.portfolio.financialLoading = false;
+                this.portfolio.financialResult = null;
+                this.portfolio.financialError = '재무 옵션을 불러오지 못했습니다. 잠시 후 다시 조회해 주세요.';
+                return;
+            }
+        }
         await this.loadSelectedFinancial();
+    },
+
+    hasFinancialOptions() {
+        if (this.portfolio.selectedFinancialMenu === 'lawsuits') return true;
+        return !!this.portfolio.financialOptions;
     },
 
     async loadSelectedFinancial() {
@@ -484,24 +513,25 @@ const FinancialComponent = {
 
         const thisGeneration = ++this.portfolio._financialRequestGeneration;
         this.portfolio.financialLoading = true;
+        this.portfolio.financialError = null;
         try {
-            let result = await this.fetchSelectedFinancial(menu, stockCode, year, reportCode);
-            if (this.shouldFallbackFinancialYear(result, year)) {
-                const fallbackYear = String(Number(year) - 1);
-                result = await this.fetchSelectedFinancial(menu, stockCode, fallbackYear, reportCode);
-                this.portfolio.financialYear = fallbackYear;
-            }
+            const result = await this.fetchSelectedFinancial(menu, stockCode, year, reportCode);
             if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
             this.portfolio.financialResult = result || [];
+            this.portfolio.financialError = null;
         } catch (e) {
             if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
             console.error('재무정보 조회 실패:', e);
-            this.portfolio.financialResult = [];
+            // 에러 시 미조회(null)로 두어 0건 빈 상태와 상호배타 (센티넬 보존)
+            this.portfolio.financialResult = null;
+            this.portfolio.financialError = '재무정보 조회에 실패했습니다. 잠시 후 다시 조회해 주세요.';
         } finally {
             if (thisGeneration === this.portfolio._financialRequestGeneration) {
                 this.portfolio.financialLoading = false;
                 if (menu === 'accounts' && this.portfolio.financialResult && this.portfolio.financialResult.length > 0) {
                     this.$nextTick(() => {
+                        // 콜백 시점에 메뉴 전환으로 차트가 destroy됐을 수 있음 → stale 렌더 방지
+                        if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
                         this.renderFinancialBarChart();
                     });
                 }
@@ -532,10 +562,6 @@ const FinancialComponent = {
         }
     },
 
-    shouldFallbackFinancialYear(result, year) {
-        const defaultYear = this.getDefaultYear();
-        return year === defaultYear && Array.isArray(result) && result.length === 0;
-    },
 
     // === SEC (해외주식) 재무제표 ===
 

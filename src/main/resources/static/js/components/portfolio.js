@@ -60,6 +60,7 @@ const PortfolioComponent = {
         financialOptions: null,
         financialResult: null,
         financialLoading: false,
+        financialError: null,
         _tooltipText: '',
         selectedStockItem: null,
         financialYear: String(new Date().getFullYear()),

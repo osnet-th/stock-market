@@ -132,13 +132,19 @@ public class RebAdapter implements RealEstateMarketSourceAdapter {
         String endWrttime = window.to().toString().replace("-", "").substring(0, 6);
 
         // 동일 (STATBL, window)의 17 SIDO 호출은 캐시 hit으로 처리 (P0 #5 — redundant 호출 폭증 해소).
-        // 첫 region 호출이 STATBL 전체 데이터를 받아 캐시, 나머지 16 region은 메모리에서 ITM_ID 필터만.
+        // 첫 region 호출이 STATBL 전체 데이터를 받아 캐시, 나머지 16 region은 메모리에서 region 필터만.
         List<SttsApiTblDataRow> rows = metadataCache.dataFor(
                 target.statblId(), target.dtacycleCd(), startWrttime, endWrttime);
 
-        // 메모리 region 필터 (Q4=D1)
-        List<SttsApiTblDataRow> filtered = rows.stream()
-                .filter(row -> itm.itmId() != null && itm.itmId().equals(row.itmId()))
+        // 메모리 region 필터 (Q4=D1).
+        // R-ONE 통계표는 (GRP_ID, CLS_ID, ITM_ID) 다차원 — region이 어느 차원에 있는지는 STATBL마다 다르다.
+        // 예: A_2024_00017(매매가격지수) → region이 CLS_ID, ITM_ID는 단일 "지수".
+        // ITM API의 ITM_TAG=분류의 ITM_ID는 DATA의 GRP_ID/CLS_ID/ITM_ID 중 어느 하나와 매치된다.
+        String regionId = itm.itmId();
+        List<SttsApiTblDataRow> filtered = regionId == null ? List.of() : rows.stream()
+                .filter(row -> regionId.equals(row.clsId())
+                        || regionId.equals(row.grpId())
+                        || regionId.equals(row.itmId()))
                 .toList();
         if (filtered.isEmpty()) {
             return List.of();
@@ -210,7 +216,11 @@ public class RebAdapter implements RealEstateMarketSourceAdapter {
         if (entry == null || entry.getStatblId() == null || entry.getDtacycleCd() == null) {
             return null;
         }
-        return new StatblTarget(entry.getStatblId(), entry.getDtacycleCd());
+        // Q1=A 정책: indicator-code 매핑이 있는 STATBL만 적재 (4종 묶음 중 대표 1종만).
+        if (entry.getIndicatorCode() == null || entry.getIndicatorCode().isBlank()) {
+            return null;
+        }
+        return new StatblTarget(entry.getStatblId(), entry.getDtacycleCd(), entry.getIndicatorCode());
     }
 
     private List<StatblTarget> nonNull(StatblTarget... entries) {
@@ -230,7 +240,7 @@ public class RebAdapter implements RealEstateMarketSourceAdapter {
                 .regionCode(region.value())
                 .category(category)
                 .source(RealEstateMarketSource.REB)
-                .indicatorCode("REB_" + target.statblId())
+                .indicatorCode(target.indicatorCode())
                 .referenceText(row.wrttimeIdtfrId() == null ? "" : row.wrttimeIdtfrId())
                 .value(value)
                 .sourceUrl("https://www.reb.or.kr/r-one/")
@@ -239,6 +249,6 @@ public class RebAdapter implements RealEstateMarketSourceAdapter {
                 .build();
     }
 
-    private record StatblTarget(String statblId, String dtacycleCd) {
+    private record StatblTarget(String statblId, String dtacycleCd, String indicatorCode) {
     }
 }

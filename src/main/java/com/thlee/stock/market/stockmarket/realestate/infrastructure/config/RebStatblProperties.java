@@ -100,7 +100,7 @@ public class RebStatblProperties {
     }
 
     /**
-     * R-ONE STATBL entry — (통계표 ID, 발표 주기 코드) 쌍.
+     * R-ONE STATBL entry — (통계표 ID, 발표 주기 코드, metadata indicator 매핑) 쌍.
      */
     @Getter
     @Setter
@@ -109,5 +109,10 @@ public class RebStatblProperties {
         private String statblId;
         /** 발표 주기 코드 (예: "MM" = 월간). R-ONE 명세상 CHAR(11). */
         private String dtacycleCd;
+        /**
+         * realestate-indicator-metadata.yml의 indicator-code와 매핑되는 의미 코드.
+         * null 또는 blank이면 본 STATBL은 적재 대상에서 제외 (대표 1종만 사용 — Q1=A 정책).
+         */
+        private String indicatorCode;
     }
 }

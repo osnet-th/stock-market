@@ -86,6 +86,13 @@ public class RealEstateMarketQueryService {
         List<IndicatorCard> cards = new ArrayList<>(
                 buildCardsFor(regionCode, category, metaMap, HISTORY_LIMIT, null));
 
+        // 시군구 진입 시 상위 광역(SIDO) 카드도 함께 노출 — R-ONE은 SIDO 단위만 적재.
+        // 프론트는 regionLevel='SIDO' 필터로 광역 섹션에 분리 렌더링.
+        if (regionCode != null && regionCode.length() == 5) {
+            String sidoCode = regionCode.substring(0, 2);
+            cards.addAll(buildCardsFor(sidoCode, category, metaMap, HISTORY_LIMIT, null));
+        }
+
         if (category == RealEstateMarketCategory.RENT) {
             attachJeonseRatioEstimate(regionCode, metaMap, cards);
         }

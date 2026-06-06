@@ -37,28 +37,4 @@ public class KisTableResponse {
         }
         return KisTableResponse.builder().columns(columns).rows(rows).build();
     }
-
-    /**
-     * 신뢰 가능한 라벨이 없는 경우, 첫 레코드의 키 순서를 컬럼으로 사용해 원시 키 기준 표로 변환한다.
-     * (예: 종목추정실적 output2~4 — KIS 라벨이 자동생성 placeholder라 신뢰 불가)
-     */
-    public static KisTableResponse fromRaw(List<Map<String, String>> records) {
-        List<String> columns = new ArrayList<>();
-        List<List<String>> rows = new ArrayList<>();
-        if (records != null && !records.isEmpty()) {
-            columns.addAll(records.get(0).keySet());
-            for (Map<String, String> rec : records) {
-                List<String> row = new ArrayList<>();
-                for (String key : columns) {
-                    row.add(rec.getOrDefault(key, ""));
-                }
-                rows.add(row);
-            }
-        }
-        return KisTableResponse.builder().columns(columns).rows(rows).build();
-    }
-
-    public static KisTableResponse empty() {
-        return KisTableResponse.builder().columns(List.of()).rows(List.of()).build();
-    }
 }

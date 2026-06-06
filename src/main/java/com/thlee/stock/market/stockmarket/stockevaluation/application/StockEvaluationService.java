@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +34,26 @@ public class StockEvaluationService {
     private final KisStockInfoClient kisStockInfoClient;
     private final KisFinanceClient kisFinanceClient;
     private final KisKsdScheduleClient kisKsdScheduleClient;
+
+    // 종목추정실적 행 라벨 (KIS 응답이 data1~N 위치값만 제공 → 실제값 대조로 확정한 표준 레이아웃 기준)
+    private static final List<String> ESTIMATE_INCOME_LABELS = List.of(
+        "매출액(억원)", "매출액 증감률(%)", "영업이익(억원)", "영업이익 증감률(%)",
+        "당기순이익(억원)", "당기순이익 증감률(%)");
+    // output3은 EPS(2번째 행)만 실제값으로 확정, 나머지는 포털 명세 확인 필요
+    private static final List<String> ESTIMATE_METRIC_LABELS = List.of(
+        "지표1", "EPS(원)", "지표3", "지표4", "지표5", "지표6", "지표7", "지표8");
+
+    private static LinkedHashMap<String, String> estimateBasicLabels() {
+        LinkedHashMap<String, String> m = new LinkedHashMap<>();
+        m.put("sht_cd", "종목코드");
+        m.put("item_kor_nm", "종목명");
+        m.put("name1", "애널리스트");
+        m.put("estdate", "추정일자");
+        m.put("rcmd_name", "투자의견");
+        m.put("capital", "자본금(억원)");
+        m.put("forn_item_lmtrt", "외국인한도율");
+        return m;
+    }
 
     /**
      * 종목 기본정보 조회 (상품기본조회).
@@ -73,18 +94,24 @@ public class StockEvaluationService {
     }
 
     /**
-     * 종목추정실적 조회 (output1~4 → 섹션 표).
+     * 종목추정실적 조회.
+     * output4(기간축: 결산년월)를 컬럼 헤더로, output2/3의 위치값(data1~N)을 항목 라벨과 함께 표로 구성한다.
      */
     public EstimatePerformResponse getEstimatePerform(String stockCode) {
         try {
             KisEstimatePerformResponse res = kisStockInfoClient.estimatePerform(stockCode);
+            List<String> periods = extractPeriods(res.getOutput4());
             List<EstimatePerformResponse.Section> sections = new ArrayList<>();
+
             if (res.getOutput1() != null && !res.getOutput1().isEmpty()) {
-                addSection(sections, "기본정보", List.of(res.getOutput1()));
+                sections.add(section("기본정보", basicInfoTable(res.getOutput1())));
             }
-            addSection(sections, "추정 상세 1", res.getOutput2());
-            addSection(sections, "추정 상세 2", res.getOutput3());
-            addSection(sections, "추정 상세 3", res.getOutput4());
+            if (res.getOutput2() != null && !res.getOutput2().isEmpty()) {
+                sections.add(section("추정 손익", metricTable(ESTIMATE_INCOME_LABELS, res.getOutput2(), periods)));
+            }
+            if (res.getOutput3() != null && !res.getOutput3().isEmpty()) {
+                sections.add(section("추정 투자지표", metricTable(ESTIMATE_METRIC_LABELS, res.getOutput3(), periods)));
+            }
             return EstimatePerformResponse.builder().sections(sections).build();
         } catch (KisApiException e) {
             log.error("종목추정실적 조회 실패 [{}]: {}", stockCode, e.getMessage());
@@ -92,13 +119,48 @@ public class StockEvaluationService {
         }
     }
 
-    private void addSection(List<EstimatePerformResponse.Section> sections, String title, List<Map<String, String>> rows) {
-        if (rows != null && !rows.isEmpty()) {
-            sections.add(EstimatePerformResponse.Section.builder()
-                .title(title)
-                .table(KisTableResponse.fromRaw(rows))
-                .build());
+    private EstimatePerformResponse.Section section(String title, KisTableResponse table) {
+        return EstimatePerformResponse.Section.builder().title(title).table(table).build();
+    }
+
+    /** output4(dt 목록) → 기간 컬럼 라벨. */
+    private List<String> extractPeriods(List<Map<String, String>> output4) {
+        List<String> periods = new ArrayList<>();
+        if (output4 != null) {
+            for (Map<String, String> m : output4) {
+                periods.add(m.getOrDefault("dt", ""));
+            }
         }
+        return periods;
+    }
+
+    /** 기본정보(단일 객체) → "항목 / 값" 2열 표. */
+    private KisTableResponse basicInfoTable(Map<String, String> output1) {
+        List<List<String>> rows = new ArrayList<>();
+        estimateBasicLabels().forEach((key, label) -> {
+            if (output1.containsKey(key)) {
+                rows.add(List.of(label, output1.getOrDefault(key, "")));
+            }
+        });
+        return KisTableResponse.builder().columns(List.of("항목", "값")).rows(rows).build();
+    }
+
+    /** output2/3(행=항목, data1~N=기간) → "항목 + 기간별 값" 표. */
+    private KisTableResponse metricTable(List<String> labels, List<Map<String, String>> rows, List<String> periods) {
+        List<String> columns = new ArrayList<>();
+        columns.add("항목");
+        columns.addAll(periods);
+        List<List<String>> out = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            Map<String, String> rec = rows.get(i);
+            List<String> row = new ArrayList<>();
+            row.add(i < labels.size() ? labels.get(i) : ("항목 " + (i + 1)));
+            for (int j = 0; j < periods.size(); j++) {
+                row.add(rec.getOrDefault("data" + (j + 1), ""));
+            }
+            out.add(row);
+        }
+        return KisTableResponse.builder().columns(columns).rows(out).build();
     }
 
     /**

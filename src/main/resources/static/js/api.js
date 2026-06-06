@@ -417,6 +417,28 @@ const API = {
         return this.request('GET', `/api/stock-evaluation/${stockCode}/basic-info`);
     },
 
+    getStockFinance(stockCode, type, divCls) {
+        return this.request('GET',
+            `/api/stock-evaluation/${stockCode}/finance/${type}?divCls=${divCls}`);
+    },
+
+    getStockEstimatePerform(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/estimate-perform`);
+    },
+
+    getStockCreditEligibility(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/credit-eligibility`);
+    },
+
+    getStockSchedule(stockCode, type, fromDate, toDate) {
+        let url = `/api/stock-evaluation/${stockCode}/schedules/${type}`;
+        const params = [];
+        if (fromDate) params.push(`fromDate=${fromDate}`);
+        if (toDate) params.push(`toDate=${toDate}`);
+        if (params.length) url += '?' + params.join('&');
+        return this.request('GET', url);
+    },
+
     // ==================== SEC Financial (해외주식) ====================
     getSecFinancialStatements(ticker) {
         return this.request('GET', `/api/stocks/${ticker}/sec/financial/statements`);

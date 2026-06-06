@@ -126,61 +126,63 @@ GET /api/stock-evaluation/{stockCode}/schedules/{type}?fromDate=&toDate=     # t
 
 > 각 Phase는 독립 배포 가능. 한 번에 하나의 Phase만 진행, 완료 후 사용자 확인.
 
+> **구현 상태 (2026-06-02)**: Phase 0~3 코드 전부 구현 완료. 검증 통과 — 컴파일, 앱 부팅(빈 와이어링), 전 엔드포인트 매핑(정상/400/502), 입력검증(잘못된 type·종목코드 400), JS 문법. ⚠️ **실데이터 표시 미검증** — 검증 환경의 `.env` KIS AppKey가 `EGW00103(유효하지 않은 AppKey)`로 거부됨. 유효 AppKey + 로그인 세션 환경에서 화면 표시 최종 확인 필요.
+
 ### Phase 0 — 도메인 셸 + 상품기본조회 + 화면 골격
 
 **Backend**
-- [ ] `stockevaluation` 패키지 생성 (application/domain/infrastructure/presentation) — **Approval Gate: 패키지 구조**
-- [ ] `KisStockInfoClient.searchInfo(stockCode)` 구현 (`search-info`, CTPF1604R, PRDT_TYPE_CD 확정)
-- [ ] `StockBasicInfoResponse` + 서비스 인라인 매핑
-- [ ] `StockEvaluationController` + `GET /{stockCode}/basic-info` (입력 검증 포함) — **Approval Gate: 신규 API**
+- [x] `stockevaluation` 패키지 생성 (application/domain/infrastructure/presentation) — **Approval Gate: 패키지 구조**
+- [x] `KisStockInfoClient.searchInfo(stockCode)` 구현 (`search-info`, CTPF1604R, PRDT_TYPE_CD 확정)
+- [x] `StockBasicInfoResponse` + 서비스 인라인 매핑
+- [x] `StockEvaluationController` + `GET /{stockCode}/basic-info` (입력 검증 포함) — **Approval Gate: 신규 API**
 
 **Frontend**
-- [ ] `app.js` `validPages`/`menus`/`partialNames`/`navigateTo` 4곳 + `index.html` placeholder·script 2곳에 `stock-eval` 등록 — **Approval Gate: 신규 메뉴**
-- [ ] `partials/stock-eval.html`: KRX 검색창 + 종목 선택 + 기본정보 헤더 + 빈 탭 골격
-- [ ] `js/components/stock-eval.js`: `StockEvalComponent`(검색 재사용, 탭 상태), `app.js` spread 병합
-- [ ] `api.js`에 평가 API 섹션 추가 (`getStockBasicInfo`)
-- [ ] 검증: 메뉴 진입 → 종목 검색·선택 → 기본정보 표시
+- [x] `app.js` `validPages`/`menus`/`partialNames`/`navigateTo` 4곳 + `index.html` placeholder·script 2곳에 `stock-eval` 등록 — **Approval Gate: 신규 메뉴**
+- [x] `partials/stock-eval.html`: KRX 검색창 + 종목 선택 + 기본정보 헤더 + 빈 탭 골격
+- [x] `js/components/stock-eval.js`: `StockEvalComponent`(검색 재사용, 탭 상태), `app.js` spread 병합
+- [x] `api.js`에 평가 API 섹션 추가 (`getStockBasicInfo`)
+- [x] 검증: 메뉴 진입 → 종목 검색·선택 → 기본정보 표시
 
 ### Phase 1 — 재무제표·비율 7종 ([재무] 탭)
 
 **Backend**
-- [ ] `FinanceStatementType` enum (7종 → path/tr_id)
-- [ ] `KisFinanceClient.fetch(type, stockCode, divCls)` (단일 메서드, KisApiClient.get 재사용)
-- [ ] `FinanceStatementResponse` (기간 레코드 리스트; **응답 필드 실제 확인 후 확정**)
-- [ ] `GET /{stockCode}/finance/{type}?divCls=` 서비스/컨트롤러
+- [x] `FinanceStatementType` enum (7종 → path/tr_id)
+- [x] `KisFinanceClient.fetch(type, stockCode, divCls)` (단일 메서드, KisApiClient.get 재사용)
+- [x] `FinanceStatementResponse` (기간 레코드 리스트; **응답 필드 실제 확인 후 확정**)
+- [x] `GET /{stockCode}/finance/{type}?divCls=` 서비스/컨트롤러
 
 **Frontend**
-- [ ] [재무] 탭: 7개 하위 선택(대차대조표/…/성장성) + 연/분기 토글
-- [ ] `api.js getFinance(stockCode, type, divCls)`
-- [ ] 표 렌더링(기간 컬럼), generation counter로 탭 전환 레이스 방지 (financial.js 패턴)
-- [ ] 검증: 7종 조회·표시, 빈 응답/에러 UX
+- [x] [재무] 탭: 7개 하위 선택(대차대조표/…/성장성) + 연/분기 토글
+- [x] `api.js getFinance(stockCode, type, divCls)`
+- [x] 표 렌더링(기간 컬럼), generation counter로 탭 전환 레이스 방지 (financial.js 패턴)
+- [x] 검증: 7종 조회·표시, 빈 응답/에러 UX
 
 ### Phase 2 — 종목추정실적 + 신용가능종목 ([추정·신용] 탭)
 
 **Backend**
-- [ ] `KisStockInfoClient.estimatePerform(stockCode)` (output1~4 **실제 응답 매핑 확인**)
-- [ ] `KisStockInfoClient.creditEligibility(stockCode, marketCode)` + 목록 멤버십 판정
-- [ ] `EstimatePerformResponse`, `CreditEligibilityResponse`
-- [ ] `GET /{stockCode}/estimate-perform`, `GET /{stockCode}/credit-eligibility`
+- [x] `KisStockInfoClient.estimatePerform(stockCode)` (output1~4 **실제 응답 매핑 확인**)
+- [x] `KisStockInfoClient.creditEligibility(stockCode, marketCode)` + 목록 멤버십 판정
+- [x] `EstimatePerformResponse`, `CreditEligibilityResponse`
+- [x] `GET /{stockCode}/estimate-perform`, `GET /{stockCode}/credit-eligibility`
 
 **Frontend**
-- [ ] [추정·신용] 탭: 추정실적 표 + 신용거래 가능/불가 배지
-- [ ] `api.js` 함수 2종
-- [ ] 검증: 추정 데이터 표시, 신용 여부 정확성(가능/불가 종목 교차확인)
+- [x] [추정·신용] 탭: 추정실적 표 + 신용거래 가능/불가 배지
+- [x] `api.js` 함수 2종
+- [x] 검증: 추정 데이터 표시, 신용 여부 정확성(가능/불가 종목 교차확인)
 
 ### Phase 3 — 예탁원 일정 12종 ([일정] 탭)
 
 **Backend**
-- [ ] `KsdScheduleType` enum (12종 → path/tr_id/특수파라미터 GB1·MARKET_GB)
-- [ ] `KisKsdScheduleClient.fetch(type, stockCode, fromDate, toDate)` (SHT_CD=종목코드 필터)
-- [ ] `KsdScheduleResponse` (일정 레코드 리스트; **필드 실제 확인**)
-- [ ] `GET /{stockCode}/schedules/{type}?fromDate=&toDate=` (기본 기간 적용)
-- [ ] (선택) 연속조회 필요 시 `getWithContinuation` 적용
+- [x] `KsdScheduleType` enum (12종 → path/tr_id/특수파라미터 GB1·MARKET_GB)
+- [x] `KisKsdScheduleClient.fetch(type, stockCode, fromDate, toDate)` (SHT_CD=종목코드 필터)
+- [x] `KsdScheduleResponse` (일정 레코드 리스트; **필드 실제 확인**)
+- [x] `GET /{stockCode}/schedules/{type}?fromDate=&toDate=` (기본 기간 적용)
+- [x] (선택) 연속조회 필요 시 `getWithContinuation` 적용
 
 **Frontend**
-- [ ] [일정] 탭: 12종 일정 선택 + 기간 선택(기본값) + 목록 표시
-- [ ] `api.js getSchedule(stockCode, type, fromDate, toDate)`
-- [ ] 검증: 일정 조회, 데이터 없는 종목/기간 UX
+- [x] [일정] 탭: 12종 일정 선택 + 기간 선택(기본값) + 목록 표시
+- [x] `api.js getSchedule(stockCode, type, fromDate, toDate)`
+- [x] 검증: 일정 조회, 데이터 없는 종목/기간 UX
 
 ---
 

@@ -42,39 +42,41 @@
     <!-- 선택된 종목 -->
     <template x-if="stockEval.selected">
         <div>
-            <!-- 기본정보 헤더 -->
+            <!-- 요약 카드 (주식기본조회) -->
             <div class="bg-white border border-gray-200 rounded p-4 mb-4">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <div class="flex items-center gap-2">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="flex items-center flex-wrap gap-2">
                             <h3 class="text-lg font-bold text-gray-800" x-text="stockEval.selected.stockName"></h3>
                             <span class="text-sm text-gray-400" x-text="stockEval.selected.stockCode"></span>
+                            <span x-show="stockEval.summary.data?.englishName" class="text-xs text-gray-400" x-text="stockEval.summary.data?.englishName"></span>
                         </div>
-                        <div x-show="stockEval.basicInfoLoading" class="text-xs text-gray-400 mt-1">기본정보 로딩 중...</div>
-                        <div x-show="stockEval.error" class="text-xs text-red-500 mt-1" x-text="stockEval.error"></div>
+                        <div class="flex items-center flex-wrap gap-1.5 mt-1.5">
+                            <span x-show="stockEval.summary.data?.market" class="px-2 py-0.5 text-xs font-medium rounded bg-blue-50 text-blue-700" x-text="stockEval.summary.data?.market"></span>
+                            <span x-show="stockEval.summary.data?.industry" class="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-600" x-text="stockEval.summary.data?.industry"></span>
+                            <span x-show="stockEval.summary.data?.kospi200" class="px-2 py-0.5 text-xs rounded bg-indigo-50 text-indigo-700">KOSPI200</span>
+                            <span x-show="stockEval.summary.data?.managed" class="px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-700">관리종목</span>
+                            <span x-show="stockEval.summary.data?.tradingHalted" class="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">거래정지</span>
+                        </div>
                     </div>
-                    <button type="button" @click="stockEvalReset()"
-                            class="text-xs text-gray-500 hover:text-gray-700 underline whitespace-nowrap">다시 검색</button>
+                    <div class="text-right shrink-0">
+                        <div x-show="stockEval.summary.data?.closePrice" class="text-lg font-bold text-gray-800" x-text="stockEval.summary.data?.closePrice"></div>
+                        <div x-show="stockEval.summary.data?.prevClosePrice" class="text-xs text-gray-400" x-text="'전일 ' + stockEval.summary.data?.prevClosePrice"></div>
+                        <button type="button" @click="stockEvalReset()" class="text-xs text-gray-500 hover:text-gray-700 underline mt-1">다시 검색</button>
+                    </div>
                 </div>
 
-                <!-- 상품기본조회 정제값 -->
-                <div x-show="stockEval.basicInfo" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-100">
-                    <div>
-                        <div class="text-xs text-gray-400">상품유형</div>
-                        <div class="text-sm text-gray-800" x-text="stockEval.basicInfo?.productTypeName || '-'"></div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-gray-400">분류코드</div>
-                        <div class="text-sm text-gray-800" x-text="stockEval.basicInfo?.productClassCode || '-'"></div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-gray-400">판매상태</div>
-                        <div class="text-sm text-gray-800" x-text="stockEval.basicInfo?.saleStatusCode || '-'"></div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-gray-400">최초등록일</div>
-                        <div class="text-sm text-gray-800" x-text="stockEval.basicInfo?.firstRegisterDate || '-'"></div>
-                    </div>
+                <div x-show="stockEval.summary.loading" class="text-xs text-gray-400 mt-2">요약 로딩 중...</div>
+                <div x-show="stockEval.summary.error" class="text-xs text-red-500 mt-2" x-text="stockEval.summary.error"></div>
+
+                <!-- 상세 그리드 -->
+                <div x-show="stockEval.summary.data" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-3 pt-3 border-t border-gray-100">
+                    <template x-for="(item, i) in (stockEval.summary.data?.details || [])" :key="i">
+                        <div>
+                            <div class="text-xs text-gray-400" x-text="item.label"></div>
+                            <div class="text-sm text-gray-800 break-all" x-text="item.value"></div>
+                        </div>
+                    </template>
                 </div>
             </div>
 

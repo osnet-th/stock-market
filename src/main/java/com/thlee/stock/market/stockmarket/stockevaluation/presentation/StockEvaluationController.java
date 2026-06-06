@@ -5,6 +5,7 @@ import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.Credit
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.EstimatePerformResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.KisTableResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.StockBasicInfoResponse;
+import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.StockSummaryResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.domain.model.FinanceDivCls;
 import com.thlee.stock.market.stockmarket.stockevaluation.domain.model.FinanceStatementType;
 import com.thlee.stock.market.stockmarket.stockevaluation.domain.model.KsdScheduleType;
@@ -45,6 +46,17 @@ public class StockEvaluationController {
     public ResponseEntity<StockBasicInfoResponse> getBasicInfo(@PathVariable String stockCode) {
         validateStockCode(stockCode);
         return ResponseEntity.ok(stockEvaluationService.getBasicInfo(stockCode));
+    }
+
+    /**
+     * 종목 요약 조회 (주식기본조회) — 평가 화면 최상단 카드.
+     *
+     * @param stockCode 종목코드 (KRX 6자리)
+     */
+    @GetMapping("/{stockCode}/summary")
+    public ResponseEntity<StockSummaryResponse> getSummary(@PathVariable String stockCode) {
+        validateStockCode(stockCode);
+        return ResponseEntity.ok(stockEvaluationService.getStockSummary(stockCode));
     }
 
     /**

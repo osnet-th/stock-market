@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis;
 
 import com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis.dto.KisEstimatePerformResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis.dto.KisSearchInfoOutput;
+import com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis.dto.KisSearchStockInfoOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.KisApiClient;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.exception.KisApiException;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,9 @@ public class KisStockInfoClient {
     private static final String SEARCH_INFO_PATH = "/uapi/domestic-stock/v1/quotations/search-info";
     private static final String SEARCH_INFO_TR_ID = "CTPF1604R";
     private static final String PRDT_TYPE_CD_STOCK = "300"; // 주식
+
+    private static final String SEARCH_STOCK_INFO_PATH = "/uapi/domestic-stock/v1/quotations/search-stock-info";
+    private static final String SEARCH_STOCK_INFO_TR_ID = "CTPF1002R";
 
     private static final String ESTIMATE_PERFORM_PATH = "/uapi/domestic-stock/v1/quotations/estimate-perform";
     private static final String ESTIMATE_PERFORM_TR_ID = "HHKST668300C0";
@@ -47,6 +51,25 @@ public class KisStockInfoClient {
                 .build(),
             new ParameterizedTypeReference<>() {},
             "상품기본조회 [" + stockCode + "]"
+        );
+    }
+
+    /**
+     * 주식기본조회 (요약 카드용 — 업종/상장주식수/자본금/액면가/종가 등).
+     *
+     * @param stockCode 종목코드 (KRX 6자리)
+     * @return 주식 기본정보 (단일 output)
+     */
+    public KisSearchStockInfoOutput searchStockInfo(String stockCode) {
+        return kisApiClient.get(
+            SEARCH_STOCK_INFO_PATH,
+            SEARCH_STOCK_INFO_TR_ID,
+            uriBuilder -> uriBuilder
+                .queryParam("PDNO", stockCode)
+                .queryParam("PRDT_TYPE_CD", PRDT_TYPE_CD_STOCK)
+                .build(),
+            new ParameterizedTypeReference<>() {},
+            "주식기본조회 [" + stockCode + "]"
         );
     }
 

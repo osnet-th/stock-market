@@ -417,6 +417,10 @@ const API = {
         return this.request('GET', `/api/stock-evaluation/${stockCode}/basic-info`);
     },
 
+    getStockSummary(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/summary`);
+    },
+
     getStockFinance(stockCode, type, divCls) {
         return this.request('GET',
             `/api/stock-evaluation/${stockCode}/finance/${type}?divCls=${divCls}`);

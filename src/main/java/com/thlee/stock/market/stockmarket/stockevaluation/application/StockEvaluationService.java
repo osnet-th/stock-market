@@ -4,6 +4,8 @@ import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.Credit
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.EstimatePerformResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.KisTableResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.StockBasicInfoResponse;
+import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.StockSummaryResponse;
+import com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis.dto.KisSearchStockInfoOutput;
 import com.thlee.stock.market.stockmarket.stockevaluation.domain.model.FinanceStatementType;
 import com.thlee.stock.market.stockmarket.stockevaluation.domain.model.KsdScheduleType;
 import com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis.KisFinanceClient;
@@ -78,6 +80,103 @@ public class StockEvaluationService {
             log.error("종목 기본정보 조회 실패 [{}]: {}", stockCode, e.getMessage());
             throw new KisApiException("종목 기본정보를 불러올 수 없습니다");
         }
+    }
+
+    /**
+     * 종목 요약 조회 (주식기본조회) — 평가 화면 최상단 카드용.
+     */
+    public StockSummaryResponse getStockSummary(String stockCode) {
+        try {
+            KisSearchStockInfoOutput o = kisStockInfoClient.searchStockInfo(stockCode);
+            if (o == null) {
+                throw new KisApiException("종목 요약 정보를 불러올 수 없습니다");
+            }
+            List<StockSummaryResponse.SummaryItem> details = new ArrayList<>();
+            addItem(details, "상장주식수", withSuffix(formatNumber(o.getListedShares()), "주"));
+            addItem(details, "자본금", withSuffix(formatNumber(o.getCapital()), "원"));
+            addItem(details, "액면가", withSuffix(formatNumber(o.getParValue()), "원"));
+            addItem(details, "결산월", formatSettlementMonth(o.getSettlementMonthDay()));
+            addItem(details, "상장일", formatDate(listingDate(o)));
+            addItem(details, "외국인한도", foreignLimit(o.getForeignLimitRate()));
+
+            String name = (o.getAbbrName() != null && !o.getAbbrName().isBlank()) ? o.getAbbrName() : o.getName();
+            return StockSummaryResponse.builder()
+                .stockCode(stockCode)
+                .stockName(name)
+                .englishName(o.getEngAbbrName())
+                .stdCode(o.getStdCode())
+                .market(market(o))
+                .industry(o.getIndustryName())
+                .closePrice(withSuffix(formatNumber(o.getClosePrice()), "원"))
+                .prevClosePrice(withSuffix(formatNumber(o.getPrevClosePrice()), "원"))
+                .kospi200("Y".equals(o.getKospi200Yn()))
+                .managed("Y".equals(o.getManagedYn()))
+                .tradingHalted("Y".equals(o.getTradingStopYn()))
+                .details(details)
+                .build();
+        } catch (KisApiException e) {
+            log.error("종목 요약 조회 실패 [{}]: {}", stockCode, e.getMessage());
+            throw new KisApiException("종목 요약 정보를 불러올 수 없습니다");
+        }
+    }
+
+    private void addItem(List<StockSummaryResponse.SummaryItem> items, String label, String value) {
+        items.add(StockSummaryResponse.SummaryItem.builder()
+            .label(label)
+            .value(value == null || value.isBlank() ? "-" : value)
+            .build());
+    }
+
+    private String market(KisSearchStockInfoOutput o) {
+        if ("STK".equals(o.getMarketIdCode())) return "코스피";
+        if ("KSQ".equals(o.getMarketIdCode())) return "코스닥";
+        if (o.getKosdaqListingDate() != null && !o.getKosdaqListingDate().isBlank()) return "코스닥";
+        if (o.getKospiListingDate() != null && !o.getKospiListingDate().isBlank()) return "코스피";
+        return "기타";
+    }
+
+    private String listingDate(KisSearchStockInfoOutput o) {
+        if (o.getKosdaqListingDate() != null && !o.getKosdaqListingDate().isBlank()) {
+            return o.getKosdaqListingDate();
+        }
+        return o.getKospiListingDate();
+    }
+
+    private String formatSettlementMonth(String mmdd) {
+        if (mmdd == null || mmdd.isBlank()) return "";
+        String mm = mmdd.length() >= 2 ? mmdd.substring(0, 2) : mmdd;
+        try {
+            return Integer.parseInt(mm) + "월";
+        } catch (NumberFormatException e) {
+            return mmdd;
+        }
+    }
+
+    private String foreignLimit(String rate) {
+        if (rate == null || rate.isBlank()) return "";
+        try {
+            double r = Double.parseDouble(rate);
+            return r <= 0 ? "한도없음" : String.format("%.2f%%", r);
+        } catch (NumberFormatException e) {
+            return rate;
+        }
+    }
+
+    private String formatNumber(String num) {
+        if (num == null || num.isBlank()) return "";
+        try {
+            return String.format("%,d", Long.parseLong(num.trim()));
+        } catch (NumberFormatException e) {
+            try {
+                return String.format("%,.0f", Double.parseDouble(num.trim()));
+            } catch (NumberFormatException e2) {
+                return num;
+            }
+        }
+    }
+
+    private String withSuffix(String value, String suffix) {
+        return (value == null || value.isBlank()) ? "" : value + suffix;
     }
 
     /**

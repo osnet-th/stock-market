@@ -5,12 +5,9 @@ const StockEvalComponent = {
         searchResults: [],
         searchLoading: false,
         selected: null,          // { stockCode, stockName, ... }
-        basicInfo: null,
-        basicInfoLoading: false,
-        error: '',
+        summary: { data: null, loading: false, error: '', _gen: 0 },  // 요약 카드 (주식기본조회)
         activeTab: 'finance',    // finance | estimate | credit | schedule
         _searchGen: 0,
-        _infoGen: 0,
 
         financeTypes: [
             { code: 'balance-sheet', label: '대차대조표' },
@@ -68,7 +65,7 @@ const StockEvalComponent = {
         this.stockEval.searchQuery = '';
         this.stockEval.activeTab = 'finance';
         this._stockEvalResetTabs();
-        await this.stockEvalLoadBasicInfo();
+        await this.stockEvalLoadSummary();
         await this.stockEvalLoadFinance(); // 기본 탭
     },
 
@@ -79,22 +76,23 @@ const StockEvalComponent = {
         Object.assign(this.stockEval.schedule, { type: 'dividend', fromDate: '', toDate: '', table: null, loaded: false, error: '' });
     },
 
-    async stockEvalLoadBasicInfo() {
+    async stockEvalLoadSummary() {
         if (!this.stockEval.selected) return;
         const code = this.stockEval.selected.stockCode;
-        const gen = ++this.stockEval._infoGen;
-        this.stockEval.basicInfoLoading = true;
-        this.stockEval.error = '';
+        const s = this.stockEval.summary;
+        const gen = ++s._gen;
+        s.loading = true;
+        s.error = '';
         try {
-            const info = await API.getStockBasicInfo(code);
-            if (gen !== this.stockEval._infoGen) return;
-            this.stockEval.basicInfo = info;
+            const data = await API.getStockSummary(code);
+            if (gen !== s._gen) return;
+            s.data = data;
         } catch (e) {
-            if (gen !== this.stockEval._infoGen) return;
-            this.stockEval.basicInfo = null;
-            this.stockEval.error = '종목 기본정보를 불러올 수 없습니다.';
+            if (gen !== s._gen) return;
+            s.data = null;
+            s.error = '종목 요약 정보를 불러올 수 없습니다.';
         } finally {
-            if (gen === this.stockEval._infoGen) this.stockEval.basicInfoLoading = false;
+            if (gen === s._gen) s.loading = false;
         }
     },
 
@@ -108,8 +106,7 @@ const StockEvalComponent = {
 
     stockEvalReset() {
         this.stockEval.selected = null;
-        this.stockEval.basicInfo = null;
-        this.stockEval.error = '';
+        Object.assign(this.stockEval.summary, { data: null, loading: false, error: '' });
         this.stockEval.searchResults = [];
         this.stockEval.searchQuery = '';
         this._stockEvalResetTabs();

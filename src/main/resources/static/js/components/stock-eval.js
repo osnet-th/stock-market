@@ -8,7 +8,7 @@ const StockEvalComponent = {
         basicInfo: null,
         basicInfoLoading: false,
         error: '',
-        activeTab: 'finance',    // finance | estimate-credit | schedule
+        activeTab: 'finance',    // finance | estimate | credit | schedule
         _searchGen: 0,
         _infoGen: 0,
 
@@ -23,7 +23,8 @@ const StockEvalComponent = {
         ],
         finance: { type: 'balance-sheet', divCls: 'ANNUAL', table: null, loaded: false, loading: false, error: '', _gen: 0 },
 
-        estimateCredit: { sections: [], credit: null, loaded: false, loading: false, error: '', _gen: 0 },
+        estimate: { sections: [], loaded: false, loading: false, error: '', _gen: 0 },
+        credit: { data: null, loaded: false, loading: false, error: '', _gen: 0 },
 
         scheduleTypes: [
             { code: 'dividend', label: '배당' },
@@ -73,7 +74,8 @@ const StockEvalComponent = {
 
     _stockEvalResetTabs() {
         Object.assign(this.stockEval.finance, { type: 'balance-sheet', divCls: 'ANNUAL', table: null, loaded: false, error: '' });
-        Object.assign(this.stockEval.estimateCredit, { sections: [], credit: null, loaded: false, error: '' });
+        Object.assign(this.stockEval.estimate, { sections: [], loaded: false, error: '' });
+        Object.assign(this.stockEval.credit, { data: null, loaded: false, error: '' });
         Object.assign(this.stockEval.schedule, { type: 'dividend', fromDate: '', toDate: '', table: null, loaded: false, error: '' });
     },
 
@@ -99,7 +101,8 @@ const StockEvalComponent = {
     stockEvalSelectTab(tab) {
         this.stockEval.activeTab = tab;
         if (tab === 'finance' && !this.stockEval.finance.loaded) this.stockEvalLoadFinance();
-        if (tab === 'estimate-credit' && !this.stockEval.estimateCredit.loaded) this.stockEvalLoadEstimateCredit();
+        if (tab === 'estimate' && !this.stockEval.estimate.loaded) this.stockEvalLoadEstimate();
+        if (tab === 'credit' && !this.stockEval.credit.loaded) this.stockEvalLoadCredit();
         if (tab === 'schedule' && !this.stockEval.schedule.loaded) this.stockEvalLoadSchedule();
     },
 
@@ -144,26 +147,48 @@ const StockEvalComponent = {
         this.stockEvalLoadFinance();
     },
 
-    // ==================== 추정·신용 탭 ====================
-    async stockEvalLoadEstimateCredit() {
+    // ==================== 추정실적 탭 ====================
+    async stockEvalLoadEstimate() {
         if (!this.stockEval.selected) return;
         const code = this.stockEval.selected.stockCode;
-        const ec = this.stockEval.estimateCredit;
-        const gen = ++ec._gen;
-        ec.loading = true;
-        ec.error = '';
-        const [est, cred] = await Promise.allSettled([
-            API.getStockEstimatePerform(code),
-            API.getStockCreditEligibility(code),
-        ]);
-        if (gen !== ec._gen) return;
-        ec.sections = est.status === 'fulfilled' && est.value ? (est.value.sections || []) : [];
-        ec.credit = cred.status === 'fulfilled' ? cred.value : null;
-        if (est.status === 'rejected' && cred.status === 'rejected') {
-            ec.error = '추정·신용 정보를 불러올 수 없습니다.';
+        const e = this.stockEval.estimate;
+        const gen = ++e._gen;
+        e.loading = true;
+        e.error = '';
+        try {
+            const res = await API.getStockEstimatePerform(code);
+            if (gen !== e._gen) return;
+            e.sections = res && res.sections ? res.sections : [];
+            e.loaded = true;
+        } catch (err) {
+            if (gen !== e._gen) return;
+            e.sections = [];
+            e.error = '추정실적을 불러올 수 없습니다.';
+        } finally {
+            if (gen === e._gen) e.loading = false;
         }
-        ec.loaded = true;
-        ec.loading = false;
+    },
+
+    // ==================== 신용 탭 ====================
+    async stockEvalLoadCredit() {
+        if (!this.stockEval.selected) return;
+        const code = this.stockEval.selected.stockCode;
+        const c = this.stockEval.credit;
+        const gen = ++c._gen;
+        c.loading = true;
+        c.error = '';
+        try {
+            const res = await API.getStockCreditEligibility(code);
+            if (gen !== c._gen) return;
+            c.data = res;
+            c.loaded = true;
+        } catch (err) {
+            if (gen !== c._gen) return;
+            c.data = null;
+            c.error = '신용거래 가능 여부를 불러올 수 없습니다.';
+        } finally {
+            if (gen === c._gen) c.loading = false;
+        }
     },
 
     // ==================== 일정 탭 ====================

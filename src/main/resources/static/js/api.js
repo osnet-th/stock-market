@@ -412,6 +412,11 @@ const API = {
             `/api/stocks/${stockCode}/financial/public-fund-usages?year=${year}&reportCode=${reportCode}`);
     },
 
+    // ==================== Stock Evaluation (종목 평가, KIS 국내주식 종목정보) ====================
+    getStockBasicInfo(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/basic-info`);
+    },
+
     // ==================== SEC Financial (해외주식) ====================
     getSecFinancialStatements(ticker) {
         return this.request('GET', `/api/stocks/${ticker}/sec/financial/statements`);

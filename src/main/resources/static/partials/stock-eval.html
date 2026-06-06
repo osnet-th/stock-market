@@ -1,0 +1,108 @@
+<!-- ========== STOCK EVALUATION (종목 평가) ========== -->
+<div x-show="currentPage === 'stock-eval'" x-cloak>
+
+    <!-- 헤더 -->
+    <div class="mb-4">
+        <h2 class="text-xl font-bold text-gray-800">종목 평가</h2>
+        <p class="text-xs text-gray-500 mt-1">매수 전 국내주식(KRX)을 검색해 재무·추정실적·일정 등 종목정보를 확인하세요. (보유 여부 무관)</p>
+    </div>
+
+    <!-- 검색 -->
+    <div class="bg-white border border-gray-200 rounded p-4 mb-4">
+        <div class="flex gap-2">
+            <input type="text" x-model="stockEval.searchQuery"
+                   @keydown.enter="stockEvalSearch()"
+                   placeholder="종목명 또는 종목코드 (예: 삼성전자, 005930)"
+                   class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button type="button" @click="stockEvalSearch()"
+                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 whitespace-nowrap">
+                검색
+            </button>
+        </div>
+
+        <!-- 검색 로딩 -->
+        <div x-show="stockEval.searchLoading" class="text-xs text-gray-400 mt-2">검색 중...</div>
+
+        <!-- 검색 결과 -->
+        <ul x-show="stockEval.searchResults.length > 0" class="mt-2 border border-gray-100 rounded divide-y divide-gray-100 max-h-60 overflow-y-auto">
+            <template x-for="r in stockEval.searchResults" :key="r.stockCode">
+                <li>
+                    <button type="button" @click="stockEvalSelect(r)"
+                            class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between">
+                        <span class="font-medium text-gray-800" x-text="r.stockName"></span>
+                        <span class="text-xs text-gray-400" x-text="r.stockCode"></span>
+                    </button>
+                </li>
+            </template>
+        </ul>
+        <div x-show="!stockEval.searchLoading && stockEval.searchQuery && stockEval.searchResults.length === 0 && !stockEval.selected"
+             class="text-xs text-gray-400 mt-2">검색 결과가 없습니다. (국내주식만 조회됩니다)</div>
+    </div>
+
+    <!-- 선택된 종목 -->
+    <template x-if="stockEval.selected">
+        <div>
+            <!-- 기본정보 헤더 -->
+            <div class="bg-white border border-gray-200 rounded p-4 mb-4">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-lg font-bold text-gray-800" x-text="stockEval.selected.stockName"></h3>
+                            <span class="text-sm text-gray-400" x-text="stockEval.selected.stockCode"></span>
+                        </div>
+                        <div x-show="stockEval.basicInfoLoading" class="text-xs text-gray-400 mt-1">기본정보 로딩 중...</div>
+                        <div x-show="stockEval.error" class="text-xs text-red-500 mt-1" x-text="stockEval.error"></div>
+                    </div>
+                    <button type="button" @click="stockEvalReset()"
+                            class="text-xs text-gray-500 hover:text-gray-700 underline whitespace-nowrap">다시 검색</button>
+                </div>
+
+                <!-- 상품기본조회 정제값 -->
+                <div x-show="stockEval.basicInfo" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-100">
+                    <div>
+                        <div class="text-xs text-gray-400">상품유형</div>
+                        <div class="text-sm text-gray-800" x-text="stockEval.basicInfo?.productTypeName || '-'"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-400">분류코드</div>
+                        <div class="text-sm text-gray-800" x-text="stockEval.basicInfo?.productClassCode || '-'"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-400">판매상태</div>
+                        <div class="text-sm text-gray-800" x-text="stockEval.basicInfo?.saleStatusCode || '-'"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-400">최초등록일</div>
+                        <div class="text-sm text-gray-800" x-text="stockEval.basicInfo?.firstRegisterDate || '-'"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 평가 탭 -->
+            <div class="flex flex-wrap gap-2 mb-3">
+                <button type="button" @click="stockEvalSelectTab('finance')"
+                        :class="stockEval.activeTab === 'finance' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                        class="px-3 py-1.5 text-sm font-medium rounded">재무</button>
+                <button type="button" @click="stockEvalSelectTab('estimate-credit')"
+                        :class="stockEval.activeTab === 'estimate-credit' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                        class="px-3 py-1.5 text-sm font-medium rounded">추정·신용</button>
+                <button type="button" @click="stockEvalSelectTab('schedule')"
+                        :class="stockEval.activeTab === 'schedule' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                        class="px-3 py-1.5 text-sm font-medium rounded">일정</button>
+            </div>
+
+            <!-- 탭 콘텐츠 (Phase 0: 골격) -->
+            <div class="bg-white border border-gray-200 rounded p-6 text-center text-sm text-gray-400">
+                <template x-if="stockEval.activeTab === 'finance'">
+                    <span>재무제표·비율 (대차대조표, 손익계산서, 5개 비율) — 준비 중</span>
+                </template>
+                <template x-if="stockEval.activeTab === 'estimate-credit'">
+                    <span>종목추정실적 · 신용거래 가능 여부 — 준비 중</span>
+                </template>
+                <template x-if="stockEval.activeTab === 'schedule'">
+                    <span>예탁원 일정 (배당·증자·합병 등) — 준비 중</span>
+                </template>
+            </div>
+        </div>
+    </template>
+</div>

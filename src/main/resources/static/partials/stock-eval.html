@@ -111,6 +111,13 @@
                     <button type="button" @click="stockEvalSetFinanceDivCls('QUARTER')"
                             :class="stockEval.finance.divCls === 'QUARTER' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
                             class="px-2.5 py-1 text-xs font-medium rounded">분기</button>
+                    <span x-show="stockEvalFinanceIsAmount()" class="mx-1 text-gray-300">|</span>
+                    <button x-show="stockEvalFinanceIsAmount()" type="button" @click="stockEvalSetUnit('억')"
+                            :class="stockEval.amountUnit === '억' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                            class="px-2.5 py-1 text-xs font-medium rounded">억</button>
+                    <button x-show="stockEvalFinanceIsAmount()" type="button" @click="stockEvalSetUnit('조')"
+                            :class="stockEval.amountUnit === '조' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                            class="px-2.5 py-1 text-xs font-medium rounded">조</button>
                 </div>
                 <div class="bg-white border border-gray-200 rounded p-4">
                     <div x-show="stockEval.finance.loading" class="text-sm text-gray-400 text-center py-6">불러오는 중...</div>
@@ -129,7 +136,7 @@
                                         <template x-for="(row, ri) in stockEval.finance.table.rows" :key="ri">
                                             <tr class="hover:bg-gray-50">
                                                 <template x-for="(cell, ci) in row" :key="ci">
-                                                    <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtNum(cell)"></td>
+                                                    <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtFinanceCell(cell, ci)"></td>
                                                 </template>
                                             </tr>
                                         </template>
@@ -144,7 +151,18 @@
             <!-- ===== [추정실적] 탭 ===== -->
             <div x-show="stockEval.activeTab === 'estimate'">
                 <div class="bg-white border border-gray-200 rounded p-4">
-                    <p class="text-xs text-gray-400 mb-2">항목명은 KIS 표준 레이아웃 기준이며, 증감률·EPS 등 일부 값은 ×10 스케일로 표기될 수 있습니다. 정확한 정의는 KIS API 명세를 참고하세요.</p>
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <p class="text-xs text-gray-400">항목명은 KIS 표준 레이아웃 기준이며, 증감률·EPS 등 일부 값은 ×10 스케일로 표기될 수 있습니다. 정확한 정의는 KIS API 명세를 참고하세요.</p>
+                        <span class="flex items-center gap-1 shrink-0">
+                            <span class="text-xs text-gray-400">단위</span>
+                            <button type="button" @click="stockEvalSetUnit('억')"
+                                    :class="stockEval.amountUnit === '억' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                                    class="px-2 py-0.5 text-xs font-medium rounded">억</button>
+                            <button type="button" @click="stockEvalSetUnit('조')"
+                                    :class="stockEval.amountUnit === '조' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                                    class="px-2 py-0.5 text-xs font-medium rounded">조</button>
+                        </span>
+                    </div>
                     <div x-show="stockEval.estimate.loading" class="text-sm text-gray-400 text-center py-6">불러오는 중...</div>
                     <div x-show="stockEval.estimate.error" class="text-sm text-red-500 text-center py-6" x-text="stockEval.estimate.error"></div>
                     <template x-if="!stockEval.estimate.loading && !stockEval.estimate.error">
@@ -164,7 +182,7 @@
                                                 <template x-for="(row, ri) in sec.table.rows" :key="ri">
                                                     <tr class="hover:bg-gray-50">
                                                         <template x-for="(cell, ci) in row" :key="ci">
-                                                            <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtNum(cell)"></td>
+                                                            <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtEstimateCell(cell, ci, row)"></td>
                                                         </template>
                                                     </tr>
                                                 </template>

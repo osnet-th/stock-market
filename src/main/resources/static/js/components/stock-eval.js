@@ -7,6 +7,7 @@ const StockEvalComponent = {
         selected: null,          // { stockCode, stockName, ... }
         summary: { data: null, loading: false, error: '', _gen: 0 },  // 요약 카드 (주식기본조회)
         activeTab: 'finance',    // finance | estimate | credit | schedule
+        amountUnit: '억',        // 금액 표시 단위: 억 | 조 (재무 대차/손익, 추정 손익에 적용)
         _searchGen: 0,
 
         financeTypes: [
@@ -223,5 +224,43 @@ const StockEvalComponent = {
             return isNaN(n) ? v : n.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
         }
         return v;
+    },
+
+    // ==================== 금액 단위(억/조) 토글 ====================
+    stockEvalSetUnit(u) {
+        this.stockEval.amountUnit = u;
+    },
+
+    stockEvalFinanceIsAmount() {
+        return ['balance-sheet', 'income-statement'].includes(this.stockEval.finance.type);
+    },
+
+    // 억원 금액을 현재 단위(억/조)로 표시 포맷
+    fmtAmountByUnit(v) {
+        if (typeof v !== 'string' || !/^-?\d+(\.\d+)?$/.test(v)) return this.fmtNum(v);
+        const n = parseFloat(v);
+        if (isNaN(n)) return v;
+        const toJo = this.stockEval.amountUnit === '조';
+        const val = toJo ? n / 10000 : n;
+        return val.toLocaleString('ko-KR', { maximumFractionDigits: toJo ? 1 : 2 });
+    },
+
+    // 재무 표 셀: 결산년월(col0) 원본, 금액 표(대차/손익)는 단위 적용, 비율 표는 일반 콤마
+    fmtFinanceCell(cell, ci) {
+        if (ci === 0) return cell;
+        return this.stockEvalFinanceIsAmount() ? this.fmtAmountByUnit(cell) : this.fmtNum(cell);
+    },
+
+    // 추정 표 셀: 항목 라벨(col0)은 단위 치환, (억원) 행은 단위 적용, 그 외 일반 콤마
+    fmtEstimateCell(cell, ci, row) {
+        if (ci === 0) return this.fmtEstimateLabel(cell);
+        return (row && row[0] && row[0].includes('억원')) ? this.fmtAmountByUnit(cell) : this.fmtNum(cell);
+    },
+
+    fmtEstimateLabel(label) {
+        if (this.stockEval.amountUnit === '조' && typeof label === 'string') {
+            return label.replace('(억원)', '(조원)');
+        }
+        return label;
     },
 };

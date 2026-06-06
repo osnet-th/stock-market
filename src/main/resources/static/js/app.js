@@ -18,7 +18,7 @@ function dashboard() {
             { key: 'ecos', label: '국내 경제지표', icon: 'chart' },
             { key: 'global', label: '글로벌 경제지표', icon: 'globe' },
             { key: 'portfolio', label: '포트폴리오', icon: 'portfolio' },
-            { key: 'stock-eval', label: '종목 평가', icon: 'chart' },
+            { key: 'stock-eval', label: '종목 평가', icon: 'research' },
             { key: 'salary', label: '월급 사용 비율', icon: 'wallet' },
             { key: 'news-journal', label: '뉴스 기록', icon: 'journal' },
             { key: 'glossary', label: '용어 사전', icon: 'book' },

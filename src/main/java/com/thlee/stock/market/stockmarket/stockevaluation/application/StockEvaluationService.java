@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -162,6 +163,19 @@ public class StockEvaluationService {
         }
     }
 
+    /** KIS가 ×10로 인코딩한 값(증감률·EPS)을 실제 값으로 정규화. 표시 콤마는 프론트가 처리하므로 raw 숫자 반환. */
+    private String scaleBy10(String v) {
+        if (v == null || v.isBlank()) return v;
+        String s = v.trim();
+        if (!s.matches("-?\\d+(\\.\\d+)?")) return v;
+        try {
+            // 소수 1자리 유지(EPS 등 정수도 프론트 콤마가 적용되도록). 표시 형식은 프론트 담당.
+            return new BigDecimal(s).divide(BigDecimal.TEN).toPlainString();
+        } catch (ArithmeticException e) {
+            return v;
+        }
+    }
+
     private String formatNumber(String num) {
         if (num == null || num.isBlank()) return "";
         try {
@@ -185,6 +199,7 @@ public class StockEvaluationService {
     public KisTableResponse getFinanceStatement(String stockCode, FinanceStatementType type, String divCls) {
         try {
             List<Map<String, String>> rows = kisFinanceClient.fetch(type, stockCode, divCls);
+            // 값은 raw로 반환 (콤마 등 표시 형식은 프론트에서 처리)
             return KisTableResponse.from(rows, type.getLabels());
         } catch (KisApiException e) {
             log.error("재무 조회 실패 [{}:{}]: {}", type, stockCode, e.getMessage());
@@ -252,10 +267,13 @@ public class StockEvaluationService {
         List<List<String>> out = new ArrayList<>();
         for (int i = 0; i < rows.size(); i++) {
             Map<String, String> rec = rows.get(i);
+            String label = i < labels.size() ? labels.get(i) : ("항목 " + (i + 1));
+            boolean scaled = label.contains("증감률") || label.startsWith("EPS"); // KIS가 ×10로 인코딩한 확정 항목만 정규화
             List<String> row = new ArrayList<>();
-            row.add(i < labels.size() ? labels.get(i) : ("항목 " + (i + 1)));
+            row.add(label);
             for (int j = 0; j < periods.size(); j++) {
-                row.add(rec.getOrDefault("data" + (j + 1), ""));
+                String raw = rec.getOrDefault("data" + (j + 1), "");
+                row.add(scaled ? scaleBy10(raw) : raw); // 금액은 raw, 표시 콤마는 프론트
             }
             out.add(row);
         }

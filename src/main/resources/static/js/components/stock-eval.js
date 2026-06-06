@@ -214,4 +214,14 @@ const StockEvalComponent = {
         this.stockEval.schedule.type = type;
         this.stockEvalLoadSchedule();
     },
+
+    // 표 숫자 셀 표시 포맷: 소수점 포함 순수 숫자만 천단위 콤마 (결산년월/종목코드/날짜는 제외)
+    fmtNum(v) {
+        if (typeof v !== 'string') return v;
+        if (/^-?\d+\.\d+$/.test(v)) {
+            const n = parseFloat(v);
+            return isNaN(n) ? v : n.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+        }
+        return v;
+    },
 };

@@ -129,7 +129,7 @@
                                         <template x-for="(row, ri) in stockEval.finance.table.rows" :key="ri">
                                             <tr class="hover:bg-gray-50">
                                                 <template x-for="(cell, ci) in row" :key="ci">
-                                                    <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="cell"></td>
+                                                    <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtNum(cell)"></td>
                                                 </template>
                                             </tr>
                                         </template>
@@ -164,7 +164,7 @@
                                                 <template x-for="(row, ri) in sec.table.rows" :key="ri">
                                                     <tr class="hover:bg-gray-50">
                                                         <template x-for="(cell, ci) in row" :key="ci">
-                                                            <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="cell"></td>
+                                                            <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtNum(cell)"></td>
                                                         </template>
                                                     </tr>
                                                 </template>
@@ -223,7 +223,7 @@
                                         <template x-for="(row, ri) in stockEval.schedule.table.rows" :key="ri">
                                             <tr class="hover:bg-gray-50">
                                                 <template x-for="(cell, ci) in row" :key="ci">
-                                                    <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="cell"></td>
+                                                    <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtNum(cell)"></td>
                                                 </template>
                                             </tr>
                                         </template>

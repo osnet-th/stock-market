@@ -24,7 +24,7 @@ public class KisEstimatePerformResponse {
     private String message;
 
     @JsonProperty("output1")
-    private List<Map<String, String>> output1;
+    private Map<String, String> output1;   // 단일 객체 (종목 기본정보)
 
     @JsonProperty("output2")
     private List<Map<String, String>> output2;

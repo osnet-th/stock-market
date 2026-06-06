@@ -79,7 +79,9 @@ public class StockEvaluationService {
         try {
             KisEstimatePerformResponse res = kisStockInfoClient.estimatePerform(stockCode);
             List<EstimatePerformResponse.Section> sections = new ArrayList<>();
-            addSection(sections, "기본정보", res.getOutput1());
+            if (res.getOutput1() != null && !res.getOutput1().isEmpty()) {
+                addSection(sections, "기본정보", List.of(res.getOutput1()));
+            }
             addSection(sections, "추정 상세 1", res.getOutput2());
             addSection(sections, "추정 상세 2", res.getOutput3());
             addSection(sections, "추정 상세 3", res.getOutput4());

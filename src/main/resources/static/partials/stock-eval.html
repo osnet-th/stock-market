@@ -1,0 +1,276 @@
+<!-- ========== STOCK EVALUATION (종목 평가) ========== -->
+<div x-show="currentPage === 'stock-eval'" x-cloak>
+
+    <!-- 헤더 -->
+    <div class="mb-4">
+        <h2 class="text-xl font-bold text-gray-800">종목 평가</h2>
+        <p class="text-xs text-gray-500 mt-1">매수 전 국내주식(KRX)을 검색해 재무·추정실적·일정 등 종목정보를 확인하세요. (보유 여부 무관)</p>
+    </div>
+
+    <!-- 검색 -->
+    <div class="bg-white border border-gray-200 rounded p-4 mb-4">
+        <div class="flex gap-2">
+            <input type="text" x-model="stockEval.searchQuery"
+                   @keydown.enter="stockEvalSearch()"
+                   placeholder="종목명 또는 종목코드 (예: 삼성전자, 005930)"
+                   class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button type="button" @click="stockEvalSearch()"
+                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 whitespace-nowrap">
+                검색
+            </button>
+        </div>
+
+        <!-- 검색 로딩 -->
+        <div x-show="stockEval.searchLoading" class="text-xs text-gray-400 mt-2">검색 중...</div>
+
+        <!-- 검색 결과 -->
+        <ul x-show="stockEval.searchResults.length > 0" class="mt-2 border border-gray-100 rounded divide-y divide-gray-100 max-h-60 overflow-y-auto">
+            <template x-for="r in stockEval.searchResults" :key="r.stockCode">
+                <li>
+                    <button type="button" @click="stockEvalSelect(r)"
+                            class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between">
+                        <span class="font-medium text-gray-800" x-text="r.stockName"></span>
+                        <span class="text-xs text-gray-400" x-text="r.stockCode"></span>
+                    </button>
+                </li>
+            </template>
+        </ul>
+        <div x-show="!stockEval.searchLoading && stockEval.searchQuery && stockEval.searchResults.length === 0 && !stockEval.selected"
+             class="text-xs text-gray-400 mt-2">검색 결과가 없습니다. (국내주식만 조회됩니다)</div>
+    </div>
+
+    <!-- 선택된 종목 -->
+    <template x-if="stockEval.selected">
+        <div>
+            <!-- 요약 카드 (주식기본조회) -->
+            <div class="bg-white border border-gray-200 rounded p-4 mb-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="flex items-center flex-wrap gap-2">
+                            <h3 class="text-lg font-bold text-gray-800" x-text="stockEval.selected.stockName"></h3>
+                            <span class="text-sm text-gray-400" x-text="stockEval.selected.stockCode"></span>
+                            <span x-show="stockEval.summary.data?.englishName" class="text-xs text-gray-400" x-text="stockEval.summary.data?.englishName"></span>
+                        </div>
+                        <div class="flex items-center flex-wrap gap-1.5 mt-1.5">
+                            <span x-show="stockEval.summary.data?.market" class="px-2 py-0.5 text-xs font-medium rounded bg-blue-50 text-blue-700" x-text="stockEval.summary.data?.market"></span>
+                            <span x-show="stockEval.summary.data?.industry" class="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-600" x-text="stockEval.summary.data?.industry"></span>
+                            <span x-show="stockEval.summary.data?.industryIndexName" class="px-2 py-0.5 text-xs rounded bg-indigo-50 text-indigo-700"
+                                  x-text="stockEval.summary.data?.industryIndexName + ' · 업종지수'"></span>
+                            <span x-show="stockEval.summary.data?.kospi200" class="px-2 py-0.5 text-xs rounded bg-indigo-50 text-indigo-700">KOSPI200</span>
+                            <span x-show="stockEval.summary.data?.managed" class="px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-700">관리종목</span>
+                            <span x-show="stockEval.summary.data?.tradingHalted" class="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">거래정지</span>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <div x-show="stockEval.summary.data?.closePrice" class="text-lg font-bold text-gray-800" x-text="stockEval.summary.data?.closePrice"></div>
+                        <div x-show="stockEval.summary.data?.prevClosePrice" class="text-xs text-gray-400" x-text="'전일 ' + stockEval.summary.data?.prevClosePrice"></div>
+                        <button type="button" @click="stockEvalReset()" class="text-xs text-gray-500 hover:text-gray-700 underline mt-1">다시 검색</button>
+                    </div>
+                </div>
+
+                <div x-show="stockEval.summary.loading" class="text-xs text-gray-400 mt-2">요약 로딩 중...</div>
+                <div x-show="stockEval.summary.error" class="text-xs text-red-500 mt-2" x-text="stockEval.summary.error"></div>
+
+                <!-- 상세 그리드 -->
+                <div x-show="stockEval.summary.data" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-3 pt-3 border-t border-gray-100">
+                    <template x-for="(item, i) in (stockEval.summary.data?.details || [])" :key="i">
+                        <div>
+                            <div class="text-xs text-gray-400" x-text="item.label"></div>
+                            <div class="text-sm text-gray-800 break-all" x-text="item.value"></div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- 업종 일자별 지수 차트 -->
+                <div x-show="stockEval.summary.data?.industryIndexCode" class="mt-3 pt-3 border-t border-gray-100">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="text-xs font-medium text-gray-500">
+                            <span x-text="(stockEval.summary.data?.industryIndexName || '업종') + ' 업종지수'"></span>
+                            <span class="text-gray-400" x-text="'(' + (stockEval.summary.data?.industryIndexCode || '') + ')'"></span>
+                        </div>
+                        <span x-show="stockEval.industryIndex.loading" class="text-xs text-gray-400">불러오는 중...</span>
+                    </div>
+                    <div x-show="stockEval.industryIndex.error" class="text-xs text-red-500" x-text="stockEval.industryIndex.error"></div>
+                    <div x-show="stockEval.industryIndex.loaded && stockEval.industryIndex.points.length === 0 && !stockEval.industryIndex.error"
+                         class="text-xs text-gray-400">지수 데이터가 없습니다.</div>
+                    <div x-show="stockEval.industryIndex.points.length > 0" class="h-48">
+                        <canvas id="stock-eval-index-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 평가 탭 -->
+            <div class="flex flex-wrap gap-2 mb-3">
+                <button type="button" @click="stockEvalSelectTab('finance')"
+                        :class="stockEval.activeTab === 'finance' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                        class="px-3 py-1.5 text-sm font-medium rounded">재무</button>
+                <button type="button" @click="stockEvalSelectTab('estimate')"
+                        :class="stockEval.activeTab === 'estimate' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                        class="px-3 py-1.5 text-sm font-medium rounded">추정실적</button>
+                <button type="button" @click="stockEvalSelectTab('credit')"
+                        :class="stockEval.activeTab === 'credit' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                        class="px-3 py-1.5 text-sm font-medium rounded">신용</button>
+                <button type="button" @click="stockEvalSelectTab('schedule')"
+                        :class="stockEval.activeTab === 'schedule' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                        class="px-3 py-1.5 text-sm font-medium rounded">일정</button>
+            </div>
+
+            <!-- ===== [재무] 탭 ===== -->
+            <div x-show="stockEval.activeTab === 'finance'">
+                <div class="flex flex-wrap items-center gap-2 mb-3">
+                    <template x-for="ft in stockEval.financeTypes" :key="ft.code">
+                        <button type="button" @click="stockEvalSetFinanceType(ft.code)"
+                                :class="stockEval.finance.type === ft.code ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-white text-gray-600 border-gray-300'"
+                                class="px-2.5 py-1 text-xs font-medium rounded border" x-text="ft.label"></button>
+                    </template>
+                    <span class="mx-1 text-gray-300">|</span>
+                    <button type="button" @click="stockEvalSetFinanceDivCls('ANNUAL')"
+                            :class="stockEval.finance.divCls === 'ANNUAL' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                            class="px-2.5 py-1 text-xs font-medium rounded">연간</button>
+                    <button type="button" @click="stockEvalSetFinanceDivCls('QUARTER')"
+                            :class="stockEval.finance.divCls === 'QUARTER' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                            class="px-2.5 py-1 text-xs font-medium rounded">분기</button>
+                    <span x-show="stockEvalFinanceIsAmount()" class="mx-1 text-gray-300">|</span>
+                    <button x-show="stockEvalFinanceIsAmount()" type="button" @click="stockEvalSetUnit('억')"
+                            :class="stockEval.amountUnit === '억' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                            class="px-2.5 py-1 text-xs font-medium rounded">억</button>
+                    <button x-show="stockEvalFinanceIsAmount()" type="button" @click="stockEvalSetUnit('조')"
+                            :class="stockEval.amountUnit === '조' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                            class="px-2.5 py-1 text-xs font-medium rounded">조</button>
+                </div>
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <div x-show="stockEval.finance.loading" class="text-sm text-gray-400 text-center py-6">불러오는 중...</div>
+                    <div x-show="stockEval.finance.error" class="text-sm text-red-500 text-center py-6" x-text="stockEval.finance.error"></div>
+                    <template x-if="!stockEval.finance.loading && !stockEval.finance.error && stockEval.finance.table">
+                        <div>
+                            <div x-show="stockEval.finance.table.rows.length === 0" class="text-sm text-gray-400 text-center py-6">데이터가 없습니다.</div>
+                            <div x-show="stockEval.finance.table.rows.length > 0" class="overflow-x-auto">
+                                <table class="min-w-full text-sm border-collapse">
+                                    <thead><tr>
+                                        <template x-for="(col, ci) in stockEval.finance.table.columns" :key="ci">
+                                            <th class="border-b border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap" x-text="col"></th>
+                                        </template>
+                                    </tr></thead>
+                                    <tbody>
+                                        <template x-for="(row, ri) in stockEval.finance.table.rows" :key="ri">
+                                            <tr class="hover:bg-gray-50">
+                                                <template x-for="(cell, ci) in row" :key="ci">
+                                                    <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtFinanceCell(cell, ci)"></td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ===== [추정실적] 탭 ===== -->
+            <div x-show="stockEval.activeTab === 'estimate'">
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <p class="text-xs text-gray-400">항목명은 KIS 표준 레이아웃 기준이며, 증감률·EPS 등 일부 값은 ×10 스케일로 표기될 수 있습니다. 정확한 정의는 KIS API 명세를 참고하세요.</p>
+                        <span class="flex items-center gap-1 shrink-0">
+                            <span class="text-xs text-gray-400">단위</span>
+                            <button type="button" @click="stockEvalSetUnit('억')"
+                                    :class="stockEval.amountUnit === '억' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                                    class="px-2 py-0.5 text-xs font-medium rounded">억</button>
+                            <button type="button" @click="stockEvalSetUnit('조')"
+                                    :class="stockEval.amountUnit === '조' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                                    class="px-2 py-0.5 text-xs font-medium rounded">조</button>
+                        </span>
+                    </div>
+                    <div x-show="stockEval.estimate.loading" class="text-sm text-gray-400 text-center py-6">불러오는 중...</div>
+                    <div x-show="stockEval.estimate.error" class="text-sm text-red-500 text-center py-6" x-text="stockEval.estimate.error"></div>
+                    <template x-if="!stockEval.estimate.loading && !stockEval.estimate.error">
+                        <div class="space-y-4">
+                            <div x-show="stockEval.estimate.sections.length === 0" class="text-sm text-gray-400 text-center py-6">추정실적 데이터가 없습니다.</div>
+                            <template x-for="(sec, si) in stockEval.estimate.sections" :key="si">
+                                <div>
+                                    <div class="text-xs font-medium text-gray-500 mb-1" x-text="sec.title"></div>
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full text-sm border-collapse">
+                                            <thead><tr>
+                                                <template x-for="(col, ci) in sec.table.columns" :key="ci">
+                                                    <th class="border-b border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap" x-text="col"></th>
+                                                </template>
+                                            </tr></thead>
+                                            <tbody>
+                                                <template x-for="(row, ri) in sec.table.rows" :key="ri">
+                                                    <tr class="hover:bg-gray-50">
+                                                        <template x-for="(cell, ci) in row" :key="ci">
+                                                            <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtEstimateCell(cell, ci, row)"></td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ===== [신용] 탭 ===== -->
+            <div x-show="stockEval.activeTab === 'credit'">
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <div x-show="stockEval.credit.loading" class="text-sm text-gray-400 text-center py-6">불러오는 중...</div>
+                    <div x-show="stockEval.credit.error" class="text-sm text-red-500 text-center py-6" x-text="stockEval.credit.error"></div>
+                    <template x-if="!stockEval.credit.loading && !stockEval.credit.error && stockEval.credit.data">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-500">신용거래</span>
+                            <span :class="stockEval.credit.data.eligible ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                                  class="px-2 py-0.5 text-xs font-medium rounded"
+                                  x-text="stockEval.credit.data.eligible ? '가능' : '불가'"></span>
+                            <span x-show="stockEval.credit.data.eligible && stockEval.credit.data.creditRate"
+                                  class="text-xs text-gray-400" x-text="'신용비율 ' + stockEval.credit.data.creditRate"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ===== [일정] 탭 ===== -->
+            <div x-show="stockEval.activeTab === 'schedule'">
+                <div class="flex flex-wrap items-center gap-2 mb-3">
+                    <template x-for="st in stockEval.scheduleTypes" :key="st.code">
+                        <button type="button" @click="stockEvalSetScheduleType(st.code)"
+                                :class="stockEval.schedule.type === st.code ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-white text-gray-600 border-gray-300'"
+                                class="px-2.5 py-1 text-xs font-medium rounded border" x-text="st.label"></button>
+                    </template>
+                </div>
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <p class="text-xs text-gray-400 mb-2">기본 조회기간: 최근 6개월 ~ 향후 3개월</p>
+                    <div x-show="stockEval.schedule.loading" class="text-sm text-gray-400 text-center py-6">불러오는 중...</div>
+                    <div x-show="stockEval.schedule.error" class="text-sm text-red-500 text-center py-6" x-text="stockEval.schedule.error"></div>
+                    <template x-if="!stockEval.schedule.loading && !stockEval.schedule.error && stockEval.schedule.table">
+                        <div>
+                            <div x-show="stockEval.schedule.table.rows.length === 0" class="text-sm text-gray-400 text-center py-6">해당 기간 일정이 없습니다.</div>
+                            <div x-show="stockEval.schedule.table.rows.length > 0" class="overflow-x-auto">
+                                <table class="min-w-full text-sm border-collapse">
+                                    <thead><tr>
+                                        <template x-for="(col, ci) in stockEval.schedule.table.columns" :key="ci">
+                                            <th class="border-b border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap" x-text="col"></th>
+                                        </template>
+                                    </tr></thead>
+                                    <tbody>
+                                        <template x-for="(row, ri) in stockEval.schedule.table.rows" :key="ri">
+                                            <tr class="hover:bg-gray-50">
+                                                <template x-for="(cell, ci) in row" :key="ci">
+                                                    <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtNum(cell)"></td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

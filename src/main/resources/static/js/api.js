@@ -412,6 +412,43 @@ const API = {
             `/api/stocks/${stockCode}/financial/public-fund-usages?year=${year}&reportCode=${reportCode}`);
     },
 
+    // ==================== Stock Evaluation (종목 평가, KIS 국내주식 종목정보) ====================
+    getStockBasicInfo(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/basic-info`);
+    },
+
+    getStockSummary(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/summary`);
+    },
+
+    getIndustryIndex(indexCode, fromDate) {
+        let url = `/api/stock-evaluation/industry-index/${indexCode}`;
+        if (fromDate) url += `?fromDate=${fromDate}`;
+        return this.request('GET', url);
+    },
+
+    getStockFinance(stockCode, type, divCls) {
+        return this.request('GET',
+            `/api/stock-evaluation/${stockCode}/finance/${type}?divCls=${divCls}`);
+    },
+
+    getStockEstimatePerform(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/estimate-perform`);
+    },
+
+    getStockCreditEligibility(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/credit-eligibility`);
+    },
+
+    getStockSchedule(stockCode, type, fromDate, toDate) {
+        let url = `/api/stock-evaluation/${stockCode}/schedules/${type}`;
+        const params = [];
+        if (fromDate) params.push(`fromDate=${fromDate}`);
+        if (toDate) params.push(`toDate=${toDate}`);
+        if (params.length) url += '?' + params.join('&');
+        return this.request('GET', url);
+    },
+
     // ==================== SEC Financial (해외주식) ====================
     getSecFinancialStatements(ticker) {
         return this.request('GET', `/api/stocks/${ticker}/sec/financial/statements`);

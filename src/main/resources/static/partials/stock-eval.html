@@ -54,6 +54,8 @@
                         <div class="flex items-center flex-wrap gap-1.5 mt-1.5">
                             <span x-show="stockEval.summary.data?.market" class="px-2 py-0.5 text-xs font-medium rounded bg-blue-50 text-blue-700" x-text="stockEval.summary.data?.market"></span>
                             <span x-show="stockEval.summary.data?.industry" class="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-600" x-text="stockEval.summary.data?.industry"></span>
+                            <span x-show="stockEval.summary.data?.industryIndexName" class="px-2 py-0.5 text-xs rounded bg-indigo-50 text-indigo-700"
+                                  x-text="stockEval.summary.data?.industryIndexName + ' · 업종지수'"></span>
                             <span x-show="stockEval.summary.data?.kospi200" class="px-2 py-0.5 text-xs rounded bg-indigo-50 text-indigo-700">KOSPI200</span>
                             <span x-show="stockEval.summary.data?.managed" class="px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-700">관리종목</span>
                             <span x-show="stockEval.summary.data?.tradingHalted" class="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">거래정지</span>

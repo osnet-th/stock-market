@@ -3,6 +3,7 @@ package com.thlee.stock.market.stockmarket.stockevaluation.presentation;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.StockEvaluationService;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.CreditEligibilityResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.EstimatePerformResponse;
+import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.IndustryIndexResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.KisTableResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.StockBasicInfoResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.StockSummaryResponse;
@@ -30,6 +31,7 @@ import java.time.format.DateTimeFormatter;
 public class StockEvaluationController {
 
     private static final String STOCK_CODE_PATTERN = "^\\d{6}$"; // KRX 6자리
+    private static final String INDEX_CODE_PATTERN = "^\\d{4}$"; // 지수업종 4자리
     private static final String DATE_PATTERN = "^\\d{8}$";       // YYYYMMDD
     private static final DateTimeFormatter YMD = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final int DEFAULT_FROM_MONTHS = 6;            // 기본 조회 시작: 6개월 전
@@ -117,6 +119,23 @@ public class StockEvaluationController {
         String from = resolveDate(fromDate, LocalDate.now().minusMonths(DEFAULT_FROM_MONTHS));
         String to = resolveDate(toDate, LocalDate.now().plusMonths(DEFAULT_TO_MONTHS));
         return ResponseEntity.ok(stockEvaluationService.getSchedule(stockCode, scheduleType, from, to));
+    }
+
+    /**
+     * 업종 일자별 지수 조회 (차트용).
+     *
+     * @param indexCode 지수업종 코드 (4자리, 예: 0013 전기,전자) — 요약(summary)의 industryIndexCode 사용
+     * @param fromDate  기준일자 (YYYYMMDD, 미지정 시 오늘) — 이 일자부터 과거로 최대 100건
+     */
+    @GetMapping("/industry-index/{indexCode}")
+    public ResponseEntity<IndustryIndexResponse> getIndustryIndex(
+            @PathVariable String indexCode,
+            @RequestParam(required = false) String fromDate) {
+        if (indexCode == null || !indexCode.matches(INDEX_CODE_PATTERN)) {
+            throw new IllegalArgumentException("유효하지 않은 업종코드: " + indexCode);
+        }
+        String from = resolveDate(fromDate, LocalDate.now());
+        return ResponseEntity.ok(stockEvaluationService.getIndustryIndex(indexCode, from));
     }
 
     private void validateStockCode(String stockCode) {

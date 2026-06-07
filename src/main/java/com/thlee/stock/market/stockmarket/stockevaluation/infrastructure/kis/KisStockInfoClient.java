@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis;
 
 import com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis.dto.KisEstimatePerformResponse;
+import com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis.dto.KisIndexDailyResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis.dto.KisSearchInfoOutput;
 import com.thlee.stock.market.stockmarket.stockevaluation.infrastructure.kis.dto.KisSearchStockInfoOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.KisApiClient;
@@ -32,6 +33,9 @@ public class KisStockInfoClient {
 
     private static final String CREDIT_PATH = "/uapi/domestic-stock/v1/quotations/credit-by-company";
     private static final String CREDIT_TR_ID = "FHPST04770000";
+
+    private static final String INDEX_DAILY_PATH = "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price";
+    private static final String INDEX_DAILY_TR_ID = "FHPUP02120000";
 
     private final KisApiClient kisApiClient;
 
@@ -114,5 +118,31 @@ public class KisStockInfoClient {
             new ParameterizedTypeReference<>() {},
             "신용가능종목 조회"
         );
+    }
+
+    /**
+     * 국내업종 일자별지수 조회.
+     *
+     * @param indexCode 지수업종 코드 (4자리, 예: 0013 전기,전자 / 0001 KOSPI종합)
+     * @param fromDate  기준일자 (YYYYMMDD) — 이 일자부터 과거로 최대 100건
+     * @return output2(일자별 지수 목록, 최신→과거)
+     */
+    public List<Map<String, String>> industryIndexDaily(String indexCode, String fromDate) {
+        KisIndexDailyResponse response = kisApiClient.getRaw(
+            INDEX_DAILY_PATH,
+            INDEX_DAILY_TR_ID,
+            uriBuilder -> uriBuilder
+                .queryParam("FID_PERIOD_DIV_CODE", "D")
+                .queryParam("FID_COND_MRKT_DIV_CODE", "U")  // U: 업종
+                .queryParam("FID_INPUT_ISCD", indexCode)
+                .queryParam("FID_INPUT_DATE_1", fromDate)
+                .build(),
+            new ParameterizedTypeReference<>() {},
+            "업종 일자별지수 조회 [" + indexCode + "]"
+        );
+        if (response == null || !response.isSuccess()) {
+            throw new KisApiException("업종 지수 조회 실패");
+        }
+        return response.getOutput2();
     }
 }

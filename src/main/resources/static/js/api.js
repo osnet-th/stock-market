@@ -421,6 +421,12 @@ const API = {
         return this.request('GET', `/api/stock-evaluation/${stockCode}/summary`);
     },
 
+    getIndustryIndex(indexCode, fromDate) {
+        let url = `/api/stock-evaluation/industry-index/${indexCode}`;
+        if (fromDate) url += `?fromDate=${fromDate}`;
+        return this.request('GET', url);
+    },
+
     getStockFinance(stockCode, type, divCls) {
         return this.request('GET',
             `/api/stock-evaluation/${stockCode}/finance/${type}?divCls=${divCls}`);

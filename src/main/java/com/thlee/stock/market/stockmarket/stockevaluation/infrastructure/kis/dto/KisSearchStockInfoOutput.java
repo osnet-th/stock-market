@@ -54,6 +54,12 @@ public class KisSearchStockInfoOutput {
     @JsonProperty("std_idst_clsf_cd_name")
     private String industryName;         // 표준산업분류 코드명 (업종)
 
+    @JsonProperty("idx_bztp_mcls_cd")
+    private String indexSectorCode;      // 지수업종 중분류코드 (예: 013 전기,전자 → 지수조회 시 0013)
+
+    @JsonProperty("idx_bztp_mcls_cd_name")
+    private String indexSectorName;      // 지수업종 중분류명 (예: 전기,전자)
+
     @JsonProperty("tr_stop_yn")
     private String tradingStopYn;        // 거래정지 여부
 

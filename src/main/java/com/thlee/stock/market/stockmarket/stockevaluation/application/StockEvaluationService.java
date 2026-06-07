@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.stockevaluation.application;
 
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.CreditEligibilityResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.EstimatePerformResponse;
+import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.IndustryIndexResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.KisTableResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.StockBasicInfoResponse;
 import com.thlee.stock.market.stockmarket.stockevaluation.application.dto.StockSummaryResponse;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,6 +110,8 @@ public class StockEvaluationService {
                 .stdCode(o.getStdCode())
                 .market(market(o))
                 .industry(o.getIndustryName())
+                .industryIndexCode(padIndexCode(o.getIndexSectorCode()))
+                .industryIndexName(o.getIndexSectorName())
                 .closePrice(withSuffix(formatNumber(o.getClosePrice()), "원"))
                 .prevClosePrice(withSuffix(formatNumber(o.getPrevClosePrice()), "원"))
                 .kospi200("Y".equals(o.getKospi200Yn()))
@@ -119,6 +123,40 @@ public class StockEvaluationService {
             log.error("종목 요약 조회 실패 [{}]: {}", stockCode, e.getMessage());
             throw new KisApiException("종목 요약 정보를 불러올 수 없습니다");
         }
+    }
+
+    /**
+     * 업종 일자별 지수 조회 (차트용). points는 과거→최신 오름차순.
+     */
+    public IndustryIndexResponse getIndustryIndex(String indexCode, String fromDate) {
+        try {
+            List<Map<String, String>> rows = kisStockInfoClient.industryIndexDaily(indexCode, fromDate);
+            List<IndustryIndexResponse.IndexPoint> points = new ArrayList<>();
+            if (rows != null) {
+                for (Map<String, String> r : rows) {
+                    String date = r.getOrDefault("stck_bsop_date", "");
+                    String value = r.getOrDefault("bstp_nmix_prpr", "");
+                    if (!date.isBlank() && !value.isBlank()) {
+                        points.add(IndustryIndexResponse.IndexPoint.builder()
+                            .date(formatDate(date))
+                            .value(value)
+                            .build());
+                    }
+                }
+            }
+            Collections.reverse(points); // 최신→과거 응답을 과거→최신으로
+            return IndustryIndexResponse.builder().code(indexCode).points(points).build();
+        } catch (KisApiException e) {
+            log.error("업종 지수 조회 실패 [{}]: {}", indexCode, e.getMessage());
+            throw new KisApiException("업종 지수를 불러올 수 없습니다");
+        }
+    }
+
+    /** 지수업종 코드(예: 013)를 지수조회용 4자리(0013)로 좌측 0패딩. */
+    private String padIndexCode(String code) {
+        if (code == null || code.isBlank()) return "";
+        String s = code.trim();
+        return s.length() >= 4 ? s : "0".repeat(4 - s.length()) + s;
     }
 
     private void addItem(List<StockSummaryResponse.SummaryItem> items, String label, String value) {

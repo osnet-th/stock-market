@@ -1,4 +1,6 @@
 /** Stock Evaluation - 종목 평가 (KIS 국내주식 종목정보). 보유 여부 무관 매수 전 리서치 */
+let _stockEvalIndexChart = null; // 업종지수 Chart.js 인스턴스 (Alpine 반응형 밖에서 관리)
+
 const StockEvalComponent = {
     stockEval: {
         searchQuery: '',
@@ -6,6 +8,7 @@ const StockEvalComponent = {
         searchLoading: false,
         selected: null,          // { stockCode, stockName, ... }
         summary: { data: null, loading: false, error: '', _gen: 0 },  // 요약 카드 (주식기본조회)
+        industryIndex: { points: [], loading: false, loaded: false, error: '', _gen: 0 },  // 업종 일자별 지수
         activeTab: 'finance',    // finance | estimate | credit | schedule
         amountUnit: '억',        // 금액 표시 단위: 억 | 조 (재무 대차/손익, 추정 손익에 적용)
         _searchGen: 0,
@@ -66,6 +69,8 @@ const StockEvalComponent = {
         this.stockEval.searchQuery = '';
         this.stockEval.activeTab = 'finance';
         this._stockEvalResetTabs();
+        Object.assign(this.stockEval.industryIndex, { points: [], loading: false, loaded: false, error: '' });
+        this.destroyIndexChart();
         await this.stockEvalLoadSummary();
         await this.stockEvalLoadFinance(); // 기본 탭
     },
@@ -88,12 +93,78 @@ const StockEvalComponent = {
             const data = await API.getStockSummary(code);
             if (gen !== s._gen) return;
             s.data = data;
+            if (data && data.industryIndexCode) this.stockEvalLoadIndustryIndex();
         } catch (e) {
             if (gen !== s._gen) return;
             s.data = null;
             s.error = '종목 요약 정보를 불러올 수 없습니다.';
         } finally {
             if (gen === s._gen) s.loading = false;
+        }
+    },
+
+    // ==================== 업종 일자별 지수 (요약 카드 하단 차트) ====================
+    async stockEvalLoadIndustryIndex() {
+        const code = this.stockEval.summary.data?.industryIndexCode;
+        const idx = this.stockEval.industryIndex;
+        if (!code) { idx.points = []; idx.loaded = true; return; }
+        const gen = ++idx._gen;
+        idx.loading = true;
+        idx.error = '';
+        try {
+            const res = await API.getIndustryIndex(code);
+            if (gen !== idx._gen) return;
+            idx.points = (res && res.points) ? res.points : [];
+            idx.loaded = true;
+            this.$nextTick(() => this.renderIndustryIndexChart());
+        } catch (e) {
+            if (gen !== idx._gen) return;
+            idx.points = [];
+            idx.error = '업종 지수를 불러올 수 없습니다.';
+            this.destroyIndexChart();
+        } finally {
+            if (gen === idx._gen) idx.loading = false;
+        }
+    },
+
+    renderIndustryIndexChart() {
+        this.destroyIndexChart();
+        const pts = this.stockEval.industryIndex.points;
+        if (!pts || pts.length === 0) return;
+        const canvas = document.getElementById('stock-eval-index-chart');
+        if (!canvas || typeof Chart === 'undefined') return;
+        _stockEvalIndexChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: pts.map(p => p.date),
+                datasets: [{
+                    data: pts.map(p => { const v = parseFloat(p.value); return isNaN(v) ? null : v; }),
+                    borderColor: '#6366F1',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.3,
+                    fill: false,
+                    spanGaps: true,
+                }]
+            },
+            options: {
+                animation: false,
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                scales: {
+                    x: { ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 8, font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { maxTicksLimit: 5, font: { size: 10 } } }
+                }
+            }
+        });
+    },
+
+    destroyIndexChart() {
+        if (_stockEvalIndexChart) {
+            try { _stockEvalIndexChart.destroy(); } catch (e) { /* ignore */ }
+            _stockEvalIndexChart = null;
         }
     },
 
@@ -108,6 +179,8 @@ const StockEvalComponent = {
     stockEvalReset() {
         this.stockEval.selected = null;
         Object.assign(this.stockEval.summary, { data: null, loading: false, error: '' });
+        Object.assign(this.stockEval.industryIndex, { points: [], loading: false, loaded: false, error: '' });
+        this.destroyIndexChart();
         this.stockEval.searchResults = [];
         this.stockEval.searchQuery = '';
         this._stockEvalResetTabs();

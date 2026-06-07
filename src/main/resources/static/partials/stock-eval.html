@@ -78,6 +78,23 @@
                         </div>
                     </template>
                 </div>
+
+                <!-- 업종 일자별 지수 차트 -->
+                <div x-show="stockEval.summary.data?.industryIndexCode" class="mt-3 pt-3 border-t border-gray-100">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="text-xs font-medium text-gray-500">
+                            <span x-text="(stockEval.summary.data?.industryIndexName || '업종') + ' 업종지수'"></span>
+                            <span class="text-gray-400" x-text="'(' + (stockEval.summary.data?.industryIndexCode || '') + ')'"></span>
+                        </div>
+                        <span x-show="stockEval.industryIndex.loading" class="text-xs text-gray-400">불러오는 중...</span>
+                    </div>
+                    <div x-show="stockEval.industryIndex.error" class="text-xs text-red-500" x-text="stockEval.industryIndex.error"></div>
+                    <div x-show="stockEval.industryIndex.loaded && stockEval.industryIndex.points.length === 0 && !stockEval.industryIndex.error"
+                         class="text-xs text-gray-400">지수 데이터가 없습니다.</div>
+                    <div x-show="stockEval.industryIndex.points.length > 0" class="h-48">
+                        <canvas id="stock-eval-index-chart"></canvas>
+                    </div>
+                </div>
             </div>
 
             <!-- 평가 탭 -->

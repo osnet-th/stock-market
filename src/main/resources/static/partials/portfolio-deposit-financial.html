@@ -325,10 +325,10 @@
                         </div>
                     </div>
 
-                    <!-- 파라미터 드롭다운 (국내주식 전용 — SEC 메뉴에서는 숨김) -->
-                    <div class="flex flex-wrap gap-3 mb-4" x-show="!isSecMenu()">
-                        <!-- 연도 -->
-                        <div class="flex items-center gap-2">
+                    <!-- 파라미터 드롭다운 (국내주식 전용 — SEC·공시 메뉴에서는 숨김) -->
+                    <div class="flex flex-wrap gap-3 mb-4" x-show="!isSecMenu() && !isDisclosureMenu()">
+                        <!-- 연도 (타임라인 제외) -->
+                        <div class="flex items-center gap-2" x-show="!isTimelineMenu()">
                             <label class="text-xs text-gray-500">연도</label>
                             <select x-model="portfolio.financialYear"
                                     x-init="$nextTick(() => { $el.value = portfolio.financialYear })"
@@ -338,9 +338,9 @@
                                 </template>
                             </select>
                         </div>
-                        <!-- 보고서 (소송 제외) -->
+                        <!-- 보고서 (소송·타임라인 제외) -->
                         <div class="flex items-center gap-2"
-                             x-show="portfolio.selectedFinancialMenu !== 'lawsuits' && portfolio.financialOptions">
+                             x-show="portfolio.selectedFinancialMenu !== 'lawsuits' && !isTimelineMenu() && portfolio.financialOptions">
                             <label class="text-xs text-gray-500">보고서</label>
                             <select x-model="portfolio.financialReportCode"
                                     class="text-sm border border-gray-300 rounded px-2 py-1">
@@ -370,17 +370,36 @@
                                 <option value="OFS">개별</option>
                             </select>
                         </div>
+                        <!-- 기간 (타임라인만) -->
+                        <div class="flex items-center gap-2" x-show="isTimelineMenu()">
+                            <label class="text-xs text-gray-500">기간</label>
+                            <select x-model="portfolio.timelineYears"
+                                    class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <option value="3">최근 3년</option>
+                                <option value="5">최근 5년</option>
+                                <option value="10">최근 10년</option>
+                            </select>
+                        </div>
+                        <!-- 연결/개별 (타임라인만) -->
+                        <div class="flex items-center gap-2" x-show="isTimelineMenu()">
+                            <label class="text-xs text-gray-500">구분</label>
+                            <select x-model="portfolio.timelineFsDiv"
+                                    class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <option value="CFS">연결</option>
+                                <option value="OFS">개별</option>
+                            </select>
+                        </div>
                         <!-- 조회 버튼 -->
                         <div class="flex items-center">
                             <button type="button"
                                     @click="runFinancialQuery()"
-                                    :disabled="portfolio.financialLoading || !hasFinancialOptions()"
+                                    :disabled="portfolio.financialLoading || portfolio.timelineLoading || !hasFinancialOptions()"
                                     class="text-sm px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
                                 조회
                             </button>
                         </div>
                         <!-- 로딩 스피너 -->
-                        <div x-show="portfolio.financialLoading"
+                        <div x-show="portfolio.financialLoading || portfolio.timelineLoading"
                              class="flex items-center text-xs text-gray-400">
                             <svg class="animate-spin h-4 w-4 mr-1" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
@@ -401,9 +420,290 @@
                     </div>
 
                     <!-- 미조회 안내 (KR, 조회 전) -->
-                    <template x-if="!isSecMenu() && portfolio.selectedFinancialMenu && portfolio.financialResult === null && !portfolio.financialLoading && !portfolio.financialError">
+                    <template x-if="!isSecMenu() && !isTimelineMenu() && !isDisclosureMenu() && portfolio.selectedFinancialMenu && portfolio.financialResult === null && !portfolio.financialLoading && !portfolio.financialError">
                         <div class="text-center py-6 text-gray-400 text-sm">
                             조회 버튼을 눌러 데이터를 조회하세요
+                        </div>
+                    </template>
+
+                    <!-- 공시 목록 (DART 공시검색) -->
+                    <template x-if="isDisclosureMenu()">
+                        <div>
+                            <!-- 필터 바 -->
+                            <div class="flex flex-wrap items-center gap-3 mb-3">
+                                <div class="flex items-center gap-2">
+                                    <label class="text-xs text-gray-500">기간</label>
+                                    <select x-model="portfolio.disclosurePeriod" class="text-sm border border-gray-300 rounded px-2 py-1">
+                                        <option value="1">최근 1년</option>
+                                        <option value="3">최근 3년</option>
+                                        <option value="5">최근 5년</option>
+                                        <option value="0">전체</option>
+                                    </select>
+                                </div>
+                                <button type="button" @click="runDisclosureQuery()"
+                                        :disabled="portfolio.disclosureLoading"
+                                        class="text-sm px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">조회</button>
+                                <div x-show="portfolio.disclosureLoading" class="flex items-center text-xs text-gray-400">
+                                    <svg class="animate-spin h-4 w-4 mr-1" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>조회 중...
+                                </div>
+                            </div>
+                            <!-- 유형 다중선택 (미선택=전체) -->
+                            <div class="flex flex-wrap gap-1.5 mb-4">
+                                <button type="button" @click="portfolio.disclosureSelectedTypes = []"
+                                        class="text-xs px-2.5 py-1 rounded-full border transition"
+                                        :class="portfolio.disclosureSelectedTypes.length === 0 ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'">전체</button>
+                                <template x-for="t in _disclosureTypes" :key="t.code">
+                                    <button type="button" @click="toggleDisclosureType(t.code)"
+                                            class="text-xs px-2.5 py-1 rounded-full border transition"
+                                            :class="isDisclosureTypeSelected(t.code) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'"
+                                            x-text="t.label"></button>
+                                </template>
+                            </div>
+
+                            <!-- 에러 -->
+                            <template x-if="portfolio.disclosureError">
+                                <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+                                    <span x-text="portfolio.disclosureError"></span>
+                                </div>
+                            </template>
+                            <!-- 미조회 안내 -->
+                            <template x-if="portfolio.disclosureData === null && !portfolio.disclosureLoading && !portfolio.disclosureError">
+                                <div class="text-center py-6 text-gray-400 text-sm">유형·기간을 고르고 조회 버튼을 눌러 공시를 검색하세요</div>
+                            </template>
+                            <!-- 결과 -->
+                            <template x-if="portfolio.disclosureData !== null && !portfolio.disclosureLoading">
+                                <div>
+                                    <template x-if="getDisclosureRows().length === 0">
+                                        <div class="text-center py-6 text-gray-400 text-sm">해당 조건의 공시가 없습니다.</div>
+                                    </template>
+                                    <template x-if="getDisclosureRows().length > 0">
+                                        <div>
+                                            <p class="text-xs text-gray-400 mb-2" x-text="getDisclosureRows().length + '건 (접수일 최신순)'"></p>
+                                            <div class="overflow-x-auto overflow-y-auto" style="max-height: calc(100dvh - 420px);">
+                                                <table class="w-full text-sm">
+                                                    <thead class="sticky top-0 bg-white z-10">
+                                                        <tr class="border-b border-gray-200">
+                                                            <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium whitespace-nowrap">접수일</th>
+                                                            <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium">보고서명</th>
+                                                            <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium whitespace-nowrap">제출인</th>
+                                                            <th class="text-right py-2 px-2 text-xs text-gray-500 font-medium whitespace-nowrap">원문</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <template x-for="row in getDisclosureRows()" :key="row.viewerUrl">
+                                                            <tr class="border-b border-gray-50 hover:bg-gray-50">
+                                                                <td class="py-2 px-2 text-gray-500 whitespace-nowrap text-xs" x-text="formatDisclosureDate(row.receiptDate)"></td>
+                                                                <td class="py-2 px-2 text-gray-700">
+                                                                    <span x-text="row.reportName"></span>
+                                                                    <template x-if="isCorrectionDisclosure(row.remark)">
+                                                                        <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-600">정정</span>
+                                                                    </template>
+                                                                </td>
+                                                                <td class="py-2 px-2 text-gray-500 whitespace-nowrap text-xs" x-text="row.submitterName"></td>
+                                                                <td class="py-2 px-2 text-right whitespace-nowrap">
+                                                                    <a :href="row.viewerUrl" target="_blank" rel="noopener noreferrer"
+                                                                       class="text-xs text-indigo-600 hover:text-indigo-800">원문 ▸</a>
+                                                                </td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- 연도별 추세 (타임라인) -->
+                    <template x-if="isTimelineMenu()">
+                        <div>
+                            <!-- 조회 에러 -->
+                            <template x-if="portfolio.timelineError">
+                                <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+                                    <span x-text="portfolio.timelineError"></span>
+                                    <br><span class="text-xs">[조회] 버튼을 눌러 다시 시도해 주세요.</span>
+                                </div>
+                            </template>
+
+                            <!-- 미조회 안내 -->
+                            <template x-if="portfolio.timelineData === null && !portfolio.timelineLoading && !portfolio.timelineError">
+                                <div class="text-center py-6 text-gray-400 text-sm">
+                                    조회 버튼을 눌러 연도별 추세를 조회하세요
+                                </div>
+                            </template>
+
+                            <!-- 결과 -->
+                            <template x-if="portfolio.timelineData !== null && !portfolio.timelineLoading">
+                                <div>
+                                    <template x-if="getTimelineColumns().length === 0">
+                                        <div class="text-center py-6 text-gray-400 text-sm">
+                                            조회 기간에 정기보고서가 없습니다.
+                                        </div>
+                                    </template>
+                                    <template x-if="getTimelineColumns().length > 0">
+                                        <div>
+                                            <!-- 진행중 연도 안내 -->
+                                            <div x-show="getTimelineColumns().some(c => c.partial)"
+                                                 class="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700">
+                                                진행중 연도는 그 해 최신 보고서의 누적 기준이라 연간 확정치와 직접 비교할 수 없습니다. (차트에서 점선 구간)
+                                            </div>
+
+                                            <!-- 요약 표 (항목 × 연도) -->
+                                            <div class="overflow-x-auto mb-4">
+                                                <table class="w-full text-sm">
+                                                    <thead>
+                                                        <tr class="border-b border-gray-200">
+                                                            <th class="py-2 px-2 text-xs text-gray-500 font-medium text-left whitespace-nowrap">항목</th>
+                                                            <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                <th class="py-2 px-2 text-xs font-medium text-right whitespace-nowrap"
+                                                                    :class="col.partial ? 'border-l border-dashed border-amber-300 bg-amber-50/60 text-amber-700' : 'text-gray-500'">
+                                                                    <span x-text="col.year"></span>
+                                                                    <span class="block text-[10px] font-normal"
+                                                                          :class="col.partial ? 'text-amber-600' : 'text-gray-400'"
+                                                                          x-text="col.partial ? col.reportLabel + '·진행중' : col.reportLabel"></span>
+                                                                </th>
+                                                            </template>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <template x-for="row in getTimelineSummaryRows()" :key="row.name">
+                                                            <tr class="border-b border-gray-50 hover:bg-gray-50">
+                                                                <td class="py-2 px-2 text-gray-700 whitespace-nowrap" x-text="row.name"></td>
+                                                                <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                    <td class="py-2 px-2 text-right text-gray-800 whitespace-nowrap"
+                                                                        :class="col.partial ? 'border-l border-dashed border-amber-300 bg-amber-50/60' : ''"
+                                                                        x-text="timelineCell(row, col)"></td>
+                                                                </template>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <!-- 금액 추세 차트 -->
+                                            <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                                                <h4 class="text-xs font-semibold text-gray-500 mb-3">금액 추세 (매출액 · 영업이익 · 잉여현금흐름)</h4>
+                                                <div style="height: 250px;">
+                                                    <canvas id="timelineAmountChart"></canvas>
+                                                </div>
+                                            </div>
+
+                                            <!-- 핵심 비율 차트 -->
+                                            <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                                                <h4 class="text-xs font-semibold text-gray-500 mb-3">핵심 비율 추세 (영업이익률 · ROE · 부채비율)</h4>
+                                                <div style="height: 220px;">
+                                                    <canvas id="timelineRatioChart"></canvas>
+                                                </div>
+                                            </div>
+
+                                            <!-- 발행 주식수 차트 -->
+                                            <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                                                <h4 class="text-xs font-semibold text-gray-500 mb-3">발행 주식수 (보통주 · 우선주)</h4>
+                                                <div style="height: 220px;">
+                                                    <canvas id="timelineShareChart"></canvas>
+                                                </div>
+                                            </div>
+
+                                            <!-- 전체 재무제표 세부 계정 (접이식) -->
+                                            <template x-if="getTimelineDetailGroups().length > 0">
+                                                <div class="mt-6">
+                                                    <h4 class="text-xs font-semibold text-gray-500 mb-2">전체 재무제표 세부 계정</h4>
+                                                    <template x-for="group in getTimelineDetailGroups()" :key="group.statementDiv">
+                                                        <div class="border border-gray-200 rounded-lg mb-2 overflow-hidden">
+                                                            <button type="button" @click="toggleTimelineDetail(group.statementDiv)"
+                                                                    class="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                                                <span><span x-text="group.statementName"></span>
+                                                                    <span class="text-xs text-gray-400 ml-1" x-text="group.accounts.length + '개 계정'"></span></span>
+                                                                <span class="text-xs text-gray-400" x-text="isTimelineDetailExpanded(group.statementDiv) ? '−' : '+'"></span>
+                                                            </button>
+                                                            <template x-if="isTimelineDetailExpanded(group.statementDiv)">
+                                                                <div class="overflow-x-auto border-t border-gray-100">
+                                                                    <table class="w-full text-xs">
+                                                                        <thead class="bg-gray-50">
+                                                                            <tr class="border-b border-gray-100">
+                                                                                <th class="text-left py-2 px-3 text-gray-500 font-medium whitespace-nowrap">계정</th>
+                                                                                <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                                    <th class="py-2 px-2 text-right font-medium whitespace-nowrap"
+                                                                                        :class="col.partial ? 'text-amber-700 bg-amber-50' : 'text-gray-500'"
+                                                                                        x-text="col.year"></th>
+                                                                                </template>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            <template x-for="row in group.accounts" :key="row.id">
+                                                                                <tr class="border-b border-gray-50 hover:bg-gray-50">
+                                                                                    <td class="py-1.5 px-3 text-gray-600 whitespace-nowrap" x-text="row.name"></td>
+                                                                                    <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                                        <td class="py-1.5 px-2 text-right text-gray-700 whitespace-nowrap"
+                                                                                            :class="col.partial ? 'bg-amber-50' : ''"
+                                                                                            x-text="timelineDetailCell(row, col)"></td>
+                                                                                    </template>
+                                                                                </tr>
+                                                                            </template>
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+
+                                            <!-- 재무지표 4분류 전체 (접이식) -->
+                                            <template x-if="getTimelineIndexGroups().length > 0">
+                                                <div class="mt-6">
+                                                    <h4 class="text-xs font-semibold text-gray-500 mb-2">재무지표 (수익성 · 안정성 · 성장성 · 활동성)</h4>
+                                                    <template x-for="group in getTimelineIndexGroups()" :key="group.classCode">
+                                                        <div class="border border-gray-200 rounded-lg mb-2 overflow-hidden">
+                                                            <button type="button" @click="toggleTimelineIndexClass(group.classCode)"
+                                                                    class="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                                                <span><span x-text="group.className"></span>
+                                                                    <span class="text-xs text-gray-400 ml-1" x-text="group.items.length + '개'"></span></span>
+                                                                <span class="text-xs text-gray-400" x-text="isTimelineIndexExpanded(group.classCode) ? '−' : '+'"></span>
+                                                            </button>
+                                                            <template x-if="isTimelineIndexExpanded(group.classCode)">
+                                                                <div class="border-t border-gray-100">
+                                                                    <template x-if="hasGrowthIndexPartial(group)">
+                                                                        <p class="px-3 py-1.5 text-[11px] text-gray-400">※ 진행중 연도는 증가율 산정 기간이 불완전해 생략(-)합니다.</p>
+                                                                    </template>
+                                                                    <div class="overflow-x-auto">
+                                                                        <table class="w-full text-xs">
+                                                                            <thead class="bg-gray-50">
+                                                                                <tr class="border-b border-gray-100">
+                                                                                    <th class="text-left py-2 px-3 text-gray-500 font-medium whitespace-nowrap">지표</th>
+                                                                                    <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                                        <th class="py-2 px-2 text-right font-medium whitespace-nowrap"
+                                                                                            :class="col.partial ? 'text-amber-700 bg-amber-50' : 'text-gray-500'"
+                                                                                            x-text="col.year"></th>
+                                                                                    </template>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <template x-for="row in group.items" :key="row.id">
+                                                                                    <tr class="border-b border-gray-50 hover:bg-gray-50">
+                                                                                        <td class="py-1.5 px-3 text-gray-600 whitespace-nowrap" x-text="row.name"></td>
+                                                                                        <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                                            <td class="py-1.5 px-2 text-right text-gray-700 whitespace-nowrap"
+                                                                                                :class="col.partial ? 'bg-amber-50' : ''"
+                                                                                                x-text="timelineIndexCell(group, row, col)"></td>
+                                                                                        </template>
+                                                                                    </tr>
+                                                                                </template>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
                         </div>
                     </template>
 

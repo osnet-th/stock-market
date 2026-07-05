@@ -71,25 +71,28 @@ const PortfolioComponent = {
         financialAccountFsFilter: '',
         financialStatementFilter: '',
         _financialRequestGeneration: 0,
+        // 연도별 추세(타임라인) 상태
+        timelineData: null,
+        timelineLoading: false,
+        timelineError: null,
+        timelineYears: '5',
+        timelineFsDiv: 'CFS',
+        _timelineCharts: [],
+        timelineExpandedStatements: { IS: true },
+        timelineExpandedIndexClasses: {},
+        // 공시 목록 상태
+        disclosureData: null,
+        disclosureLoading: false,
+        disclosureError: null,
+        disclosureSelectedTypes: [],
+        disclosurePeriod: '1',
         financialMenus: [
-            { key: 'accounts', label: '재무계정' },
-            { key: 'indices', label: '재무지표' },
-            { key: 'full-statements', label: '전체재무제표' },
-            { key: 'stock-quantities', label: '주식수량' },
-            { key: 'dividends', label: '배당정보' },
-            { key: 'lawsuits', label: '소송현황' },
-            { key: 'private-fund', label: '사모자금사용' },
-            { key: 'public-fund', label: '공모자금사용' }
+            { key: 'timeline', label: '연도별 추세' },
+            { key: 'disclosures', label: '공시' }
         ],
         _krFinancialMenus: [
-            { key: 'accounts', label: '재무계정' },
-            { key: 'indices', label: '재무지표' },
-            { key: 'full-statements', label: '전체재무제표' },
-            { key: 'stock-quantities', label: '주식수량' },
-            { key: 'dividends', label: '배당정보' },
-            { key: 'lawsuits', label: '소송현황' },
-            { key: 'private-fund', label: '사모자금사용' },
-            { key: 'public-fund', label: '공모자금사용' }
+            { key: 'timeline', label: '연도별 추세' },
+            { key: 'disclosures', label: '공시' }
         ],
         _secFinancialMenus: [
             { key: 'sec-income', label: '손익계산서' },

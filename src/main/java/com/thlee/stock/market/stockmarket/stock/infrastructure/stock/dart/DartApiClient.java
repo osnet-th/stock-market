@@ -152,6 +152,16 @@ public class DartApiClient {
     }
 
     /**
+     * 공시검색 조회 (접수일 최신순)
+     * @param pblntfTy 공시유형 (A:정기공시 ~ J:공정위공시, null이면 전체)
+     */
+    public DartDisclosureListResponse fetchDisclosureList(
+            String corpCode, String bgnDe, String endDe, String pblntfTy, int pageNo, int pageCount) {
+        String uri = buildDisclosureListUri(corpCode, bgnDe, endDe, pblntfTy, pageNo, pageCount);
+        return callDisclosureListApi(uri);
+    }
+
+    /**
      * DART 고유번호 전체 목록 다운로드 및 파싱
      * ZIP(CORPCODE.xml) → List<DartCorpCode>
      */
@@ -223,6 +233,47 @@ public class DartApiClient {
         } catch (RestClientException e) {
             throw new DartApiException("DART API 호출 실패: " + e.getMessage(), e);
         }
+    }
+
+    private String buildDisclosureListUri(
+            String corpCode, String bgnDe, String endDe, String pblntfTy, int pageNo, int pageCount) {
+        UriComponentsBuilder builder = buildBaseUri("/list.json")
+                .queryParam("corp_code", corpCode)
+                .queryParam("bgn_de", bgnDe)
+                .queryParam("end_de", endDe)
+                .queryParam("page_no", pageNo)
+                .queryParam("page_count", pageCount);
+        if (pblntfTy != null) {
+            builder.queryParam("pblntf_ty", pblntfTy);
+        }
+        return builder.toUriString();
+    }
+
+    private DartDisclosureListResponse callDisclosureListApi(String uri) {
+        try {
+            DartDisclosureListResponse response = restClient.get()
+                    .uri(uri)
+                    .retrieve()
+                    .body(DartDisclosureListResponse.class);
+            return validateDisclosureListResponse(response);
+        } catch (RestClientException e) {
+            throw new DartApiException("DART API 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    private DartDisclosureListResponse validateDisclosureListResponse(DartDisclosureListResponse response) {
+        if (response == null) {
+            throw new DartApiException("DART API 응답이 null입니다");
+        }
+        if (response.isSuccess()) {
+            return response;
+        }
+        if (response.isNoData()) {
+            return DartDisclosureListResponse.empty();
+        }
+        throw new DartApiException(
+                response.getStatusCode(),
+                "DART API 오류 [" + response.getStatus() + "]: " + response.getMessage());
     }
 
     /**

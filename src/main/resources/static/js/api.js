@@ -397,6 +397,18 @@ const API = {
             `/api/stocks/${stockCode}/financial/full-statements?year=${year}&reportCode=${reportCode}&fsDiv=${fsDiv}`);
     },
 
+    getFinancialTimeline(stockCode, years, fsDiv, items) {
+        const itemsParam = items && items.length > 0 ? `&items=${items.join(',')}` : '';
+        return this.request('GET',
+            `/api/stocks/${stockCode}/financial/timeline?years=${years}&fsDiv=${fsDiv}${itemsParam}`);
+    },
+
+    getDisclosures(stockCode, fromDate, toDate, types) {
+        const typesParam = types && types.length > 0 ? `&types=${types.join(',')}` : '';
+        return this.request('GET',
+            `/api/stocks/${stockCode}/disclosures?fromDate=${fromDate}&toDate=${toDate}${typesParam}`);
+    },
+
     getLawsuits(stockCode, startDate, endDate) {
         return this.request('GET',
             `/api/stocks/${stockCode}/financial/lawsuits?startDate=${startDate}&endDate=${endDate}`);

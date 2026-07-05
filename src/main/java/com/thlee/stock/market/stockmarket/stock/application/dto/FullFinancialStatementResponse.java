@@ -16,6 +16,8 @@ public class FullFinancialStatementResponse {
     private final String currentTermAmount;
     private final String previousTermName;
     private final String previousTermAmount;
+    private final String beforePreviousTermName;
+    private final String beforePreviousTermAmount;
     private final String currency;
 
     public static FullFinancialStatementResponse from(FullFinancialStatement statement) {
@@ -29,6 +31,8 @@ public class FullFinancialStatementResponse {
                 statement.currentTermAmount(),
                 statement.previousTermName(),
                 statement.previousTermAmount(),
+                statement.beforePreviousTermName(),
+                statement.beforePreviousTermAmount(),
                 statement.currency()
         );
     }

@@ -39,6 +39,8 @@
 - 기준 브랜치는 `main`을 기본값으로 한다.
 - 브랜치명은 작업 목적이 드러나게 작성한다.
 - worktree 경로는 작업 브랜치와 쉽게 대응되도록 작성한다.
+- `scripts/create-worktree.sh`로 생성한 worktree에는 primary worktree의 `.env`를 반드시 복사한다.
+- primary worktree에 `.env`가 없거나 읽을 수 없으면 worktree 생성은 실패해야 한다.
 
 예시:
 

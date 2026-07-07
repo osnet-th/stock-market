@@ -37,6 +37,12 @@ find_branch_worktree() {
   '
 }
 
+primary_worktree() {
+  git worktree list --porcelain | awk '
+    /^worktree / { print substr($0, 10); exit }
+  '
+}
+
 base_branch="${BASE_BRANCH:-main}"
 target_path=""
 branch_name=""
@@ -87,6 +93,13 @@ target_path=$(resolve_path "$target_path")
 existing_branch_worktree=$(find_branch_worktree "$branch_name")
 [[ -z "$existing_branch_worktree" ]] || fail "Branch '${branch_name}' is already checked out at ${existing_branch_worktree}"
 
+primary_path=$(primary_worktree)
+[[ -n "$primary_path" ]] || fail "Primary worktree was not found"
+
+source_env="${primary_path}/.env"
+[[ -f "$source_env" ]] || fail "Primary worktree .env was not found: ${source_env}"
+[[ -r "$source_env" ]] || fail "Primary worktree .env is not readable: ${source_env}"
+
 if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
   git worktree add "$target_path" "$branch_name"
 else
@@ -101,11 +114,15 @@ else
   git worktree add -b "$branch_name" "$target_path" "$start_point"
 fi
 
+[[ ! -e "${target_path}/.env" ]] || fail "Target .env already exists: ${target_path}/.env"
+cp -p "$source_env" "${target_path}/.env"
+
 cat <<EOF
 [create-worktree] Created worktree
 - branch: ${branch_name}
 - base: ${base_branch}
 - path: ${target_path}
+- env: copied from primary worktree
 
 Next:
   cd ${target_path}

@@ -53,7 +53,7 @@ workflow: brainstorm-plan-work-review
 - Lombok 필수 (`@Getter`, `@Setter`, `@RequiredArgsConstructor`). 수동 getter/setter 금지
 - YAGNI 원칙 엄수. 이번 작업 범위에 없는 메서드/클래스/인터페이스 신규 생성 금지
 - 테스트는 명시 요청 시에만. 코드 구현 시 테스트 가능성(의존성 주입 등) 확보만 요구
-- 한국어 리뷰 코멘트 가능. 사용자 호칭은 "태형님"
+- 한국어 리뷰 코멘트 가능. 작업 중 업데이트, 리뷰 코멘트, 최종 응답에서 사용자 호칭은 "태형님"
 
 ## 외부 연동 / 캐시
 - 외부 API: RestClient(동기) + WebClient(Gemini SSE 스트리밍)

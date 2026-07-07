@@ -80,6 +80,9 @@ const PortfolioComponent = {
         _timelineCharts: [],
         timelineExpandedStatements: { IS: true },
         timelineExpandedIndexClasses: {},
+        timelineExpandedDetailCategories: {},
+        // 재무상세 패널 사용자 조절 너비(px). null이면 기본(lg 65%). localStorage에서 복원
+        financialPanelWidth: parseInt(localStorage.getItem('financialPanelWidth'), 10) || null,
         // 공시 목록 상태
         disclosureData: null,
         disclosureLoading: false,

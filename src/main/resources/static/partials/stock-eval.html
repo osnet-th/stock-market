@@ -99,6 +99,18 @@
                 </div>
             </div>
 
+            <!-- 상위 탭: 한국투자증권 / DART -->
+            <div class="flex gap-1 mb-4 border-b border-gray-200">
+                <button type="button" @click="setEvalProvider('kis')"
+                        :class="stockEval.provider === 'kis' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                        class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px">한국투자증권</button>
+                <button type="button" @click="setEvalProvider('dart')"
+                        :class="stockEval.provider === 'dart' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                        class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px">DART <span class="text-[10px] font-normal text-gray-400">전자공시</span></button>
+            </div>
+
+            <!-- ===== 한국투자증권 탭 ===== -->
+            <div x-show="stockEval.provider === 'kis'">
             <!-- 평가 탭 -->
             <div class="flex flex-wrap gap-2 mb-3">
                 <button type="button" @click="stockEvalSelectTab('finance')"
@@ -270,7 +282,281 @@
                         </div>
                     </template>
                 </div>
-            </div>
+            </div><!-- /[일정] 탭 -->
+            </div><!-- /한국투자증권 탭 -->
+
+            <!-- ===== DART 탭 ===== -->
+            <div x-show="stockEval.provider === 'dart'" x-cloak>
+                <!-- DART 서브탭 -->
+                <div class="flex flex-wrap gap-2 mb-3">
+                    <button type="button" @click="setEvalDartSubTab('timeline')"
+                            :class="stockEval.dart.subTab === 'timeline' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                            class="px-3 py-1.5 text-sm font-medium rounded">연도별 추세</button>
+                    <button type="button" @click="setEvalDartSubTab('disclosures')"
+                            :class="stockEval.dart.subTab === 'disclosures' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                            class="px-3 py-1.5 text-sm font-medium rounded">공시</button>
+                </div>
+
+                <!-- ===== 연도별 추세 ===== -->
+                <div x-show="stockEval.dart.subTab === 'timeline'">
+                    <div class="flex flex-wrap items-center gap-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-gray-500">기간</label>
+                            <select x-model="stockEval.dart.timelineYears" class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <option value="3">최근 3년</option>
+                                <option value="5">최근 5년</option>
+                                <option value="10">최근 10년</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-gray-500">재무제표</label>
+                            <select x-model="stockEval.dart.timelineFsDiv" class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <option value="CFS">연결</option>
+                                <option value="OFS">개별</option>
+                            </select>
+                        </div>
+                        <button type="button" @click="runTimelineQuery(stockEval.dart)"
+                                :disabled="stockEval.dart.timelineLoading"
+                                class="text-sm px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">조회</button>
+                        <div x-show="stockEval.dart.timelineLoading" class="flex items-center text-xs text-gray-400">
+                            <svg class="animate-spin h-4 w-4 mr-1" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>조회 중...
+                        </div>
+                    </div>
+
+                    <template x-if="stockEval.dart.timelineError">
+                        <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700"><span x-text="stockEval.dart.timelineError"></span></div>
+                    </template>
+                    <template x-if="stockEval.dart.timelineData === null && !stockEval.dart.timelineLoading && !stockEval.dart.timelineError">
+                        <div class="text-center py-6 text-gray-400 text-sm">조회 버튼을 눌러 연도별 추세를 조회하세요</div>
+                    </template>
+                    <template x-if="stockEval.dart.timelineData !== null && !stockEval.dart.timelineLoading">
+                        <div>
+                            <template x-if="getTimelineColumns(stockEval.dart).length === 0">
+                                <div class="text-center py-6 text-gray-400 text-sm">조회 기간에 정기보고서가 없습니다.</div>
+                            </template>
+                            <template x-if="getTimelineColumns(stockEval.dart).length > 0">
+                                <div>
+                                    <div x-show="getTimelineColumns(stockEval.dart).some(c => c.partial)"
+                                         class="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700">
+                                        진행중 연도는 그 해 최신 보고서의 누적 기준이라 연간 확정치와 직접 비교할 수 없습니다. (차트에서 점선 구간)
+                                    </div>
+                                    <div class="overflow-x-auto mb-4">
+                                        <table class="w-full text-sm">
+                                            <thead><tr class="border-b border-gray-200">
+                                                <th class="py-2 px-2 text-xs text-gray-500 font-medium text-left whitespace-nowrap">항목</th>
+                                                <template x-for="col in getTimelineColumns(stockEval.dart)" :key="col.year">
+                                                    <th class="py-2 px-2 text-xs font-medium text-right whitespace-nowrap"
+                                                        :class="col.partial ? 'border-l border-dashed border-amber-300 bg-amber-50/60 text-amber-700' : 'text-gray-500'">
+                                                        <span x-text="col.year"></span>
+                                                        <span class="block text-[10px] font-normal" :class="col.partial ? 'text-amber-600' : 'text-gray-400'"
+                                                              x-text="col.partial ? col.reportLabel + '·진행중' : col.reportLabel"></span>
+                                                    </th>
+                                                </template>
+                                            </tr></thead>
+                                            <tbody>
+                                                <template x-for="row in getTimelineSummaryRows(stockEval.dart)" :key="row.name">
+                                                    <tr class="border-b border-gray-50 hover:bg-gray-50">
+                                                        <td class="py-2 px-2 text-gray-700 whitespace-nowrap" x-text="row.name"></td>
+                                                        <template x-for="col in getTimelineColumns(stockEval.dart)" :key="col.year">
+                                                            <td class="py-2 px-2 text-right text-gray-800 whitespace-nowrap"
+                                                                :class="col.partial ? 'border-l border-dashed border-amber-300 bg-amber-50/60' : ''"
+                                                                x-text="timelineCell(row, col)"></td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                                        <h4 class="text-xs font-semibold text-gray-500 mb-3">금액 추세 (매출액 · 영업이익 · 잉여현금흐름)</h4>
+                                        <div style="height: 250px;"><canvas id="eval-timelineAmountChart"></canvas></div>
+                                    </div>
+                                    <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                                        <h4 class="text-xs font-semibold text-gray-500 mb-3">핵심 비율 추세 (영업이익률 · ROE · 부채비율)</h4>
+                                        <div style="height: 220px;"><canvas id="eval-timelineRatioChart"></canvas></div>
+                                    </div>
+                                    <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                                        <h4 class="text-xs font-semibold text-gray-500 mb-3">발행 주식수 (보통주 · 우선주)</h4>
+                                        <div style="height: 220px;"><canvas id="eval-timelineShareChart"></canvas></div>
+                                    </div>
+                                    <template x-if="getTimelineDetailGroups(stockEval.dart).length > 0">
+                                        <div class="mt-6">
+                                            <h4 class="text-xs font-semibold text-gray-500 mb-2">전체 재무제표 세부 계정</h4>
+                                            <template x-for="group in getTimelineDetailGroups(stockEval.dart)" :key="group.statementDiv">
+                                                <div class="border border-gray-200 rounded-lg mb-2 overflow-hidden">
+                                                    <button type="button" @click="toggleTimelineDetail(group.statementDiv, stockEval.dart)"
+                                                            class="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                                        <span><span x-text="group.statementName"></span>
+                                                            <span class="text-xs text-gray-400 ml-1" x-text="detailGroupAccountCount(group) + '개 계정'"></span></span>
+                                                        <span class="text-xs text-gray-400" x-text="isTimelineDetailExpanded(group.statementDiv, stockEval.dart) ? '−' : '+'"></span>
+                                                    </button>
+                                                    <template x-if="isTimelineDetailExpanded(group.statementDiv, stockEval.dart)">
+                                                        <div class="overflow-x-auto border-t border-gray-100">
+                                                            <table class="w-full text-xs">
+                                                                <thead class="bg-gray-50"><tr class="border-b border-gray-100">
+                                                                    <th class="text-left py-2 px-3 text-gray-500 font-medium whitespace-nowrap">계정</th>
+                                                                    <template x-for="col in getTimelineColumns(stockEval.dart)" :key="col.year">
+                                                                        <th class="py-2 px-2 text-right font-medium whitespace-nowrap"
+                                                                            :class="col.partial ? 'text-amber-700 bg-amber-50' : 'text-gray-500'" x-text="col.year"></th>
+                                                                    </template>
+                                                                </tr></thead>
+                                                                <tbody>
+                                                                    <template x-for="(rr, rrIndex) in getDetailRenderRows(group, stockEval.dart)" :key="rrIndex">
+                                                                        <tr class="border-b border-gray-50 hover:bg-gray-50" :class="detailRowClass(rr)">
+                                                                            <td class="py-1.5 px-3 whitespace-nowrap" :class="detailRowLabelClass(rr)">
+                                                                                <template x-if="rr.kind === 'CATEGORY'">
+                                                                                    <button type="button" @click="toggleDetailCategory(rr.sd, rr.node, stockEval.dart)"
+                                                                                            class="flex items-center gap-1 hover:text-gray-900">
+                                                                                        <span class="text-gray-400" x-text="isDetailCategoryExpanded(rr.sd, rr.node, stockEval.dart) ? '▾' : '▸'"></span>
+                                                                                        <span x-text="rr.row.name"></span>
+                                                                                        <span class="text-gray-400 font-normal" x-text="'(' + rr.node.children.length + ')'"></span>
+                                                                                    </button>
+                                                                                </template>
+                                                                                <template x-if="rr.kind !== 'CATEGORY'"><span x-text="rr.row.name"></span></template>
+                                                                            </td>
+                                                                            <template x-for="(col, colIndex) in getTimelineColumns(stockEval.dart)" :key="col.year">
+                                                                                <td class="py-1.5 px-2 text-right whitespace-nowrap"
+                                                                                    :class="[detailRowValueClass(rr), col.partial ? 'bg-amber-50' : '']">
+                                                                                    <span x-text="timelineDetailCell(rr.row, col)"></span>
+                                                                                    <span class="ml-1 text-[10px]" :class="timelineDetailDeltaClass(rr.row, colIndex, stockEval.dart)"
+                                                                                          x-text="timelineDetailDeltaText(rr.row, colIndex, stockEval.dart)"></span>
+                                                                                </td>
+                                                                            </template>
+                                                                        </tr>
+                                                                    </template>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template x-if="getTimelineIndexGroups(stockEval.dart).length > 0">
+                                        <div class="mt-6">
+                                            <h4 class="text-xs font-semibold text-gray-500 mb-2">재무지표 (수익성 · 안정성 · 성장성 · 활동성)</h4>
+                                            <template x-for="group in getTimelineIndexGroups(stockEval.dart)" :key="group.classCode">
+                                                <div class="border border-gray-200 rounded-lg mb-2 overflow-hidden">
+                                                    <button type="button" @click="toggleTimelineIndexClass(group.classCode, stockEval.dart)"
+                                                            class="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                                        <span><span x-text="group.className"></span>
+                                                            <span class="text-xs text-gray-400 ml-1" x-text="group.items.length + '개'"></span></span>
+                                                        <span class="text-xs text-gray-400" x-text="isTimelineIndexExpanded(group.classCode, stockEval.dart) ? '−' : '+'"></span>
+                                                    </button>
+                                                    <template x-if="isTimelineIndexExpanded(group.classCode, stockEval.dart)">
+                                                        <div class="border-t border-gray-100">
+                                                            <template x-if="hasGrowthIndexPartial(group, stockEval.dart)">
+                                                                <p class="px-3 py-1.5 text-[11px] text-gray-400">※ 진행중 연도는 증가율 산정 기간이 불완전해 생략(-)합니다.</p>
+                                                            </template>
+                                                            <div class="overflow-x-auto">
+                                                                <table class="w-full text-xs">
+                                                                    <thead class="bg-gray-50"><tr class="border-b border-gray-100">
+                                                                        <th class="text-left py-2 px-3 text-gray-500 font-medium whitespace-nowrap">지표</th>
+                                                                        <template x-for="col in getTimelineColumns(stockEval.dart)" :key="col.year">
+                                                                            <th class="py-2 px-2 text-right font-medium whitespace-nowrap"
+                                                                                :class="col.partial ? 'text-amber-700 bg-amber-50' : 'text-gray-500'" x-text="col.year"></th>
+                                                                        </template>
+                                                                    </tr></thead>
+                                                                    <tbody>
+                                                                        <template x-for="row in group.items" :key="row.id">
+                                                                            <tr class="border-b border-gray-50 hover:bg-gray-50">
+                                                                                <td class="py-1.5 px-3 text-gray-600 whitespace-nowrap" x-text="row.name"></td>
+                                                                                <template x-for="col in getTimelineColumns(stockEval.dart)" :key="col.year">
+                                                                                    <td class="py-1.5 px-2 text-right text-gray-700 whitespace-nowrap"
+                                                                                        :class="col.partial ? 'bg-amber-50' : ''" x-text="timelineIndexCell(group, row, col)"></td>
+                                                                                </template>
+                                                                            </tr>
+                                                                        </template>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- ===== 공시 ===== -->
+                <div x-show="stockEval.dart.subTab === 'disclosures'">
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-gray-500">기간</label>
+                            <select x-model="stockEval.dart.disclosurePeriod" class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <option value="1">최근 1년</option>
+                                <option value="3">최근 3년</option>
+                                <option value="5">최근 5년</option>
+                                <option value="0">전체</option>
+                            </select>
+                        </div>
+                        <button type="button" @click="runDisclosureQuery(stockEval.dart)"
+                                :disabled="stockEval.dart.disclosureLoading"
+                                class="text-sm px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">조회</button>
+                        <div x-show="stockEval.dart.disclosureLoading" class="flex items-center text-xs text-gray-400">
+                            <svg class="animate-spin h-4 w-4 mr-1" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>조회 중...
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mb-4">
+                        <button type="button" @click="stockEval.dart.disclosureSelectedTypes = []"
+                                class="text-xs px-2.5 py-1 rounded-full border transition"
+                                :class="stockEval.dart.disclosureSelectedTypes.length === 0 ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'">전체</button>
+                        <template x-for="t in _disclosureTypes" :key="t.code">
+                            <button type="button" @click="toggleDisclosureType(t.code, stockEval.dart)"
+                                    class="text-xs px-2.5 py-1 rounded-full border transition"
+                                    :class="isDisclosureTypeSelected(t.code, stockEval.dart) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'"
+                                    x-text="t.label"></button>
+                        </template>
+                    </div>
+                    <template x-if="stockEval.dart.disclosureError">
+                        <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700"><span x-text="stockEval.dart.disclosureError"></span></div>
+                    </template>
+                    <template x-if="stockEval.dart.disclosureData === null && !stockEval.dart.disclosureLoading && !stockEval.dart.disclosureError">
+                        <div class="text-center py-6 text-gray-400 text-sm">유형·기간을 고르고 조회 버튼을 눌러 공시를 검색하세요</div>
+                    </template>
+                    <template x-if="stockEval.dart.disclosureData !== null && !stockEval.dart.disclosureLoading">
+                        <div>
+                            <template x-if="getDisclosureRows(stockEval.dart).length === 0">
+                                <div class="text-center py-6 text-gray-400 text-sm">해당 조건의 공시가 없습니다.</div>
+                            </template>
+                            <template x-if="getDisclosureRows(stockEval.dart).length > 0">
+                                <div>
+                                    <p class="text-xs text-gray-400 mb-2" x-text="getDisclosureRows(stockEval.dart).length + '건 (접수일 최신순)'"></p>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-sm">
+                                            <thead class="bg-white"><tr class="border-b border-gray-200">
+                                                <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium whitespace-nowrap">접수일</th>
+                                                <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium">보고서명</th>
+                                                <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium whitespace-nowrap">제출인</th>
+                                                <th class="text-right py-2 px-2 text-xs text-gray-500 font-medium whitespace-nowrap">원문</th>
+                                            </tr></thead>
+                                            <tbody>
+                                                <template x-for="row in getDisclosureRows(stockEval.dart)" :key="row.viewerUrl">
+                                                    <tr class="border-b border-gray-50 hover:bg-gray-50">
+                                                        <td class="py-2 px-2 text-gray-500 whitespace-nowrap text-xs" x-text="formatDisclosureDate(row.receiptDate)"></td>
+                                                        <td class="py-2 px-2 text-gray-700">
+                                                            <span x-text="row.reportName"></span>
+                                                            <template x-if="isCorrectionDisclosure(row.remark)"><span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-600">정정</span></template>
+                                                        </td>
+                                                        <td class="py-2 px-2 text-gray-500 whitespace-nowrap text-xs" x-text="row.submitterName"></td>
+                                                        <td class="py-2 px-2 text-right whitespace-nowrap">
+                                                            <a :href="row.viewerUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-indigo-600 hover:text-indigo-800">원문 ▸</a>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div><!-- /DART 탭 -->
         </div>
     </template>
 </div>

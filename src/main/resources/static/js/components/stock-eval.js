@@ -42,6 +42,26 @@ const StockEvalComponent = {
             { code: 'shareholders-meeting', label: '주주총회' },
         ],
         schedule: { type: 'dividend', fromDate: '', toDate: '', table: null, loaded: false, loading: false, error: '', _gen: 0 },
+
+        // 상위 탭: 한국투자증권(KIS) / DART
+        provider: 'kis',   // kis | dart
+
+        // DART 재무상세 컨텍스트 (financial.js 타임라인/공시 로직을 ctx로 재사용).
+        // 필드명은 portfolio와 동일해야 공용 메서드가 동작. canvasPrefix로 canvas id 유일화.
+        dart: {
+            subTab: 'timeline',          // timeline | disclosures
+            stockCode: null,
+            canvasPrefix: 'eval-',
+            timelineData: null, timelineLoading: false, timelineError: null,
+            timelineYears: '5', timelineFsDiv: 'CFS',
+            timelineExpandedStatements: { IS: true },
+            timelineExpandedIndexClasses: {},
+            timelineExpandedDetailCategories: {},
+            _timelineCharts: [],
+            _financialRequestGeneration: 0,
+            disclosureData: null, disclosureLoading: false, disclosureError: null,
+            disclosureSelectedTypes: [], disclosurePeriod: '1',
+        },
     },
 
     // ==================== 검색 / 선택 ====================
@@ -67,12 +87,37 @@ const StockEvalComponent = {
         this.stockEval.selected = stock;
         this.stockEval.searchResults = [];
         this.stockEval.searchQuery = '';
+        this.stockEval.provider = 'kis';
         this.stockEval.activeTab = 'finance';
         this._stockEvalResetTabs();
+        this._stockEvalResetDart(stock.stockCode);
         Object.assign(this.stockEval.industryIndex, { points: [], loading: false, loaded: false, error: '' });
         this.destroyIndexChart();
         await this.stockEvalLoadSummary();
         await this.stockEvalLoadFinance(); // 기본 탭
+    },
+
+    // === 상위 탭(KIS/DART) + DART 재무상세 ===
+
+    // DART 컨텍스트 초기화 (종목 전환 시). 차트·상태 리셋 후 종목코드 설정
+    _stockEvalResetDart(stockCode) {
+        const dart = this.stockEval.dart;
+        this.resetTimelineState(dart);
+        this.resetDisclosureState(dart);
+        dart.subTab = 'timeline';
+        dart.timelineYears = '5';
+        dart.timelineFsDiv = 'CFS';
+        dart.disclosurePeriod = '1';
+        dart.disclosureSelectedTypes = [];
+        dart.stockCode = stockCode;
+    },
+
+    setEvalProvider(provider) {
+        this.stockEval.provider = provider;
+    },
+
+    setEvalDartSubTab(subTab) {
+        this.stockEval.dart.subTab = subTab;
     },
 
     _stockEvalResetTabs() {

@@ -7,6 +7,7 @@ import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelin
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse.TimelineRow;
 import com.thlee.stock.market.stockmarket.stock.application.dto.TimelineColumnData;
 import com.thlee.stock.market.stockmarket.stock.domain.model.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -18,7 +19,10 @@ import java.util.function.Function;
  * 행 순서는 최신 연도의 등장 순서를 우선한다 (과거에만 존재한 계정은 뒤에 붙음).
  */
 @Component
+@RequiredArgsConstructor
 public class FinancialTimelineAssembler {
+
+    private final FinancialDetailTreeBuilder detailTreeBuilder;
 
     private static final String UNUSED_ACCOUNT_ID = "-표준계정코드 미사용-";
     private static final String CASH_FLOW_DIV = "CF";
@@ -153,7 +157,7 @@ public class FinancialTimelineAssembler {
     private TimelineDetailGroup toDetailGroup(List<TimelineColumnData> data, String statementDiv, String statementName) {
         List<TimelineRow> rows = mergeRows(data, column -> detailsOf(column, statementDiv),
                 this::detailRowKey, FullFinancialStatement::accountName, FullFinancialStatement::currentTermAmount);
-        return new TimelineDetailGroup(statementDiv, statementName, rows);
+        return new TimelineDetailGroup(statementDiv, statementName, detailTreeBuilder.buildNodes(statementDiv, rows));
     }
 
     private List<FullFinancialStatement> detailsOf(TimelineColumnData column, String statementDiv) {

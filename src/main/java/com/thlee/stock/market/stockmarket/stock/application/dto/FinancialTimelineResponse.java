@@ -55,6 +55,21 @@ public class FinancialTimelineResponse {
     public static class TimelineDetailGroup {
         private final String statementDiv;
         private final String statementName;
-        private final List<TimelineRow> accounts;
+        private final List<TimelineDetailNode> nodes;
+    }
+
+    /**
+     * 세부 계정 계층 노드.
+     * - TOTAL: 자식 없는 앵커(총계/소계). 강조 행, 토글 없음.
+     * - CATEGORY: 자식 있는 앵커(유동자산·영업활동 등) 또는 "기타(미분류)". 접이식 부모.
+     * - ITEM: 계층이 없는 재무제표(IS/CIS/SCE)의 평면 행.
+     * children은 CATEGORY만 non-empty이며, 그 외에는 빈 리스트다.
+     */
+    @Getter
+    @RequiredArgsConstructor
+    public static class TimelineDetailNode {
+        private final String role;
+        private final TimelineRow row;
+        private final List<TimelineRow> children;
     }
 }

@@ -30,7 +30,7 @@ base_branch="${BASE_BRANCH:-main}"
 case "$mode" in
   local-documented)
     "$repo_root/scripts/check-worktree.sh" --mode documented --quiet
-    "$repo_root/scripts/check-documented-workflow.sh" --base "$base_branch" --quiet
+    "$repo_root/scripts/check-documented-workflow.sh" --base "$base_branch" --through commit --quiet
     echo "[run-harness-checks] Local documented workflow checks passed."
     ;;
   local-lightweight)

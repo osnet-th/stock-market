@@ -1,7 +1,7 @@
 ---
 review_agents: [code-simplicity-reviewer, security-sentinel, performance-oracle, architecture-strategist]
 plan_review_agents: [code-simplicity-reviewer]
-workflow: brainstorm-plan-work-review
+workflow: start-brainstorm-plan-work-review-validation-commit-push
 ---
 
 # Compound Engineering Context
@@ -9,12 +9,14 @@ workflow: brainstorm-plan-work-review
 이 문서는 이 저장소에서 compound-engineering workflow를 적용할 때의 공식 컨텍스트입니다.
 
 ## Workflow Contract
-- 표준 흐름은 `brainstorm -> plan -> work -> review`
+- 표준 흐름은 `start -> brainstorm -> plan -> work -> review -> validation -> commit -> push`
 - 모든 작업은 같은 흐름을 따르며, 차이는 산출물 보존 방식만 있다
+- 각 단계 시작 전 태형님에게 무엇을 할지 제시하고, 다음 단계 진행 여부를 확인한다
 - documented workflow:
-  - `docs/brainstorms/*.md`, `docs/plans/*.md`를 사용
+  - `docs/brainstorms/*.md`, `docs/plans/*.md`, `docs/works/*.md`, `docs/reviews/*.md`, `docs/validations/*.md`, `docs/commits/*.md`, `docs/pushes/*.md`, `docs/gates/*.md`를 사용
   - 로직, API, Entity, 구조 변경 또는 고리스크 작업에 적용
   - current plan은 `docs/plans/*.md`
+  - 각 단계 산출물은 `gate: docs/gates/*.md`로 게이트 로그를 참조
 - lightweight workflow:
   - 같은 순서를 따르되 문서를 파일로 남기지 않을 수 있음
   - 오타, 명백한 컴파일 에러, 문서 수정, 국소적 비로직 변경에 적용
@@ -23,6 +25,12 @@ workflow: brainstorm-plan-work-review
 - 공식 산출물 경로:
   - brainstorm: `docs/brainstorms/*.md`
   - plan: `docs/plans/*.md`
+  - work: `docs/works/*.md`
+  - review: `docs/reviews/*.md`
+  - validation: `docs/validations/*.md`
+  - commit: `docs/commits/*.md`
+  - push: `docs/pushes/*.md`
+  - gate: `docs/gates/*.md`
   - solution: `docs/solutions/**/*.md`
 - `.claude/analyzes/**`, `.claude/designs/**`는 레거시 참고 자료이며 신규 기본 경로가 아님
 
@@ -31,8 +39,10 @@ workflow: brainstorm-plan-work-review
 - `ARCHITECTURE.md`
 - `docs/policies/code-convention.md`
 - `docs/policies/git-worktree.md`
+- 현재 작업의 gate
 - 현재 작업의 plan
 - 관련 brainstorm
+- 현재 작업의 work/review/validation/commit/push 산출물
 - `docs/solutions/**`
 - 레거시 analyze/design 문서
 

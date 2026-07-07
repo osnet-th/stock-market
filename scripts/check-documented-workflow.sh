@@ -47,12 +47,13 @@ stage_index() {
   case "$1" in
     start) printf '%s\n' 0 ;;
     brainstorm) printf '%s\n' 1 ;;
-    plan) printf '%s\n' 2 ;;
-    work) printf '%s\n' 3 ;;
-    review) printf '%s\n' 4 ;;
-    validation) printf '%s\n' 5 ;;
-    commit) printf '%s\n' 6 ;;
-    push) printf '%s\n' 7 ;;
+    issue) printf '%s\n' 2 ;;
+    plan) printf '%s\n' 3 ;;
+    work) printf '%s\n' 4 ;;
+    review) printf '%s\n' 5 ;;
+    validation) printf '%s\n' 6 ;;
+    commit) printf '%s\n' 7 ;;
+    push) printf '%s\n' 8 ;;
     *) fail "Unsupported stage: $1" ;;
   esac
 }
@@ -100,6 +101,7 @@ if [[ -z "$changed_files" ]]; then
 fi
 
 brainstorm_found="false"
+issue_found="false"
 plan_found="false"
 work_found="false"
 review_found="false"
@@ -109,12 +111,14 @@ push_found="false"
 gate_found="false"
 
 stage_docs=()
+issue_docs=()
 gate_docs=()
 
 while IFS= read -r file; do
   [[ -n "$file" ]] || continue
   case "$file" in
     docs/brainstorms/*.md) brainstorm_found="true"; stage_docs+=("$file") ;;
+    docs/issues/*.md) issue_found="true"; stage_docs+=("$file"); issue_docs+=("$file") ;;
     docs/plans/*.md) plan_found="true"; stage_docs+=("$file") ;;
     docs/works/*.md) work_found="true"; stage_docs+=("$file") ;;
     docs/reviews/*.md) review_found="true"; stage_docs+=("$file") ;;
@@ -126,6 +130,7 @@ while IFS= read -r file; do
 done <<< "$changed_files"
 
 require_stage_doc brainstorm "$brainstorm_found" "docs/brainstorms/*.md"
+require_stage_doc issue "$issue_found" "docs/issues/*.md"
 require_stage_doc plan "$plan_found" "docs/plans/*.md"
 require_stage_doc work "$work_found" "docs/works/*.md"
 require_stage_doc review "$review_found" "docs/reviews/*.md"
@@ -139,8 +144,19 @@ for file in "${stage_docs[@]}"; do
     || fail "Stage document must reference a gate log with 'gate: docs/gates/*.md': ${file}"
 done
 
+for file in "${issue_docs[@]}"; do
+  if grep -Eq '^- status: bootstrap-exception$' "$file"; then
+    continue
+  fi
+
+  grep -Eq '^- issue_number: #[0-9]+$|^- issue_number: [0-9]+$' "$file" \
+    || fail "Issue document must include a numeric issue_number, unless it is a bootstrap exception: ${file}"
+  grep -Eq '^- issue_url: https://github\.com/[^/]+/[^/]+/issues/[0-9]+$' "$file" \
+    || fail "Issue document must include a GitHub issue_url, unless it is a bootstrap exception: ${file}"
+done
+
 for file in "${gate_docs[@]}"; do
-  for stage in start brainstorm plan work review validation commit push; do
+  for stage in start brainstorm issue plan work review validation commit push; do
     stage_required "$stage" || continue
     grep -Eq "^- ${stage}: approved$" "$file" \
       || fail "Gate log must include '- ${stage}: approved': ${file}"

@@ -8,6 +8,7 @@
 ## Stage Decisions
 - start: approved
 - brainstorm: approved
+- issue: approved
 - plan: approved
 - work: approved
 - review: approved
@@ -18,3 +19,4 @@
 ## Notes
 - 태형님 요청: 각 단계마다 승인 내용을 md마다 반복하지 않고 별도 md 파일을 추가해 참조하는 방식으로 강제한다.
 - 태형님 결정: pre-push는 push 전 실행되므로 `commit` 단계까지만 검사한다.
+- 태형님 요청: brainstorm 완료 후 plan 진입 전 GitHub Issue를 확인하고, 없으면 설계 내용으로 Issue를 등록한 뒤 해당 Issue 번호로 worktree를 생성한다.

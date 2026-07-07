@@ -4,7 +4,7 @@
 
 ## Purpose
 
-- 모든 작업은 `start -> brainstorm -> plan -> work -> review -> validation -> commit -> push` 순서를 따른다.
+- 모든 작업은 `start -> brainstorm -> issue -> plan -> work -> review -> validation -> commit -> push` 순서를 따른다.
 - workflow, 사용자 게이트, 승인 게이트, 컨텍스트 우선순위, 구현/리뷰/검증/커밋/푸시 기준만 정의한다.
 - 세부 코드 규칙과 worktree 규칙은 별도 policy 문서에 둔다.
 
@@ -18,6 +18,8 @@
 - 각 단계는 시작 전에 태형님에게 무엇을 할지 제시하고, 다음 단계로 넘어가도 되는지 확인받는다.
 - 태형님 승인 없이 다음 단계로 넘어가지 않는다.
 - documented workflow의 단계 전환 승인은 `docs/gates/*.md`에 모으고, 각 단계 산출물은 해당 게이트 로그를 참조한다.
+- brainstorm 완료 후 plan으로 넘어가기 전에 GitHub Issue 등록 여부를 확인한다.
+- 대응 Issue가 없으면 brainstorm 내용을 바탕으로 GitHub Issue를 등록하고, Issue 번호를 기준으로 worktree를 생성한다.
 
 ### documented workflow
 
@@ -31,6 +33,7 @@
 정의:
 
 - current brainstorm: `docs/brainstorms/*.md`
+- current issue: `docs/issues/*.md`
 - current plan: `docs/plans/*.md`
 - current work: `docs/works/*.md`
 - current review: `docs/reviews/*.md`
@@ -52,7 +55,7 @@
 
 - current brainstorm: 현재 대화에서 명시된 문제 정의
 - current plan: 현재 대화에서 명시된 작업 범위와 단계
-- work/review/validation/commit/push/gate는 현재 대화에서 결과와 태형님 승인 여부를 명시한다.
+- issue/work/review/validation/commit/push/gate는 현재 대화에서 결과와 태형님 승인 여부를 명시한다.
 
 ### escalation
 
@@ -73,7 +76,7 @@ lightweight workflow로 시작했더라도 아래 조건이 생기면 즉시 doc
 - 비즈니스 로직의 동작 변경
 - current plan 범위를 넘어서는 추가 작업 필요
 - 현재 작업 완료 후 다음 작업으로 연속 진행 필요
-- brainstorm, plan, work, review, validation, commit, push 각 단계로 전환
+- brainstorm, issue, plan, work, review, validation, commit, push 각 단계로 전환
 
 ## Context Sources
 
@@ -86,15 +89,16 @@ lightweight workflow로 시작했더라도 아래 조건이 생기면 즉시 doc
 5. `compound-engineering.local.md`
 6. current gate
 7. current plan
-8. current brainstorm
-9. current work
-10. current review
-11. current validation
-12. current commit
-13. current push
-14. `docs/solutions/**`
-15. 현재 코드베이스
-16. 레거시 참고 자료
+8. current issue
+9. current brainstorm
+10. current work
+11. current review
+12. current validation
+13. current commit
+14. current push
+15. `docs/solutions/**`
+16. 현재 코드베이스
+17. 레거시 참고 자료
 
 레거시 참고 자료:
 
@@ -105,7 +109,7 @@ lightweight workflow로 시작했더라도 아래 조건이 생기면 즉시 doc
 규칙:
 
 - documented workflow에서 `current plan`은 `docs/plans/*.md` 파일이다.
-- documented workflow에서 work/review/validation/commit/push/gate는 각각 `docs/works/*.md`, `docs/reviews/*.md`, `docs/validations/*.md`, `docs/commits/*.md`, `docs/pushes/*.md`, `docs/gates/*.md` 파일이다.
+- documented workflow에서 issue/work/review/validation/commit/push/gate는 각각 `docs/issues/*.md`, `docs/works/*.md`, `docs/reviews/*.md`, `docs/validations/*.md`, `docs/commits/*.md`, `docs/pushes/*.md`, `docs/gates/*.md` 파일이다.
 - lightweight workflow에서 `current plan`은 현재 대화 내 명시된 작업 범위다.
 - policy 문서의 세부 규칙은 `CLAUDE.md`에 중복 기재하지 않는다.
 
@@ -121,6 +125,7 @@ lightweight workflow로 시작했더라도 아래 조건이 생기면 즉시 doc
 - 한 번에 하나의 작업만 진행한다.
 - documented workflow에서는 plan의 체크리스트를 완료 상태로 갱신한다.
 - documented workflow에서는 단계별 산출물이 current gate 문서를 참조하도록 유지한다.
+- documented workflow의 worktree 생성은 `scripts/create-worktree.sh --issue <number> ...`로 수행한다.
 
 ## Review Contract
 

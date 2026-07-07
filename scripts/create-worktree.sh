@@ -4,12 +4,12 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/create-worktree.sh [--base <branch>] [--path <path>] <branch>
+  scripts/create-worktree.sh --issue <number> [--base <branch>] [--path <path>] <branch>
 
 Examples:
-  scripts/create-worktree.sh feat/dashboard-summary
-  scripts/create-worktree.sh --base develop fix/chat-context-reset
-  scripts/create-worktree.sh --path ../wt-docs-policy docs/git-worktree-policy
+  scripts/create-worktree.sh --issue 123 feat/issue-123-dashboard-summary
+  scripts/create-worktree.sh --issue 124 --base develop fix/issue-124-chat-context-reset
+  scripts/create-worktree.sh --issue 125 --path ../wt-issue-125-docs-policy docs/issue-125-git-worktree-policy
 EOF
 }
 
@@ -46,6 +46,7 @@ primary_worktree() {
 base_branch="${BASE_BRANCH:-main}"
 target_path=""
 branch_name=""
+issue_number=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -57,6 +58,11 @@ while [[ $# -gt 0 ]]; do
     --path)
       [[ $# -ge 2 ]] || fail "--path requires a value"
       target_path="$2"
+      shift 2
+      ;;
+    --issue)
+      [[ $# -ge 2 ]] || fail "--issue requires a value"
+      issue_number="$2"
       shift 2
       ;;
     -h|--help)
@@ -78,13 +84,14 @@ done
   usage >&2
   exit 1
 }
+[[ "$issue_number" =~ ^[0-9]+$ ]] || fail "--issue <number> is required before creating a worktree"
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || fail "Git repository not found"
 cd "$repo_root"
 
 if [[ -z "$target_path" ]]; then
   sanitized_branch="${branch_name//\//-}"
-  target_path="$(dirname "$repo_root")/wt-${sanitized_branch}"
+  target_path="$(dirname "$repo_root")/wt-issue-${issue_number}-${sanitized_branch}"
 fi
 
 target_path=$(resolve_path "$target_path")
@@ -120,6 +127,7 @@ cp -p "$source_env" "${target_path}/.env"
 cat <<EOF
 [create-worktree] Created worktree
 - branch: ${branch_name}
+- issue: #${issue_number}
 - base: ${base_branch}
 - path: ${target_path}
 - env: copied from primary worktree

@@ -39,6 +39,7 @@
 - 기준 브랜치는 `main`을 기본값으로 한다.
 - 브랜치명은 작업 목적이 드러나게 작성한다.
 - worktree 경로는 작업 브랜치와 쉽게 대응되도록 작성한다.
+- documented workflow에서는 brainstorm 완료 후 GitHub Issue 번호를 확보한 뒤 `scripts/create-worktree.sh --issue <number> ...`로 worktree를 생성한다.
 - `scripts/create-worktree.sh`로 생성한 worktree에는 primary worktree의 `.env`를 반드시 복사한다.
 - primary worktree에 `.env`가 없거나 읽을 수 없으면 worktree 생성은 실패해야 한다.
 
@@ -79,7 +80,7 @@
 
 ## 자동화
 
-- `scripts/create-worktree.sh`: 브랜치와 worktree를 정책에 맞게 생성한다.
+- `scripts/create-worktree.sh`: Issue 번호, 브랜치, worktree를 정책에 맞게 생성한다.
 - `scripts/check-worktree.sh`: 현재 worktree가 documented 또는 lightweight 조건에 맞는지 점검한다.
 - `scripts/check-documented-workflow.sh`: documented workflow용 brainstorm/plan 문서가 브랜치 diff에 포함됐는지 점검한다.
 - `scripts/run-harness-checks.sh`: 로컬 hook과 CI가 공통으로 호출하는 검사 엔트리포인트다.

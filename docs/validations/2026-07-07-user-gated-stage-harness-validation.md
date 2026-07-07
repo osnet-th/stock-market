@@ -12,9 +12,10 @@ gate: docs/gates/2026-07-07-user-gated-stage-harness-gates.md
 - shell syntax: pass
 - `AGENTS.md` / `CLAUDE.md` 동기화: pass
 - documented workflow check through validation: pass
-- local documented harness: expected fail
+- local documented harness: expected fail until commit document is updated for the latest scope
 
 ## 미검증 / 리스크
-- `scripts/run-harness-checks.sh local-documented`는 `--through commit`까지 검사하므로 commit 산출물이 아직 없는 validation 단계에서는 실패한다.
-- 실패 메시지: `Documented workflow requires at least one docs/commits/*.md file through commit against main`
-- commit 단계에서 `docs/commits/*.md`와 commit gate를 추가한 뒤 local documented harness를 다시 실행해야 한다.
+- issue gate 추가 후 validation 문서가 변경에 포함되지 않으면 `--through validation`에서 실패한다.
+- 확인된 실패 메시지: `Documented workflow requires at least one docs/validations/*.md file through validation against main`
+- validation 문서 갱신 후 `scripts/check-documented-workflow.sh --base main --through validation`은 통과했다.
+- commit 단계에서는 최신 scope를 반영한 `docs/commits/*.md` 갱신 후 local documented harness를 다시 실행해야 한다.

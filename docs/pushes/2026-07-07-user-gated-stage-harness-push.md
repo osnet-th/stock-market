@@ -7,7 +7,7 @@ gate: docs/gates/2026-07-07-user-gated-stage-harness-gates.md
 - branch: `main`
 
 ## 의도
-- `codex/enforce-user-gated-stages`의 하네스 변경 커밋을 primary `main`에 fast-forward 반영한 뒤 `origin/main`으로 푸시한다.
+- `codex/enforce-user-gated-stages`의 하네스 변경 커밋과 Issue Gate 보강 커밋을 primary `main`에 fast-forward 반영한 뒤 `origin/main`으로 푸시한다.
 
 ## 승인
 - 태형님이 push 단계 진행을 승인했다.

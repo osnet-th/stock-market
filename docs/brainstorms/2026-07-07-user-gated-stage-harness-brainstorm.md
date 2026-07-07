@@ -9,13 +9,16 @@ gate: docs/gates/2026-07-07-user-gated-stage-harness-gates.md
 - 승인 기록을 각 단계 md에 반복하면 산출물이 장황해지고 수정 지점이 늘어난다.
 
 ## 목표
-- documented workflow의 표준 단계를 `start -> brainstorm -> plan -> work -> review -> validation -> commit -> push`로 확장한다.
+- documented workflow의 표준 단계를 `start -> brainstorm -> issue -> plan -> work -> review -> validation -> commit -> push`로 확장한다.
+- brainstorm 완료 후 plan 진입 전 대응 GitHub Issue를 확인/등록하도록 강제한다.
 - 각 단계 산출물 md는 별도 게이트 로그 md를 참조한다.
 - 로컬/CI 하네스가 단계별 산출물, 게이트 로그, 게이트 참조 누락을 실패로 처리한다.
 
 ## 결정
-- 단계별 산출물 경로는 `docs/brainstorms`, `docs/plans`, `docs/works`, `docs/reviews`, `docs/validations`, `docs/commits`, `docs/pushes`로 둔다.
+- 단계별 산출물 경로는 `docs/brainstorms`, `docs/issues`, `docs/plans`, `docs/works`, `docs/reviews`, `docs/validations`, `docs/commits`, `docs/pushes`로 둔다.
 - 단계 전환 승인 기록은 `docs/gates/*.md`에 모은다.
+- issue 산출물에는 GitHub Issue 번호와 URL을 기록한다.
+- worktree 생성은 `scripts/create-worktree.sh --issue <number> ...`로만 허용한다.
 - documented workflow는 branch diff에 각 단계별 md가 최소 1개씩 있어야 한다.
 - 각 단계 md는 `gate: docs/gates/*.md`로 게이트 로그를 참조해야 한다.
 - 게이트 로그는 각 단계의 `approved` 기록을 포함해야 한다.

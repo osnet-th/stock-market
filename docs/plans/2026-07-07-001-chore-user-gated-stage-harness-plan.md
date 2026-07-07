@@ -9,6 +9,8 @@ gate: docs/gates/2026-07-07-user-gated-stage-harness-gates.md
 - [x] `AGENTS.md` / `CLAUDE.md`에 단계 순서와 게이트 로그 참조 규칙 추가
 - [x] `compound-engineering.local.md`에 확장 단계와 산출물 경로 반영
 - [x] `scripts/check-documented-workflow.sh`가 단계별 md, 게이트 로그, 게이트 참조를 검사하도록 변경
+- [x] brainstorm과 plan 사이의 GitHub Issue Gate 추가
+- [x] `scripts/create-worktree.sh`에 `--issue <number>` 필수화
 - [x] 이번 변경의 push 산출물 작성
 - [x] 셸 문법 및 documented 하네스 검증
 
@@ -18,6 +20,7 @@ gate: docs/gates/2026-07-07-user-gated-stage-harness-gates.md
 - 수정: `compound-engineering.local.md`
 - 수정: `scripts/check-documented-workflow.sh`
 - 신규 문서: `docs/brainstorms/2026-07-07-user-gated-stage-harness-brainstorm.md`
+- 신규 문서: `docs/issues/2026-07-07-user-gated-stage-harness-issue.md`
 - 신규 문서: `docs/plans/2026-07-07-001-chore-user-gated-stage-harness-plan.md`
 - 신규 문서: `docs/gates/2026-07-07-user-gated-stage-harness-gates.md`
 - 신규 문서: `docs/works/2026-07-07-user-gated-stage-harness-work.md`

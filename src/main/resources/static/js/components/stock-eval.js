@@ -381,4 +381,64 @@ const StockEvalComponent = {
         }
         return label;
     },
+
+    // ===== 추정 손익(output2) 전용 렌더링 =====
+    // 백엔드가 6행(금액/증감률 × 3지표)으로 주는 "추정 손익" 섹션을 3줄+증감률 인라인으로 재구성.
+
+    // "추정 손익" 섹션 판별 (짝수 행 = 금액+증감률 쌍일 때만 전용 표 적용, 아니면 generic 폴백)
+    isEstimateIncomeSection(sec) {
+        return !!(sec && sec.title === '추정 손익'
+            && sec.table && Array.isArray(sec.table.rows)
+            && sec.table.rows.length >= 2 && sec.table.rows.length % 2 === 0);
+    },
+
+    // 기간 헤더: columns[1..] → { label, est }. "2026.12E" → { label:'2026', est:true }
+    estimateIncomePeriods(sec) {
+        const cols = (sec && sec.table && sec.table.columns) ? sec.table.columns.slice(1) : [];
+        return cols.map(function (c) {
+            const s = String(c);
+            return { label: s.replace(/\.\d{2}E?$/, ''), est: /E$/.test(s) };
+        });
+    },
+
+    // 6행 → 3그룹(지표별 금액+증감률). cell = { amt, chg, dir, est }
+    estimateIncomeGroups(sec) {
+        const table = (sec && sec.table) ? sec.table : {};
+        const rows = table.rows || [];
+        const cols = table.columns || [];
+        const groups = [];
+        for (let i = 0; i + 1 < rows.length; i += 2) {
+            const amtRow = rows[i] || [];
+            const chgRow = rows[i + 1] || [];
+            const metric = String(amtRow[0] || '').replace(/\s*\(억원\)\s*/, '').trim();
+            const cells = [];
+            for (let j = 1; j < amtRow.length; j++) {
+                const n = parseFloat(chgRow[j]);
+                cells.push({
+                    amt: amtRow[j],
+                    chg: chgRow[j],
+                    dir: isNaN(n) ? 'none' : (n > 0 ? 'up' : (n < 0 ? 'down' : 'flat')),
+                    est: /E$/.test(String(cols[j] || '')),
+                });
+            }
+            groups.push({ metric: metric, cells: cells });
+        }
+        return groups;
+    },
+
+    // 증감률 표시: ▲/▼ + 절대값% (국내 관례: 증가 빨강, 감소 파랑)
+    fmtChangePct(v) {
+        const n = parseFloat(v);
+        if (isNaN(n)) return '';
+        const sym = n > 0 ? '▲' : (n < 0 ? '▼' : '');
+        return (sym ? sym + ' ' : '') + Math.abs(n).toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '%';
+    },
+
+    changeClass(dir) {
+        return dir === 'up' ? 'text-red-500' : dir === 'down' ? 'text-blue-500' : 'text-gray-400';
+    },
+
+    estimateUnitLabel() {
+        return this.stockEval.amountUnit === '조' ? '조원' : '억원';
+    },
 };

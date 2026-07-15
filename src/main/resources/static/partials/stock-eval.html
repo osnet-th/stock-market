@@ -203,22 +203,52 @@
                                 <div>
                                     <div class="text-xs font-medium text-gray-500 mb-1" x-text="sec.title"></div>
                                     <div class="overflow-x-auto">
-                                        <table class="min-w-full text-sm border-collapse">
-                                            <thead><tr>
-                                                <template x-for="(col, ci) in sec.table.columns" :key="ci">
-                                                    <th class="border-b border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap" x-text="col"></th>
-                                                </template>
-                                            </tr></thead>
-                                            <tbody>
-                                                <template x-for="(row, ri) in sec.table.rows" :key="ri">
-                                                    <tr class="hover:bg-gray-50">
-                                                        <template x-for="(cell, ci) in row" :key="ci">
-                                                            <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtEstimateCell(cell, ci, row)"></td>
-                                                        </template>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
+                                        <!-- 추정 손익(output2): 3줄 압축 + 증감률 인라인(색) + 조 단위 + 오른쪽 정렬 + 추정(E) 음영 -->
+                                        <template x-if="isEstimateIncomeSection(sec)">
+                                            <table class="min-w-full text-sm border-collapse">
+                                                <thead><tr>
+                                                    <th class="border-b border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-400 whitespace-nowrap" x-text="'단위: ' + estimateUnitLabel()"></th>
+                                                    <template x-for="(p, pi) in estimateIncomePeriods(sec)" :key="pi">
+                                                        <th class="border-b border-gray-200 px-3 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap" :class="p.est ? 'bg-gray-50' : ''">
+                                                            <span x-text="p.label"></span>
+                                                            <span x-show="p.est" class="ml-1 text-[10px] px-1 py-0.5 rounded bg-blue-50 text-blue-600 align-middle">E</span>
+                                                        </th>
+                                                    </template>
+                                                </tr></thead>
+                                                <tbody>
+                                                    <template x-for="(g, gi) in estimateIncomeGroups(sec)" :key="gi">
+                                                        <tr class="hover:bg-gray-50">
+                                                            <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap font-medium text-gray-700" x-text="g.metric"></td>
+                                                            <template x-for="(c, ci) in g.cells" :key="ci">
+                                                                <td class="border-b border-gray-100 px-3 py-2 text-right whitespace-nowrap tabular-nums" :class="c.est ? 'bg-gray-50' : ''">
+                                                                    <div class="text-gray-800" x-text="fmtAmountByUnit(c.amt)"></div>
+                                                                    <div class="text-xs mt-0.5" :class="changeClass(c.dir)" x-text="fmtChangePct(c.chg)"></div>
+                                                                </td>
+                                                            </template>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </template>
+                                        <!-- 기타 섹션(기본정보/추정 투자지표): 기존 generic 표 유지 -->
+                                        <template x-if="!isEstimateIncomeSection(sec)">
+                                            <table class="min-w-full text-sm border-collapse">
+                                                <thead><tr>
+                                                    <template x-for="(col, ci) in sec.table.columns" :key="ci">
+                                                        <th class="border-b border-gray-200 px-3 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap" x-text="col"></th>
+                                                    </template>
+                                                </tr></thead>
+                                                <tbody>
+                                                    <template x-for="(row, ri) in sec.table.rows" :key="ri">
+                                                        <tr class="hover:bg-gray-50">
+                                                            <template x-for="(cell, ci) in row" :key="ci">
+                                                                <td class="border-b border-gray-100 px-3 py-2 whitespace-nowrap text-gray-800" x-text="fmtEstimateCell(cell, ci, row)"></td>
+                                                            </template>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </template>
                                     </div>
                                 </div>
                             </template>

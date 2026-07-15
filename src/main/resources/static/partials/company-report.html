@@ -1,0 +1,1449 @@
+<!-- ========== COMPANY REPORT (기업 리포트) ========== -->
+<div x-show="currentPage === 'company-report'" x-cloak>
+
+    <!-- 헤더 -->
+    <div class="mb-4">
+        <h2 class="text-xl font-bold text-gray-800">기업 리포트</h2>
+        <p class="text-xs text-gray-500 mt-1">종목별 기업분석리포트를 작성하고 조회합니다. 정량 데이터는 저장 시점 스냅샷으로 보존됩니다. (국내 KRX 전용)</p>
+    </div>
+
+    <!-- ==================== 목록 뷰 ==================== -->
+    <div x-show="companyReport.view === 'list'">
+        <div class="bg-white border border-gray-200 rounded p-4 mb-4">
+            <div class="flex flex-wrap items-center gap-2">
+                <input type="text" x-model="companyReport.filterStockName"
+                       @keydown.enter="companyReport.page = 0; companyReportLoad()"
+                       placeholder="종목명 검색 (예: 삼성)"
+                       class="w-44 text-sm border border-gray-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+                <button @click="companyReport.page = 0; companyReportLoad()"
+                        class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200">조회</button>
+                <div class="flex-1"></div>
+                <button @click="companyReportOpenCreate()"
+                        class="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">+ 새 리포트</button>
+            </div>
+        </div>
+
+        <div x-show="companyReport.error" class="border-l-4 border-red-400 bg-red-50 p-4 rounded mb-4 text-sm text-red-700" x-text="companyReport.error"></div>
+        <div x-show="companyReport.loading" class="text-center py-10 text-sm text-gray-400">불러오는 중...</div>
+
+        <div x-show="!companyReport.loading" class="bg-white border border-gray-200 rounded overflow-x-auto">
+            <table class="w-full text-sm data-table">
+                <thead>
+                    <tr class="border-b border-gray-200 text-xs text-gray-500 text-left">
+                        <th class="px-4 py-2.5">종목</th>
+                        <th class="px-4 py-2.5">매수재료</th>
+                        <th class="px-4 py-2.5">투자판단 (자산/수익/건전/수익성/성장/사업/주주)</th>
+                        <th class="px-4 py-2.5">데이터 기준일</th>
+                        <th class="px-4 py-2.5">수정일</th>
+                        <th class="px-4 py-2.5 text-right">동작</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="item in companyReport.items" :key="item.id">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" @click="companyReportOpenItem(item)">
+                            <td class="px-4 py-2.5">
+                                <span class="font-medium text-gray-800" x-text="item.stockName"></span>
+                                <span class="text-xs text-gray-400 ml-1" x-text="item.stockCode"></span>
+                                <span x-show="item.draft" class="px-1.5 py-0.5 text-[11px] font-medium rounded bg-amber-100 text-amber-700 ml-1.5"
+                                      x-text="'작성중' + (item.draftStep ? ' · ' + item.draftStep + '단계' : '')"></span>
+                            </td>
+                            <td class="px-4 py-2.5">
+                                <span x-show="item.hasBuySignal" class="px-2 py-0.5 text-xs font-bold rounded bg-red-600 text-white">매수재료</span>
+                                <span x-show="!item.hasBuySignal" class="text-xs text-gray-300">—</span>
+                            </td>
+                            <td class="px-4 py-2.5">
+                                <div class="flex gap-1">
+                                    <template x-for="g in companyReport.gradeItems" :key="g.key">
+                                        <span class="w-6 h-6 inline-flex items-center justify-center text-xs font-bold rounded"
+                                              :class="crGradeBadge(item.grades ? item.grades[g.key] : null)"
+                                              :title="g.label"
+                                              x-text="(item.grades && item.grades[g.key]) || '·'"></span>
+                                    </template>
+                                </div>
+                            </td>
+                            <td class="px-4 py-2.5 text-xs text-gray-500" x-text="crDate(item.snapshotAt)"></td>
+                            <td class="px-4 py-2.5 text-xs text-gray-500" x-text="crDate(item.updatedAt)"></td>
+                            <td class="px-4 py-2.5 text-right">
+                                <button @click.stop="companyReportDelete(item.id)"
+                                        class="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded">삭제</button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="companyReport.items.length === 0">
+                        <td colspan="6" class="px-4 py-10 text-center text-sm text-gray-400">작성된 리포트가 없습니다. "새 리포트"로 시작하세요.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 페이지네이션 -->
+        <div x-show="companyReport.totalCount > companyReport.size" class="flex items-center justify-center gap-3 mt-4 text-sm">
+            <button @click="companyReportGoPage(-1)" :disabled="companyReport.page === 0"
+                    class="px-3 py-1 border border-gray-300 rounded disabled:opacity-40">이전</button>
+            <span class="text-gray-500" x-text="(companyReport.page + 1) + ' / ' + companyReportTotalPages()"></span>
+            <button @click="companyReportGoPage(1)" :disabled="companyReport.page + 1 >= companyReportTotalPages()"
+                    class="px-3 py-1 border border-gray-300 rounded disabled:opacity-40">다음</button>
+        </div>
+    </div>
+
+    <!-- ==================== 작성 위저드 뷰 (7단계) ==================== -->
+    <div x-show="companyReport.view === 'form'">
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+            <button @click="companyReportExitWizard()"
+                    class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50">← 나가기</button>
+            <h3 class="text-lg font-bold text-gray-800"
+                x-text="companyReport.mode === 'create' ? '새 리포트 작성' : (companyReport.isDraftFlow ? '이어서 작성' : '리포트 수정')"></h3>
+            <span x-show="companyReport.selected" class="px-2 py-0.5 text-xs font-medium rounded bg-blue-50 text-blue-700"
+                  x-text="companyReport.selected ? (companyReport.selected.stockName + ' (' + companyReport.selected.stockCode + ')') : ''"></span>
+            <span x-show="companyReport.isDraftFlow && companyReport.editingId != null"
+                  class="px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-700">작성중</span>
+            <div class="flex-1"></div>
+            <span x-show="companyReport.draftNotice" class="text-xs text-green-600 font-medium" x-text="companyReport.draftNotice"></span>
+        </div>
+
+        <!-- 스텝 인디케이터 -->
+        <div class="bg-white border border-gray-200 rounded p-2 mb-4 overflow-x-auto">
+            <div class="flex items-center gap-1 min-w-max">
+                <template x-for="s in companyReport.wizardSteps" :key="s.n">
+                    <button @click="companyReportGoStep(s.n)"
+                            :disabled="(s.n === 1 && companyReport.mode === 'edit') || (s.n > 1 && !companyReport.selected)"
+                            class="px-3 py-1.5 text-xs rounded flex items-center gap-1.5 disabled:opacity-40"
+                            :class="companyReport.step === s.n ? 'bg-blue-600 text-white font-semibold' : 'text-gray-600 hover:bg-gray-100'">
+                        <span class="w-4 h-4 inline-flex items-center justify-center rounded-full text-[10px]"
+                              :class="companyReport.step === s.n ? 'bg-white text-blue-700' : 'bg-gray-200 text-gray-600'"
+                              x-text="s.n"></span>
+                        <span x-text="s.label"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- 공통 상태 배너 (1단계 로딩은 검색창 아래 자리 안 카드로 표시) -->
+        <div x-show="companyReport.previewLoading && companyReport.step >= 2" class="bg-white border border-gray-200 rounded p-4 mb-4 text-center text-sm text-gray-400">
+            <span class="spinner inline-block mr-2"></span>자동 산출 데이터 조회 중... (DART 10개년 + 주가/지분 공시, 최대 1분)
+        </div>
+        <div x-show="companyReport.previewError" class="border-l-4 border-amber-400 bg-amber-50 p-3 rounded mb-4 text-sm text-amber-700">
+            <span x-text="companyReport.previewError"></span>
+            <button @click="companyReportLoadPreview()" class="text-blue-600 hover:underline ml-2">다시 불러오기</button>
+            <span class="text-xs text-amber-600 block mt-1">데이터 없이도 작성·임시저장은 가능하며, 이후 상세 화면의 "데이터 새로고침"으로 보완됩니다.</span>
+        </div>
+        <div x-show="companyReport.step >= 2 && !companyReport.previewLoading && !companyReport.previewError && (!companyReport.preview || !companyReport.preview.snapshot)"
+             class="border-l-4 border-gray-300 bg-gray-50 p-3 rounded mb-4 text-sm text-gray-600">
+            자동 산출 데이터가 없습니다.
+            <button @click="companyReportLoadPreview()" class="text-blue-600 hover:underline ml-1">불러오기</button>
+        </div>
+        <div x-show="companyReport.formError" class="border-l-4 border-red-400 bg-red-50 p-3 rounded mb-4 text-sm text-red-700" x-text="companyReport.formError"></div>
+
+        <!-- ===== 1단계: 종목 선택 ===== -->
+        <div x-show="companyReport.step === 1" class="space-y-4">
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-2">분석할 종목을 선택하세요 (국내 KRX)</div>
+                <div class="flex gap-2">
+                    <input type="text" x-model="companyReport.searchQuery"
+                           @keydown.enter="companyReportSearch()"
+                           placeholder="종목명 또는 코드 검색"
+                           class="flex-1 max-w-md text-sm border border-gray-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+                    <button @click="companyReportSearch()" :disabled="companyReport.searchLoading"
+                            class="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50">
+                        <span x-show="!companyReport.searchLoading">검색</span>
+                        <span x-show="companyReport.searchLoading">검색 중...</span>
+                    </button>
+                </div>
+                <ul x-show="companyReport.searchResults.length > 0" class="mt-2 border border-gray-200 rounded divide-y divide-gray-100 max-w-md">
+                    <template x-for="r in companyReport.searchResults" :key="r.stockCode">
+                        <li>
+                            <button @click="companyReportSelectStock(r)" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">
+                                <span class="font-medium" x-text="r.stockName"></span>
+                                <span class="text-xs text-gray-400 ml-1" x-text="r.stockCode"></span>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+                <p x-show="companyReport.selected" class="mt-2 text-xs text-gray-500">
+                    종목을 선택하면 자동 산출 데이터를 불러옵니다. 준비되면 "다음"으로 단계별 작성을 시작하세요.
+                </p>
+            </div>
+            <div x-show="companyReport.previewLoading" class="bg-white border border-gray-200 rounded p-6 text-center text-sm text-gray-400">
+                <span class="spinner inline-block mr-2"></span>
+                <span x-text="(companyReport.selected ? companyReport.selected.stockName + ' 자동 산출 데이터를 불러오는 중...' : '데이터를 불러오는 중...') + ' (DART 10개년 + 주가/지분, 최대 1분)'"></span>
+            </div>
+            <div x-show="!companyReport.previewLoading && !!(companyReport.preview && companyReport.preview.snapshot && companyReport.preview.snapshot.companyProfile)"
+                 x-transition:enter="transition ease-out duration-500"
+                 x-transition:enter-start="opacity-0 translate-y-2"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 class="bg-white border border-gray-200 rounded p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="text-sm font-semibold text-gray-700">기업개황 미리보기</div>
+                    <span class="px-1.5 py-0.5 text-[11px] rounded bg-green-50 text-green-700">데이터 준비 완료 — "다음"으로 진행하세요</span>
+                </div>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1 text-xs">
+                    <div><span class="text-gray-400 mr-1">회사명</span><span class="text-gray-800 font-medium" x-text="companyReport.preview?.snapshot?.companyProfile?.corpName"></span></div>
+                    <div><span class="text-gray-400 mr-1">대표이사</span><span class="text-gray-800" x-text="companyReport.preview?.snapshot?.companyProfile?.ceoName"></span></div>
+                    <div><span class="text-gray-400 mr-1">설립일</span><span class="text-gray-800" x-text="crRawDate(companyReport.preview?.snapshot?.companyProfile?.establishedDate)"></span></div>
+                    <div><span class="text-gray-400 mr-1">결산월</span><span class="text-gray-800" x-text="(companyReport.preview?.snapshot?.companyProfile?.accountSettlementMonth || '—') + '월'"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 2단계: 회사 개요 ===== -->
+        <div x-show="companyReport.step === 2" class="space-y-4">
+            <template x-if="companyReport.preview && companyReport.preview.snapshot && companyReport.preview.snapshot.companyProfile">
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <div class="text-sm font-semibold text-gray-700 mb-2">기업개황 (DART 자동)</div>
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1.5 text-xs">
+                        <div><span class="text-gray-400 mr-1">회사명</span><span class="text-gray-800 font-medium" x-text="companyReport.preview.snapshot.companyProfile.corpName"></span></div>
+                        <div><span class="text-gray-400 mr-1">영문명</span><span class="text-gray-800" x-text="companyReport.preview.snapshot.companyProfile.corpNameEng || '—'"></span></div>
+                        <div><span class="text-gray-400 mr-1">대표이사</span><span class="text-gray-800" x-text="companyReport.preview.snapshot.companyProfile.ceoName"></span></div>
+                        <div><span class="text-gray-400 mr-1">설립일</span><span class="text-gray-800" x-text="crRawDate(companyReport.preview.snapshot.companyProfile.establishedDate)"></span></div>
+                        <div class="col-span-2"><span class="text-gray-400 mr-1">주소</span><span class="text-gray-800" x-text="companyReport.preview.snapshot.companyProfile.address"></span></div>
+                        <div><span class="text-gray-400 mr-1">홈페이지</span><span class="text-gray-800" x-text="companyReport.preview.snapshot.companyProfile.homepageUrl || '—'"></span></div>
+                        <div><span class="text-gray-400 mr-1">업종코드</span><span class="text-gray-800" x-text="companyReport.preview.snapshot.companyProfile.industryCode"></span></div>
+                    </div>
+                </div>
+            </template>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <label class="text-sm font-semibold text-gray-700">회사 연혁 (연도별)</label>
+                    <button @click="companyReportAddRow('history')" class="px-2 py-1 text-xs text-blue-700 border border-blue-300 rounded hover:bg-blue-50">+ 행 추가</button>
+                </div>
+                <p class="text-xs text-gray-400 mb-2">설립·상장·신사업·인수합병 등 주요 사건을 연도별로 기록</p>
+                <div class="space-y-2">
+                    <template x-for="(row, idx) in companyReport.form.manual.history" :key="idx">
+                        <div class="flex gap-2 items-center">
+                            <input type="text" x-model="row.year" placeholder="연도" maxlength="4" inputmode="numeric"
+                                   @input="row.year = row.year.replace(/[^0-9]/g, '').slice(0, 4)"
+                                   class="w-24 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <input type="text" x-model="row.content" placeholder="내용 (예: 회사 설립, 코스피 상장)" maxlength="500"
+                                   class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <button @click="companyReportRemoveRow('history', idx)" class="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded">삭제</button>
+                        </div>
+                    </template>
+                    <div x-show="companyReport.form.manual.history.length === 0" class="text-xs text-gray-400">"행 추가"로 연혁을 기록하세요.</div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">경영이념·사업내용</label>
+                <p class="text-xs text-gray-400 mb-2">어떤 경영이념을 바탕으로 어떤 사업을 전개해 왔는가</p>
+                <textarea x-model="companyReport.form.manual.philosophyNote" maxlength="10000" rows="6"
+                          class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none"></textarea>
+            </div>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <label class="text-sm font-semibold text-gray-700">판매처/매입처 분산</label>
+                    <select x-model="companyReport.form.manual.partnerAssessment"
+                            class="text-sm border border-gray-300 rounded px-2 py-1.5">
+                        <option value="">분산 평가 (선택)</option>
+                        <option value="분산">분산 — 위험 낮음</option>
+                        <option value="보통">보통</option>
+                        <option value="편중">편중 — 위험 높음</option>
+                    </select>
+                </div>
+                <p class="text-xs text-gray-400 mb-3">특정 한 곳에 문제가 생겨도 실적이 유지되는가 (위험 관리 관점)</p>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-medium text-gray-600">판매처</span>
+                            <button @click="companyReportAddRow('customers')" class="px-2 py-0.5 text-[11px] text-blue-700 border border-blue-300 rounded hover:bg-blue-50">+ 행 추가</button>
+                        </div>
+                        <div class="space-y-2">
+                            <template x-for="(row, idx) in companyReport.form.manual.customers" :key="idx">
+                                <div class="flex gap-2 items-center">
+                                    <input type="text" x-model="row.name" placeholder="업체명" maxlength="500" class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                    <input type="text" x-model="row.share" placeholder="비중(%)" maxlength="20" class="w-20 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                    <input type="text" x-model="row.note" placeholder="비고" maxlength="500" class="w-28 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                    <button @click="companyReportRemoveRow('customers', idx)" class="px-1.5 py-1 text-xs text-red-600 hover:bg-red-50 rounded">×</button>
+                                </div>
+                            </template>
+                            <div x-show="companyReport.form.manual.customers.length === 0" class="text-xs text-gray-400">주요 판매처를 행으로 추가하세요.</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-medium text-gray-600">매입처</span>
+                            <button @click="companyReportAddRow('suppliers')" class="px-2 py-0.5 text-[11px] text-blue-700 border border-blue-300 rounded hover:bg-blue-50">+ 행 추가</button>
+                        </div>
+                        <div class="space-y-2">
+                            <template x-for="(row, idx) in companyReport.form.manual.suppliers" :key="idx">
+                                <div class="flex gap-2 items-center">
+                                    <input type="text" x-model="row.name" placeholder="업체명" maxlength="500" class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                    <input type="text" x-model="row.share" placeholder="비중(%)" maxlength="20" class="w-20 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                    <input type="text" x-model="row.note" placeholder="비고" maxlength="500" class="w-28 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                    <button @click="companyReportRemoveRow('suppliers', idx)" class="px-1.5 py-1 text-xs text-red-600 hover:bg-red-50 rounded">×</button>
+                                </div>
+                            </template>
+                            <div x-show="companyReport.form.manual.suppliers.length === 0" class="text-xs text-gray-400">주요 매입처를 행으로 추가하세요.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 3단계: 실적 추이 ===== -->
+        <div x-show="companyReport.step === 3" class="space-y-4">
+            <template x-if="companyReport.preview && companyReport.preview.snapshot">
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="text-sm font-semibold text-gray-700">실적 추이 (10년, 자동)</div>
+                        <span class="text-xs text-gray-400">연결/개별: <span x-text="companyReport.preview.snapshot.fsDiv === 'CFS' ? '연결' : '개별'"></span> · *진행중 연도</span>
+                    </div>
+                    <div class="relative h-80 mb-4"><canvas id="report-preview-perf"></canvas></div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs data-table">
+                            <thead>
+                                <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                    <th class="px-2 py-1.5 whitespace-nowrap">항목</th>
+                                    <template x-for="col in companyReport.preview.snapshot.columns" :key="col.year">
+                                        <th class="px-2 py-1.5 text-right whitespace-nowrap" x-text="col.year + (col.partial ? '*' : '')"></th>
+                                    </template>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="row in companyReport.preview.snapshot.performance" :key="row.key">
+                                    <tr class="border-b border-gray-50">
+                                        <td class="px-2 py-1.5 text-gray-600 whitespace-nowrap" x-text="row.name"></td>
+                                        <template x-for="col in companyReport.preview.snapshot.columns" :key="col.year">
+                                            <td class="px-2 py-1.5 text-right font-mono whitespace-nowrap"
+                                                x-text="row.name.includes('%') ? crCellPct(row, col.year) : crCellAmt(row, col.year)"></td>
+                                        </template>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <label class="text-sm font-semibold text-gray-700">예상 매출 (분기별)</label>
+                    <div class="flex items-center gap-2">
+                        <select x-model="companyReport.form.manual.amountUnit"
+                                class="text-sm border border-gray-300 rounded px-2 py-1.5">
+                            <option value="억">단위: 억원</option>
+                            <option value="조">단위: 조원</option>
+                        </select>
+                        <button @click="companyReportAddRow('revenueForecasts')" class="px-2 py-1 text-xs text-blue-700 border border-blue-300 rounded hover:bg-blue-50">+ 연도 추가</button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mb-2">미래 연도의 분기별 예상 매출. 실적 차트에 이어 그려지고, 5단계 예상 PSR 계산에 사용됩니다. 예상 순이익도 분기별로 입력(선택, 예상 PER 계산용).</p>
+                <div class="space-y-2">
+                    <template x-for="(row, idx) in companyReport.form.manual.revenueForecasts" :key="idx">
+                        <div class="border border-gray-100 rounded p-2 space-y-1.5">
+                            <div class="flex items-center gap-2">
+                                <input type="text" x-model="row.year" placeholder="연도" maxlength="4" inputmode="numeric"
+                                       @input="row.year = row.year.replace(/[^0-9]/g, '').slice(0, 4)"
+                                       class="w-20 text-sm border border-gray-300 rounded px-2 py-1.5 font-medium" />
+                                <span class="text-xs text-gray-400">년 예상 실적</span>
+                                <div class="flex-1"></div>
+                                <button @click="companyReportRemoveRow('revenueForecasts', idx)" class="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded">삭제</button>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="w-14 text-xs text-gray-500 text-right">매출</span>
+                                <input type="text" x-model="row.q1" placeholder="1Q" inputmode="decimal" @input="crAmountInput(row, 'q1')" class="w-24 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <input type="text" x-model="row.q2" placeholder="2Q" inputmode="decimal" @input="crAmountInput(row, 'q2')" class="w-24 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <input type="text" x-model="row.q3" placeholder="3Q" inputmode="decimal" @input="crAmountInput(row, 'q3')" class="w-24 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <input type="text" x-model="row.q4" placeholder="4Q" inputmode="decimal" @input="crAmountInput(row, 'q4')" class="w-24 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <span class="text-xs text-gray-500 whitespace-nowrap">연간 <span class="font-mono font-medium text-gray-700" x-text="crForecastAnnualDisplay(row)"></span></span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="w-14 text-xs text-gray-500 text-right">순이익</span>
+                                <input type="text" x-model="row.ni1" placeholder="1Q (선택)" inputmode="decimal" @input="crAmountInput(row, 'ni1')" class="w-24 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <input type="text" x-model="row.ni2" placeholder="2Q" inputmode="decimal" @input="crAmountInput(row, 'ni2')" class="w-24 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <input type="text" x-model="row.ni3" placeholder="3Q" inputmode="decimal" @input="crAmountInput(row, 'ni3')" class="w-24 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <input type="text" x-model="row.ni4" placeholder="4Q" inputmode="decimal" @input="crAmountInput(row, 'ni4')" class="w-24 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <span class="text-xs text-gray-500 whitespace-nowrap">연간 <span class="font-mono font-medium text-gray-700" x-text="crForecastNetDisplay(row)"></span></span>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="companyReport.form.manual.revenueForecasts.length === 0" class="text-xs text-gray-400">"연도 추가"로 예상 매출을 입력하세요 (예: 2027).</div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <label class="text-sm font-semibold text-gray-700">경쟁사 비교 (사업부문별)</label>
+                    <button @click="companyReportAddRow('competitors')" class="px-2 py-1 text-xs text-blue-700 border border-blue-300 rounded hover:bg-blue-50">+ 행 추가</button>
+                </div>
+                <p class="text-xs text-gray-400 mb-2">경쟁사와는 개별 사업부문끼리 비교 (예: 삼성전자 반도체 ↔ 하이닉스 반도체)</p>
+                <div class="space-y-2">
+                    <template x-for="(row, idx) in companyReport.form.manual.competitors" :key="idx">
+                        <div class="flex gap-2 items-center">
+                            <input type="text" x-model="row.name" placeholder="경쟁사" maxlength="500" class="w-40 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <input type="text" x-model="row.segment" placeholder="비교 사업부문" maxlength="500" class="w-40 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <input type="text" x-model="row.note" placeholder="비교 내용" maxlength="500" class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <button @click="companyReportRemoveRow('competitors', idx)" class="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded">삭제</button>
+                        </div>
+                    </template>
+                    <div x-show="companyReport.form.manual.competitors.length === 0" class="text-xs text-gray-400">비교할 경쟁사를 행으로 추가하세요.</div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">실적 추이 해석 메모</label>
+                <p class="text-xs text-gray-400 mb-2">성장률 추세, 매출 구성·계절성 등</p>
+                <textarea x-model="companyReport.form.manual.performanceNote" maxlength="10000" rows="5"
+                          class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none"></textarea>
+            </div>
+        </div>
+
+        <!-- ===== 4단계: 재무제표·지표 ===== -->
+        <div x-show="companyReport.step === 4" class="space-y-4">
+            <template x-if="companyReport.preview && companyReport.preview.snapshot">
+                <div class="space-y-4">
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-3">재무제표 요약 (자동)</div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs data-table">
+                                <thead>
+                                    <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                        <th class="px-2 py-1.5 whitespace-nowrap">항목</th>
+                                        <template x-for="col in companyReport.preview.snapshot.columns" :key="col.year">
+                                            <th class="px-2 py-1.5 text-right whitespace-nowrap" x-text="col.year + (col.partial ? '*' : '')"></th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <template x-for="grp in crStatementGroups" :key="grp.prefix">
+                                    <tbody>
+                                        <tr class="bg-gray-100">
+                                            <td class="px-2 py-1 text-gray-700 font-semibold whitespace-nowrap" :colspan="companyReport.preview.snapshot.columns.length + 1" x-text="grp.label"></td>
+                                        </tr>
+                                        <template x-for="row in crStatementRows(companyReport.preview.snapshot.statements, grp.prefix)" :key="row.key">
+                                            <tr class="border-b border-gray-50" :class="['bs.totalAssets','bs.totalLiabilities','bs.totalEquity'].includes(row.key) ? 'bg-gray-50 font-medium' : ''">
+                                                <td class="px-2 py-1.5 text-gray-600 whitespace-nowrap" x-text="row.name"></td>
+                                                <template x-for="col in companyReport.preview.snapshot.columns" :key="col.year">
+                                                    <td class="px-2 py-1.5 text-right font-mono whitespace-nowrap" x-text="crCellAmt(row, col.year)"></td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </template>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-3">재무지표 판정 (자동 — 최신 사업연도 기준)</div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs data-table">
+                                <thead>
+                                    <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                        <th class="px-2 py-1.5 whitespace-nowrap">지표</th>
+                                        <th class="px-2 py-1.5 whitespace-nowrap">판정</th>
+                                        <template x-for="col in companyReport.preview.snapshot.columns" :key="col.year">
+                                            <th class="px-2 py-1.5 text-right whitespace-nowrap" x-text="col.year + (col.partial ? '*' : '')"></th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="row in companyReport.preview.snapshot.ratios" :key="row.key">
+                                        <tr class="border-b border-gray-50">
+                                            <td class="px-2 py-1.5 text-gray-600 whitespace-nowrap" x-text="row.name"></td>
+                                            <td class="px-2 py-1.5"><span class="px-1.5 py-0.5 rounded text-[11px]" :class="crJudgeBadge(row.judgment)" x-text="crJudgeLabel(row.judgment)"></span></td>
+                                            <template x-for="col in companyReport.preview.snapshot.columns" :key="col.year">
+                                                <td class="px-2 py-1.5 text-right font-mono whitespace-nowrap" x-text="crCellPct(row, col.year)"></td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <label class="text-sm font-semibold text-gray-700">급변 항목 원인 (연도·항목별)</label>
+                    <button @click="companyReportAddRow('financialChanges')" class="px-2 py-1 text-xs text-blue-700 border border-blue-300 rounded hover:bg-blue-50">+ 행 추가</button>
+                </div>
+                <p class="text-xs text-gray-400 mb-2">급하게 변화가 생긴 연도·항목과 그 이유 (예: 2023 · 재고자산 · 반도체 업황 악화로 재고 증가)</p>
+                <div class="space-y-2">
+                    <template x-for="(row, idx) in companyReport.form.manual.financialChanges" :key="idx">
+                        <div class="flex gap-2 items-center">
+                            <input type="text" x-model="row.year" placeholder="연도" maxlength="4" inputmode="numeric"
+                                   @input="row.year = row.year.replace(/[^0-9]/g, '').slice(0, 4)"
+                                   class="w-24 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <input type="text" x-model="row.item" placeholder="항목 (예: 재고자산)" maxlength="500" class="w-44 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <input type="text" x-model="row.reason" placeholder="원인" maxlength="500" class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <button @click="companyReportRemoveRow('financialChanges', idx)" class="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded">삭제</button>
+                        </div>
+                    </template>
+                    <div x-show="companyReport.form.manual.financialChanges.length === 0" class="text-xs text-gray-400">급변 항목이 있으면 행으로 추가하세요.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 5단계: 기업가치 ===== -->
+        <div x-show="companyReport.step === 5" class="space-y-4">
+            <template x-if="companyReport.preview && companyReport.preview.snapshot && companyReport.preview.snapshot.priceMetrics">
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="text-sm font-semibold text-gray-700">주가지표 (자동)</div>
+                        <span class="text-xs text-gray-400">기준가: <span x-text="crNum(companyReport.preview.snapshot.priceMetrics.referencePrice, 0)"></span>원 (<span x-text="companyReport.preview.snapshot.priceMetrics.referencePriceDate || '—'"></span>)</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">시가총액(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'marketCap')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'marketCap')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crAmt(companyReport.preview.snapshot.priceMetrics.marketCap)"></div></div>
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">EPS</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'eps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'eps')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.eps, 0)"></div></div>
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">BPS</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'bps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'bps')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.bps, 0)"></div></div>
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'per')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'per')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.per)"></div></div>
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pbr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.pbr)"></div></div>
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PSR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'psr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'psr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.psr)"></div></div>
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PCFR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pcfr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pcfr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.pcfr)"></div></div>
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER × PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'perTimesPbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'perTimesPbr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.perTimesPbr)"></div></div>
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">EV/EBITDA(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'evEbitda')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'evEbitda')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.evEbitda)"></div></div>
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">ROIC(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'roic')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'roic')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crPct(companyReport.preview.snapshot.priceMetrics.roic)"></div></div>
+                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">발생액/총자산</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'accrual')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'accrual')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crPct(companyReport.preview.snapshot.priceMetrics.accrualRatio)"></div></div>
+                    </div>
+                </div>
+            </template>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-1">주가지표 계산기 (내 계산)</div>
+                <p class="text-xs text-gray-400 mb-3">재료를 고치면 지표가 즉시 다시 계산됩니다. 비워두면 자동 산출값 사용. 금액 단위: <span class="font-medium" x-text="companyReport.form.manual.amountUnit + '원'"></span> (3단계에서 변경)</p>
+                <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">주가 (원)</label>
+                        <input type="text" x-model="companyReport.form.manual.metricInputs.price" inputmode="decimal"
+                               @input="crAmountInput(companyReport.form.manual.metricInputs, 'price')"
+                               :placeholder="'자동: ' + crNum(companyReport.preview?.snapshot?.priceMetrics?.referencePrice, 0)"
+                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">유통주식수 (주)</label>
+                        <input type="text" x-model="companyReport.form.manual.metricInputs.shares" inputmode="decimal"
+                               @input="crAmountInput(companyReport.form.manual.metricInputs, 'shares')"
+                               placeholder="자동: 시총÷주가"
+                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">EPS (원)</label>
+                        <input type="text" x-model="companyReport.form.manual.metricInputs.eps" inputmode="decimal"
+                               @input="crAmountInput(companyReport.form.manual.metricInputs, 'eps')"
+                               :placeholder="'자동: ' + crNum(companyReport.preview?.snapshot?.priceMetrics?.eps, 0)"
+                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">BPS (원)</label>
+                        <input type="text" x-model="companyReport.form.manual.metricInputs.bps" inputmode="decimal"
+                               @input="crAmountInput(companyReport.form.manual.metricInputs, 'bps')"
+                               :placeholder="'자동: ' + crNum(companyReport.preview?.snapshot?.priceMetrics?.bps, 0)"
+                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">매출액 (<span x-text="companyReport.form.manual.amountUnit"></span>)</label>
+                        <input type="text" x-model="companyReport.form.manual.metricInputs.revenue" inputmode="decimal"
+                               @input="crAmountInput(companyReport.form.manual.metricInputs, 'revenue')"
+                               placeholder="자동: 최신 사업연도 매출"
+                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">영업CF (<span x-text="companyReport.form.manual.amountUnit"></span>)</label>
+                        <input type="text" x-model="companyReport.form.manual.metricInputs.operatingCf" inputmode="decimal"
+                               @input="crAmountInput(companyReport.form.manual.metricInputs, 'operatingCf')"
+                               placeholder="자동: 최신 사업연도 영업CF"
+                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                    </div>
+                </div>
+                <table class="w-full text-xs border border-gray-100 rounded mb-3">
+                    <thead>
+                        <tr class="text-gray-500 border-b border-gray-100 text-left">
+                            <th class="px-2 py-1.5 w-28">지표</th>
+                            <th class="px-2 py-1.5">계산식</th>
+                            <th class="px-2 py-1.5 text-right w-32">내 계산</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">시가총액</td>
+                            <td class="px-2 py-1.5 text-gray-400">주가 × 유통주식수</td>
+                            <td class="px-2 py-1.5 text-right font-mono" x-text="crAmt(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).marketCap)"></td>
+                        </tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">PER</td>
+                            <td class="px-2 py-1.5 text-gray-400">주가 ÷ EPS</td>
+                            <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).per)"></td>
+                        </tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">PBR</td>
+                            <td class="px-2 py-1.5 text-gray-400">주가 ÷ BPS</td>
+                            <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).pbr)"></td>
+                        </tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">PSR</td>
+                            <td class="px-2 py-1.5 text-gray-400">시가총액 ÷ 매출액</td>
+                            <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).psr)"></td>
+                        </tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">PCFR</td>
+                            <td class="px-2 py-1.5 text-gray-400">시가총액 ÷ 영업활동현금흐름</td>
+                            <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).pcfr)"></td>
+                        </tr>
+                        <tr>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">PER × PBR</td>
+                            <td class="px-2 py-1.5 text-gray-400">PER × PBR (8 이하면 저평가 참고)</td>
+                            <td class="px-2 py-1.5 text-right font-mono" x-text="crNum(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).perTimesPbr)"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div x-show="crForecastMetrics(companyReport.form.manual, companyReport.preview?.snapshot).length > 0">
+                    <div class="text-xs font-medium text-gray-600 mb-1.5">예상 매출 기반 지표 (3단계 입력 연동)</div>
+                    <table class="w-full text-xs border border-gray-100 rounded">
+                        <thead>
+                            <tr class="text-gray-500 border-b border-gray-100 text-left">
+                                <th class="px-2 py-1.5">연도</th>
+                                <th class="px-2 py-1.5 text-right">예상 매출</th>
+                                <th class="px-2 py-1.5 text-right">예상 PSR (시총÷예상매출)</th>
+                                <th class="px-2 py-1.5 text-right">예상 PER (시총÷예상순이익)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="f in crForecastMetrics(companyReport.form.manual, companyReport.preview?.snapshot)" :key="f.year">
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 font-mono" x-text="f.year + 'E'"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crAmt(f.annual)"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(f.psr)"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(f.per)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <template x-if="companyReport.preview && companyReport.preview.valuation">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-2">청산가치 (자동)</div>
+                        <template x-if="companyReport.preview.valuation.liquidation">
+                            <div class="text-xs space-y-1">
+                                <div class="flex justify-between"><span class="text-gray-500">조정자산 합계</span><span class="font-mono" x-text="crAmt(companyReport.preview.valuation.liquidation.adjustedAssetTotal)"></span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">(−) 총부채</span><span class="font-mono" x-text="crAmt(companyReport.preview.valuation.liquidation.totalLiabilities)"></span></div>
+                                <div class="flex justify-between font-semibold text-gray-800"><span>청산가치</span><span class="font-mono" x-text="crAmt(companyReport.preview.valuation.liquidation.liquidationValue)"></span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">시총/청산가치</span><span class="font-mono" x-text="companyReport.preview.valuation.liquidation.marketCapToLiquidation != null ? crNum(companyReport.preview.valuation.liquidation.marketCapToLiquidation) + '배' : '—'"></span></div>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-2">DCF (자동)</div>
+                        <template x-if="companyReport.preview.valuation.dcf">
+                            <div class="text-xs space-y-1">
+                                <div x-show="!companyReport.preview.valuation.dcf.calculable" class="text-amber-700" x-text="companyReport.preview.valuation.dcf.reason"></div>
+                                <div class="flex justify-between"><span class="text-gray-500">순현금</span><span class="font-mono" x-text="crAmt(companyReport.preview.valuation.dcf.netCash)"></span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">FCF</span><span class="font-mono" x-text="crAmt(companyReport.preview.valuation.dcf.fcf)"></span></div>
+                                <div class="flex justify-between font-semibold text-gray-800"><span>보수 시나리오</span><span class="font-mono" x-text="crAmt(companyReport.preview.valuation.dcf.conservativeValue)"></span></div>
+                                <div class="flex justify-between font-semibold text-gray-800"><span>낙관 시나리오</span><span class="font-mono" x-text="crAmt(companyReport.preview.valuation.dcf.optimisticValue)"></span></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-1">가치평가 파라미터 조정</div>
+                <p class="text-xs text-gray-400 mb-3">값을 비우면 시스템 기본값이 적용됩니다. 변경한 파라미터는 저장 후 상세 화면의 청산가치/DCF에 즉시 반영됩니다 (데이터 재조회 없음).</p>
+                <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">할인율 R (%)</label>
+                        <input type="number" step="0.5" min="1" max="100" x-model="companyReport.form.params.discountRate"
+                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">낙관 성장률 g (%)</label>
+                        <input type="number" step="1" min="0" max="100" x-model="companyReport.form.params.optimisticGrowthRate"
+                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">낙관 성장 연수</label>
+                        <input type="number" step="1" min="1" max="10" x-model="companyReport.form.params.optimisticGrowthYears"
+                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                    </div>
+                </div>
+                <div class="text-xs font-medium text-gray-600 mb-2">조정자산 비율표 (장부가 대비 회수율 %)</div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div><label class="block text-xs text-gray-500 mb-1">현금·현금성</label><input type="number" min="0" max="100" x-model="companyReport.form.params.ratios.cash" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">유가증권</label><input type="number" min="0" max="100" x-model="companyReport.form.params.ratios.securities" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">매출채권</label><input type="number" min="0" max="100" x-model="companyReport.form.params.ratios.receivables" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">재고자산</label><input type="number" min="0" max="100" x-model="companyReport.form.params.ratios.inventory" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">투자 등</label><input type="number" min="0" max="100" x-model="companyReport.form.params.ratios.investments" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">유형자산</label><input type="number" min="0" max="100" x-model="companyReport.form.params.ratios.tangible" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">무형자산</label><input type="number" min="0" max="100" x-model="companyReport.form.params.ratios.intangible" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></div>
+                    <div><label class="block text-xs text-gray-500 mb-1">기타 유동자산</label><input type="number" min="0" max="100" x-model="companyReport.form.params.ratios.otherCurrent" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 6단계: 주주·위험 ===== -->
+        <div x-show="companyReport.step === 6" class="space-y-4">
+            <template x-if="companyReport.preview && companyReport.preview.snapshot && companyReport.preview.snapshot.shareholders">
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <div class="text-sm font-semibold text-gray-700 mb-3">주주 동향 (자동)</div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div>
+                            <div class="text-xs font-medium text-gray-500 mb-1.5">최대주주·특수관계인 지분 추이 (사업보고서 기준)</div>
+                            <div class="overflow-y-auto max-h-72 border border-gray-100 rounded">
+                                <table class="w-full text-[11px] data-table">
+                                    <thead class="sticky top-0 bg-white">
+                                        <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                            <th class="px-2 py-1.5">연도</th>
+                                            <th class="px-2 py-1.5">이름</th>
+                                            <th class="px-2 py-1.5">관계</th>
+                                            <th class="px-2 py-1.5 text-right">기말 주식수</th>
+                                            <th class="px-2 py-1.5 text-right">지분율</th>
+                                            <th class="px-2 py-1.5">비고</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(s, idx) in crShareholdersDesc(companyReport.preview.snapshot)" :key="idx">
+                                            <tr class="border-b border-gray-50">
+                                                <td class="px-2 py-1" x-text="s.bsnsYear"></td>
+                                                <td class="px-2 py-1 text-gray-700" x-text="s.name"></td>
+                                                <td class="px-2 py-1 text-gray-500" x-text="s.relation"></td>
+                                                <td class="px-2 py-1 text-right font-mono" x-text="s.termEndQuantity"></td>
+                                                <td class="px-2 py-1 text-right font-mono" x-text="s.termEndRatio ? s.termEndRatio + '%' : '—'"></td>
+                                                <td class="px-2 py-1 text-gray-400" x-text="s.remark && s.remark !== '-' ? s.remark : ''"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-xs font-medium text-gray-500 mb-1.5">대량보유 상황보고 (5%룰, 최근 약 2년 · 체결일은 원문 참조)</div>
+                            <div class="overflow-y-auto max-h-40 border border-gray-100 rounded mb-3">
+                                <table class="w-full text-[11px] data-table">
+                                    <thead class="sticky top-0 bg-white">
+                                        <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                            <th class="px-2 py-1.5">보고일</th>
+                                            <th class="px-2 py-1.5">보고자</th>
+                                            <th class="px-2 py-1.5 text-right">증감</th>
+                                            <th class="px-2 py-1.5 text-right">보유비율</th>
+                                            <th class="px-2 py-1.5">원문</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="b in companyReport.preview.snapshot.shareholders.bulkHoldings" :key="b.receiptNo">
+                                            <tr class="border-b border-gray-50">
+                                                <td class="px-2 py-1" x-text="b.receiptDate"></td>
+                                                <td class="px-2 py-1 text-gray-700" x-text="b.reporter"></td>
+                                                <td class="px-2 py-1 text-right font-mono" x-text="b.quantityChange"></td>
+                                                <td class="px-2 py-1 text-right font-mono" x-text="b.holdingRatio ? b.holdingRatio + '%' : '—'"></td>
+                                                <td class="px-2 py-1"><a :href="crDartViewerUrl(b.receiptNo)" target="_blank" rel="noopener" class="text-blue-600 hover:underline">보기</a></td>
+                                            </tr>
+                                        </template>
+                                        <tr x-show="!companyReport.preview.snapshot.shareholders.bulkHoldings || companyReport.preview.snapshot.shareholders.bulkHoldings.length === 0">
+                                            <td colspan="5" class="px-2 py-3 text-center text-gray-400">보고 내역 없음</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="text-xs font-medium text-gray-500 mb-1.5">배당 (최신 사업보고서) · 자기주식 <span class="font-mono text-gray-700" x-text="companyReport.preview.snapshot.shareholders.treasuryStockCount || '—'"></span>주</div>
+                            <div class="overflow-y-auto max-h-40 border border-gray-100 rounded">
+                                <table class="w-full text-[11px] data-table">
+                                    <thead class="sticky top-0 bg-white">
+                                        <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                            <th class="px-2 py-1.5">구분</th>
+                                            <th class="px-2 py-1.5 text-right">당기</th>
+                                            <th class="px-2 py-1.5 text-right">전기</th>
+                                            <th class="px-2 py-1.5 text-right">전전기</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(d, idx) in companyReport.preview.snapshot.shareholders.dividends" :key="idx">
+                                            <tr class="border-b border-gray-50">
+                                                <td class="px-2 py-1 text-gray-600" x-text="d.category + (d.stockKind ? ' (' + d.stockKind + ')' : '')"></td>
+                                                <td class="px-2 py-1 text-right font-mono" x-text="d.currentTerm || '—'"></td>
+                                                <td class="px-2 py-1 text-right font-mono" x-text="d.previousTerm || '—'"></td>
+                                                <td class="px-2 py-1 text-right font-mono" x-text="d.beforePreviousTerm || '—'"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <template x-if="companyReport.preview && companyReport.preview.snapshot">
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <div class="text-sm font-semibold text-gray-700 mb-3">위험 기업 시그널 (자동)</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <template x-for="risk in companyReport.riskItems" :key="risk.key">
+                            <div class="px-3 py-2 rounded text-xs"
+                                 :class="crRiskBadge(companyReport.preview.snapshot.riskSignals ? companyReport.preview.snapshot.riskSignals[risk.key] : null)">
+                                <span class="font-medium" x-text="risk.label"></span>
+                                <span class="ml-1" x-text="crRiskLabel(companyReport.preview.snapshot.riskSignals ? companyReport.preview.snapshot.riskSignals[risk.key] : null)"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="flex items-center justify-between mb-1">
+                    <label class="text-sm font-semibold text-gray-700">주주 이벤트 (시기별)</label>
+                    <button @click="companyReportAddRow('shareholderEvents')" class="px-2 py-1 text-xs text-blue-700 border border-blue-300 rounded hover:bg-blue-50">+ 행 추가</button>
+                </div>
+                <p class="text-xs text-gray-400 mb-2">대주주 변동, 자사주 매입/소각, 증자 등 (예: 2025.03 · 자사주 3조 소각 발표)</p>
+                <div class="space-y-2 mb-3">
+                    <template x-for="(row, idx) in companyReport.form.manual.shareholderEvents" :key="idx">
+                        <div class="flex gap-2 items-center">
+                            <input type="text" x-model="row.period" placeholder="시기 (예: 2025.03)" maxlength="20" class="w-32 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <input type="text" x-model="row.content" placeholder="내용" maxlength="500" class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <button @click="companyReportRemoveRow('shareholderEvents', idx)" class="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded">삭제</button>
+                        </div>
+                    </template>
+                    <div x-show="companyReport.form.manual.shareholderEvents.length === 0" class="text-xs text-gray-400">주주 관련 이벤트를 행으로 추가하세요.</div>
+                </div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">해석 메모</label>
+                <textarea x-model="companyReport.form.manual.shareholderNote" maxlength="10000" rows="4"
+                          class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none"></textarea>
+            </div>
+        </div>
+
+        <!-- ===== 7단계: 투자판단 ===== -->
+        <div x-show="companyReport.step === 7" class="space-y-4">
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-1">투자판단 7항목 (A~E)</div>
+                <p class="text-xs text-gray-400 mb-3">한 항목이라도 A가 있으면 매수재료로 표시됩니다. 지금은 D여도 앞으로 A가 될 것 같은지도 함께 생각해 보세요.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <template x-for="item in companyReport.gradeItems" :key="item.key">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1" x-text="item.label"></label>
+                            <select x-model="companyReport.form.grades[item.key]"
+                                    class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none">
+                                <option value="">미평가</option>
+                                <option value="A">A (매수재료)</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                                <option value="E">E</option>
+                            </select>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">투자판단 종합 코멘트</label>
+                <p class="text-xs text-gray-400 mb-2">7항목 평가 근거와 종합 판단</p>
+                <textarea x-model="companyReport.form.manual.judgmentComment" maxlength="10000" rows="6"
+                          class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none"></textarea>
+            </div>
+        </div>
+
+        <!-- 하단 네비게이션: 이전(왼쪽, 첫 단계 숨김) / 저장류·다음(오른쪽 끝) -->
+        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 mb-8">
+            <button x-show="companyReport.step > (companyReport.mode === 'edit' ? 2 : 1)"
+                    @click="companyReportPrevStep()"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50">← 이전</button>
+            <div class="flex-1"></div>
+            <button x-show="companyReport.isDraftFlow && companyReport.step >= 2" @click="companyReportSaveDraft()"
+                    :disabled="companyReport.saving"
+                    class="px-4 py-2 text-sm text-blue-700 border border-blue-300 rounded hover:bg-blue-50 disabled:opacity-50">
+                <span x-show="!companyReport.saving">임시저장</span>
+                <span x-show="companyReport.saving">저장 중...</span>
+            </button>
+            <button x-show="!companyReport.isDraftFlow" @click="companyReportSaveFinal()"
+                    :disabled="companyReport.saving"
+                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50">
+                <span x-show="!companyReport.saving">저장</span>
+                <span x-show="companyReport.saving">저장 중...</span>
+            </button>
+            <button x-show="companyReport.step < 7" @click="companyReportNextStep()"
+                    :disabled="companyReport.step === 1 && !companyReport.selected"
+                    class="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-40">
+                <span x-text="companyReport.step === 1 && !companyReport.selected ? '종목을 선택하세요' : '다음 →'"></span>
+            </button>
+            <button x-show="companyReport.isDraftFlow && companyReport.step === 7" @click="companyReportSaveFinal()"
+                    :disabled="companyReport.saving"
+                    class="px-5 py-2 text-sm font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50">
+                <span x-show="!companyReport.saving">✓ 작성 완료</span>
+                <span x-show="companyReport.saving">저장 중...</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== 상세 뷰 ==================== -->
+    <div x-show="companyReport.view === 'detail'">
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+            <button @click="companyReportBackToList()" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50">← 목록</button>
+            <template x-if="companyReport.detail">
+                <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="text-lg font-bold text-gray-800">
+                        <span x-text="companyReport.detail.stockName"></span>
+                        <span class="text-sm font-normal text-gray-400 ml-1" x-text="companyReport.detail.stockCode"></span>
+                    </h3>
+                    <span x-show="companyReport.detail.hasBuySignal" class="px-2.5 py-0.5 text-xs font-bold rounded bg-red-600 text-white">★ 매수재료 (A등급 보유)</span>
+                    <span class="text-xs text-gray-400">데이터 기준일: <span x-text="crDate(companyReport.detail.snapshotAt)"></span></span>
+                </div>
+            </template>
+            <div class="flex-1"></div>
+            <template x-if="companyReport.detail">
+                <div class="flex gap-2">
+                    <button @click="companyReportOpenEdit()" class="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50">수정</button>
+                    <button @click="companyReportRefresh()" :disabled="companyReport.refreshing"
+                            class="px-3 py-1.5 text-sm text-blue-700 border border-blue-300 rounded hover:bg-blue-50 disabled:opacity-50">
+                        <span x-show="!companyReport.refreshing">데이터 새로고침</span>
+                        <span x-show="companyReport.refreshing">갱신 중...</span>
+                    </button>
+                    <button @click="companyReportDelete(companyReport.detail.id)" class="px-3 py-1.5 text-sm text-red-600 border border-red-300 rounded hover:bg-red-50">삭제</button>
+                </div>
+            </template>
+        </div>
+
+        <div x-show="companyReport.detailLoading" class="text-center py-10 text-sm text-gray-400">불러오는 중...</div>
+        <div x-show="companyReport.detailError" class="border-l-4 border-red-400 bg-red-50 p-4 rounded mb-4 text-sm text-red-700" x-text="companyReport.detailError"></div>
+
+        <template x-if="companyReport.detail && !companyReport.detailLoading">
+            <div class="space-y-4 mb-8">
+
+                <!-- 스냅샷 없음 안내 -->
+                <div x-show="!companyReport.detail.snapshot" class="border-l-4 border-amber-400 bg-amber-50 p-4 rounded text-sm text-amber-700">
+                    자동 산출 스냅샷이 없습니다. "데이터 새로고침"으로 정량 데이터를 불러오세요.
+                </div>
+
+                <!-- 1. 투자판단 -->
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <div class="text-sm font-semibold text-gray-700 mb-3">투자판단 (7항목, 수동 평가)</div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-3">
+                        <template x-for="item in companyReport.gradeItems" :key="item.key">
+                            <div class="border border-gray-100 rounded p-2 text-center"
+                                 :class="(companyReport.detail.grades && companyReport.detail.grades[item.key] === 'A') ? 'ring-2 ring-red-400' : ''">
+                                <div class="text-[11px] text-gray-500 mb-1 leading-tight" x-text="item.label"></div>
+                                <span class="inline-flex w-8 h-8 items-center justify-center text-sm font-bold rounded"
+                                      :class="crGradeBadge(companyReport.detail.grades ? companyReport.detail.grades[item.key] : null)"
+                                      x-text="(companyReport.detail.grades && companyReport.detail.grades[item.key]) || '—'"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <div x-show="companyReport.detail.manual && companyReport.detail.manual.judgmentComment" class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded p-3" x-text="companyReport.detail.manual?.judgmentComment"></div>
+                </div>
+
+                <!-- 2. 회사 개요 -->
+                <div class="bg-white border border-gray-200 rounded p-4">
+                    <div class="text-sm font-semibold text-gray-700 mb-3">회사 개요</div>
+                    <template x-if="companyReport.detail.snapshot && companyReport.detail.snapshot.companyProfile">
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1.5 text-xs mb-3">
+                            <div><span class="text-gray-400 mr-1">회사명</span><span class="text-gray-800 font-medium" x-text="companyReport.detail.snapshot.companyProfile.corpName"></span></div>
+                            <div><span class="text-gray-400 mr-1">대표이사</span><span class="text-gray-800" x-text="companyReport.detail.snapshot.companyProfile.ceoName"></span></div>
+                            <div><span class="text-gray-400 mr-1">설립일</span><span class="text-gray-800" x-text="crRawDate(companyReport.detail.snapshot.companyProfile.establishedDate)"></span></div>
+                            <div><span class="text-gray-400 mr-1">결산월</span><span class="text-gray-800" x-text="(companyReport.detail.snapshot.companyProfile.accountSettlementMonth || '—') + '월'"></span></div>
+                            <div class="col-span-2"><span class="text-gray-400 mr-1">주소</span><span class="text-gray-800" x-text="companyReport.detail.snapshot.companyProfile.address"></span></div>
+                            <div><span class="text-gray-400 mr-1">홈페이지</span><span class="text-gray-800" x-text="companyReport.detail.snapshot.companyProfile.homepageUrl || '—'"></span></div>
+                            <div><span class="text-gray-400 mr-1">업종코드</span><span class="text-gray-800" x-text="companyReport.detail.snapshot.companyProfile.industryCode"></span></div>
+                        </div>
+                    </template>
+                    <div x-show="companyReport.detail.manual && companyReport.detail.manual.history && companyReport.detail.manual.history.length" class="mb-3">
+                        <div class="text-xs font-medium text-gray-500 mb-1">회사 연혁</div>
+                        <table class="w-full text-xs border border-gray-100 rounded">
+                            <tbody>
+                                <template x-for="(h, idx) in crHistoryAsc(companyReport.detail.manual)" :key="idx">
+                                    <tr class="border-b border-gray-50">
+                                        <td class="px-2 py-1.5 w-24 font-mono text-gray-500" x-text="h.year"></td>
+                                        <td class="px-2 py-1.5 text-gray-700" x-text="h.content"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div x-show="companyReport.detail.manual && companyReport.detail.manual.philosophyNote" class="mb-3">
+                        <div class="text-xs font-medium text-gray-500 mb-1">경영이념·사업내용</div>
+                        <div class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded p-3" x-text="companyReport.detail.manual?.philosophyNote"></div>
+                    </div>
+                    <div x-show="companyReport.detail.manual && ((companyReport.detail.manual.customers && companyReport.detail.manual.customers.length) || (companyReport.detail.manual.suppliers && companyReport.detail.manual.suppliers.length) || companyReport.detail.manual.partnerAssessment)">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <div class="text-xs font-medium text-gray-500">판매처/매입처</div>
+                            <span x-show="companyReport.detail.manual?.partnerAssessment"
+                                  class="px-1.5 py-0.5 text-[11px] rounded"
+                                  :class="companyReport.detail.manual?.partnerAssessment === '편중' ? 'bg-red-50 text-red-700' : (companyReport.detail.manual?.partnerAssessment === '분산' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600')"
+                                  x-text="'분산 평가: ' + companyReport.detail.manual?.partnerAssessment"></span>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            <div x-show="companyReport.detail.manual.customers && companyReport.detail.manual.customers.length">
+                                <div class="text-[11px] text-gray-400 mb-1">판매처</div>
+                                <table class="w-full text-xs border border-gray-100 rounded">
+                                    <thead>
+                                        <tr class="text-gray-500 border-b border-gray-100 text-left">
+                                            <th class="px-2 py-1">업체</th>
+                                            <th class="px-2 py-1 text-right">비중(%)</th>
+                                            <th class="px-2 py-1">비고</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(c, idx) in companyReport.detail.manual.customers" :key="idx">
+                                            <tr class="border-b border-gray-50">
+                                                <td class="px-2 py-1 text-gray-700" x-text="c.name"></td>
+                                                <td class="px-2 py-1 text-right font-mono" x-text="c.share"></td>
+                                                <td class="px-2 py-1 text-gray-500" x-text="c.note"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div x-show="companyReport.detail.manual.suppliers && companyReport.detail.manual.suppliers.length">
+                                <div class="text-[11px] text-gray-400 mb-1">매입처</div>
+                                <table class="w-full text-xs border border-gray-100 rounded">
+                                    <thead>
+                                        <tr class="text-gray-500 border-b border-gray-100 text-left">
+                                            <th class="px-2 py-1">업체</th>
+                                            <th class="px-2 py-1 text-right">비중(%)</th>
+                                            <th class="px-2 py-1">비고</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(sp, idx) in companyReport.detail.manual.suppliers" :key="idx">
+                                            <tr class="border-b border-gray-50">
+                                                <td class="px-2 py-1 text-gray-700" x-text="sp.name"></td>
+                                                <td class="px-2 py-1 text-right font-mono" x-text="sp.share"></td>
+                                                <td class="px-2 py-1 text-gray-500" x-text="sp.note"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 실적 추이 -->
+                <template x-if="companyReport.detail.snapshot">
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="text-sm font-semibold text-gray-700">실적 추이 (10년)</div>
+                            <span class="text-xs text-gray-400">연결/개별: <span x-text="companyReport.detail.snapshot.fsDiv === 'CFS' ? '연결' : '개별'"></span> · *진행중 연도</span>
+                        </div>
+                        <div class="relative h-80 mb-4"><canvas id="report-detail-perf"></canvas></div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs data-table">
+                                <thead>
+                                    <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                        <th class="px-2 py-1.5 whitespace-nowrap">항목</th>
+                                        <template x-for="col in companyReport.detail.snapshot.columns" :key="col.year">
+                                            <th class="px-2 py-1.5 text-right whitespace-nowrap" x-text="col.year + (col.partial ? '*' : '')"></th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="row in companyReport.detail.snapshot.performance" :key="row.key">
+                                        <tr class="border-b border-gray-50">
+                                            <td class="px-2 py-1.5 text-gray-600 whitespace-nowrap" x-text="row.name"></td>
+                                            <template x-for="col in companyReport.detail.snapshot.columns" :key="col.year">
+                                                <td class="px-2 py-1.5 text-right font-mono whitespace-nowrap"
+                                                    x-text="row.name.includes('%') ? crCellPct(row, col.year) : crCellAmt(row, col.year)"></td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div x-show="companyReport.detail.manual && companyReport.detail.manual.revenueForecasts && companyReport.detail.manual.revenueForecasts.length" class="mt-3">
+                            <div class="text-xs font-medium text-gray-500 mb-1">예상 매출 (입력값, 단위: <span x-text="(companyReport.detail.manual?.amountUnit || '억') + '원'"></span>)</div>
+                            <table class="w-full text-xs border border-gray-100 rounded">
+                                <thead>
+                                    <tr class="text-gray-500 border-b border-gray-100 text-left">
+                                        <th class="px-2 py-1">연도</th>
+                                        <th class="px-2 py-1">구분</th>
+                                        <th class="px-2 py-1 text-right">1Q</th>
+                                        <th class="px-2 py-1 text-right">2Q</th>
+                                        <th class="px-2 py-1 text-right">3Q</th>
+                                        <th class="px-2 py-1 text-right">4Q</th>
+                                        <th class="px-2 py-1 text-right">연간 합계</th>
+                                    </tr>
+                                </thead>
+                                <template x-for="(rf, idx) in companyReport.detail.manual.revenueForecasts" :key="idx">
+                                    <tbody>
+                                        <tr class="border-b border-gray-50">
+                                            <td class="px-2 py-1 font-mono" rowspan="2" x-text="rf.year + 'E'"></td>
+                                            <td class="px-2 py-1 text-gray-500">매출</td>
+                                            <td class="px-2 py-1 text-right font-mono" x-text="crNum(rf.q1, 2)"></td>
+                                            <td class="px-2 py-1 text-right font-mono" x-text="crNum(rf.q2, 2)"></td>
+                                            <td class="px-2 py-1 text-right font-mono" x-text="crNum(rf.q3, 2)"></td>
+                                            <td class="px-2 py-1 text-right font-mono" x-text="crNum(rf.q4, 2)"></td>
+                                            <td class="px-2 py-1 text-right font-mono font-medium" x-text="crForecastAnnualDisplay(rf)"></td>
+                                        </tr>
+                                        <tr class="border-b border-gray-100">
+                                            <td class="px-2 py-1 text-gray-500">순이익</td>
+                                            <td class="px-2 py-1 text-right font-mono" x-text="crNum(rf.ni1, 2)"></td>
+                                            <td class="px-2 py-1 text-right font-mono" x-text="crNum(rf.ni2, 2)"></td>
+                                            <td class="px-2 py-1 text-right font-mono" x-text="crNum(rf.ni3, 2)"></td>
+                                            <td class="px-2 py-1 text-right font-mono" x-text="crNum(rf.ni4, 2)"></td>
+                                            <td class="px-2 py-1 text-right font-mono font-medium" x-text="crForecastNetDisplay(rf)"></td>
+                                        </tr>
+                                    </tbody>
+                                </template>
+                            </table>
+                        </div>
+                        <div x-show="companyReport.detail.manual && companyReport.detail.manual.competitors && companyReport.detail.manual.competitors.length" class="mt-3">
+                            <div class="text-xs font-medium text-gray-500 mb-1">경쟁사 비교 (사업부문별)</div>
+                            <table class="w-full text-xs border border-gray-100 rounded">
+                                <thead>
+                                    <tr class="text-gray-500 border-b border-gray-100 text-left">
+                                        <th class="px-2 py-1">경쟁사</th>
+                                        <th class="px-2 py-1">비교 사업부문</th>
+                                        <th class="px-2 py-1">비교 내용</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(c, idx) in companyReport.detail.manual.competitors" :key="idx">
+                                        <tr class="border-b border-gray-50">
+                                            <td class="px-2 py-1 text-gray-700" x-text="c.name"></td>
+                                            <td class="px-2 py-1 text-gray-600" x-text="c.segment"></td>
+                                            <td class="px-2 py-1 text-gray-500" x-text="c.note"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div x-show="companyReport.detail.manual && companyReport.detail.manual.performanceNote" class="mt-3">
+                            <div class="text-xs font-medium text-gray-500 mb-1">실적 추이 해석 (메모)</div>
+                            <div class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded p-3" x-text="companyReport.detail.manual?.performanceNote"></div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 4. 재무제표 요약 -->
+                <template x-if="companyReport.detail.snapshot">
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-3">재무제표 요약</div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs data-table">
+                                <thead>
+                                    <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                        <th class="px-2 py-1.5 whitespace-nowrap">항목</th>
+                                        <template x-for="col in companyReport.detail.snapshot.columns" :key="col.year">
+                                            <th class="px-2 py-1.5 text-right whitespace-nowrap" x-text="col.year + (col.partial ? '*' : '')"></th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <template x-for="grp in crStatementGroups" :key="grp.prefix">
+                                    <tbody>
+                                        <tr class="bg-gray-100">
+                                            <td class="px-2 py-1 text-gray-700 font-semibold whitespace-nowrap" :colspan="companyReport.detail.snapshot.columns.length + 1" x-text="grp.label"></td>
+                                        </tr>
+                                        <template x-for="row in crStatementRows(companyReport.detail.snapshot.statements, grp.prefix)" :key="row.key">
+                                            <tr class="border-b border-gray-50" :class="['bs.totalAssets','bs.totalLiabilities','bs.totalEquity'].includes(row.key) ? 'bg-gray-50 font-medium' : ''">
+                                                <td class="px-2 py-1.5 text-gray-600 whitespace-nowrap" x-text="row.name"></td>
+                                                <template x-for="col in companyReport.detail.snapshot.columns" :key="col.year">
+                                                    <td class="px-2 py-1.5 text-right font-mono whitespace-nowrap" x-text="crCellAmt(row, col.year)"></td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </template>
+                            </table>
+                        </div>
+                        <div x-show="companyReport.detail.manual && companyReport.detail.manual.financialChanges && companyReport.detail.manual.financialChanges.length" class="mt-3">
+                            <div class="text-xs font-medium text-gray-500 mb-1">급변 항목 원인</div>
+                            <table class="w-full text-xs border border-gray-100 rounded">
+                                <thead>
+                                    <tr class="text-gray-500 border-b border-gray-100 text-left">
+                                        <th class="px-2 py-1 w-20">연도</th>
+                                        <th class="px-2 py-1 w-40">항목</th>
+                                        <th class="px-2 py-1">원인</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(f, idx) in companyReport.detail.manual.financialChanges" :key="idx">
+                                        <tr class="border-b border-gray-50">
+                                            <td class="px-2 py-1 font-mono text-gray-500" x-text="f.year"></td>
+                                            <td class="px-2 py-1 text-gray-700" x-text="f.item"></td>
+                                            <td class="px-2 py-1 text-gray-600" x-text="f.reason"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 5. 재무지표 -->
+                <template x-if="companyReport.detail.snapshot">
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-3">재무지표 (건전성 · 수익성 · 성장성, 최신 사업연도 판정)</div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs data-table">
+                                <thead>
+                                    <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                        <th class="px-2 py-1.5 whitespace-nowrap">지표</th>
+                                        <th class="px-2 py-1.5 whitespace-nowrap">판정</th>
+                                        <template x-for="col in companyReport.detail.snapshot.columns" :key="col.year">
+                                            <th class="px-2 py-1.5 text-right whitespace-nowrap" x-text="col.year + (col.partial ? '*' : '')"></th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="row in companyReport.detail.snapshot.ratios" :key="row.key">
+                                        <tr class="border-b border-gray-50">
+                                            <td class="px-2 py-1.5 text-gray-600 whitespace-nowrap" x-text="row.name"></td>
+                                            <td class="px-2 py-1.5"><span class="px-1.5 py-0.5 rounded text-[11px]" :class="crJudgeBadge(row.judgment)" x-text="crJudgeLabel(row.judgment)"></span></td>
+                                            <template x-for="col in companyReport.detail.snapshot.columns" :key="col.year">
+                                                <td class="px-2 py-1.5 text-right font-mono whitespace-nowrap" x-text="crCellPct(row, col.year)"></td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 6. 주가지표 -->
+                <template x-if="companyReport.detail.snapshot && companyReport.detail.snapshot.priceMetrics">
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="text-sm font-semibold text-gray-700">주가지표</div>
+                            <span class="text-xs text-gray-400">기준가: <span x-text="crNum(companyReport.detail.snapshot.priceMetrics.referencePrice, 0)"></span>원 (<span x-text="companyReport.detail.snapshot.priceMetrics.referencePriceDate || '—'"></span>)</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">시가총액(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'marketCap')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'marketCap')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crAmt(companyReport.detail.snapshot.priceMetrics.marketCap)"></div></div>
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">EPS</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'eps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'eps')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.eps, 0)"></div></div>
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">BPS</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'bps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'bps')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.bps, 0)"></div></div>
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'per')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'per')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.per)"></div></div>
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pbr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.pbr)"></div></div>
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PSR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'psr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'psr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.psr)"></div></div>
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PCFR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pcfr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pcfr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.pcfr)"></div></div>
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER × PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'perTimesPbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'perTimesPbr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.perTimesPbr)"></div></div>
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">EV/EBITDA(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'evEbitda')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'evEbitda')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.evEbitda)"></div></div>
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">ROIC(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'roic')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'roic')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crPct(companyReport.detail.snapshot.priceMetrics.roic)"></div></div>
+                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">발생액/총자산</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'accrual')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'accrual')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crPct(companyReport.detail.snapshot.priceMetrics.accrualRatio)"></div></div>
+                        </div>
+                        <div x-show="companyReport.detail.snapshot.priceMetrics.warnings && companyReport.detail.snapshot.priceMetrics.warnings.length" class="mt-2">
+                            <template x-for="w in companyReport.detail.snapshot.priceMetrics.warnings" :key="w">
+                                <div class="text-[11px] text-amber-600" x-text="'⚠ ' + w"></div>
+                            </template>
+                        </div>
+                        <div x-show="crHasCustomMetrics(companyReport.detail.manual)" class="mt-3 border-t border-gray-100 pt-3">
+                            <div class="text-xs font-medium text-gray-600 mb-2">내 계산 (입력 재료 기반 — 계산식은 5단계 참고)</div>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs mb-2">
+                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">시가총액</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'marketCap', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'marketCap', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crAmt(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).marketCap)"></div></div>
+                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'per', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'per', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).per)"></div></div>
+                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pbr', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pbr', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).pbr)"></div></div>
+                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PSR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'psr', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'psr', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).psr)"></div></div>
+                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PCFR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pcfr', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pcfr', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).pcfr)"></div></div>
+                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER × PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'perTimesPbr', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'perTimesPbr', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).perTimesPbr)"></div></div>
+                            </div>
+                            <div x-show="crForecastMetrics(companyReport.detail.manual, companyReport.detail.snapshot).length > 0">
+                                <table class="w-full text-xs border border-gray-100 rounded">
+                                    <thead>
+                                        <tr class="text-gray-500 border-b border-gray-100 text-left">
+                                            <th class="px-2 py-1.5">연도</th>
+                                            <th class="px-2 py-1.5 text-right">예상 매출</th>
+                                            <th class="px-2 py-1.5 text-right">예상 PSR</th>
+                                            <th class="px-2 py-1.5 text-right">예상 PER</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="f in crForecastMetrics(companyReport.detail.manual, companyReport.detail.snapshot)" :key="f.year">
+                                            <tr class="border-b border-gray-50">
+                                                <td class="px-2 py-1.5 font-mono" x-text="f.year + 'E'"></td>
+                                                <td class="px-2 py-1.5 text-right font-mono" x-text="crAmt(f.annual)"></td>
+                                                <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(f.psr)"></td>
+                                                <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(f.per)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 7. 기업가치 -->
+                <template x-if="companyReport.detail.valuation">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <!-- 청산가치 -->
+                        <div class="bg-white border border-gray-200 rounded p-4">
+                            <div class="text-sm font-semibold text-gray-700 mb-3">청산가치 (자산가치, 기준연도 <span x-text="companyReport.detail.valuation.liquidation?.baseYear || '—'"></span>)</div>
+                            <template x-if="companyReport.detail.valuation.liquidation">
+                                <div>
+                                    <table class="w-full text-xs mb-2">
+                                        <thead>
+                                            <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                                <th class="py-1">카테고리</th>
+                                                <th class="py-1 text-right">장부가</th>
+                                                <th class="py-1 text-right">비율</th>
+                                                <th class="py-1 text-right">조정자산</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="line in companyReport.detail.valuation.liquidation.lines" :key="line.key">
+                                                <tr class="border-b border-gray-50">
+                                                    <td class="py-1 text-gray-600" x-text="line.name"></td>
+                                                    <td class="py-1 text-right font-mono" x-text="crAmt(line.bookValue)"></td>
+                                                    <td class="py-1 text-right font-mono" x-text="crNum(line.ratio * 100, 0) + '%'"></td>
+                                                    <td class="py-1 text-right font-mono" x-text="crAmt(line.adjustedValue)"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                    <div class="text-xs space-y-1 border-t border-gray-200 pt-2">
+                                        <div class="flex justify-between"><span class="text-gray-500">조정자산 합계</span><span class="font-mono" x-text="crAmt(companyReport.detail.valuation.liquidation.adjustedAssetTotal)"></span></div>
+                                        <div class="flex justify-between"><span class="text-gray-500">(−) 총부채</span><span class="font-mono" x-text="crAmt(companyReport.detail.valuation.liquidation.totalLiabilities)"></span></div>
+                                        <div class="flex justify-between font-semibold text-gray-800"><span>청산가치</span><span class="font-mono" x-text="crAmt(companyReport.detail.valuation.liquidation.liquidationValue)"></span></div>
+                                        <div class="flex justify-between"><span class="text-gray-500">시가총액(근사)</span><span class="font-mono" x-text="crAmt(companyReport.detail.valuation.liquidation.marketCap)"></span></div>
+                                        <div class="flex justify-between"><span class="text-gray-500">시총/청산가치</span><span class="font-mono" x-text="crNum(companyReport.detail.valuation.liquidation.marketCapToLiquidation) + '배'"></span></div>
+                                    </div>
+                                    <div x-show="companyReport.detail.snapshot && companyReport.detail.snapshot.valuationInputs && companyReport.detail.snapshot.valuationInputs.unclassified && companyReport.detail.snapshot.valuationInputs.unclassified.length" class="mt-2">
+                                        <div class="text-[11px] text-gray-400 mb-1">0% 처리된 미분류 계정 (검산용)</div>
+                                        <template x-for="(u, idx) in companyReport.detail.snapshot.valuationInputs.unclassified" :key="idx">
+                                            <div class="text-[11px] text-gray-500 flex justify-between"><span x-text="u.name"></span><span class="font-mono" x-text="crAmt(u.bookValue)"></span></div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                            <div x-show="!companyReport.detail.valuation.liquidation" class="text-xs text-gray-400">청산가치 계산 불가 (재무상태표 데이터 없음)</div>
+                        </div>
+                        <!-- DCF -->
+                        <div class="bg-white border border-gray-200 rounded p-4">
+                            <div class="text-sm font-semibold text-gray-700 mb-3">DCF (수익가치)</div>
+                            <div x-show="!companyReport.detail.valuation.dcf" class="text-xs text-gray-400">DCF 계산 불가 (스냅샷 데이터 없음 — "데이터 새로고침" 후 확인)</div>
+                            <template x-if="companyReport.detail.valuation.dcf">
+                                <div class="text-xs space-y-1.5">
+                                    <div x-show="!companyReport.detail.valuation.dcf.calculable" class="border-l-4 border-amber-300 bg-amber-50 p-2 rounded text-amber-700" x-text="companyReport.detail.valuation.dcf.reason"></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">순현금 (현금성+단기금융 − 차입금)</span><span class="font-mono" x-text="crAmt(companyReport.detail.valuation.dcf.netCash)"></span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">FCF (최신 사업연도)</span><span class="font-mono" x-text="crAmt(companyReport.detail.valuation.dcf.fcf)"></span></div>
+                                    <div class="flex justify-between border-t border-gray-100 pt-1.5 font-semibold text-gray-800"><span>보수 시나리오 (성장 0%)</span><span class="font-mono" x-text="crAmt(companyReport.detail.valuation.dcf.conservativeValue)"></span></div>
+                                    <div class="flex justify-between font-semibold text-gray-800">
+                                        <span>낙관 시나리오 (<span x-text="crNum(companyReport.detail.valuation.params.optimisticGrowthYears, 0)"></span>년 <span x-text="crNum(companyReport.detail.valuation.params.optimisticGrowthRate * 100, 0)"></span>% 성장)</span>
+                                        <span class="font-mono" x-text="crAmt(companyReport.detail.valuation.dcf.optimisticValue)"></span>
+                                    </div>
+                                    <div class="flex justify-between"><span class="text-gray-500">시총/보수</span><span class="font-mono" x-text="companyReport.detail.valuation.dcf.marketCapToConservative != null ? crNum(companyReport.detail.valuation.dcf.marketCapToConservative) + '배' : '—'"></span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">시총/낙관</span><span class="font-mono" x-text="companyReport.detail.valuation.dcf.marketCapToOptimistic != null ? crNum(companyReport.detail.valuation.dcf.marketCapToOptimistic) + '배' : '—'"></span></div>
+                                    <div class="text-[11px] text-gray-400 pt-1">할인율 R = <span x-text="crNum(companyReport.detail.valuation.params.discountRate * 100, 1)"></span>% · 파라미터는 "수정"에서 조정 가능 (스냅샷 재조회 없이 즉시 반영)</div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 8. 주주 동향 -->
+                <template x-if="companyReport.detail.snapshot && companyReport.detail.snapshot.shareholders">
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-3">주주 동향</div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <!-- 최대주주 지분 추이 -->
+                            <div>
+                                <div class="text-xs font-medium text-gray-500 mb-1.5">최대주주·특수관계인 지분 추이 (사업보고서 기준)</div>
+                                <div class="overflow-y-auto max-h-72 border border-gray-100 rounded">
+                                    <table class="w-full text-[11px] data-table">
+                                        <thead class="sticky top-0 bg-white">
+                                            <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                                <th class="px-2 py-1.5">연도</th>
+                                                <th class="px-2 py-1.5">이름</th>
+                                                <th class="px-2 py-1.5">관계</th>
+                                                <th class="px-2 py-1.5">주식종류</th>
+                                                <th class="px-2 py-1.5 text-right">기말 주식수</th>
+                                                <th class="px-2 py-1.5 text-right">지분율</th>
+                                                <th class="px-2 py-1.5">비고</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="(s, idx) in crShareholdersDesc(companyReport.detail.snapshot)" :key="idx">
+                                                <tr class="border-b border-gray-50">
+                                                    <td class="px-2 py-1" x-text="s.bsnsYear"></td>
+                                                    <td class="px-2 py-1 text-gray-700" x-text="s.name"></td>
+                                                    <td class="px-2 py-1 text-gray-500" x-text="s.relation"></td>
+                                                    <td class="px-2 py-1 text-gray-500" x-text="s.stockKind"></td>
+                                                    <td class="px-2 py-1 text-right font-mono" x-text="s.termEndQuantity"></td>
+                                                    <td class="px-2 py-1 text-right font-mono" x-text="s.termEndRatio ? s.termEndRatio + '%' : '—'"></td>
+                                                    <td class="px-2 py-1 text-gray-400" x-text="s.remark && s.remark !== '-' ? s.remark : ''"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <!-- 대량보유(5%룰) + 배당 -->
+                            <div>
+                                <div class="text-xs font-medium text-gray-500 mb-1.5">대량보유 상황보고 (5%룰, 최근 약 2년 · 정확한 체결일은 원문 참조)</div>
+                                <div class="overflow-y-auto max-h-40 border border-gray-100 rounded mb-3">
+                                    <table class="w-full text-[11px] data-table">
+                                        <thead class="sticky top-0 bg-white">
+                                            <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                                <th class="px-2 py-1.5">보고일</th>
+                                                <th class="px-2 py-1.5">보고자</th>
+                                                <th class="px-2 py-1.5 text-right">증감</th>
+                                                <th class="px-2 py-1.5 text-right">보유비율</th>
+                                                <th class="px-2 py-1.5">원문</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="b in companyReport.detail.snapshot.shareholders.bulkHoldings" :key="b.receiptNo">
+                                                <tr class="border-b border-gray-50">
+                                                    <td class="px-2 py-1" x-text="b.receiptDate"></td>
+                                                    <td class="px-2 py-1 text-gray-700" x-text="b.reporter"></td>
+                                                    <td class="px-2 py-1 text-right font-mono" x-text="b.quantityChange"></td>
+                                                    <td class="px-2 py-1 text-right font-mono" x-text="b.holdingRatio ? b.holdingRatio + '%' : '—'"></td>
+                                                    <td class="px-2 py-1"><a :href="crDartViewerUrl(b.receiptNo)" target="_blank" rel="noopener" class="text-blue-600 hover:underline">보기</a></td>
+                                                </tr>
+                                            </template>
+                                            <tr x-show="!companyReport.detail.snapshot.shareholders.bulkHoldings || companyReport.detail.snapshot.shareholders.bulkHoldings.length === 0">
+                                                <td colspan="5" class="px-2 py-3 text-center text-gray-400">보고 내역 없음</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="text-xs font-medium text-gray-500 mb-1.5">배당 (최신 사업보고서) · 자기주식 <span class="font-mono text-gray-700" x-text="companyReport.detail.snapshot.shareholders.treasuryStockCount || '—'"></span>주</div>
+                                <div class="overflow-y-auto max-h-40 border border-gray-100 rounded">
+                                    <table class="w-full text-[11px] data-table">
+                                        <thead class="sticky top-0 bg-white">
+                                            <tr class="border-b border-gray-200 text-gray-500 text-left">
+                                                <th class="px-2 py-1.5">구분</th>
+                                                <th class="px-2 py-1.5 text-right">당기</th>
+                                                <th class="px-2 py-1.5 text-right">전기</th>
+                                                <th class="px-2 py-1.5 text-right">전전기</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="(d, idx) in companyReport.detail.snapshot.shareholders.dividends" :key="idx">
+                                                <tr class="border-b border-gray-50">
+                                                    <td class="px-2 py-1 text-gray-600" x-text="d.category + (d.stockKind ? ' (' + d.stockKind + ')' : '')"></td>
+                                                    <td class="px-2 py-1 text-right font-mono" x-text="d.currentTerm || '—'"></td>
+                                                    <td class="px-2 py-1 text-right font-mono" x-text="d.previousTerm || '—'"></td>
+                                                    <td class="px-2 py-1 text-right font-mono" x-text="d.beforePreviousTerm || '—'"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div x-show="companyReport.detail.manual && companyReport.detail.manual.shareholderEvents && companyReport.detail.manual.shareholderEvents.length" class="mt-3">
+                            <div class="text-xs font-medium text-gray-500 mb-1">주주 이벤트</div>
+                            <table class="w-full text-xs border border-gray-100 rounded">
+                                <tbody>
+                                    <template x-for="(ev, idx) in companyReport.detail.manual.shareholderEvents" :key="idx">
+                                        <tr class="border-b border-gray-50">
+                                            <td class="px-2 py-1.5 w-28 font-mono text-gray-500" x-text="ev.period"></td>
+                                            <td class="px-2 py-1.5 text-gray-700" x-text="ev.content"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div x-show="companyReport.detail.manual && companyReport.detail.manual.shareholderNote" class="mt-3">
+                            <div class="text-xs font-medium text-gray-500 mb-1">주주 동향 해석 (메모)</div>
+                            <div class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded p-3" x-text="companyReport.detail.manual?.shareholderNote"></div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 9. 위험 시그널 -->
+                <template x-if="companyReport.detail.snapshot">
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <div class="text-sm font-semibold text-gray-700 mb-3">위험 기업 시그널 체크</div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            <template x-for="risk in companyReport.riskItems" :key="risk.key">
+                                <div class="px-3 py-2 rounded text-xs"
+                                     :class="crRiskBadge(companyReport.detail.snapshot.riskSignals ? companyReport.detail.snapshot.riskSignals[risk.key] : null)">
+                                    <span class="font-medium" x-text="risk.label"></span>
+                                    <span class="ml-1" x-text="crRiskLabel(companyReport.detail.snapshot.riskSignals ? companyReport.detail.snapshot.riskSignals[risk.key] : null)"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+            </div>
+        </template>
+    </div>
+
+    <!-- 주가지표 계산식 툴팁 (hover 미리보기 / 클릭 시 고정) -->
+    <div x-show="crHint.show" x-cloak
+         @click.outside="crHintClose()"
+         :style="`left:${crHint.x}px; top:${crHint.y}px`"
+         class="fixed z-50 w-64 max-w-[70vw] p-2.5 rounded-md bg-gray-800 text-white text-[11px] leading-relaxed text-left whitespace-pre-line shadow-lg">
+        <div x-text="crHint.text"></div>
+        <div class="mt-1.5 pt-1.5 border-t border-white/15 text-[10px] text-gray-300" x-show="crHint.pinned">클릭 고정됨 · 바깥을 누르면 닫힙니다</div>
+    </div>
+</div>

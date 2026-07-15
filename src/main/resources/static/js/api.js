@@ -21,11 +21,13 @@ const API = {
 
         // 호출자 signal 우선. 없으면 default timeout 으로 AbortController 합성.
         let timeoutId = null;
+        let effectiveTimeoutMs = null;
         if (signal) {
             options.signal = signal;
         } else {
             const ctrl = new AbortController();
             const ms = typeof timeoutMs === 'number' ? timeoutMs : this.DEFAULT_TIMEOUT_MS;
+            effectiveTimeoutMs = ms;
             timeoutId = setTimeout(() => ctrl.abort(), ms);
             options.signal = ctrl.signal;
         }
@@ -50,7 +52,7 @@ const API = {
             return response.json();
         } catch (err) {
             if (err && err.name === 'AbortError') {
-                throw new Error(`API Timeout after ${this.DEFAULT_TIMEOUT_MS}ms: ${method} ${url}`);
+                throw new Error(`API Timeout after ${effectiveTimeoutMs ?? this.DEFAULT_TIMEOUT_MS}ms: ${method} ${url}`);
             }
             throw err;
         } finally {
@@ -736,5 +738,31 @@ const API = {
     },
     deleteGlossaryTerm(id) {
         return this.request('DELETE', `/api/glossary/terms/${id}`);
+    },
+
+    // Company Report (기업분석리포트)
+    // preview/create/refresh 는 DART 10개년 조회를 포함해 오래 걸릴 수 있어 타임아웃을 넉넉히 준다
+    previewCompanyReport(stockCode) {
+        return this.request('GET', `/api/company-reports/preview?stockCode=${encodeURIComponent(stockCode)}`, null, { timeoutMs: 60000 });
+    },
+    createCompanyReport(body) {
+        return this.request('POST', '/api/company-reports', body, { timeoutMs: 60000 });
+    },
+    getCompanyReports({ stockName, page = 0, size = 20 } = {}) {
+        const params = new URLSearchParams({ page, size });
+        if (stockName) params.set('stockName', stockName);
+        return this.request('GET', `/api/company-reports?${params.toString()}`);
+    },
+    getCompanyReport(id) {
+        return this.request('GET', `/api/company-reports/${id}`);
+    },
+    updateCompanyReport(id, body) {
+        return this.request('PUT', `/api/company-reports/${id}`, body);
+    },
+    refreshCompanyReport(id) {
+        return this.request('POST', `/api/company-reports/${id}/refresh`, null, { timeoutMs: 60000 });
+    },
+    deleteCompanyReport(id) {
+        return this.request('DELETE', `/api/company-reports/${id}`);
     }
 };

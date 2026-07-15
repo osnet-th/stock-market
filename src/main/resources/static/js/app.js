@@ -4,7 +4,7 @@ function dashboard() {
         // ==================== 코어 상태 ====================
         currentPage: (() => {
             const hash = location.hash.replace('#', '');
-            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'stock-eval', 'salary', 'news-journal', 'glossary', 'realestate', 'admin-logs'];
+            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'stock-eval', 'company-report', 'salary', 'news-journal', 'glossary', 'realestate', 'admin-logs'];
             return validPages.includes(hash) ? hash : 'home';
         })(),
 
@@ -19,6 +19,7 @@ function dashboard() {
             { key: 'global', label: '글로벌 경제지표', icon: 'globe' },
             { key: 'portfolio', label: '포트폴리오', icon: 'portfolio' },
             { key: 'stock-eval', label: '종목 평가', icon: 'research' },
+            { key: 'company-report', label: '기업 리포트', icon: 'report' },
             { key: 'salary', label: '월급 사용 비율', icon: 'wallet' },
             { key: 'news-journal', label: '뉴스 기록', icon: 'journal' },
             { key: 'glossary', label: '용어 사전', icon: 'book' },
@@ -53,6 +54,7 @@ function dashboard() {
         ...DashboardSummaryComponent,
         ...RealEstateComponent,
         ...StockEvalComponent,
+        ...CompanyReportComponent,
 
         // ==================== 코어 메서드 ====================
         toggleSidebar() {
@@ -80,7 +82,7 @@ function dashboard() {
             // ==================== Partial 부트스트랩 ====================
             // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
             // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
-            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'portfolio', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate', 'stock-eval'];
+            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'portfolio', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate', 'stock-eval', 'company-report'];
             const cleanupRegistry = {
                 // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
                 // home: dashboardSummary 차트 + favorite 위젯 차트를 정리해 중복 인스턴스 방지.
@@ -103,6 +105,12 @@ function dashboard() {
                     if (map && typeof map.forEach === 'function') {
                         map.forEach(c => { try { c && c.destroy(); } catch (e) { /* ignore */ } });
                         map.clear();
+                    }
+                },
+                // company-report: 실적 추이 차트 정리 (리마운트 시 stale 인스턴스 방지)
+                'company-report': (dash) => {
+                    if (typeof dash._crDestroyCharts === 'function') {
+                        try { dash._crDestroyCharts(); } catch (e) { /* ignore */ }
                     }
                 },
                 // salary: 5개 차트 destroy
@@ -225,6 +233,11 @@ function dashboard() {
                 this.destroyDashboardSummaryChart();
             }
 
+            // 기업 리포트에서 떠날 때 Chart.js 인스턴스 정리
+            if (this.currentPage === 'company-report' && page !== 'company-report') {
+                this._crDestroyCharts();
+            }
+
             this.currentPage = page;
             history.pushState(null, '', '#' + page);
             switch (page) {
@@ -264,6 +277,11 @@ function dashboard() {
                     break;
                 case 'glossary':
                     await this.glossaryLoad();
+                    break;
+                case 'company-report':
+                    if (this.checkLoggedIn()) {
+                        await this.companyReportOnEnter();
+                    }
                     break;
             }
         }

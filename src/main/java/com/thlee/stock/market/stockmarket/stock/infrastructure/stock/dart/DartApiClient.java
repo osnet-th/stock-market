@@ -152,6 +152,37 @@ public class DartApiClient {
     }
 
     /**
+     * 기업개황 조회 (단일 객체 응답, 데이터 없으면 null)
+     */
+    public DartCompanyResponse fetchCompanyProfile(String corpCode) {
+        String uri = buildBaseUri("/company.json")
+                .queryParam("corp_code", corpCode)
+                .toUriString();
+
+        return callCompanyApi(uri);
+    }
+
+    /**
+     * 최대주주 및 특수관계인 소유 현황 조회
+     */
+    public DartApiResponse<DartHyslrSttusItem> fetchMajorShareholderStatus(
+            String corpCode, String bsnsYear, String reprtCode) {
+        return callReportApi("/hyslrSttus.json", corpCode, bsnsYear, reprtCode,
+                new ParameterizedTypeReference<>() {});
+    }
+
+    /**
+     * 대량보유 상황보고 조회 (5%룰, DART가 반환하는 최근 보고분)
+     */
+    public DartApiResponse<DartMajorstockItem> fetchBulkHoldingReports(String corpCode) {
+        String uri = buildBaseUri("/majorstock.json")
+                .queryParam("corp_code", corpCode)
+                .toUriString();
+
+        return callApi(uri, new ParameterizedTypeReference<>() {});
+    }
+
+    /**
      * 공시검색 조회 (접수일 최신순)
      * @param pblntfTy 공시유형 (A:정기공시 ~ J:공정위공시, null이면 전체)
      */
@@ -233,6 +264,33 @@ public class DartApiClient {
         } catch (RestClientException e) {
             throw new DartApiException("DART API 호출 실패: " + e.getMessage(), e);
         }
+    }
+
+    private DartCompanyResponse callCompanyApi(String uri) {
+        try {
+            DartCompanyResponse response = restClient.get()
+                    .uri(uri)
+                    .retrieve()
+                    .body(DartCompanyResponse.class);
+            return validateCompanyResponse(response);
+        } catch (RestClientException e) {
+            throw new DartApiException("DART API 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    private DartCompanyResponse validateCompanyResponse(DartCompanyResponse response) {
+        if (response == null) {
+            throw new DartApiException("DART API 응답이 null입니다");
+        }
+        if (response.isSuccess()) {
+            return response;
+        }
+        if (response.isNoData()) {
+            return null;
+        }
+        throw new DartApiException(
+                response.getStatusCode(),
+                "DART API 오류 [" + response.getStatus() + "]: " + response.getMessage());
     }
 
     private String buildDisclosureListUri(

@@ -15,4 +15,6 @@
 - 2026-07-20 "push하고 pr 올려서 main 병합까지 해줘" — push·PR·병합 승인.
 
 ## 결과
-- (push/PR/merge 실행 후 기록)
+- push: origin feat/issue-88-company-report-ux-round2 (커밋 cd199a9).
+- PR: #89 (https://github.com/osnet-th/stock-market/pull/89) — base main.
+- merge: MERGED (merge commit b3e86dd), 2026-07-19T15:54:54Z. 이슈 #88 자동 CLOSED (Closes #88).

@@ -118,6 +118,41 @@
             </div>
         </div>
 
+        <!-- DART 정기보고서 바로가기 (최근 10년) -->
+        <div x-show="companyReport.selected" class="bg-white border border-gray-200 rounded mb-4">
+            <button type="button" @click="companyReport.disclosures.open = !companyReport.disclosures.open"
+                    class="w-full flex items-center gap-2 px-4 py-2.5 text-left">
+                <span class="text-sm font-semibold text-gray-700">DART 정기보고서 바로가기</span>
+                <span class="text-xs text-gray-400">최근 10년 · 사업/반기/분기 원문</span>
+                <span x-show="companyReport.disclosures.loading" class="text-xs text-gray-400"><span class="spinner inline-block mr-1"></span>불러오는 중...</span>
+                <span x-show="!companyReport.disclosures.loading && companyReport.disclosures.items.length > 0" class="text-xs text-gray-400" x-text="companyReport.disclosures.items.length + '건'"></span>
+                <div class="flex-1"></div>
+                <span class="text-gray-400 text-xs" x-text="companyReport.disclosures.open ? '접기 ▲' : '펼치기 ▼'"></span>
+            </button>
+            <div x-show="companyReport.disclosures.open" class="border-t border-gray-100 px-4 py-3">
+                <div x-show="companyReport.disclosures.error" class="text-xs text-amber-700" x-text="companyReport.disclosures.error"></div>
+                <div x-show="!companyReport.disclosures.loading && !companyReport.disclosures.error && companyReport.disclosures.items.length === 0" class="text-xs text-gray-400">최근 10년 정기보고서가 없습니다.</div>
+                <div class="space-y-1.5">
+                    <template x-for="grp in crDisclosureByYear()" :key="grp.year">
+                        <div class="flex items-start gap-2 text-xs">
+                            <span class="w-12 shrink-0 font-mono font-medium text-gray-600 pt-0.5" x-text="grp.year"></span>
+                            <div class="flex flex-wrap gap-1.5">
+                                <template x-for="r in grp.reports" :key="r.viewerUrl">
+                                    <a :href="r.viewerUrl" target="_blank" rel="noopener noreferrer"
+                                       class="inline-flex items-center gap-1 px-2 py-0.5 rounded border hover:brightness-95"
+                                       :class="crReportKindClass(r.kind)"
+                                       :title="r.reportName + ' · 접수 ' + crRawDate(r.receiptDate)">
+                                        <span x-text="crReportKindLabel(r)"></span>
+                                        <span x-show="r.correction" class="text-[10px] text-red-600 font-medium">정정</span>
+                                    </a>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
         <!-- 공통 상태 배너 (1단계 로딩은 검색창 아래 자리 안 카드로 표시) -->
         <div x-show="companyReport.previewLoading && companyReport.step >= 2" class="bg-white border border-gray-200 rounded p-4 mb-4 text-center text-sm text-gray-400">
             <span class="spinner inline-block mr-2"></span>자동 산출 데이터 조회 중... (DART 10개년 + 주가/지분 공시, 최대 1분)
@@ -367,10 +402,11 @@
                 <p class="text-xs text-gray-400 mb-2">경쟁사와는 개별 사업부문끼리 비교 (예: 삼성전자 반도체 ↔ 하이닉스 반도체)</p>
                 <div class="space-y-2">
                     <template x-for="(row, idx) in companyReport.form.manual.competitors" :key="idx">
-                        <div class="flex gap-2 items-center">
+                        <div class="flex gap-2 items-start">
                             <input type="text" x-model="row.name" placeholder="경쟁사" maxlength="500" class="w-40 text-sm border border-gray-300 rounded px-2 py-1.5" />
                             <input type="text" x-model="row.segment" placeholder="비교 사업부문" maxlength="500" class="w-40 text-sm border border-gray-300 rounded px-2 py-1.5" />
-                            <input type="text" x-model="row.note" placeholder="비교 내용" maxlength="500" class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                            <textarea x-model="row.note" placeholder="비교 내용 — 여러 줄 입력 가능" maxlength="500" rows="2"
+                                      class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5 resize-y"></textarea>
                             <button @click="companyReportRemoveRow('competitors', idx)" class="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded">삭제</button>
                         </div>
                     </template>
@@ -472,122 +508,113 @@
 
         <!-- ===== 5단계: 기업가치 ===== -->
         <div x-show="companyReport.step === 5" class="space-y-4">
-            <template x-if="companyReport.preview && companyReport.preview.snapshot && companyReport.preview.snapshot.priceMetrics">
-                <div class="bg-white border border-gray-200 rounded p-4">
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="text-sm font-semibold text-gray-700">주가지표 (자동)</div>
-                        <span class="text-xs text-gray-400">기준가: <span x-text="crNum(companyReport.preview.snapshot.priceMetrics.referencePrice, 0)"></span>원 (<span x-text="companyReport.preview.snapshot.priceMetrics.referencePriceDate || '—'"></span>)</span>
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">시가총액(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'marketCap')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'marketCap')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crAmt(companyReport.preview.snapshot.priceMetrics.marketCap)"></div></div>
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">EPS</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'eps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'eps')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.eps, 0)"></div></div>
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">BPS</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'bps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'bps')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.bps, 0)"></div></div>
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'per')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'per')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.per)"></div></div>
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pbr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.pbr)"></div></div>
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PSR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'psr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'psr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.psr)"></div></div>
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PCFR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pcfr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pcfr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.pcfr)"></div></div>
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER × PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'perTimesPbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'perTimesPbr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.perTimesPbr)"></div></div>
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">EV/EBITDA(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'evEbitda')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'evEbitda')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.preview.snapshot.priceMetrics.evEbitda)"></div></div>
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">ROIC(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'roic')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'roic')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crPct(companyReport.preview.snapshot.priceMetrics.roic)"></div></div>
-                        <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">발생액/총자산</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'accrual')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'accrual')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crPct(companyReport.preview.snapshot.priceMetrics.accrualRatio)"></div></div>
-                    </div>
-                </div>
-            </template>
+            <!-- 주가지표: 자동값 기본 표시 + 재료 인라인 편집 통합 (자동/내 계산 단일화) -->
             <div class="bg-white border border-gray-200 rounded p-4">
-                <div class="text-sm font-semibold text-gray-700 mb-1">주가지표 계산기 (내 계산)</div>
-                <p class="text-xs text-gray-400 mb-3">재료를 고치면 지표가 즉시 다시 계산됩니다. 비워두면 자동 산출값 사용. EPS·BPS는 당기순이익·자본총계 ÷ 유통주식수로 산출(유통주식수만 바꿔도 재계산). 위 "자동"은 보고 기준값이라 내 계산과 다를 수 있습니다. 당기순이익·자본총계는 적자·자본잠식(음수) 입력 가능. 금액 단위: <span class="font-medium" x-text="companyReport.form.manual.amountUnit + '원'"></span> (3단계에서 변경)</p>
-                <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">주가 (원)</label>
-                        <input type="text" x-model="companyReport.form.manual.metricInputs.price" inputmode="decimal"
-                               @input="crAmountInput(companyReport.form.manual.metricInputs, 'price')"
-                               :placeholder="'자동: ' + crNum(companyReport.preview?.snapshot?.priceMetrics?.referencePrice, 0)"
-                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">유통주식수 (주)</label>
-                        <input type="text" x-model="companyReport.form.manual.metricInputs.shares" inputmode="decimal"
-                               @input="crAmountInput(companyReport.form.manual.metricInputs, 'shares')"
-                               placeholder="자동: 시총÷주가"
-                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">당기순이익 (<span x-text="companyReport.form.manual.amountUnit"></span>)</label>
-                        <input type="text" x-model="companyReport.form.manual.metricInputs.netIncome" inputmode="decimal"
-                               @input="crSignedAmountInput(companyReport.form.manual.metricInputs, 'netIncome')"
-                               placeholder="자동: 최신 사업연도 당기순이익"
-                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">자본총계 (<span x-text="companyReport.form.manual.amountUnit"></span>)</label>
-                        <input type="text" x-model="companyReport.form.manual.metricInputs.equity" inputmode="decimal"
-                               @input="crSignedAmountInput(companyReport.form.manual.metricInputs, 'equity')"
-                               placeholder="자동: 최신 사업연도 자본총계"
-                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">매출액 (<span x-text="companyReport.form.manual.amountUnit"></span>)</label>
-                        <input type="text" x-model="companyReport.form.manual.metricInputs.revenue" inputmode="decimal"
-                               @input="crAmountInput(companyReport.form.manual.metricInputs, 'revenue')"
-                               placeholder="자동: 최신 사업연도 매출"
-                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">영업CF (<span x-text="companyReport.form.manual.amountUnit"></span>)</label>
-                        <input type="text" x-model="companyReport.form.manual.metricInputs.operatingCf" inputmode="decimal"
-                               @input="crAmountInput(companyReport.form.manual.metricInputs, 'operatingCf')"
-                               placeholder="자동: 최신 사업연도 영업CF"
-                               class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
-                    </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="text-sm font-semibold text-gray-700">주가지표</div>
+                    <span x-show="companyReport.preview && companyReport.preview.snapshot && companyReport.preview.snapshot.priceMetrics" class="text-xs text-gray-400">기준가: <span x-text="crNum(companyReport.preview?.snapshot?.priceMetrics?.referencePrice, 0)"></span>원 (<span x-text="companyReport.preview?.snapshot?.priceMetrics?.referencePriceDate || '—'"></span>)</span>
                 </div>
+                <p class="text-xs text-gray-400 mb-3">재료(주가·유통주식수·당기순이익·자본총계·매출액·영업CF)를 표에서 직접 고치면 파생 지표가 즉시 다시 계산됩니다. 비우면 자동 산출값(칸의 회색 안내값)을 사용합니다. EPS·BPS는 당기순이익·자본총계 ÷ 유통주식수(유통주식수만 바꿔도 재계산). 당기순이익·자본총계는 적자·자본잠식(음수) 입력 가능. 금액 단위: <span class="font-medium" x-text="companyReport.form.manual.amountUnit + '원'"></span> (3단계에서 변경)</p>
                 <table class="w-full text-xs border border-gray-100 rounded mb-3">
                     <thead>
                         <tr class="text-gray-500 border-b border-gray-100 text-left">
-                            <th class="px-2 py-1.5 w-28">지표</th>
-                            <th class="px-2 py-1.5">계산식</th>
-                            <th class="px-2 py-1.5 text-right w-32">내 계산</th>
+                            <th class="px-2 py-1.5 w-36">지표</th>
+                            <th class="px-2 py-1.5">계산식 / 입력</th>
+                            <th class="px-2 py-1.5 text-right w-36">값</th>
                         </tr>
                     </thead>
                     <tbody>
+                        <tr class="bg-gray-50"><td colspan="3" class="px-2 py-1 text-[11px] font-semibold text-gray-500">재료 (직접 입력 · 비우면 자동값)</td></tr>
                         <tr class="border-b border-gray-50">
-                            <td class="px-2 py-1.5 text-gray-700 font-medium">시가총액</td>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">주가 (원)</td>
+                            <td class="px-2 py-1.5"><input type="text" x-model="companyReport.form.manual.metricInputs.price" inputmode="decimal" @input="crAmountInput(companyReport.form.manual.metricInputs, 'price')" :placeholder="crMaterialAutoHint('price', companyReport.preview?.snapshot)" class="w-full text-sm border border-gray-300 rounded px-2 py-1" /></td>
+                            <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('price', companyReport.form.manual, companyReport.preview?.snapshot)"></td>
+                        </tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">유통주식수 (주)</td>
+                            <td class="px-2 py-1.5"><input type="text" x-model="companyReport.form.manual.metricInputs.shares" inputmode="decimal" @input="crAmountInput(companyReport.form.manual.metricInputs, 'shares')" :placeholder="crMaterialAutoHint('shares', companyReport.preview?.snapshot)" class="w-full text-sm border border-gray-300 rounded px-2 py-1" /></td>
+                            <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('shares', companyReport.form.manual, companyReport.preview?.snapshot)"></td>
+                        </tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">당기순이익 (<span x-text="companyReport.form.manual.amountUnit"></span>)</td>
+                            <td class="px-2 py-1.5"><input type="text" x-model="companyReport.form.manual.metricInputs.netIncome" inputmode="decimal" @input="crSignedAmountInput(companyReport.form.manual.metricInputs, 'netIncome')" :placeholder="crMaterialAutoHint('netIncome', companyReport.preview?.snapshot)" class="w-full text-sm border border-gray-300 rounded px-2 py-1" /></td>
+                            <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('netIncome', companyReport.form.manual, companyReport.preview?.snapshot)"></td>
+                        </tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">자본총계 (<span x-text="companyReport.form.manual.amountUnit"></span>)</td>
+                            <td class="px-2 py-1.5"><input type="text" x-model="companyReport.form.manual.metricInputs.equity" inputmode="decimal" @input="crSignedAmountInput(companyReport.form.manual.metricInputs, 'equity')" :placeholder="crMaterialAutoHint('equity', companyReport.preview?.snapshot)" class="w-full text-sm border border-gray-300 rounded px-2 py-1" /></td>
+                            <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('equity', companyReport.form.manual, companyReport.preview?.snapshot)"></td>
+                        </tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">매출액 (<span x-text="companyReport.form.manual.amountUnit"></span>)</td>
+                            <td class="px-2 py-1.5"><input type="text" x-model="companyReport.form.manual.metricInputs.revenue" inputmode="decimal" @input="crAmountInput(companyReport.form.manual.metricInputs, 'revenue')" :placeholder="crMaterialAutoHint('revenue', companyReport.preview?.snapshot)" class="w-full text-sm border border-gray-300 rounded px-2 py-1" /></td>
+                            <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('revenue', companyReport.form.manual, companyReport.preview?.snapshot)"></td>
+                        </tr>
+                        <tr>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">영업CF (<span x-text="companyReport.form.manual.amountUnit"></span>)</td>
+                            <td class="px-2 py-1.5"><input type="text" x-model="companyReport.form.manual.metricInputs.operatingCf" inputmode="decimal" @input="crAmountInput(companyReport.form.manual.metricInputs, 'operatingCf')" :placeholder="crMaterialAutoHint('operatingCf', companyReport.preview?.snapshot)" class="w-full text-sm border border-gray-300 rounded px-2 py-1" /></td>
+                            <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('operatingCf', companyReport.form.manual, companyReport.preview?.snapshot)"></td>
+                        </tr>
+                    </tbody>
+                    <tbody>
+                        <tr class="bg-gray-50"><td colspan="3" class="px-2 py-1 text-[11px] font-semibold text-gray-500">파생 지표 (자동 계산)</td></tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">시가총액 <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'marketCap')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'marketCap')">?</span></td>
                             <td class="px-2 py-1.5 text-gray-400">주가 × 유통주식수</td>
                             <td class="px-2 py-1.5 text-right font-mono" x-text="crAmt(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).marketCap)"></td>
                         </tr>
                         <tr class="border-b border-gray-50">
-                            <td class="px-2 py-1.5 text-gray-700 font-medium">EPS</td>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">EPS <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'eps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'eps')">?</span></td>
                             <td class="px-2 py-1.5 text-gray-400" x-text="crFormulaText('eps', companyReport.form.manual, companyReport.preview?.snapshot)"></td>
                             <td class="px-2 py-1.5 text-right font-mono" x-text="crNum(crMetricBase(companyReport.form.manual, companyReport.preview?.snapshot).eps, 0)"></td>
                         </tr>
                         <tr class="border-b border-gray-50">
-                            <td class="px-2 py-1.5 text-gray-700 font-medium">BPS</td>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">BPS <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'bps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'bps')">?</span></td>
                             <td class="px-2 py-1.5 text-gray-400" x-text="crFormulaText('bps', companyReport.form.manual, companyReport.preview?.snapshot)"></td>
                             <td class="px-2 py-1.5 text-right font-mono" x-text="crNum(crMetricBase(companyReport.form.manual, companyReport.preview?.snapshot).bps, 0)"></td>
                         </tr>
                         <tr class="border-b border-gray-50">
-                            <td class="px-2 py-1.5 text-gray-700 font-medium">PER</td>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">PER <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'per')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'per')">?</span></td>
                             <td class="px-2 py-1.5 text-gray-400">주가 ÷ EPS</td>
                             <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).per)"></td>
                         </tr>
                         <tr class="border-b border-gray-50">
-                            <td class="px-2 py-1.5 text-gray-700 font-medium">PBR</td>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">PBR <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'pbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pbr')">?</span></td>
                             <td class="px-2 py-1.5 text-gray-400">주가 ÷ BPS</td>
                             <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).pbr)"></td>
                         </tr>
                         <tr class="border-b border-gray-50">
-                            <td class="px-2 py-1.5 text-gray-700 font-medium">PSR</td>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">PSR <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'psr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'psr')">?</span></td>
                             <td class="px-2 py-1.5 text-gray-400">시가총액 ÷ 매출액</td>
                             <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).psr)"></td>
                         </tr>
                         <tr class="border-b border-gray-50">
-                            <td class="px-2 py-1.5 text-gray-700 font-medium">PCFR</td>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">PCFR <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'pcfr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pcfr')">?</span></td>
                             <td class="px-2 py-1.5 text-gray-400">시가총액 ÷ 영업활동현금흐름</td>
                             <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).pcfr)"></td>
                         </tr>
                         <tr>
-                            <td class="px-2 py-1.5 text-gray-700 font-medium">PER × PBR</td>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">PER × PBR <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'perTimesPbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'perTimesPbr')">?</span></td>
                             <td class="px-2 py-1.5 text-gray-400">PER × PBR (8 이하면 저평가 참고)</td>
                             <td class="px-2 py-1.5 text-right font-mono" x-text="crNum(crCalcMetrics(companyReport.form.manual, companyReport.preview?.snapshot).perTimesPbr)"></td>
+                        </tr>
+                    </tbody>
+                    <tbody x-show="companyReport.preview && companyReport.preview.snapshot && companyReport.preview.snapshot.priceMetrics">
+                        <tr class="bg-gray-50"><td colspan="3" class="px-2 py-1 text-[11px] font-semibold text-gray-500">자동 전용 (재료 없음 · 스냅샷값)</td></tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">EV/EBITDA(근사) <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'evEbitda')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'evEbitda')">?</span></td>
+                            <td class="px-2 py-1.5 text-gray-400">(시총 + 순차입금) ÷ (영업이익 + 상각비)</td>
+                            <td class="px-2 py-1.5 text-right font-mono" x-text="crNum(companyReport.preview?.snapshot?.priceMetrics?.evEbitda)"></td>
+                        </tr>
+                        <tr class="border-b border-gray-50">
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">ROIC(근사) <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'roic')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'roic')">?</span></td>
+                            <td class="px-2 py-1.5 text-gray-400">영업이익×(1−세율) ÷ 투하자본</td>
+                            <td class="px-2 py-1.5 text-right font-mono" x-text="crPct(companyReport.preview?.snapshot?.priceMetrics?.roic)"></td>
+                        </tr>
+                        <tr>
+                            <td class="px-2 py-1.5 text-gray-700 font-medium">발생액/총자산 <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'accrual')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'accrual')">?</span></td>
+                            <td class="px-2 py-1.5 text-gray-400">(순이익 − 영업CF) ÷ 자산총계</td>
+                            <td class="px-2 py-1.5 text-right font-mono" x-text="crPct(companyReport.preview?.snapshot?.priceMetrics?.accrualRatio)"></td>
                         </tr>
                     </tbody>
                 </table>
@@ -896,6 +923,41 @@
         <div x-show="companyReport.detailLoading" class="text-center py-10 text-sm text-gray-400">불러오는 중...</div>
         <div x-show="companyReport.detailError" class="border-l-4 border-red-400 bg-red-50 p-4 rounded mb-4 text-sm text-red-700" x-text="companyReport.detailError"></div>
 
+        <!-- DART 정기보고서 바로가기 (최근 10년) -->
+        <div x-show="companyReport.detail" class="bg-white border border-gray-200 rounded mb-4">
+            <button type="button" @click="companyReport.disclosures.open = !companyReport.disclosures.open"
+                    class="w-full flex items-center gap-2 px-4 py-2.5 text-left">
+                <span class="text-sm font-semibold text-gray-700">DART 정기보고서 바로가기</span>
+                <span class="text-xs text-gray-400">최근 10년 · 사업/반기/분기 원문</span>
+                <span x-show="companyReport.disclosures.loading" class="text-xs text-gray-400"><span class="spinner inline-block mr-1"></span>불러오는 중...</span>
+                <span x-show="!companyReport.disclosures.loading && companyReport.disclosures.items.length > 0" class="text-xs text-gray-400" x-text="companyReport.disclosures.items.length + '건'"></span>
+                <div class="flex-1"></div>
+                <span class="text-gray-400 text-xs" x-text="companyReport.disclosures.open ? '접기 ▲' : '펼치기 ▼'"></span>
+            </button>
+            <div x-show="companyReport.disclosures.open" class="border-t border-gray-100 px-4 py-3">
+                <div x-show="companyReport.disclosures.error" class="text-xs text-amber-700" x-text="companyReport.disclosures.error"></div>
+                <div x-show="!companyReport.disclosures.loading && !companyReport.disclosures.error && companyReport.disclosures.items.length === 0" class="text-xs text-gray-400">최근 10년 정기보고서가 없습니다.</div>
+                <div class="space-y-1.5">
+                    <template x-for="grp in crDisclosureByYear()" :key="grp.year">
+                        <div class="flex items-start gap-2 text-xs">
+                            <span class="w-12 shrink-0 font-mono font-medium text-gray-600 pt-0.5" x-text="grp.year"></span>
+                            <div class="flex flex-wrap gap-1.5">
+                                <template x-for="r in grp.reports" :key="r.viewerUrl">
+                                    <a :href="r.viewerUrl" target="_blank" rel="noopener noreferrer"
+                                       class="inline-flex items-center gap-1 px-2 py-0.5 rounded border hover:brightness-95"
+                                       :class="crReportKindClass(r.kind)"
+                                       :title="r.reportName + ' · 접수 ' + crRawDate(r.receiptDate)">
+                                        <span x-text="crReportKindLabel(r)"></span>
+                                        <span x-show="r.correction" class="text-[10px] text-red-600 font-medium">정정</span>
+                                    </a>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
         <template x-if="companyReport.detail && !companyReport.detailLoading">
             <div class="space-y-4 mb-8">
 
@@ -1092,9 +1154,9 @@
                                 <tbody>
                                     <template x-for="(c, idx) in companyReport.detail.manual.competitors" :key="idx">
                                         <tr class="border-b border-gray-50">
-                                            <td class="px-2 py-1 text-gray-700" x-text="c.name"></td>
-                                            <td class="px-2 py-1 text-gray-600" x-text="c.segment"></td>
-                                            <td class="px-2 py-1 text-gray-500" x-text="c.note"></td>
+                                            <td class="px-2 py-1 text-gray-700 align-top" x-text="c.name"></td>
+                                            <td class="px-2 py-1 text-gray-600 align-top" x-text="c.segment"></td>
+                                            <td class="px-2 py-1 text-gray-500 whitespace-pre-wrap" x-text="c.note"></td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -1196,60 +1258,141 @@
                 <!-- 6. 주가지표 -->
                 <template x-if="companyReport.detail.snapshot && companyReport.detail.snapshot.priceMetrics">
                     <div class="bg-white border border-gray-200 rounded p-4">
-                        <div class="flex items-center gap-2 mb-3">
+                        <div class="flex items-center gap-2 mb-1">
                             <div class="text-sm font-semibold text-gray-700">주가지표</div>
                             <span class="text-xs text-gray-400">기준가: <span x-text="crNum(companyReport.detail.snapshot.priceMetrics.referencePrice, 0)"></span>원 (<span x-text="companyReport.detail.snapshot.priceMetrics.referencePriceDate || '—'"></span>)</span>
                         </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">시가총액(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'marketCap')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'marketCap')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crAmt(companyReport.detail.snapshot.priceMetrics.marketCap)"></div></div>
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">EPS</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'eps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'eps')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.eps, 0)"></div></div>
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">BPS</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'bps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'bps')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.bps, 0)"></div></div>
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'per')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'per')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.per)"></div></div>
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pbr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.pbr)"></div></div>
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PSR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'psr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'psr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.psr)"></div></div>
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PCFR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pcfr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pcfr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.pcfr)"></div></div>
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER × PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'perTimesPbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'perTimesPbr')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.perTimesPbr)"></div></div>
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">EV/EBITDA(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'evEbitda')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'evEbitda')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(companyReport.detail.snapshot.priceMetrics.evEbitda)"></div></div>
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">ROIC(근사)</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'roic')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'roic')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crPct(companyReport.detail.snapshot.priceMetrics.roic)"></div></div>
-                            <div class="border border-gray-100 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">발생액/총자산</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'accrual')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'accrual')">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crPct(companyReport.detail.snapshot.priceMetrics.accrualRatio)"></div></div>
-                        </div>
+                        <p class="text-xs text-gray-400 mb-3">재료에 직접 입력한 값이 있으면 그 값으로, 없으면 자동 산출값으로 파생 지표를 계산합니다(가운데 열은 자동값 참고). EV/EBITDA·ROIC·발생액은 자동 전용(스냅샷값).</p>
+                        <table class="w-full text-xs border border-gray-100 rounded">
+                            <thead>
+                                <tr class="text-gray-500 border-b border-gray-100 text-left">
+                                    <th class="px-2 py-1.5 w-36">지표</th>
+                                    <th class="px-2 py-1.5">계산식 / 자동값</th>
+                                    <th class="px-2 py-1.5 text-right w-36">값</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="bg-gray-50"><td colspan="3" class="px-2 py-1 text-[11px] font-semibold text-gray-500">재료 (입력값 우선 · 없으면 자동)</td></tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">주가 (원)</td>
+                                    <td class="px-2 py-1.5 text-gray-400" x-text="crMaterialAutoHint('price', companyReport.detail.snapshot)"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('price', companyReport.detail.manual, companyReport.detail.snapshot)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">유통주식수 (주)</td>
+                                    <td class="px-2 py-1.5 text-gray-400" x-text="crMaterialAutoHint('shares', companyReport.detail.snapshot)"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('shares', companyReport.detail.manual, companyReport.detail.snapshot)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">당기순이익</td>
+                                    <td class="px-2 py-1.5 text-gray-400" x-text="crMaterialAutoHint('netIncome', companyReport.detail.snapshot)"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('netIncome', companyReport.detail.manual, companyReport.detail.snapshot)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">자본총계</td>
+                                    <td class="px-2 py-1.5 text-gray-400" x-text="crMaterialAutoHint('equity', companyReport.detail.snapshot)"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('equity', companyReport.detail.manual, companyReport.detail.snapshot)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">매출액</td>
+                                    <td class="px-2 py-1.5 text-gray-400" x-text="crMaterialAutoHint('revenue', companyReport.detail.snapshot)"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('revenue', companyReport.detail.manual, companyReport.detail.snapshot)"></td>
+                                </tr>
+                                <tr>
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">영업CF</td>
+                                    <td class="px-2 py-1.5 text-gray-400" x-text="crMaterialAutoHint('operatingCf', companyReport.detail.snapshot)"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono text-gray-700" x-text="crMaterialValue('operatingCf', companyReport.detail.manual, companyReport.detail.snapshot)"></td>
+                                </tr>
+                            </tbody>
+                            <tbody>
+                                <tr class="bg-gray-50"><td colspan="3" class="px-2 py-1 text-[11px] font-semibold text-gray-500">파생 지표</td></tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">시가총액 <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'marketCap')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'marketCap')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400">주가 × 유통주식수</td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crAmt(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).marketCap)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">EPS <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'eps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'eps')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400" x-text="crFormulaText('eps', companyReport.detail.manual, companyReport.detail.snapshot)"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crNum(crMetricBase(companyReport.detail.manual, companyReport.detail.snapshot).eps, 0)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">BPS <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'bps')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'bps')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400" x-text="crFormulaText('bps', companyReport.detail.manual, companyReport.detail.snapshot)"></td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crNum(crMetricBase(companyReport.detail.manual, companyReport.detail.snapshot).bps, 0)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">PER <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'per')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'per')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400">주가 ÷ EPS</td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).per)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">PBR <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'pbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pbr')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400">주가 ÷ BPS</td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).pbr)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">PSR <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'psr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'psr')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400">시가총액 ÷ 매출액</td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).psr)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">PCFR <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'pcfr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pcfr')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400">시가총액 ÷ 영업활동현금흐름</td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).pcfr)"></td>
+                                </tr>
+                                <tr>
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">PER × PBR <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'perTimesPbr')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'perTimesPbr')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400">PER × PBR (8 이하면 저평가 참고)</td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crNum(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).perTimesPbr)"></td>
+                                </tr>
+                            </tbody>
+                            <tbody>
+                                <tr class="bg-gray-50"><td colspan="3" class="px-2 py-1 text-[11px] font-semibold text-gray-500">자동 전용 (재료 없음 · 스냅샷값)</td></tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">EV/EBITDA(근사) <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'evEbitda')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'evEbitda')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400">(시총 + 순차입금) ÷ (영업이익 + 상각비)</td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crNum(companyReport.detail.snapshot.priceMetrics.evEbitda)"></td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">ROIC(근사) <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'roic')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'roic')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400">영업이익×(1−세율) ÷ 투하자본</td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crPct(companyReport.detail.snapshot.priceMetrics.roic)"></td>
+                                </tr>
+                                <tr>
+                                    <td class="px-2 py-1.5 text-gray-700 font-medium">발생액/총자산 <span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold align-middle" @mouseenter="crHintShow($event, 'accrual')" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'accrual')">?</span></td>
+                                    <td class="px-2 py-1.5 text-gray-400">(순이익 − 영업CF) ÷ 자산총계</td>
+                                    <td class="px-2 py-1.5 text-right font-mono" x-text="crPct(companyReport.detail.snapshot.priceMetrics.accrualRatio)"></td>
+                                </tr>
+                            </tbody>
+                        </table>
                         <div x-show="companyReport.detail.snapshot.priceMetrics.warnings && companyReport.detail.snapshot.priceMetrics.warnings.length" class="mt-2">
                             <template x-for="w in companyReport.detail.snapshot.priceMetrics.warnings" :key="w">
                                 <div class="text-[11px] text-amber-600" x-text="'⚠ ' + w"></div>
                             </template>
                         </div>
-                        <div x-show="crHasCustomMetrics(companyReport.detail.manual)" class="mt-3 border-t border-gray-100 pt-3">
-                            <div class="text-xs font-medium text-gray-600 mb-2">내 계산 (입력 재료 기반 공식값 — "자동"과 다를 수 있음, 계산식은 5단계 참고)</div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs mb-2">
-                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">시가총액</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'marketCap', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'marketCap', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crAmt(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).marketCap)"></div></div>
-                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'per', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'per', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).per)"></div></div>
-                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pbr', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pbr', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).pbr)"></div></div>
-                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PSR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'psr', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'psr', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).psr)"></div></div>
-                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PCFR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'pcfr', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'pcfr', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crTimes(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).pcfr)"></div></div>
-                                <div class="border border-blue-100 bg-blue-50/40 rounded p-2"><div class="flex items-start justify-between"><div class="text-gray-400">PER × PBR</div><span class="cursor-help select-none w-3.5 h-3.5 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold" @mouseenter="crHintShow($event, 'perTimesPbr', false)" @mouseleave="crHintHide()" @click.stop="crHintToggle($event, 'perTimesPbr', false)">?</span></div><div class="font-semibold text-gray-800 mt-0.5" x-text="crNum(crCalcMetrics(companyReport.detail.manual, companyReport.detail.snapshot).perTimesPbr)"></div></div>
-                            </div>
-                            <div x-show="crForecastMetrics(companyReport.detail.manual, companyReport.detail.snapshot).length > 0">
-                                <table class="w-full text-xs border border-gray-100 rounded">
-                                    <thead>
-                                        <tr class="text-gray-500 border-b border-gray-100 text-left">
-                                            <th class="px-2 py-1.5">연도</th>
-                                            <th class="px-2 py-1.5 text-right">예상 매출</th>
-                                            <th class="px-2 py-1.5 text-right">예상 PSR</th>
-                                            <th class="px-2 py-1.5 text-right">예상 PER</th>
+                        <div x-show="crForecastMetrics(companyReport.detail.manual, companyReport.detail.snapshot).length > 0" class="mt-3">
+                            <div class="text-xs font-medium text-gray-600 mb-1.5">예상 매출 기반 지표 (예상 실적 입력 연동)</div>
+                            <table class="w-full text-xs border border-gray-100 rounded">
+                                <thead>
+                                    <tr class="text-gray-500 border-b border-gray-100 text-left">
+                                        <th class="px-2 py-1.5">연도</th>
+                                        <th class="px-2 py-1.5 text-right">예상 매출</th>
+                                        <th class="px-2 py-1.5 text-right">예상 PSR</th>
+                                        <th class="px-2 py-1.5 text-right">예상 PER</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="f in crForecastMetrics(companyReport.detail.manual, companyReport.detail.snapshot)" :key="f.year">
+                                        <tr class="border-b border-gray-50">
+                                            <td class="px-2 py-1.5 font-mono" x-text="f.year + 'E'"></td>
+                                            <td class="px-2 py-1.5 text-right font-mono" x-text="crAmt(f.annual)"></td>
+                                            <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(f.psr)"></td>
+                                            <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(f.per)"></td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-for="f in crForecastMetrics(companyReport.detail.manual, companyReport.detail.snapshot)" :key="f.year">
-                                            <tr class="border-b border-gray-50">
-                                                <td class="px-2 py-1.5 font-mono" x-text="f.year + 'E'"></td>
-                                                <td class="px-2 py-1.5 text-right font-mono" x-text="crAmt(f.annual)"></td>
-                                                <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(f.psr)"></td>
-                                                <td class="px-2 py-1.5 text-right font-mono" x-text="crTimes(f.per)"></td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
-                            </div>
+                                    </template>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </template>

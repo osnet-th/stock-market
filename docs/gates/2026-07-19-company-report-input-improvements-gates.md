@@ -14,8 +14,8 @@
 - review: approved (2026-07-19, "ce:review 로 진행해") / 완료 (2026-07-19, 4개 관점 리뷰 — MED 2·LOW 5, 보안/성능 findings 없음, docs/reviews/2026-07-19-company-report-input-improvements-review.md)
 - review 반영: 태형님 결정 (2026-07-19) — F1=공식 유지+안내문구 / 적자(음수) 입력 지원 / F2~F5 모두 반영. work 복귀해 반영·재컴파일 exit 0 (work 문서 "리뷰 반영" 섹션)
 - validation: approved (2026-07-19, "전체 기동") / 완료 (2026-07-19, 앱/DB 기동 + Browser pane 실동작 9항목 + v1 하위호환 통과, docs/validations/2026-07-19-company-report-input-improvements-validation.md)
-- commit: pending
-- push: pending
+- commit: 완료 (2026-07-19, "커밋 3개로 분리해서 진행해" — 275bb13 단독 커밋, docs/commits/2026-07-19-company-report-input-improvements-commit.md)
+- push: approved (2026-07-19, "push 해서 pr 올리고 메인에 다 병합까지" — origin push + PR 생성·main 병합 진행, docs/pushes/2026-07-19-company-report-input-improvements-push.md)
 
 ## Notes
 - 선행 기능: 기업분석리포트 #81 (docs/gates/2026-07-12-company-analysis-report-gates.md).

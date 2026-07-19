@@ -68,6 +68,10 @@ const CompanyReportComponent = {
         detailError: null,
         refreshing: false,
 
+        // ==== DART 정기보고서 바로가기 (최근 10년) ====
+        disclosures: { open: false, loading: false, error: null, stockCode: null, items: [] },
+        _disclosureGen: 0,
+
         _charts: [],
 
         // 정적 설정
@@ -193,6 +197,7 @@ const CompanyReportComponent = {
         cr.selected = stock;
         cr.searchResults = [];
         cr.searchQuery = '';
+        this.companyReportLoadDisclosures(stock.stockCode); // preview와 병렬(가벼운 호출)
         await this.companyReportLoadPreview();
     },
 
@@ -217,6 +222,101 @@ const CompanyReportComponent = {
         } finally {
             if (gen === cr._previewGen) cr.previewLoading = false;
         }
+    },
+
+    // ==================== DART 정기보고서 바로가기 (최근 10년) ====================
+    // preview(최대 1분)와 별개의 가벼운 호출. 정기공시(A)만 조회 후 사업/반기/분기만 필터.
+    _crResetDisclosures() {
+        const cr = this.companyReport;
+        cr._disclosureGen++; // 진행 중이던 이전 로드 무효화 (리셋 후 stale 결과 유입 방지)
+        const d = cr.disclosures;
+        d.loading = false; d.error = null; d.stockCode = null; d.items = [];
+    },
+
+    async companyReportLoadDisclosures(stockCode) {
+        const cr = this.companyReport;
+        if (!stockCode) return;
+        if (cr.disclosures.stockCode === stockCode && cr.disclosures.items.length > 0) return; // 같은 종목 재로드 방지
+        const gen = ++cr._disclosureGen;
+        const d = cr.disclosures;
+        d.loading = true;
+        d.error = null;
+        d.stockCode = stockCode;
+        d.items = [];
+        try {
+            const from = this._formatYmd(this._crYearsAgo(10));
+            const to = this._formatYmd(new Date());
+            const rows = await API.getDisclosures(stockCode, from, to, ['A']) || [];
+            if (gen !== cr._disclosureGen) return;
+            d.items = rows
+                .map(r => ({
+                    reportName: r.reportName, receiptDate: r.receiptDate, viewerUrl: r.viewerUrl,
+                    kind: this._crReportKind(r.reportName), period: this._crReportPeriod(r.reportName),
+                    // 정정은 remark 또는 보고서명 '[기재정정]' 등 접두 양쪽에서 감지
+                    correction: this.isCorrectionDisclosure(r.remark) || (r.reportName || '').indexOf('정정') !== -1
+                }))
+                .filter(r => r.kind);
+        } catch (e) {
+            if (gen !== cr._disclosureGen) return;
+            console.error('정기보고서 조회 실패:', e);
+            d.error = '정기보고서 목록을 불러오지 못했습니다.';
+        } finally {
+            if (gen === cr._disclosureGen) d.loading = false;
+        }
+    },
+
+    _crYearsAgo(years) {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() - years);
+        return d;
+    },
+
+    // 보고서명 → 종류 (사업/반기/분기), 그 외는 null(제외)
+    _crReportKind(name) {
+        const n = name || '';
+        if (n.indexOf('사업보고서') !== -1) return '사업';
+        if (n.indexOf('반기보고서') !== -1) return '반기';
+        if (n.indexOf('분기보고서') !== -1) return '분기';
+        return null;
+    },
+
+    // 보고서명의 대상 기간 "(YYYY.MM)" 추출 → {year, month}. 없으면 null
+    _crReportPeriod(name) {
+        const m = /\((\d{4})\.(\d{2})/.exec(name || '');
+        return m ? { year: m[1], month: m[2] } : null;
+    },
+
+    // 연도별 그룹(최신 연도 우선), 연도 내는 기간(월) 오름차순
+    crDisclosureByYear() {
+        const items = this.companyReport.disclosures.items || [];
+        const map = {};
+        items.forEach(r => {
+            const year = (r.period && r.period.year) || (r.receiptDate ? r.receiptDate.slice(0, 4) : '—');
+            (map[year] = map[year] || []).push(r);
+        });
+        return Object.keys(map).sort((a, b) => b.localeCompare(a)).map(year => ({
+            year,
+            reports: map[year].sort((a, b) => {
+                const ma = (a.period && a.period.month) || '99';
+                const mb = (b.period && b.period.month) || '99';
+                return ma !== mb ? ma.localeCompare(mb) : (a.receiptDate || '').localeCompare(b.receiptDate || '');
+            })
+        }));
+    },
+
+    // 링크 라벨: 분기는 1Q/3Q 구분해 표시
+    crReportKindLabel(r) {
+        if (r.kind === '분기' && r.period) {
+            if (r.period.month === '03') return '분기 1Q';
+            if (r.period.month === '09') return '분기 3Q';
+        }
+        return r.kind;
+    },
+
+    crReportKindClass(kind) {
+        if (kind === '사업') return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+        if (kind === '반기') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        return 'bg-gray-50 text-gray-600 border-gray-200'; // 분기
     },
 
     // ==================== 위저드 이동 ====================
@@ -261,6 +361,7 @@ const CompanyReportComponent = {
         cr.draftNotice = '';
         cr.searchQuery = '';
         cr.searchResults = [];
+        this._crResetDisclosures();
         this._crResetForm();
     },
 
@@ -296,6 +397,8 @@ const CompanyReportComponent = {
         cr.previewError = null;
         cr.formError = null;
         cr.draftNotice = '';
+        this._crResetDisclosures();
+        this.companyReportLoadDisclosures(detail.stockCode);
         this._crPopulateForm(detail);
         cr.step = step;
         this._crRenderStepChart();
@@ -361,8 +464,10 @@ const CompanyReportComponent = {
         cr.detailLoading = true;
         cr.detailError = null;
         this._crDestroyCharts();
+        this._crResetDisclosures();
         try {
             cr.detail = await API.getCompanyReport(id);
+            this.companyReportLoadDisclosures(cr.detail?.stockCode);
             this.$nextTick(() => this._crRenderPerfChart(cr.detail?.snapshot, 'report-detail-perf', cr.detail?.manual));
         } catch (e) {
             cr.detailError = e?.message || '리포트 조회에 실패했습니다.';
@@ -872,16 +977,19 @@ const CompanyReportComponent = {
         return label + ' ÷ 유통주식수 = ' + this.crAmt(numerator) + ' ÷ ' + Format.compactNumber(b.shares) + '주';
     },
 
+    // 스냅샷 실적 최신 사업연도(baseYear) 값(원). 없으면 null
+    _crPerf(snapshot, key) {
+        const row = (snapshot?.performance || []).find(r => r.key === key);
+        const baseYear = snapshot?.valuationInputs?.baseYear;
+        return (row && baseYear != null) ? this._crNum(row.values[baseYear]) : null;
+    },
+
     // 계산기 재료: 사용자 입력 우선, 비면 스냅샷 자동값 폴백. 금액은 원 환산
     crMetricBase(manual, snapshot) {
         const pm = snapshot?.priceMetrics || {};
         const mi = manual?.metricInputs || {};
         const unit = this.crUnitMult(manual);
-        const perf = key => {
-            const row = (snapshot?.performance || []).find(r => r.key === key);
-            const baseYear = snapshot?.valuationInputs?.baseYear;
-            return row && baseYear != null ? this._crNum(row.values[baseYear]) : null;
-        };
+        const perf = key => this._crPerf(snapshot, key);
         const autoPrice = this._crNum(pm.referencePrice);
         const autoCap = this._crNum(pm.marketCap);
         const price = this._crNum(mi.price) ?? autoPrice;
@@ -901,6 +1009,40 @@ const CompanyReportComponent = {
             revenue: this._crNum(mi.revenue) != null ? this._crNum(mi.revenue) * unit : perf('revenue'),
             operatingCf: this._crNum(mi.operatingCf) != null ? this._crNum(mi.operatingCf) * unit : perf('operatingCf')
         };
+    },
+
+    // 통합 표: 입력과 무관한 순수 자동값(재료). 편집칸 placeholder(회색 안내값)용
+    crAutoMaterials(snapshot) {
+        const pm = snapshot?.priceMetrics || {};
+        const autoPrice = this._crNum(pm.referencePrice);
+        const autoCap = this._crNum(pm.marketCap);
+        const snapshotShares = (autoCap != null && autoPrice) ? autoCap / autoPrice : null;
+        return {
+            price: autoPrice,
+            shares: snapshotShares,
+            netIncome: this._crPerf(snapshot, 'netIncome'),
+            equity: this._crAutoEquity(pm, snapshotShares),
+            revenue: this._crPerf(snapshot, 'revenue'),
+            operatingCf: this._crPerf(snapshot, 'operatingCf')
+        };
+    },
+
+    // 통합 표 재료 편집칸 placeholder: 자동값(값 열과 동일 포맷 — 주가=원, 유통주식수=주, 금액=조/억)
+    crMaterialAutoHint(key, snapshot) {
+        const v = this.crAutoMaterials(snapshot)[key];
+        if (v == null) return '자동값 없음';
+        if (key === 'price') return '자동 ' + Format.number(v, 0) + '원';
+        if (key === 'shares') return '자동 ' + Format.compactNumber(v) + '주';
+        return '자동 ' + this.crAmt(v); // 금액: 값 열과 동일하게 조/억 형식
+    },
+
+    // 통합 표 재료 유효값(입력 override 우선, 없으면 자동). 표시 문자열
+    crMaterialValue(key, manual, snapshot) {
+        const b = this.crMetricBase(manual, snapshot);
+        if (key === 'price') return b.price != null ? Format.number(b.price, 0) + '원' : '—';
+        if (key === 'shares') return b.shares != null ? Format.compactNumber(b.shares) + '주' : '—';
+        const v = { netIncome: b.netIncome, equity: b.equity, revenue: b.revenue, operatingCf: b.operatingCf }[key];
+        return v != null ? this.crAmt(v) : '—';
     },
 
     // 계산기 결과 (재료 기반 즉시 계산)
@@ -927,13 +1069,6 @@ const CompanyReportComponent = {
             psr: (b.marketCap != null && f.annual > 0) ? b.marketCap / f.annual : null,
             per: (b.marketCap != null && f.netIncome != null && f.netIncome > 0) ? b.marketCap / f.netIncome : null
         }));
-    },
-
-    // 계산기 사용 여부 (상세 화면 "내 계산" 블록 노출 조건)
-    crHasCustomMetrics(manual) {
-        const mi = manual?.metricInputs || {};
-        const hasInput = Object.values(mi).some(v => v != null && String(v).trim() !== '');
-        return hasInput || this._crForecastSeries(manual).length > 0;
     },
 
     crTimes(value) {

@@ -14,8 +14,8 @@
 - review: 완료 (2026-07-19, /code-review xhigh — high 없음, low~low/med 6건, docs/reviews/2026-07-19-company-report-ux-round2-review.md)
 - review 반영: 태형님 "권장 4건(F1·F2·F4·F5) 반영" (2026-07-19) — F1 gen 증가, F2 reportName 정정 병행 감지, F4 자동안내값 crAmt 통일, F5 crAutoMaterials/crMaterialAutoHint manual 제거(호출부 12곳 치환). F3·F6 보류.
 - validation: 완료 (2026-07-20, bootRun(dev,8082) 기동+compileJava 성공. ② 공시 실 API 200, ①③ 독립 하니스 렌더/재계산/줄바꿈 통과, 신규 콘솔 에러 없음. dev 인증 제약으로 user-scoped 저장/preview 실데이터는 미검증. docs/validations/2026-07-19-company-report-ux-round2-validation.md)
-- commit: 진행 (2026-07-20, 태형님 "push하고 pr 올려서 main 병합까지" — 코드 2파일 + workflow 문서 단일 커밋, .claude/launch.json 제외, docs/commits/2026-07-19-company-report-ux-round2-commit.md)
-- push: 진행 (2026-07-20, origin feat/issue-88 push → PR → main 병합, docs/pushes/2026-07-19-company-report-ux-round2-push.md)
+- commit: 완료 (2026-07-20, 단일 커밋 cd199a9 — 코드 2파일 + workflow 문서 9종, .claude/launch.json 제외, docs/commits/2026-07-19-company-report-ux-round2-commit.md)
+- push: 완료 (2026-07-20, origin feat/issue-88 push → PR #89 → main 병합 merge commit b3e86dd, 이슈 #88 CLOSED, docs/pushes/2026-07-19-company-report-ux-round2-push.md)
 
 ## Notes
 - 선행 기능: 기업분석리포트 #81, 기업 리포트 입력 개선 #84 (docs/gates/2026-07-19-company-report-input-improvements-gates.md).

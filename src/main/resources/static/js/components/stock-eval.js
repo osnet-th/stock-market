@@ -358,9 +358,11 @@ const StockEvalComponent = {
         if (typeof v !== 'string' || !/^-?\d+(\.\d+)?$/.test(v)) return this.fmtNum(v);
         const n = parseFloat(v);
         if (isNaN(n)) return v;
-        const toJo = this.stockEval.amountUnit === '조';
-        const val = toJo ? n / 10000 : n;
-        return val.toLocaleString('ko-KR', { maximumFractionDigits: toJo ? 1 : 2 });
+        if (this.stockEval.amountUnit === '조') {
+            // 조 변환: 반올림하지 않고 소수점 2자리에서 버림 (공용 Format.truncTo2)
+            return Format.truncTo2(n / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+        }
+        return n.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
     },
 
     // 재무 표 셀: 결산년월(col0) 원본, 금액 표(대차/손익)는 단위 적용, 비율 표는 일반 콤마

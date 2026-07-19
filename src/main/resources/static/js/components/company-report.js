@@ -699,7 +699,8 @@ const CompanyReportComponent = {
 
     // ==================== 표시 헬퍼 ====================
     crAmt(value) {
-        return (value == null || value === '') ? '—' : Format.compactNumber(value);
+        // 조 단위는 2자리 버림(반올림 X) — 기업 리포트 표시용
+        return (value == null || value === '') ? '—' : Format.compactNumber(value, true);
     },
 
     crNum(value, decimals = 2) {

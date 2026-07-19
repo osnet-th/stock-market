@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * 수집된 연도별 데이터를 "항목 × 연도" 매트릭스로 병합한다.
@@ -26,6 +27,12 @@ public class FinancialTimelineAssembler {
 
     private static final String UNUSED_ACCOUNT_ID = "-표준계정코드 미사용-";
     private static final String CASH_FLOW_DIV = "CF";
+    private static final String INCOME_STMT_DIV = "IS";
+    private static final String COMPREHENSIVE_INCOME_DIV = "CIS";
+    /** 손익 요약 총계 표준 계정 id (요약 결측 연도 보강용) */
+    private static final String REVENUE_ID = "ifrs-full_Revenue";
+    private static final String OPERATING_PROFIT_ID = "ifrs-full_ProfitLossFromOperatingActivities";
+    private static final String NET_INCOME_ID = "ifrs-full_ProfitLoss";
     private static final String FCF_NAME = "잉여현금흐름";
 
     /** Phase 0 실호출로 확정한 FCF 구성 계정의 IFRS 표준 ID (plan Open Questions 참고) */
@@ -39,6 +46,10 @@ public class FinancialTimelineAssembler {
     private static final String OPERATING_CF_NAME = "영업활동현금흐름";
     private static final String PPE_PURCHASE_NAME = "유형자산의 취득";
     private static final String INTANGIBLE_PURCHASE_NAME = "무형자산의 취득";
+
+    /** IFRS 계정 id 접두사 — 구(ifrs_) 신고분을 신(ifrs-full_) 표준형으로 정규화해 연도 간 병합 */
+    private static final String IFRS_LEGACY_PREFIX = "ifrs_";
+    private static final String IFRS_FULL_PREFIX = "ifrs-full_";
 
     public FinancialTimelineResponse assemble(List<TimelineColumnData> data, String fsDiv, Set<TimelineItem> items) {
         return FinancialTimelineResponse.builder()
@@ -54,14 +65,88 @@ public class FinancialTimelineAssembler {
     // === 요약 재무계정 ===
 
     private List<TimelineRow> toSummaryRows(List<TimelineColumnData> data, String fsDiv) {
-        return mergeRows(data, column -> summaryAccountsOf(column, fsDiv),
-                FinancialAccount::accountName, FinancialAccount::accountName, FinancialAccount::currentTermAmount);
+        List<TimelineRow> rows = new ArrayList<>(mergeRows(data, column -> summaryAccountsOf(column, fsDiv),
+                FinancialAccount::accountName, FinancialAccount::accountName, FinancialAccount::currentTermAmount));
+        backfillSummaryAmounts(rows, data);
+        return rows;
     }
 
     private List<FinancialAccount> summaryAccountsOf(TimelineColumnData column, String fsDiv) {
         return column.accounts().stream()
                 .filter(account -> fsDiv.equals(account.fsDiv()))
                 .toList();
+    }
+
+    /**
+     * 요약 손익 금액(매출액·영업이익·당기순이익) 결측 연도 보강 — 주요계정(fnlttSinglAcnt)에
+     * 없는 연도를 전체재무제표 IS 총계로 채운다. 기존 값은 보존(putIfAbsent).
+     */
+    private void backfillSummaryAmounts(List<TimelineRow> rows, List<TimelineColumnData> data) {
+        backfillSummaryRow(rows, "매출액", detailTotalByYear(data, REVENUE_ID, this::isRevenueTotalName));
+        backfillSummaryRow(rows, "영업이익", detailTotalByYear(data, OPERATING_PROFIT_ID, this::isOperatingProfitTotalName));
+        backfillSummaryRow(rows, "당기순이익", detailTotalByYear(data, NET_INCOME_ID, this::isNetIncomeTotalName));
+    }
+
+    private void backfillSummaryRow(List<TimelineRow> rows, String namePrefix, Map<String, String> byYear) {
+        if (byYear.isEmpty()) {
+            return;
+        }
+        TimelineRow target = rows.stream()
+                .filter(row -> normalize(row.getName()).startsWith(namePrefix))
+                .findFirst()
+                .orElse(null);
+        if (target == null) {
+            rows.add(new TimelineRow(namePrefix, namePrefix, new LinkedHashMap<>(byYear)));
+            return;
+        }
+        byYear.forEach((year, value) -> target.getValues().putIfAbsent(year, value));
+    }
+
+    /** 전체재무제표 IS/CIS에서 연도별 총계 금액 — 표준 id 우선, 무표준코드는 이름 폴백 */
+    private Map<String, String> detailTotalByYear(List<TimelineColumnData> data,
+            String standardId, Predicate<FullFinancialStatement> nameMatch) {
+        Map<String, String> series = new LinkedHashMap<>();
+        for (TimelineColumnData column : data) {
+            incomeStatementTotal(column.details(), standardId, nameMatch)
+                    .ifPresent(item -> series.putIfAbsent(column.year(), item.currentTermAmount()));
+        }
+        return series;
+    }
+
+    /** 손익계산서 총계 행: 표준 id(접두사 정규화) 우선, 없으면(무표준코드) 이름 매칭 폴백 */
+    private Optional<FullFinancialStatement> incomeStatementTotal(List<FullFinancialStatement> details,
+            String standardId, Predicate<FullFinancialStatement> nameMatch) {
+        List<FullFinancialStatement> incomeRows = details.stream()
+                .filter(item -> INCOME_STMT_DIV.equals(item.statementDiv())
+                        || COMPREHENSIVE_INCOME_DIV.equals(item.statementDiv()))
+                .toList();
+        return incomeRows.stream()
+                .filter(item -> standardId.equals(canonicalAccountId(item.accountId())))
+                .findFirst()
+                .or(() -> incomeRows.stream().filter(nameMatch).findFirst());
+    }
+
+    private boolean isRevenueTotalName(FullFinancialStatement item) {
+        String name = normalize(item.accountName());
+        return name.contains("매출액") && !name.contains("률");
+    }
+
+    private boolean isOperatingProfitTotalName(FullFinancialStatement item) {
+        String name = normalize(item.accountName());
+        return name.contains("영업이익") && !name.contains("률");
+    }
+
+    /** 연결 총계 당기순이익: 지배·비지배·계속영업·중단영업·주당(EPS) 라인 제외 */
+    private boolean isNetIncomeTotalName(FullFinancialStatement item) {
+        String name = normalize(item.accountName());
+        return name.contains("당기순이익")
+                && !name.contains("주당")
+                && !name.contains("지배") && !name.contains("비지배")
+                && !name.contains("계속영업") && !name.contains("중단영업");
+    }
+
+    private String normalize(String name) {
+        return name == null ? "" : name.replace(" ", "");
     }
 
     // === 재무지표 (4분류) ===
@@ -118,7 +203,7 @@ public class FinancialTimelineAssembler {
     private BigDecimal findCashFlowAmount(List<FullFinancialStatement> details, String accountId, String accountName) {
         return details.stream()
                 .filter(item -> CASH_FLOW_DIV.equals(item.statementDiv()))
-                .filter(item -> accountId.equals(item.accountId()) || accountName.equals(item.accountName()))
+                .filter(item -> accountId.equals(canonicalAccountId(item.accountId())) || accountName.equals(item.accountName()))
                 .findFirst()
                 .map(item -> parseAmount(item.currentTermAmount()))
                 .orElse(null);
@@ -167,13 +252,25 @@ public class FinancialTimelineAssembler {
     }
 
     /**
-     * 연도 간 행 매칭 키: account_id 우선, 표준계정코드 미사용이면 계정명 폴백
+     * 연도 간 행 매칭 키: account_id(접두사 정규화) 우선, 표준계정코드 미사용이면 계정명 폴백
      */
     private String detailRowKey(FullFinancialStatement item) {
         if (item.accountId() == null || UNUSED_ACCOUNT_ID.equals(item.accountId())) {
             return item.accountName();
         }
-        return item.accountId();
+        return canonicalAccountId(item.accountId());
+    }
+
+    /**
+     * IFRS 계정 id 접두사 정규화: 구 {@code ifrs_} → 신 {@code ifrs-full_}(표준형).
+     * 동일 taxonomy 요소가 연도별로 다른 접두사(2018년 이전 ifrs_, 이후 ifrs-full_)로 신고돼도 한 행으로 병합한다.
+     * {@code ifrs-full_}·{@code dart_}·기타 접두사는 그대로 둔다.
+     */
+    private String canonicalAccountId(String accountId) {
+        if (accountId != null && accountId.startsWith(IFRS_LEGACY_PREFIX)) {
+            return IFRS_FULL_PREFIX + accountId.substring(IFRS_LEGACY_PREFIX.length());
+        }
+        return accountId;
     }
 
     // === 공통 병합 헬퍼 ===

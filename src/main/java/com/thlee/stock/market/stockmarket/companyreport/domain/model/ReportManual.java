@@ -24,7 +24,8 @@ public record ReportManual(
         MetricInputs metricInputs
 ) {
 
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    // v2: MetricInputs에 당기순이익·자본총계 추가(EPS·BPS 공식형), PartnerItem에 품목 추가. eps·bps는 v1 폴백용 유지.
+    public static final int CURRENT_SCHEMA_VERSION = 2;
 
     /** 자유 메모 길이 상한 */
     public static final int TEXT_MAX_LENGTH = 10000;
@@ -38,8 +39,8 @@ public record ReportManual(
     /** 회사 연혁: 연도별 사건 */
     public record HistoryItem(String year, String content) {}
 
-    /** 판매처/매입처: 업체 + 비중 + 비고 */
-    public record PartnerItem(String name, String share, String note) {}
+    /** 판매처/매입처: 업체 + 품목(판매처=제품·매입처=원자재) + 비중 + 비고 */
+    public record PartnerItem(String name, String item, String share, String note) {}
 
     /** 경쟁사 비교: 개별 사업부문끼리 비교 */
     public record CompetitorItem(String name, String segment, String note) {}
@@ -54,8 +55,13 @@ public record ReportManual(
     public record RevenueForecast(String year, String q1, String q2, String q3, String q4,
                                   String ni1, String ni2, String ni3, String ni4) {}
 
-    /** 주가지표 계산기 재료 (선택 입력, 비우면 자동 산출값 사용). 주당 값은 원, 금액은 amountUnit */
-    public record MetricInputs(String price, String shares, String eps, String bps, String revenue, String operatingCf) {}
+    /**
+     * 주가지표 계산기 재료 (선택 입력, 비우면 자동 산출값 사용).
+     * netIncome(당기순이익)·equity(자본총계)·revenue·operatingCf는 amountUnit, price·shares는 원/주.
+     * EPS·BPS는 분자(당기순이익·자본총계) ÷ 유통주식수로 산출한다. eps·bps는 구버전 직접입력 폴백용(신규 UI 미노출).
+     */
+    public record MetricInputs(String price, String shares, String netIncome, String equity,
+                               String revenue, String operatingCf, String eps, String bps) {}
 
     public static ReportManual empty() {
         return new ReportManual(CURRENT_SCHEMA_VERSION,
@@ -88,7 +94,7 @@ public record ReportManual(
     }
 
     private void validateListFields() {
-        ifPresent(history, item -> requireYear(item.year(), "연혁"));
+        ifPresent(history, item -> requireYearOrMonth(item.year(), "연혁"));
         ifPresent(financialChanges, item -> requireYear(item.year(), "급변 항목"));
         ifPresent(revenueForecasts, item -> requireYear(item.year(), "예상 매출"));
         ifPresent(revenueForecasts, item -> requireAmounts("예상 매출",
@@ -97,8 +103,8 @@ public record ReportManual(
                 item.ni1(), item.ni2(), item.ni3(), item.ni4()));
         validateUnitAndMetricInputs();
         ifPresent(history, item -> requireFieldsWithin("연혁", item.year(), item.content()));
-        ifPresent(customers, item -> requireFieldsWithin("판매처", item.name(), item.share(), item.note()));
-        ifPresent(suppliers, item -> requireFieldsWithin("매입처", item.name(), item.share(), item.note()));
+        ifPresent(customers, row -> requireFieldsWithin("판매처", row.name(), row.item(), row.share(), row.note()));
+        ifPresent(suppliers, row -> requireFieldsWithin("매입처", row.name(), row.item(), row.share(), row.note()));
         ifPresent(competitors, item -> requireFieldsWithin("경쟁사 비교", item.name(), item.segment(), item.note()));
         ifPresent(financialChanges, item -> requireFieldsWithin("급변 항목", item.year(), item.item(), item.reason()));
         ifPresent(shareholderEvents, item -> requireFieldsWithin("주주 이벤트", item.period(), item.content()));
@@ -130,10 +136,12 @@ public record ReportManual(
         if (metricInputs != null) {
             requireAmounts("주가지표 재료", metricInputs.price(), metricInputs.shares(),
                     metricInputs.eps(), metricInputs.bps(), metricInputs.revenue(), metricInputs.operatingCf());
+            // 당기순이익·자본총계는 적자·자본잠식(음수) 허용
+            requireSignedAmounts("주가지표 재료", metricInputs.netIncome(), metricInputs.equity());
         }
     }
 
-    /** 금액/수량 입력: 숫자(소수점 허용)만 허용 */
+    /** 금액/수량 입력: 숫자(소수점 허용, 음수 불가) */
     private static void requireAmounts(String label, String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank() && !value.matches("\\d{1,15}(\\.\\d{1,6})?")) {
@@ -142,9 +150,35 @@ public record ReportManual(
         }
     }
 
+    /** 손익/자본 입력: 음수(적자·자본잠식) 허용 숫자 */
+    private static void requireSignedAmounts(String label, String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank() && !value.matches("-?\\d{1,15}(\\.\\d{1,6})?")) {
+                throw new IllegalArgumentException(label + " 금액은 숫자여야 합니다: " + value);
+            }
+        }
+    }
+
     private static void requireYear(String year, String label) {
         if (year != null && !year.isBlank() && !year.matches("\\d{4}")) {
             throw new IllegalArgumentException(label + " 연도는 4자리 숫자여야 합니다: " + year);
+        }
+    }
+
+    /** 연혁 날짜: YYYY 또는 YYYY.MM(월 1~12) 허용 */
+    private static void requireYearOrMonth(String value, String label) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        if (!value.matches("\\d{4}(\\.\\d{1,2})?")) {
+            throw new IllegalArgumentException(label + " 날짜는 YYYY 또는 YYYY.MM 형식이어야 합니다: " + value);
+        }
+        int dot = value.indexOf('.');
+        if (dot >= 0) {
+            int month = Integer.parseInt(value.substring(dot + 1));
+            if (month < 1 || month > 12) {
+                throw new IllegalArgumentException(label + " 월은 1~12 사이여야 합니다: " + value);
+            }
         }
     }
 

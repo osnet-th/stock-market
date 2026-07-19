@@ -46,7 +46,7 @@ const CompanyReportComponent = {
                 shareholderEvents: [], shareholderNote: '',
                 judgmentComment: '',
                 revenueForecasts: [], amountUnit: '억',
-                metricInputs: { price: '', shares: '', eps: '', bps: '', revenue: '', operatingCf: '' }
+                metricInputs: { price: '', shares: '', netIncome: '', equity: '', revenue: '', operatingCf: '', eps: '', bps: '' }
             },
             grades: {
                 assetUndervalue: '', earningsUndervalue: '', financialHealth: '',
@@ -409,7 +409,7 @@ const CompanyReportComponent = {
                 shareholderEvents: [], shareholderNote: '',
                 judgmentComment: '',
                 revenueForecasts: [], amountUnit: '억',
-                metricInputs: { price: '', shares: '', eps: '', bps: '', revenue: '', operatingCf: '' }
+                metricInputs: { price: '', shares: '', netIncome: '', equity: '', revenue: '', operatingCf: '', eps: '', bps: '' }
             },
             grades: {
                 assetUndervalue: '', earningsUndervalue: '', financialHealth: '',
@@ -494,7 +494,7 @@ const CompanyReportComponent = {
             .map(row => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, (v || '').trim()])))
             .filter(row => Object.values(row).some(v => v !== ''));
         return {
-            schemaVersion: 1,
+            schemaVersion: 2,
             history: rows(m.history),
             philosophyNote: note(m.philosophyNote),
             customers: rows(m.customers),
@@ -510,8 +510,9 @@ const CompanyReportComponent = {
             amountUnit: m.amountUnit || '억',
             metricInputs: {
                 price: note(m.metricInputs.price), shares: note(m.metricInputs.shares),
-                eps: note(m.metricInputs.eps), bps: note(m.metricInputs.bps),
-                revenue: note(m.metricInputs.revenue), operatingCf: note(m.metricInputs.operatingCf)
+                netIncome: note(m.metricInputs.netIncome), equity: note(m.metricInputs.equity),
+                revenue: note(m.metricInputs.revenue), operatingCf: note(m.metricInputs.operatingCf),
+                eps: note(m.metricInputs.eps), bps: note(m.metricInputs.bps)
             }
         };
     },
@@ -520,8 +521,8 @@ const CompanyReportComponent = {
     _crNewRow(list) {
         const templates = {
             history: { year: '', content: '' },
-            customers: { name: '', share: '', note: '' },
-            suppliers: { name: '', share: '', note: '' },
+            customers: { name: '', item: '', share: '', note: '' },
+            suppliers: { name: '', item: '', share: '', note: '' },
             competitors: { name: '', segment: '', note: '' },
             financialChanges: { year: '', item: '', reason: '' },
             shareholderEvents: { period: '', content: '' },
@@ -548,10 +549,14 @@ const CompanyReportComponent = {
         this.companyReport.form.manual[list].splice(idx, 1);
     },
 
-    // 연혁 연도 오름차순 정렬 (조회 표시용)
+    // 연혁 날짜(YYYY 또는 YYYY.MM) 오름차순 정렬 (조회 표시용) — 월 자릿수 무관 숫자 정렬
     crHistoryAsc(manual) {
         const rows = manual?.history || [];
-        return [...rows].sort((a, b) => (a.year || '').localeCompare(b.year || ''));
+        const sortKey = h => {
+            const [year, month] = String(h?.year || '').split('.');
+            return (parseInt(year, 10) || 0) * 100 + (parseInt(month, 10) || 0);
+        };
+        return [...rows].sort((a, b) => sortKey(a) - sortKey(b));
     },
 
     // ==================== 차트 ====================
@@ -778,6 +783,11 @@ const CompanyReportComponent = {
         obj[key] = String(obj[key] ?? '').replace(/[^0-9.]/g, '');
     },
 
+    // 손익/자본: 음수(적자·자본잠식) 허용 — 선행 마이너스 1개만 유지
+    crSignedAmountInput(obj, key) {
+        obj[key] = String(obj[key] ?? '').replace(/[^0-9.-]/g, '').replace(/(?!^)-/g, '');
+    },
+
     _crNum(value) {
         const n = parseFloat(String(value ?? '').replace(/,/g, ''));
         return isNaN(n) ? null : n;
@@ -819,6 +829,48 @@ const CompanyReportComponent = {
         return sum > 0 ? Format.number(sum, 2) : '—';
     },
 
+    // 스냅샷 자동 자본총계(원): BPS 근거값(자본총계 term) 우선, 없으면 BPS × 스냅샷 유통주식수 역산. 유통주식수 편집과 무관하게 고정.
+    _crAutoEquity(pm, snapshotShares) {
+        const terms = pm?.breakdowns?.bps?.terms || [];
+        const term = terms.find(t => (t.label || '').includes('자본총계'));
+        const fromTerm = term ? this._crNum(term.value) : null;
+        if (fromTerm != null) return fromTerm;
+        const bps = this._crNum(pm?.bps);
+        return (bps != null && snapshotShares != null) ? bps * snapshotShares : null;
+    },
+
+    // 분자 ÷ 유통주식수 파생값 + 채택 근거(source). 우선순위: 명시 입력 → 구버전 직접입력 → 자동 분자 → 스냅샷 지표
+    _crPerShare(inputAmt, legacyPerShare, autoAmount, snapMetric, unit, shares) {
+        const inNum = this._crNum(inputAmt);
+        const hasShares = shares != null && shares > 0;
+        if (inNum != null && hasShares) {
+            return { value: inNum * unit / shares, numerator: inNum * unit, source: 'input' };
+        }
+        const legacy = this._crNum(legacyPerShare);
+        if (legacy != null) {
+            return { value: legacy, numerator: null, source: 'legacy' };
+        }
+        if (autoAmount != null && hasShares) {
+            return { value: autoAmount / shares, numerator: autoAmount, source: 'auto' };
+        }
+        return { value: this._crNum(snapMetric), numerator: null, source: 'snapshot' };
+    },
+
+    // 내 계산 표: EPS·BPS 공식에 실제 대입값을 넣은 문자열 (채택 근거 기반 — 우선순위 재복제 안 함)
+    crFormulaText(kind, manual, snapshot) {
+        const b = this.crMetricBase(manual, snapshot);
+        const source = kind === 'eps' ? b.epsSource : b.bpsSource;
+        if (source === 'legacy') {
+            return '직접 입력값';
+        }
+        const label = kind === 'eps' ? '당기순이익' : '자본총계';
+        const numerator = kind === 'eps' ? b.netIncome : b.equity;
+        if (numerator == null || b.shares == null) {
+            return label + ' ÷ 유통주식수';
+        }
+        return label + ' ÷ 유통주식수 = ' + this.crAmt(numerator) + ' ÷ ' + Format.compactNumber(b.shares) + '주';
+    },
+
     // 계산기 재료: 사용자 입력 우선, 비면 스냅샷 자동값 폴백. 금액은 원 환산
     crMetricBase(manual, snapshot) {
         const pm = snapshot?.priceMetrics || {};
@@ -832,12 +884,19 @@ const CompanyReportComponent = {
         const autoPrice = this._crNum(pm.referencePrice);
         const autoCap = this._crNum(pm.marketCap);
         const price = this._crNum(mi.price) ?? autoPrice;
-        const shares = this._crNum(mi.shares) ?? (autoCap != null && autoPrice ? autoCap / autoPrice : null);
+        const snapshotShares = (autoCap != null && autoPrice) ? autoCap / autoPrice : null;
+        const shares = this._crNum(mi.shares) ?? snapshotShares;
         const marketCap = (price != null && shares != null) ? price * shares : autoCap;
+        // EPS·BPS: 분자(당기순이익·자본총계) ÷ 유통주식수. 우선순위/채택 근거는 _crPerShare가 결정(유통주식수만 바꿔도 재계산)
+        const autoNet = perf('netIncome');
+        const autoEquity = this._crAutoEquity(pm, snapshotShares);
+        const epsCalc = this._crPerShare(mi.netIncome, mi.eps, autoNet, pm.eps, unit, shares);
+        const bpsCalc = this._crPerShare(mi.equity, mi.bps, autoEquity, pm.bps, unit, shares);
         return {
             price, shares, marketCap,
-            eps: this._crNum(mi.eps) ?? this._crNum(pm.eps),
-            bps: this._crNum(mi.bps) ?? this._crNum(pm.bps),
+            netIncome: epsCalc.numerator, equity: bpsCalc.numerator,
+            eps: epsCalc.value, bps: bpsCalc.value,
+            epsSource: epsCalc.source, bpsSource: bpsCalc.source,
             revenue: this._crNum(mi.revenue) != null ? this._crNum(mi.revenue) * unit : perf('revenue'),
             operatingCf: this._crNum(mi.operatingCf) != null ? this._crNum(mi.operatingCf) * unit : perf('operatingCf')
         };

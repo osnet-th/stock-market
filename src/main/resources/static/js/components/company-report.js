@@ -393,7 +393,9 @@ const CompanyReportComponent = {
         cr.isDraftFlow = isDraftFlow;
         cr.editingId = detail.id;
         cr.selected = { stockCode: detail.stockCode, stockName: detail.stockName };
-        cr.preview = detail.snapshot ? { snapshot: detail.snapshot, valuation: detail.valuation } : null;
+        cr.preview = detail.snapshot
+            ? { snapshot: detail.snapshot, valuation: detail.valuation, suggestedGrades: detail.suggestedGrades }
+            : null;
         cr.previewError = null;
         cr.formError = null;
         cr.draftNotice = '';
@@ -866,6 +868,30 @@ const CompanyReportComponent = {
         if (grade === 'D') return 'bg-blue-50 text-blue-700';
         if (grade === 'E') return 'bg-slate-100 text-slate-500';
         return 'bg-gray-50 text-gray-400';
+    },
+
+    // ==================== 제안 등급 (정량 5항목, 조회 시 파생 계산 — 작성=preview / 상세=detail) ====================
+    crSuggestion(key) {
+        const cr = this.companyReport;
+        const source = cr.view === 'detail' ? cr.detail : cr.preview;
+        return source?.suggestedGrades?.[key] || null;
+    },
+
+    crSuggestionBasis(key) {
+        return (this.crSuggestion(key)?.basis || []).join(' · ');
+    },
+
+    crHasSuggestions() {
+        return this.companyReport.gradeItems.some(item => this.crSuggestion(item.key));
+    },
+
+    crApplySuggestion(key) {
+        const s = this.crSuggestion(key);
+        if (s?.grade) this.companyReport.form.grades[key] = s.grade;
+    },
+
+    crApplyAllSuggestions() {
+        this.companyReport.gradeItems.forEach(item => this.crApplySuggestion(item.key));
     },
 
     crRiskBadge(value) {

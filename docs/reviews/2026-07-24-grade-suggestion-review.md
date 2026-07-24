@@ -1,7 +1,7 @@
 # 투자판단 등급 자동 제안 Review 기록
 
 **Date:** 2026-07-24
-**Gate:** docs/gates/2026-07-24-grade-suggestion-gates.md
+gate: docs/gates/2026-07-24-grade-suggestion-gates.md
 **방식:** 셀프 리뷰 (경계값 시나리오 추적 + diff 전수 확인 + 컨벤션 체크리스트)
 
 ## Findings (심각도 순)

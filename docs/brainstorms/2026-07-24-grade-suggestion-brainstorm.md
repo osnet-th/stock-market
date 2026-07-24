@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-24
 **Status:** Decided (태형님 "이제 추가해줘" 지시로 범위 확정, 2026-07-24)
-**Gate:** docs/gates/2026-07-24-grade-suggestion-gates.md
+gate: docs/gates/2026-07-24-grade-suggestion-gates.md
 
 ## 배경
 

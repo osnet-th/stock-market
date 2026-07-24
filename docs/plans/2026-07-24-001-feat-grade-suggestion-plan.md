@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-24
 **Issue:** #91
-**Gate:** docs/gates/2026-07-24-grade-suggestion-gates.md
+gate: docs/gates/2026-07-24-grade-suggestion-gates.md
 **Brainstorm:** docs/brainstorms/2026-07-24-grade-suggestion-brainstorm.md
 
 ## 범위

@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-24
 **Issue:** #91
-**Gate:** docs/gates/2026-07-24-grade-suggestion-gates.md
+gate: docs/gates/2026-07-24-grade-suggestion-gates.md
 **Plan:** docs/plans/2026-07-24-001-feat-grade-suggestion-plan.md
 
 ## 변경 파일

@@ -11,15 +11,26 @@
 - worktree는 사용하지 않는다 — 원격 세션 하네스가 지정한 브랜치 `claude/operating-profit-growth-calculation-x839b1`에서 개발·푸시한다 (`scripts/create-worktree.sh` 미사용 사유).
 
 ## Stage Decisions
-- start: approved (2026-07-24, 태형님 "이제 추가해줘")
+- start: approved
+- brainstorm: approved
+- issue: approved
+- plan: approved
+- work: approved
+- review: approved
+- validation: approved
+- commit: approved
+- push: approved
+
+## Stage Log
+- start: 2026-07-24, 태형님 "이제 추가해줘"
 - brainstorm: 완료 (2026-07-24, docs/brainstorms/2026-07-24-grade-suggestion-brainstorm.md — 대화에서 제시한 기준표 승인 기반)
-- issue: 완료 (2026-07-24, GitHub Issue 등록 — docs/issues/2026-07-24-grade-suggestion-issue.md 참조)
+- issue: 완료 (2026-07-24, GitHub Issue #91 등록 — docs/issues/2026-07-24-grade-suggestion-issue.md 참조)
 - plan: 완료 (2026-07-24, docs/plans/2026-07-24-001-feat-grade-suggestion-plan.md)
 - work: 완료 (2026-07-24, docs/works/2026-07-24-grade-suggestion-work.md)
-- review: 완료 (2026-07-24, docs/reviews/2026-07-24-grade-suggestion-review.md)
-- validation: 완료 (2026-07-24, docs/validations/2026-07-24-grade-suggestion-validation.md)
-- commit: 완료 (2026-07-24, docs/commits/2026-07-24-grade-suggestion-commit.md)
-- push: 완료 (2026-07-24, docs/pushes/2026-07-24-grade-suggestion-push.md)
+- review: 완료 (2026-07-24, 셀프 리뷰 — 명시적 findings 없음, docs/reviews/2026-07-24-grade-suggestion-review.md)
+- validation: 완료 (2026-07-24, 정적 검증 통과·런타임 미검증 명시, docs/validations/2026-07-24-grade-suggestion-validation.md)
+- commit: 완료 (2026-07-24, 3b1a38a 단일 커밋 — 코드 5파일 + workflow 문서 9종, docs/commits/2026-07-24-grade-suggestion-commit.md)
+- push: 완료 (2026-07-24, origin 지정 브랜치 push. PR 생성·main 병합은 태형님 "만들고 병합까지 해줘" 지시로 진행, docs/pushes/2026-07-24-grade-suggestion-push.md)
 
 ## Approval Gate 항목
 - 신규 공개 API 응답 필드 추가: `Detail`/`Preview`에 `suggestedGrades` (additive) — "이제 추가해줘" 지시 범위 내로 판단.

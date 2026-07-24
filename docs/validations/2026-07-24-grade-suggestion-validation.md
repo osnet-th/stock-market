@@ -1,7 +1,7 @@
 # 투자판단 등급 자동 제안 Validation 기록
 
 **Date:** 2026-07-24
-**Gate:** docs/gates/2026-07-24-grade-suggestion-gates.md
+gate: docs/gates/2026-07-24-grade-suggestion-gates.md
 
 ## 실행한 명령과 결과
 

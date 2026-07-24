@@ -833,8 +833,12 @@
         <!-- ===== 7단계: 투자판단 ===== -->
         <div x-show="companyReport.step === 7" class="space-y-4">
             <div class="bg-white border border-gray-200 rounded p-4">
-                <div class="text-sm font-semibold text-gray-700 mb-1">투자판단 7항목 (A~E)</div>
-                <p class="text-xs text-gray-400 mb-3">한 항목이라도 A가 있으면 매수재료로 표시됩니다. 지금은 D여도 앞으로 A가 될 것 같은지도 함께 생각해 보세요.</p>
+                <div class="flex items-center justify-between mb-1">
+                    <div class="text-sm font-semibold text-gray-700">투자판단 7항목 (A~E)</div>
+                    <button x-show="crHasSuggestions()" @click="crApplyAllSuggestions()"
+                            class="px-2.5 py-1 text-xs text-blue-700 border border-blue-300 rounded hover:bg-blue-50">제안 모두 적용</button>
+                </div>
+                <p class="text-xs text-gray-400 mb-3">한 항목이라도 A가 있으면 매수재료로 표시됩니다. 지금은 D여도 앞으로 A가 될 것 같은지도 함께 생각해 보세요. 정량 5항목은 스냅샷·가치평가 기준 제안 등급이 참고로 표시됩니다 — 최종 등급은 직접 확정하세요.</p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <template x-for="item in companyReport.gradeItems" :key="item.key">
                         <div>
@@ -848,6 +852,18 @@
                                 <option value="D">D</option>
                                 <option value="E">E</option>
                             </select>
+                            <template x-if="crSuggestion(item.key)">
+                                <div class="mt-1 flex items-center gap-1.5 text-xs">
+                                    <span class="text-gray-400 shrink-0">제안</span>
+                                    <span class="inline-flex w-5 h-5 items-center justify-center rounded text-[11px] font-bold shrink-0"
+                                          :class="crGradeBadge(crSuggestion(item.key).grade)"
+                                          x-text="crSuggestion(item.key).grade"></span>
+                                    <button @click="crApplySuggestion(item.key)"
+                                            class="px-1.5 py-0.5 text-[11px] text-blue-600 border border-blue-200 rounded hover:bg-blue-50 shrink-0">적용</button>
+                                    <span class="text-[11px] text-gray-400 truncate" :title="crSuggestionBasis(item.key)"
+                                          x-text="crSuggestionBasis(item.key)"></span>
+                                </div>
+                            </template>
                         </div>
                     </template>
                 </div>
@@ -977,6 +993,10 @@
                                 <span class="inline-flex w-8 h-8 items-center justify-center text-sm font-bold rounded"
                                       :class="crGradeBadge(companyReport.detail.grades ? companyReport.detail.grades[item.key] : null)"
                                       x-text="(companyReport.detail.grades && companyReport.detail.grades[item.key]) || '—'"></span>
+                                <div x-show="crSuggestion(item.key)" class="mt-1 text-[11px] text-gray-400"
+                                     :title="crSuggestionBasis(item.key)">
+                                    제안 <span class="font-semibold" x-text="crSuggestion(item.key)?.grade"></span>
+                                </div>
                             </div>
                         </template>
                     </div>

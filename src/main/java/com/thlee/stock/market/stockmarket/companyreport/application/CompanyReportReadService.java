@@ -27,6 +27,7 @@ public class CompanyReportReadService {
     private final ReportSnapshotJsonMapper snapshotJsonMapper;
     private final LiquidationValueCalculator liquidationCalculator;
     private final DcfCalculator dcfCalculator;
+    private final GradeSuggestionCalculator gradeSuggestionCalculator;
 
     @Transactional(readOnly = true)
     public CompanyReportResults.ListResult findList(Long userId, String stockNameKeyword, int page, int size) {
@@ -49,7 +50,9 @@ public class CompanyReportReadService {
      */
     public CompanyReportResults.Preview preview(String stockCode) {
         ReportSnapshot snapshot = snapshotService.assemble(stockCode);
-        return new CompanyReportResults.Preview(snapshot, computeValuation(snapshot, ValuationParams.defaults()));
+        ReportValuation valuation = computeValuation(snapshot, ValuationParams.defaults());
+        return new CompanyReportResults.Preview(snapshot, valuation,
+                gradeSuggestionCalculator.calculate(snapshot, valuation));
     }
 
     // === 내부 헬퍼 ===
@@ -69,6 +72,7 @@ public class CompanyReportReadService {
                 report.getManual(), report.getGrades(), report.getGrades().hasBuySignal(),
                 report.isDraft(), report.getDraftStep(),
                 report.getValuationParams(), snapshot, valuation,
+                gradeSuggestionCalculator.calculate(snapshot, valuation),
                 report.getSnapshotAt(), report.getCreatedAt(), report.getUpdatedAt());
     }
 

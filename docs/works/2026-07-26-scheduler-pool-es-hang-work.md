@@ -30,8 +30,9 @@ gate: docs/gates/2026-07-26-scheduler-pool-es-hang-gates.md
 
 ## 특이사항 / 알려진 한계
 
-- JDK `HttpClient`의 `HttpRequest.timeout`은 응답(헤더) 수신까지의 타임아웃이라 **본문 스트리밍 중 지연(tarpit)은 커버하지 못함**. KIS ZIP 다운로드의 잔여 리스크이나, 본 수정의 본체(LogBatchBuffer 격리)와 무관하고 발생 빈도가 낮아 수용. 근본 방어는 격리 원칙(행이 나도 해당 작업 1개만 영향).
-- `flushExecutor.shutdownNow()`의 인터럽트는 행 중인 `BasicFuture.get()`(condition await)을 깨울 수 있어 셧다운 시 스레드 회수에도 유효.
+- ~~JDK `HttpRequest.timeout`의 본문 미커버 한계~~ → **리뷰 M1 반영으로 해소**: KIS ZIP 다운로드는 `sendAsync` + 유한 `get(120s)`으로 본문 수신 포함 총 시간 상한을 걸었다. DART는 Spring `JdkClientHttpRequest`의 TimeoutHandler가 본문 읽기까지 커버함이 리뷰에서 검증됨.
+- `flushExecutor.shutdownNow()` 인터럽트는 `flush()`의 `catch (Exception)`에 삼켜져 소거될 수 있어(리뷰 L1) 인터럽트 유래 예외 감지 시 복원하도록 보강. flush 스레드는 daemon이라 어떤 경우에도 앱 종료를 막지 않는다.
+- **잔존 ES 행 경로 (리뷰 M3, 본 이슈 범위 밖 — 후속 이슈 후보)**: `LogIndexScheduler`(03:00 cleanup / 23:55 precreate cron)와 뉴스 배치(`NewsSaveService` → `NewsElasticsearchIndexer.save`)는 여전히 공용 스케줄러 풀에서 동일 ES 전송로(`Rest5Client`/`BasicFuture.get()`)를 동기 호출한다. reactor 사망 시 cron당 최대 1스레드 잠식 가능(누적되지 않고 유계, 풀 10 상향으로 완화). 핵심 잠식원(5초 주기 + 임계 flush)은 격리됐으므로 전면 정지 재발 가능성은 크게 낮아졌으나, "cron 완전 보호"는 이 경로 해소 후에 성립한다.
 
 ## 미검증 항목 (validation 단계 과제)
 

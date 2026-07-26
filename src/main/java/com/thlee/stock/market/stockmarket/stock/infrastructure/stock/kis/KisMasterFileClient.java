@@ -20,6 +20,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipInputStream;
 
 @Slf4j
@@ -111,16 +115,31 @@ public class KisMasterFileClient {
 
     private Path downloadZip(String url) throws IOException, InterruptedException {
         Path tempZip = Files.createTempFile("kis_master_", ".zip");
-        // 스케줄러 스레드에서 실행되므로 무기한 대기 금지 — connect/response 타임아웃 필수 (#96)
+        // 스케줄러·요청 스레드에서 실행되므로 무기한 대기 금지.
+        // HttpRequest.timeout 은 응답 헤더까지만 커버하므로, 본문 수신을 포함한
+        // 총 시간 상한은 sendAsync + 유한 get 으로 건다 (#96 리뷰 M1)
         HttpClient client = HttpClient.newBuilder()
             .connectTimeout(CONNECT_TIMEOUT)
             .build();
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(url))
-            .timeout(DOWNLOAD_TIMEOUT)
             .GET()
             .build();
-        client.send(request, HttpResponse.BodyHandlers.ofFile(tempZip));
+        CompletableFuture<HttpResponse<Path>> download =
+            client.sendAsync(request, HttpResponse.BodyHandlers.ofFile(tempZip));
+        try {
+            download.get(DOWNLOAD_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            download.cancel(true);
+            throw new IOException(
+                "마스터파일 다운로드 타임아웃(" + DOWNLOAD_TIMEOUT.toSeconds() + "s): " + url, e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException ioException) {
+                throw ioException;
+            }
+            throw new IOException("마스터파일 다운로드 실패: " + url, cause);
+        }
         return tempZip;
     }
 

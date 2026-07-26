@@ -96,14 +96,7 @@ public class LogBatchBuffer {
         }
         boolean flushNeeded = false;
         synchronized (lock) {
-            if (buffer.size() >= HARD_CAP_ITEMS || bufferedBytes >= HARD_CAP_BYTES) {
-                logIngestionDroppedCounter.increment();
-                if (!dropWarned) {
-                    dropWarned = true;
-                    LogBatchBuffer.log.warn(
-                            "로그 버퍼 하드캡 도달 ({}건/{}bytes) — flush 미진행(ES 행 의심), 신규 로그 드롭 시작",
-                            buffer.size(), bufferedBytes);
-                }
+            if (dropIfHardCapReached()) {
                 return;
             }
             buffer.add(log);
@@ -115,6 +108,20 @@ public class LogBatchBuffer {
         if (flushNeeded) {
             requestFlush();
         }
+    }
+
+    /** lock 보유 상태에서만 호출한다. 하드캡 도달 시 드롭 계수 후 true 를 반환한다. */
+    private boolean dropIfHardCapReached() {
+        if (buffer.size() < HARD_CAP_ITEMS && bufferedBytes < HARD_CAP_BYTES) {
+            return false;
+        }
+        logIngestionDroppedCounter.increment();
+        if (!dropWarned) {
+            dropWarned = true;
+            log.warn("로그 버퍼 하드캡 도달 ({}건/{}bytes) — flush 미진행(ES 행 의심), 신규 로그 드롭 시작",
+                    buffer.size(), bufferedBytes);
+        }
+        return true;
     }
 
     /**
@@ -132,18 +139,26 @@ public class LogBatchBuffer {
         }
     }
 
-    /** 전용 flush 스레드에서만 실행된다 (주기 + 임계 초과 요청). */
+    /**
+     * 전용 flush 스레드에서만 실행된다 (주기 + 임계 초과 요청).
+     * 예외가 새어나가면 {@code scheduleWithFixedDelay} 주기 실행이 조용히 영구 취소되므로
+     * Error 를 포함해 전부 방어한다 (#96 리뷰 M2).
+     */
     private void flushPending() {
-        flushRequested.set(false);
-        List<ApplicationLog> toFlush;
-        synchronized (lock) {
-            if (buffer.isEmpty()) {
-                return;
+        try {
+            flushRequested.set(false);
+            List<ApplicationLog> toFlush;
+            synchronized (lock) {
+                if (buffer.isEmpty()) {
+                    return;
+                }
+                toFlush = swapOut();
+                dropWarned = false;
             }
-            toFlush = swapOut();
-            dropWarned = false;
+            flush(toFlush);
+        } catch (Throwable t) {
+            log.warn("로그 flush 실행 실패 (주기 유지)", t);
         }
-        flush(toFlush);
     }
 
     /**
@@ -247,8 +262,21 @@ public class LogBatchBuffer {
                 logIngestionDroppedCounter.increment(entry.getValue().size());
                 LogBatchBuffer.log.warn("ES bulkIndex 실패 (index={}, 건수={}): {}",
                         entry.getKey(), entry.getValue().size(), e.getMessage());
+                // 인터럽트 유래 예외가 여기서 삼켜지면 drainLoop 의 종료 가드가 무력화되므로 복원 (#96 리뷰 L1)
+                if (causedByInterrupt(e)) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
+    }
+
+    private static boolean causedByInterrupt(Throwable t) {
+        for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+            if (cause instanceof InterruptedException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private int estimateBytes(ApplicationLog log) {

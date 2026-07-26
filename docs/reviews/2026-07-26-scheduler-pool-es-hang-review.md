@@ -50,4 +50,11 @@ gate: docs/gates/2026-07-26-scheduler-pool-es-hang-gates.md
 
 ## 반영 내역
 
-(태형님 반영 지시 대기)
+태형님 "권장안대로 반영해" (2026-07-26) — M1·M2·L1·L2·N2 코드 반영 + M3 문서 명기. M4(카운터 도메인 분리)·L3(DART 타임아웃 값 조정)은 보류(범위 확대 — 후속 논의), L4·N1·N3·N4·N5는 미반영 수용.
+
+- M1: `KisMasterFileClient.downloadZip` — `send` → `sendAsync` + `get(120s, SECONDS)`로 본문 포함 총 시간 상한. 타임아웃 시 future cancel 후 IOException 변환, ExecutionException은 IOException unwrap 또는 래핑 (기존 호출자 예외 처리 흐름 유지)
+- M2: `LogBatchBuffer.flushPending` 전체를 catch(Throwable)로 방어 — 주기 태스크 영구 취소 방지, WARN 로깅 후 주기 유지
+- L1: `flush()`의 bulk catch에서 인터럽트 유래 예외(`causedByInterrupt` cause 체인 검사) 감지 시 인터럽트 복원 — drainLoop 종료 가드 실효화. work 문서의 과장 서술 정정
+- L2: enqueue 하드캡 분기를 `dropIfHardCapReached()` private helper로 추출 (lock 경계 불변, 중첩 완화)
+- N2: application.yml 주석 "11개" → "@Scheduled 작업 10개" 정정
+- M3: work 문서 특이사항에 잔존 ES 행 경로(LogIndexScheduler·뉴스 배치) 명기 — 후속 이슈 후보

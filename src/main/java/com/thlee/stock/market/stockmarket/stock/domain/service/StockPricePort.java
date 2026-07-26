@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.stock.domain.service;
 
 import com.thlee.stock.market.stockmarket.stock.domain.model.CachedStockPrice;
+import com.thlee.stock.market.stockmarket.stock.domain.model.ChartPeriod;
 import com.thlee.stock.market.stockmarket.stock.domain.model.DailyPrice;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
@@ -30,16 +31,16 @@ public interface StockPricePort {
     Map<String, CachedStockPrice> getDomesticPricesWithCacheInfo(List<String> stockCodes);
 
     /**
-     * 일봉(Daily) 가격 히스토리 조회.
+     * 기간별(일/주/월봉) 가격 히스토리 조회.
      *
-     * <p>기본 구현은 빈 리스트 (포트 확장만 추가, 실제 어댑터 구현은 후속 작업). 구현체가
-     * 제공하는 경우 {@code date ASC} 정렬로 반환해야 한다.
+     * <p>기본 구현은 빈 리스트. 구현체가 제공하는 경우 {@code date ASC} 정렬로 반환해야 한다.
      *
-     * @param from 포함 시작일
-     * @param to 포함 종료일
+     * @param period 봉 주기 (일/주/월)
+     * @param from   포함 시작일
+     * @param to     포함 종료일
      */
-    default List<DailyPrice> getDailyHistory(String stockCode, MarketType marketType, ExchangeCode exchangeCode,
-                                             LocalDate from, LocalDate to) {
+    default List<DailyPrice> getPriceHistory(String stockCode, MarketType marketType, ExchangeCode exchangeCode,
+                                             ChartPeriod period, LocalDate from, LocalDate to) {
         return List.of();
     }
 }

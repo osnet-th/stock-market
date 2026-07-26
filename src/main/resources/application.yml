@@ -38,10 +38,11 @@ spring:
     socket-timeout: 5s
 
   # Scheduler Configuration
+  # pool 5 → 10: 스케줄 작업 11개 대비 여유 확보 (#96 — 잠식 방지 본체는 LogBatchBuffer 격리)
   task:
     scheduling:
       pool:
-        size: 5
+        size: 10
 
   # Mail Configuration (Gmail SMTP)
   mail:

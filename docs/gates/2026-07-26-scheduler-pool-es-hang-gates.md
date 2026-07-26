@@ -9,8 +9,8 @@
 - start: approved
 - brainstorm: approved
 - issue: approved
-- plan: pending
-- work: pending
+- plan: approved
+- work: approved
 - review: pending
 - validation: pending
 - commit: pending
@@ -22,7 +22,8 @@
   - 운영 서버 3중 교차 검증: DB(04-11 단일 시딩) + docker logs(72h 배치 로그 전무) + 스레드 덤프(scheduling-3·5가 ES bulk `BasicFuture.get()` 영구 블로킹) + WARN "I/O reactor has been shut down" + ES 서버 정상(5주 무중단) → 앱 측 reactor 사망 + 무기한 대기 + 공용 스케줄러 풀 잠식으로 확정
   - 방향: 로그 flush 전용 스레드 격리 + 버퍼 드롭 정책 + KIS/DART 타임아웃 위생 + 풀 상향. "진행해"는 A 진행 승인이며 세부 설계는 plan 게이트에서 확정
 - issue: 완료 (2026-07-26, GitHub Issue #96 등록 — docs/issues/2026-07-26-scheduler-pool-es-hang-issue.md 참조. 검색 중 발견: Issue B는 기존 open #51 재사용, #25(04-11 오후 지표 10개 추가)로 미시딩 10개 원인 규명 — URL 문제 아님)
-- plan: 작성 (2026-07-26, docs/plans/2026-07-26-002-fix-scheduler-pool-es-hang-plan.md) — 태형님 승인 대기
+- plan: 완료 (2026-07-26, docs/plans/2026-07-26-002-fix-scheduler-pool-es-hang-plan.md — 태형님 "진행해" 승인)
+- work: 완료 (2026-07-26, docs/works/2026-07-26-scheduler-pool-es-hang-work.md — 4파일 수정, compileJava 통과. review·validation 게이트 대기)
 
 ## Approval Gate 항목
 - 비즈니스 로직 변경: LogBatchBuffer 실행 모델 변경(공용 @Scheduled → 전용 단일 스레드 executor) — 로그 적재 의미(best-effort at-most-once)는 불변

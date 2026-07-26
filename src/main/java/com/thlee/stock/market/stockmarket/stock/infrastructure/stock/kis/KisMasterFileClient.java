@@ -16,6 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,9 @@ import java.util.zip.ZipInputStream;
 @Component
 @RequiredArgsConstructor
 public class KisMasterFileClient {
+
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration DOWNLOAD_TIMEOUT = Duration.ofSeconds(120);
 
     private final KisProperties properties;
     private final KisDomesticMasterFileParser domesticParser;
@@ -107,9 +111,13 @@ public class KisMasterFileClient {
 
     private Path downloadZip(String url) throws IOException, InterruptedException {
         Path tempZip = Files.createTempFile("kis_master_", ".zip");
-        HttpClient client = HttpClient.newHttpClient();
+        // 스케줄러 스레드에서 실행되므로 무기한 대기 금지 — connect/response 타임아웃 필수 (#96)
+        HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(CONNECT_TIMEOUT)
+            .build();
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(url))
+            .timeout(DOWNLOAD_TIMEOUT)
             .GET()
             .build();
         client.send(request, HttpResponse.BodyHandlers.ofFile(tempZip));

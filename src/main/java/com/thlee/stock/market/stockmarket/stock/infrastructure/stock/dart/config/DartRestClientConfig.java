@@ -8,6 +8,7 @@ import org.springframework.web.client.RestClient;
 import javax.net.ssl.SSLContext;
 import java.net.http.HttpClient;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 
 /**
  * DART API 전용 RestClient 설정.
@@ -21,10 +22,12 @@ public class DartRestClientConfig {
     @Bean("dartRestClient")
     public RestClient dartRestClient() throws NoSuchAlgorithmException {
         HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(3))
                 .sslContext(SSLContext.getDefault())
                 .build();
 
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(15));
 
         return RestClient.builder()
                 .requestFactory(requestFactory)

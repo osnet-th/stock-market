@@ -31,20 +31,20 @@ ES 클라이언트의 I/O reactor 사망 시 `BasicFuture.get()` 무기한 대�
 
 ### 1. LogBatchBuffer flush 격리 (핵심)
 
-- [ ] `@Scheduled(fixedDelay=5s) periodicFlush` 제거 → `@PostConstruct`에서 전용 `ScheduledExecutorService`(단일 daemon 스레드, 스레드명 `log-flush`) 생성 후 같은 주기로 자체 스케줄
-- [ ] `enqueue()`의 임계 초과 시 호출자 스레드 직접 `flush()` 제거 → 전용 executor에 flush 작업 제출 (중복 제출 방지 플래그 — 이미 제출/실행 중이면 skip)
-- [ ] 버퍼 하드캡 도입: flush 스레드가 행 상태로 버퍼가 하드캡(기존 임계의 2배: 1,000건 또는 10MB) 초과 시 신규 로그 드롭 + `logIngestionDroppedCounter` 계수 + 최초 1회 WARN (반복 WARN 방지)
-- [ ] `drainOnShutdown`(@PreDestroy): 전용 executor에 drain 제출 후 기존 `SHUTDOWN_DRAIN_TIMEOUT`(10s) 내 유한 대기 → 타임아웃 시 `shutdownNow()` + 유실 WARN (flush 스레드 행 시 앱 종료가 지연되지 않도록)
-- [ ] ES 정상 상태에서 기존과 동등 동작 확인 (주기·트리거·인덱스 그룹핑·카운터)
+- [x] `@Scheduled(fixedDelay=5s) periodicFlush` 제거 → `@PostConstruct`에서 전용 `ScheduledExecutorService`(단일 daemon 스레드, 스레드명 `log-flush`) 생성 후 같은 주기로 자체 스케줄
+- [x] `enqueue()`의 임계 초과 시 호출자 스레드 직접 `flush()` 제거 → 전용 executor에 flush 작업 제출 (중복 제출 방지 플래그 — 이미 제출/실행 중이면 skip)
+- [x] 버퍼 하드캡 도입: flush 스레드가 행 상태로 버퍼가 하드캡(기존 임계의 2배: 1,000건 또는 10MB) 초과 시 신규 로그 드롭 + `logIngestionDroppedCounter` 계수 + 최초 1회 WARN (반복 WARN 방지)
+- [x] `drainOnShutdown`(@PreDestroy): 전용 executor에 drain 제출 후 기존 `SHUTDOWN_DRAIN_TIMEOUT`(10s) 내 유한 대기 → 타임아웃 시 `shutdownNow()` + 유실 WARN (flush 스레드 행 시 앱 종료가 지연되지 않도록)
+- [ ] ES 정상 상태에서 기존과 동등 동작 확인 (주기·트리거·인덱스 그룹핑·카운터) — validation 단계 과제
 
 ### 2. 스케줄 작업 무한 대기 위생
 
-- [ ] `KisMasterFileClient.downloadZip`: `HttpClient.newBuilder().connectTimeout(10s)` + `HttpRequest.newBuilder().timeout(120s)` (ZIP 대용량 감안)
-- [ ] `DartRestClientConfig`: `HttpClient.newBuilder().connectTimeout(3s)` + `JdkClientHttpRequestFactory.setReadTimeout(15s)` (SEC 설정과 동일 수준)
+- [x] `KisMasterFileClient.downloadZip`: `HttpClient.newBuilder().connectTimeout(10s)` + `HttpRequest.newBuilder().timeout(120s)` (ZIP 대용량 감안)
+- [x] `DartRestClientConfig`: `HttpClient.newBuilder().connectTimeout(3s)` + `JdkClientHttpRequestFactory.setReadTimeout(15s)` (SEC 설정과 동일 수준)
 
 ### 3. 스케줄러 풀 상향 (보조)
 
-- [ ] `application.yml`: `spring.task.scheduling.pool.size: 10`
+- [x] `application.yml`: `spring.task.scheduling.pool.size: 10`
 
 ## Technical Considerations
 

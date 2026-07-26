@@ -27,6 +27,7 @@ import java.util.stream.Stream;
  * 투자판단 정량 5항목의 제안 등급(A~E)과 근거를 산출한다.
  * (스냅샷 × 파생 가치평가)의 순수 함수 — 저장하지 않고 조회 시 계산하며, 근거가 부족한 항목은 map에서 생략한다.
  * 두 신호(예: 청산가치·PBR)가 있으면 유리한 밴드를 취한다. 기준표: docs/brainstorms/2026-07-24-grade-suggestion-brainstorm.md
+ * 표시용 기준표 사본: static/js/components/company-report.js crGradeCriteria — 기준 변경 시 함께 수정.
  */
 @Component
 public class GradeSuggestionCalculator {

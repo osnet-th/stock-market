@@ -894,6 +894,260 @@ const CompanyReportComponent = {
         this.companyReport.gradeItems.forEach(item => this.crApplySuggestion(item.key));
     },
 
+    // ==================== 제안 사유 패널 (화살표 → 우측 슬라이드, #93) ====================
+    crReason: { open: false, key: null },
+
+    crReasonOpen(key) {
+        this.crReason.key = key;
+        this.crReason.open = true;
+    },
+
+    crReasonClose() {
+        this.crReason.open = false;
+    },
+
+    crReasonLabel() {
+        const item = this.companyReport.gradeItems.find(i => i.key === this.crReason.key);
+        return item ? item.label : '';
+    },
+
+    _crReasonSource() {
+        const cr = this.companyReport;
+        return (cr.view === 'detail' ? cr.detail : cr.preview) || null;
+    },
+
+    // 판정 기준연도: 가치평가 입력의 최신 사업연도, 없으면 마지막 온기 컬럼
+    crReasonBaseYear() {
+        const snap = this._crReasonSource()?.snapshot;
+        if (snap?.valuationInputs?.baseYear) return snap.valuationInputs.baseYear;
+        const full = (snap?.columns || []).filter(c => !c.partial);
+        return full.length ? full[full.length - 1].year : null;
+    },
+
+    // basis 문자열의 ' (good|warn|risk)' 마커 분리 → {text, judgment} (판정 색상 표시용)
+    crReasonBasis() {
+        return (this.crSuggestion(this.crReason.key)?.basis || []).map(line => {
+            const m = line.match(/^(.*) \((good|warn|risk)\)$/);
+            return m ? { text: m[1], judgment: m[2] } : { text: line, judgment: null };
+        });
+    },
+
+    // 표시용 등급 기준표 — GradeSuggestionCalculator(밴드·규칙)와 SnapshotFinancialExtractor(판정 임계값)의 사본.
+    // 백엔드 기준 변경 시 반드시 함께 수정한다.
+    crGradeCriteria: {
+        assetUndervalue: {
+            rules: [
+                { grade: 'A', label: '시총/청산가치 ≤ 1.0배 (청산가치 근거일 때만)' },
+                { grade: 'B', label: '시총/청산가치 ≤ 1.5배 또는 PBR ≤ 0.6' },
+                { grade: 'C', label: '시총/청산가치 ≤ 2.5배 또는 PBR ≤ 1.0' },
+                { grade: 'D', label: '시총/청산가치 ≤ 4.0배 또는 PBR ≤ 2.0' },
+                { grade: 'E', label: '두 밴드 모두 초과' }
+            ],
+            note: '두 신호 중 유리한 쪽 밴드를 취합니다.'
+        },
+        earningsUndervalue: {
+            rules: [
+                { grade: 'A', label: '시총/DCF보수 ≤ 1.0배' },
+                { grade: 'B', label: '시총/DCF보수 ≤ 1.5배 또는 PER ≤ 8' },
+                { grade: 'C', label: '시총/DCF낙관 ≤ 1.0배 또는 PER ≤ 15' },
+                { grade: 'D', label: '시총/DCF낙관 ≤ 1.5배 또는 PER ≤ 25' },
+                { grade: 'E', label: '모든 밴드 초과, 또는 FCF ≤ 0이고 PER 없음(수익 근거 없음)' }
+            ],
+            note: '두 신호 중 유리한 쪽 밴드를 취합니다.'
+        },
+        financialHealth: {
+            rules: [
+                { grade: 'A', label: 'B 조건 + 순현금 > 0 + 위험 시그널 전부 없음(유상증자 제외)' },
+                { grade: 'B', label: '자기자본비율·유동비율·부채비율 모두 양호' },
+                { grade: 'C', label: '주의 있음 (판정 불가는 주의로 봄)' },
+                { grade: 'D', label: '위험 1개' },
+                { grade: 'E', label: '위험 2개 이상 또는 채무초과' }
+            ],
+            note: '판정 기준 — 자기자본비율: 양호 ≥40%·위험 ≤20%, 유동비율: 100%, 부채비율: 양호 ≤200%·위험 >300%.'
+        },
+        profitability: {
+            rules: [
+                { grade: 'A', label: 'B 조건 + ROE ≥ 15%·영업이익률 ≥ 10%가 최근 3개 연도 지속(값 존재 연도 2개 이상)' },
+                { grade: 'B', label: '영업이익률·ROE·ROA 모두 양호' },
+                { grade: 'C', label: '주의 있음 (판정 불가는 주의로 봄)' },
+                { grade: 'D', label: '위험 있음' },
+                { grade: 'E', label: '영업이익률 ≤0%(영업적자, 0 포함) 또는 기준연도 ROE 음수(순적자)' }
+            ],
+            note: '판정 기준 — 영업이익률: 양호 ≥5%·위험 ≤0%, ROE: 양호 ≥10%·위험 ≤5%, ROA: 양호 ≥5%·위험 ≤0%.'
+        },
+        growth: {
+            rules: [
+                { grade: 'A', label: 'B 조건 + 최근 4개 연도 중 3개 연도 이상 둘 다 ≥ 10%' },
+                { grade: 'B', label: '매출·영업이익 성장률 둘 다 ≥ 10%' },
+                { grade: 'C', label: '둘 다 0 이상' },
+                { grade: 'D', label: '한쪽이라도 음수' },
+                { grade: 'E', label: '둘 다 음수가 2년 연속' }
+            ],
+            note: '기준연도 성장률 기준 — 전년 값이 없으면 제안을 생략합니다.'
+        }
+    },
+
+    crReasonRules() {
+        return this.crGradeCriteria[this.crReason.key]?.rules || [];
+    },
+
+    crReasonNote() {
+        return this.crGradeCriteria[this.crReason.key]?.note || '';
+    },
+
+    // 항목별 계산식 빌더 테이블 — crReasonFormulas가 call(this)로 실행
+    _crReasonFormulaBuilders: {
+        assetUndervalue() {
+            return [this._crReasonMetricFormula('pbr'), this._crReasonLiquidationFormula()];
+        },
+        earningsUndervalue() {
+            return [this._crReasonMetricFormula('per'), this._crReasonDcfFormula()];
+        },
+        financialHealth() {
+            return [
+                this._crReasonRatioFormula('자기자본비율 = 자본총계 ÷ 자산총계', 'bs.totalEquity', 'bs.totalAssets', 'equityRatio'),
+                this._crReasonRatioFormula('유동비율 = 유동자산 ÷ 유동부채', 'bs.currentAssets', 'bs.currentLiabilities', 'currentRatio'),
+                this._crReasonRatioFormula('부채비율 = 부채총계 ÷ 자본총계', 'bs.totalLiabilities', 'bs.totalEquity', 'debtRatio'),
+                this._crReasonNetCashFormula()
+            ];
+        },
+        profitability() {
+            return [
+                this._crReasonRatioFormula('영업이익률 = 영업이익 ÷ 매출액', 'is.operatingProfit', 'is.revenue', 'operatingMargin'),
+                this._crReasonRatioFormula('ROE = 당기순이익 ÷ 자본총계', 'is.netIncome', 'bs.totalEquity', 'roe'),
+                this._crReasonRatioFormula('ROA = 당기순이익 ÷ 자산총계', 'is.netIncome', 'bs.totalAssets', 'roa')
+            ];
+        },
+        growth() {
+            return [
+                this._crReasonGrowthFormula('매출 성장률 = (당년 − 전년) ÷ 전년', 'is.revenue', 'revenueGrowth'),
+                this._crReasonGrowthFormula('영업이익 성장률 = (당년 − 전년) ÷ 전년', 'is.operatingProfit', 'operatingProfitGrowth')
+            ];
+        }
+    },
+
+    // 계산식 블록 목록 — 숫자는 응답 값을 그대로 나열한다 (프런트 재계산 없음, 반올림 불일치 방지)
+    crReasonFormulas() {
+        const build = this._crReasonFormulaBuilders[this.crReason.key];
+        return build ? build.call(this).filter(Boolean) : [];
+    },
+
+    // 주가지표(PBR/PER): 툴팁 공식 첫 줄 + 백엔드 breakdown 항 나열 재사용
+    _crReasonMetricFormula(metricKey) {
+        const formula = (this.crMetricHelp[metricKey] || '').split('\n')[0];
+        return formula ? formula + this.crBreakdownText(metricKey, true) : null;
+    },
+
+    _crReasonLiquidationFormula() {
+        const liq = this._crReasonSource()?.valuation?.liquidation;
+        if (!liq) return null;
+        let out = '청산가치 = 조정자산 합계 − 총부채\n= ' + this.crAmt(liq.adjustedAssetTotal)
+            + ' − ' + this.crAmt(liq.totalLiabilities) + ' = ' + this.crAmt(liq.liquidationValue);
+        if (liq.marketCapToLiquidation != null) {
+            out += '\n시총/청산가치 = ' + this.crAmt(liq.marketCap) + ' ÷ ' + this.crAmt(liq.liquidationValue)
+                + ' = ' + this.crNum(liq.marketCapToLiquidation) + '배';
+        }
+        return out;
+    },
+
+    _crReasonDcfFormula() {
+        const valuation = this._crReasonSource()?.valuation;
+        const dcf = valuation?.dcf;
+        if (!dcf) return null;
+        if (!dcf.calculable) return 'DCF 계산 불가 — ' + (dcf.reason || '사유 미상');
+        const p = valuation.params || {};
+        const r = p.discountRate != null ? this.crNum(p.discountRate * 100, 1) + '%' : '—';
+        let out = 'DCF 보수 = 순현금 + FCF ÷ R(' + r + ')\n= ' + this.crAmt(dcf.netCash) + ' + ' + this.crAmt(dcf.fcf)
+            + ' ÷ ' + r + ' = ' + this.crAmt(dcf.conservativeValue);
+        if (dcf.optimisticValue != null) {
+            const years = p.optimisticGrowthYears != null ? this.crNum(p.optimisticGrowthYears, 0) : '—';
+            const g = p.optimisticGrowthRate != null ? this.crNum(p.optimisticGrowthRate * 100, 0) + '%' : '—';
+            out += '\nDCF 낙관 = 순현금 + ' + years + '년 ' + g + ' 성장 후 무성장 영구가치 할인 = ' + this.crAmt(dcf.optimisticValue);
+        }
+        if (dcf.marketCapToConservative != null) out += '\n시총/보수 ' + this.crNum(dcf.marketCapToConservative) + '배';
+        if (dcf.marketCapToOptimistic != null) out += ' · 시총/낙관 ' + this.crNum(dcf.marketCapToOptimistic) + '배';
+        return out;
+    },
+
+    // kind: 'statements' | 'ratios'
+    _crReasonRowValue(kind, key, year) {
+        const snap = this._crReasonSource()?.snapshot;
+        const row = (snap?.[kind] || []).find(r => r.key === key);
+        return row && row.values ? row.values[year] : null;
+    },
+
+    // 비율 공식: 분자·분모는 재무제표 값, 결과는 백엔드 비율 값 그대로. 결과 없으면 블록 생략, 항 결손 시 공식+결과만
+    _crReasonRatioFormula(formula, numerKey, denomKey, ratioKey) {
+        const year = this.crReasonBaseYear();
+        const result = year ? this._crReasonRowValue('ratios', ratioKey, year) : null;
+        if (result == null) return null;
+        const numer = this._crReasonRowValue('statements', numerKey, year);
+        const denom = this._crReasonRowValue('statements', denomKey, year);
+        if (numer == null || denom == null) return formula + '\n= ' + this.crPct(result);
+        return formula + '\n= ' + this.crAmt(numer) + ' ÷ ' + this.crAmt(denom) + ' = ' + this.crPct(result);
+    },
+
+    _crReasonNetCashFormula() {
+        const vi = this._crReasonSource()?.snapshot?.valuationInputs;
+        if (!vi || vi.netCash == null) return null;
+        if (vi.cash == null && vi.securities == null && vi.borrowings == null) {
+            return '순현금 = 현금성 + 단기금융 − 차입금 = ' + this.crAmt(vi.netCash);
+        }
+        return '순현금 = 현금성 + 단기금융 − 차입금\n= ' + this.crAmt(vi.cash) + ' + ' + this.crAmt(vi.securities)
+            + ' − ' + this.crAmt(vi.borrowings) + ' = ' + this.crAmt(vi.netCash);
+    },
+
+    _crReasonGrowthFormula(formula, stmtKey, ratioKey) {
+        const year = this.crReasonBaseYear();
+        const result = year ? this._crReasonRowValue('ratios', ratioKey, year) : null;
+        if (result == null) return null;
+        const prevYear = String(parseInt(year, 10) - 1);
+        const cur = this._crReasonRowValue('statements', stmtKey, year);
+        const prev = this._crReasonRowValue('statements', stmtKey, prevYear);
+        if (cur == null || prev == null) return formula + '\n= ' + this.crPct(result);
+        return formula + '\n= (' + this.crAmt(cur) + ' − ' + this.crAmt(prev) + ') ÷ ' + this.crAmt(prev)
+            + ' = ' + this.crPct(result);
+    },
+
+    // 원천 데이터 표 구성 — 항목별 관련 계정만 (자산 저평가는 청산가치 라인 표 전용 렌더 추가)
+    crReasonSourceConfig: {
+        assetUndervalue: { statements: ['bs.totalAssets', 'bs.totalLiabilities', 'bs.totalEquity'], ratios: [] },
+        earningsUndervalue: { statements: ['is.netIncome', 'cf.operating', 'cf.fcf'], ratios: [] },
+        financialHealth: {
+            statements: ['bs.totalAssets', 'bs.totalEquity', 'bs.totalLiabilities', 'bs.currentAssets', 'bs.currentLiabilities'],
+            ratios: ['equityRatio', 'currentRatio', 'debtRatio']
+        },
+        profitability: {
+            statements: ['is.revenue', 'is.operatingProfit', 'is.netIncome'],
+            ratios: ['operatingMargin', 'roe', 'roa']
+        },
+        growth: {
+            statements: ['is.revenue', 'is.operatingProfit'],
+            ratios: ['revenueGrowth', 'operatingProfitGrowth']
+        }
+    },
+
+    crReasonColumns() {
+        return this._crReasonSource()?.snapshot?.columns || [];
+    },
+
+    // kind: 'statements' | 'ratios'
+    crReasonRows(kind) {
+        const snap = this._crReasonSource()?.snapshot;
+        const keys = this.crReasonSourceConfig[this.crReason.key]?.[kind] || [];
+        return keys.map(k => (snap?.[kind] || []).find(r => r.key === k)).filter(Boolean);
+    },
+
+    crReasonLiquidationLines() {
+        return this._crReasonSource()?.valuation?.liquidation?.lines || [];
+    },
+
+    crReasonRiskSignals() {
+        const signals = this._crReasonSource()?.snapshot?.riskSignals;
+        if (!signals) return [];
+        return this.companyReport.riskItems.map(item => ({ label: item.label, value: signals[item.key] }));
+    },
+
     crRiskBadge(value) {
         if (value === true) return 'bg-red-50 text-red-700 border border-red-200';
         if (value === false) return 'bg-green-50 text-green-700 border border-green-200';

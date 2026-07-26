@@ -860,6 +860,8 @@
                                           x-text="crSuggestion(item.key).grade"></span>
                                     <button @click="crApplySuggestion(item.key)"
                                             class="px-1.5 py-0.5 text-[11px] text-blue-600 border border-blue-200 rounded hover:bg-blue-50 shrink-0">적용</button>
+                                    <button @click="crReasonOpen(item.key)" title="산출 사유·계산식·원천 데이터 보기"
+                                            class="w-[18px] h-[18px] inline-flex items-center justify-center text-[13px] text-gray-500 border border-gray-200 rounded hover:bg-gray-50 hover:text-gray-700 shrink-0 leading-none">›</button>
                                     <span class="text-[11px] text-gray-400 truncate" :title="crSuggestionBasis(item.key)"
                                           x-text="crSuggestionBasis(item.key)"></span>
                                 </div>
@@ -993,9 +995,10 @@
                                 <span class="inline-flex w-8 h-8 items-center justify-center text-sm font-bold rounded"
                                       :class="crGradeBadge(companyReport.detail.grades ? companyReport.detail.grades[item.key] : null)"
                                       x-text="(companyReport.detail.grades && companyReport.detail.grades[item.key]) || '—'"></span>
-                                <div x-show="crSuggestion(item.key)" class="mt-1 text-[11px] text-gray-400"
-                                     :title="crSuggestionBasis(item.key)">
-                                    제안 <span class="font-semibold" x-text="crSuggestion(item.key)?.grade"></span>
+                                <div x-show="crSuggestion(item.key)" class="mt-1 text-[11px] text-gray-400 flex items-center justify-center gap-1">
+                                    <span :title="crSuggestionBasis(item.key)">제안 <span class="font-semibold" x-text="crSuggestion(item.key)?.grade"></span></span>
+                                    <button @click="crReasonOpen(item.key)" title="산출 사유·계산식·원천 데이터 보기"
+                                            class="w-4 h-4 inline-flex items-center justify-center text-[12px] text-gray-400 border border-gray-200 rounded hover:bg-gray-50 hover:text-gray-600 leading-none">›</button>
                                 </div>
                             </div>
                         </template>
@@ -1624,5 +1627,172 @@
          class="fixed z-50 w-64 max-w-[70vw] p-2.5 rounded-md bg-gray-800 text-white text-[11px] leading-relaxed text-left whitespace-pre-line shadow-lg">
         <div x-text="crHint.text"></div>
         <div class="mt-1.5 pt-1.5 border-t border-white/15 text-[10px] text-gray-300" x-show="crHint.pinned">클릭 고정됨 · 바깥을 누르면 닫힙니다</div>
+    </div>
+
+    <!-- ==================== 제안 등급 사유 패널 (#93): 화살표 클릭 → 사유·기준·계산식·원천 데이터 ==================== -->
+    <!-- 오버레이 -->
+    <div x-show="crReason.open" x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-black bg-opacity-30 z-40"
+         @click="crReasonClose()"></div>
+
+    <!-- 패널 본체 -->
+    <div x-show="crReason.open" x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="translate-x-full"
+         x-transition:enter-end="translate-x-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="translate-x-0"
+         x-transition:leave-end="translate-x-full"
+         @keydown.escape.window="crReasonClose()"
+         class="fixed top-0 right-0 h-full w-full sm:w-[480px] bg-white shadow-2xl z-50 overflow-y-auto"
+         @click.stop>
+
+        <!-- 헤더 (sticky) -->
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-5 py-3.5 z-10 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-bold text-gray-800" x-text="crReasonLabel()"></span>
+                <span class="inline-flex w-6 h-6 items-center justify-center rounded text-xs font-bold"
+                      :class="crGradeBadge(crSuggestion(crReason.key)?.grade)"
+                      x-text="crSuggestion(crReason.key)?.grade || '—'"></span>
+                <span class="text-[11px] text-gray-400">제안 등급 · 기준연도 <span x-text="crReasonBaseYear() || '—'"></span></span>
+            </div>
+            <button @click="crReasonClose()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+
+        <div class="px-5 py-4 space-y-5 text-xs">
+            <!-- 1. 산출 사유 -->
+            <div>
+                <div class="text-[11px] font-semibold text-gray-500 mb-2">산출 사유</div>
+                <div class="space-y-1.5">
+                    <template x-for="(b, idx) in crReasonBasis()" :key="idx">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-gray-700" x-text="b.text"></span>
+                            <span x-show="b.judgment" class="px-1.5 py-0.5 rounded text-[11px] shrink-0"
+                                  :class="crJudgeBadge(b.judgment)" x-text="crJudgeLabel(b.judgment)"></span>
+                        </div>
+                    </template>
+                </div>
+                <div x-show="!crReasonBasis().length" class="text-gray-400">제안 근거가 없습니다.</div>
+            </div>
+
+            <!-- 2. 등급 기준 (제안 등급 하이라이트) -->
+            <div>
+                <div class="text-[11px] font-semibold text-gray-500 mb-2">등급 기준</div>
+                <div class="flex gap-1 mb-2">
+                    <template x-for="g in ['A','B','C','D','E']" :key="g">
+                        <span class="flex-1 text-center py-1 rounded text-[11px] font-bold"
+                              :class="crSuggestion(crReason.key)?.grade === g ? crGradeBadge(g) + ' ring-1 ring-gray-400' : 'bg-gray-50 text-gray-300'"
+                              x-text="g"></span>
+                    </template>
+                </div>
+                <div class="space-y-1">
+                    <template x-for="rule in crReasonRules()" :key="rule.grade">
+                        <div class="flex gap-2 rounded px-1.5 py-1"
+                             :class="crSuggestion(crReason.key)?.grade === rule.grade ? 'bg-gray-50 text-gray-800 font-medium' : 'text-gray-500'">
+                            <span class="font-bold shrink-0 w-3" x-text="rule.grade"></span>
+                            <span x-text="rule.label"></span>
+                        </div>
+                    </template>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-1.5" x-text="crReasonNote()"></p>
+            </div>
+
+            <!-- 3. 계산식 -->
+            <div x-show="crReasonFormulas().length">
+                <div class="text-[11px] font-semibold text-gray-500 mb-2">계산식 <span class="font-normal text-gray-400">— 저장된 응답 값을 그대로 나열합니다</span></div>
+                <div class="space-y-2">
+                    <template x-for="(f, idx) in crReasonFormulas()" :key="idx">
+                        <div class="bg-gray-50 rounded p-2.5 font-mono text-[11px] text-gray-600 whitespace-pre-line leading-relaxed" x-text="f"></div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- 4-1. 원천 데이터: 청산가치 조정자산 (자산 저평가 전용) -->
+            <div x-show="crReason.key === 'assetUndervalue' && crReasonLiquidationLines().length">
+                <div class="text-[11px] font-semibold text-gray-500 mb-2">원천 데이터 — 청산가치 조정자산</div>
+                <table class="w-full text-[11px]">
+                    <thead>
+                        <tr class="border-b border-gray-200 text-gray-500 text-left">
+                            <th class="py-1 font-medium">카테고리</th>
+                            <th class="py-1 text-right font-medium">장부가</th>
+                            <th class="py-1 text-right font-medium">인정비율</th>
+                            <th class="py-1 text-right font-medium">조정자산</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="line in crReasonLiquidationLines()" :key="line.key">
+                            <tr class="border-b border-gray-50">
+                                <td class="py-1 text-gray-600" x-text="line.name"></td>
+                                <td class="py-1 text-right font-mono" x-text="crAmt(line.bookValue)"></td>
+                                <td class="py-1 text-right font-mono" x-text="crNum(line.ratio * 100, 0) + '%'"></td>
+                                <td class="py-1 text-right font-mono" x-text="crAmt(line.adjustedValue)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 4-2. 원천 데이터: 관련 계정·비율 연도별 표 -->
+            <div x-show="crReasonRows('statements').length || crReasonRows('ratios').length">
+                <div class="text-[11px] font-semibold text-gray-500 mb-2">원천 데이터 — 연도별 <span class="font-normal text-gray-400">(*: 분기/반기)</span></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-[11px] whitespace-nowrap">
+                        <thead>
+                            <tr class="border-b border-gray-200 text-gray-500">
+                                <th class="py-1 text-left font-medium">항목</th>
+                                <template x-for="col in crReasonColumns()" :key="col.year">
+                                    <th class="py-1 pl-3 text-right font-medium"
+                                        :class="col.year === crReasonBaseYear() ? 'text-gray-800' : ''"
+                                        x-text="col.year + (col.partial ? '*' : '')"></th>
+                                </template>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="row in crReasonRows('statements')" :key="row.key">
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-1 text-gray-600" x-text="row.name"></td>
+                                    <template x-for="col in crReasonColumns()" :key="col.year">
+                                        <td class="py-1 pl-3 text-right font-mono"
+                                            :class="col.year === crReasonBaseYear() ? 'font-semibold text-gray-800' : ''"
+                                            x-text="crCellAmt(row, col.year)"></td>
+                                    </template>
+                                </tr>
+                            </template>
+                            <template x-for="row in crReasonRows('ratios')" :key="row.key">
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-1 text-gray-600">
+                                        <span x-text="row.name"></span>
+                                        <span x-show="row.judgment" class="ml-1 px-1 py-0.5 rounded text-[10px]"
+                                              :class="crJudgeBadge(row.judgment)" x-text="crJudgeLabel(row.judgment)"></span>
+                                    </td>
+                                    <template x-for="col in crReasonColumns()" :key="col.year">
+                                        <td class="py-1 pl-3 text-right font-mono"
+                                            :class="col.year === crReasonBaseYear() ? 'font-semibold text-gray-800' : ''"
+                                            x-text="crCellPct(row, col.year)"></td>
+                                    </template>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4-3. 위험 시그널 (재무건전성 전용) -->
+            <div x-show="crReason.key === 'financialHealth' && crReasonRiskSignals().length">
+                <div class="text-[11px] font-semibold text-gray-500 mb-2">위험 시그널</div>
+                <div class="flex flex-wrap gap-1.5">
+                    <template x-for="(s, idx) in crReasonRiskSignals()" :key="idx">
+                        <span class="px-1.5 py-0.5 rounded text-[11px]" :class="crRiskBadge(s.value)"
+                              x-text="s.label + ': ' + crRiskLabel(s.value)"></span>
+                    </template>
+                </div>
+            </div>
+        </div>
     </div>
 </div>

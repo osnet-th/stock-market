@@ -32,6 +32,7 @@ import java.util.function.Function;
 /**
  * 타임라인 응답에서 스냅샷 구성 요소(실적/재무제표 요약/지표 판정/가치평가 입력/위험 시그널)를 추출한다.
  * 계정 매칭은 IFRS account_id 우선, 계정명(공백 제거) 폴백 — 미검출 값은 null (0 대체 금지).
+ * 판정 임계값의 표시용 사본: static/js/components/company-report.js crGradeCriteria note — 임계값 변경 시 함께 수정.
  */
 @Component
 public class SnapshotFinancialExtractor {

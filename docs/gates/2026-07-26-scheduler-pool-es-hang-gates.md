@@ -11,7 +11,7 @@
 - issue: approved
 - plan: approved
 - work: approved
-- review: pending
+- review: approved (수행 완료 — 반영 범위는 태형님 지시 대기)
 - validation: pending
 - commit: pending
 - push: pending
@@ -23,7 +23,8 @@
   - 방향: 로그 flush 전용 스레드 격리 + 버퍼 드롭 정책 + KIS/DART 타임아웃 위생 + 풀 상향. "진행해"는 A 진행 승인이며 세부 설계는 plan 게이트에서 확정
 - issue: 완료 (2026-07-26, GitHub Issue #96 등록 — docs/issues/2026-07-26-scheduler-pool-es-hang-issue.md 참조. 검색 중 발견: Issue B는 기존 open #51 재사용, #25(04-11 오후 지표 10개 추가)로 미시딩 10개 원인 규명 — URL 문제 아님)
 - plan: 완료 (2026-07-26, docs/plans/2026-07-26-002-fix-scheduler-pool-es-hang-plan.md — 태형님 "진행해" 승인)
-- work: 완료 (2026-07-26, docs/works/2026-07-26-scheduler-pool-es-hang-work.md — 4파일 수정, compileJava 통과. review·validation 게이트 대기)
+- work: 완료 (2026-07-26, docs/works/2026-07-26-scheduler-pool-es-hang-work.md — 4파일 수정, compileJava 통과)
+- review: 완료 (2026-07-26, 태형님 "ce:review 로 진행해" — ce:review 미설치로 #93 선례대로 compound-engineering review_agents 4종 병렬 서브에이전트 대체 수행. docs/reviews/2026-07-26-scheduler-pool-es-hang-review.md — 중간 4·낮음 4·nit 5. 반영 지시 대기)
 
 ## Approval Gate 항목
 - 비즈니스 로직 변경: LogBatchBuffer 실행 모델 변경(공용 @Scheduled → 전용 단일 스레드 executor) — 로그 적재 의미(best-effort at-most-once)는 불변

@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis;
 
+import com.thlee.stock.market.stockmarket.stock.domain.model.ChartPeriod;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDailyChartResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticMultiPriceOutput;
@@ -96,13 +97,15 @@ public class KisStockPriceClient {
     }
 
     /**
-     * 국내 주식 일봉(국내주식기간별시세) 조회. 한 번 호출로 최대 약 100 영업일치 반환.
+     * 국내 주식 기간별시세(일/주/월봉) 조회. 한 번 호출로 종료일 기준 최신 최대 100봉 반환.
      *
      * @param stockCode 종목코드 6자리
      * @param from      시작일 (포함)
      * @param to        종료일 (포함)
+     * @param period    봉 주기 (일/주/월)
      */
-    public KisDailyChartResponse getDomesticDailyChart(String stockCode, LocalDate from, LocalDate to) {
+    public KisDailyChartResponse getDomesticPeriodChart(String stockCode, LocalDate from, LocalDate to,
+                                                        ChartPeriod period) {
         KisDailyChartResponse response = kisApiClient.getRaw(
             DOMESTIC_DAILY_CHART_PATH,
             DOMESTIC_DAILY_CHART_TR_ID,
@@ -111,14 +114,14 @@ public class KisStockPriceClient {
                 .queryParam("FID_INPUT_ISCD", stockCode)
                 .queryParam("FID_INPUT_DATE_1", from.format(KIS_DATE_FORMAT))
                 .queryParam("FID_INPUT_DATE_2", to.format(KIS_DATE_FORMAT))
-                .queryParam("FID_PERIOD_DIV_CODE", "D")
+                .queryParam("FID_PERIOD_DIV_CODE", period.getCode())
                 .queryParam("FID_ORG_ADJ_PRC", "0")
                 .build(),
             new ParameterizedTypeReference<>() {},
-            "국내 일봉 조회 [" + stockCode + " " + from + "~" + to + "]"
+            "국내 기간별시세 조회 [" + stockCode + " " + period + " " + from + "~" + to + "]"
         );
         if (!response.isSuccess()) {
-            throw new KisApiException("국내 일봉 조회 실패 [" + stockCode + "]: " + response.getMessage());
+            throw new KisApiException("국내 기간별시세 조회 실패 [" + stockCode + "]: " + response.getMessage());
         }
         return response;
     }

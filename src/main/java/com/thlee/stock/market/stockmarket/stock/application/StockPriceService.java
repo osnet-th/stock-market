@@ -1,8 +1,10 @@
 package com.thlee.stock.market.stockmarket.stock.application;
 
 import com.thlee.stock.market.stockmarket.stock.application.dto.BulkStockPriceResponse;
+import com.thlee.stock.market.stockmarket.stock.application.dto.PriceHistoryResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockPriceResponse;
 import com.thlee.stock.market.stockmarket.stock.domain.model.CachedStockPrice;
+import com.thlee.stock.market.stockmarket.stock.domain.model.ChartPeriod;
 import com.thlee.stock.market.stockmarket.stock.domain.model.DailyPrice;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
@@ -83,12 +85,22 @@ public class StockPriceService {
         return new BulkStockPriceResponse(prices);
     }
 
+    /** 상장일 조회 없이 전구간을 커버하기 위한 기본 시작일 — KIS는 실데이터 존재 구간만 반환한다. */
+    private static final LocalDate PRICE_HISTORY_DEFAULT_FROM = LocalDate.of(1960, 1, 1);
+
     /**
-     * 일봉 히스토리 조회. 현재 포트 기본 구현은 빈 리스트 반환 — 실제 KIS
-     * inquire-daily-itemchartprice 연동은 후속.
+     * 기간별(일/주/월봉) 가격 히스토리 조회. 국내(KRX) 전용.
+     *
+     * @param period 봉 주기
+     * @param from   시작일 (null이면 1960-01-01 — 상장 이후 전구간)
+     * @param to     종료일 (null이면 오늘)
      */
-    public List<DailyPrice> getDailyHistory(String stockCode, MarketType marketType, ExchangeCode exchangeCode,
-                                            LocalDate from, LocalDate to) {
-        return stockPricePort.getDailyHistory(stockCode, marketType, exchangeCode, from, to);
+    public PriceHistoryResponse getPriceHistory(String stockCode, ChartPeriod period,
+                                                LocalDate from, LocalDate to) {
+        LocalDate effectiveFrom = from != null ? from : PRICE_HISTORY_DEFAULT_FROM;
+        LocalDate effectiveTo = to != null ? to : LocalDate.now();
+        List<DailyPrice> prices = stockPricePort.getPriceHistory(
+            stockCode, MarketType.KOSPI, ExchangeCode.KRX, period, effectiveFrom, effectiveTo);
+        return PriceHistoryResponse.from(stockCode, period, prices);
     }
 }

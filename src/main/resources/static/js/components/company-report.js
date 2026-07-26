@@ -72,6 +72,9 @@ const CompanyReportComponent = {
         disclosures: { open: false, loading: false, error: null, stockCode: null, items: [] },
         _disclosureGen: 0,
 
+        // ==== 월봉 주가 히스토리 (위저드 5단계 + 상세 주가지표) — 상장 이후 전구간, 실시간 조회 ====
+        priceHistory: { stockCode: '', points: [], loading: false, error: null, _gen: 0 },
+
         _charts: [],
 
         // 정적 설정
@@ -162,6 +165,7 @@ const CompanyReportComponent = {
         const cr = this.companyReport;
         if (cr.view === 'detail' && cr.detail?.snapshot) {
             this.$nextTick(() => this._crRenderPerfChart(cr.detail.snapshot, 'report-detail-perf', cr.detail.manual));
+            this._crLoadPriceHistory(cr.detail.stockCode);
             return;
         }
         if (cr.view === 'form') {
@@ -337,12 +341,92 @@ const CompanyReportComponent = {
         this.companyReportGoStep(this.companyReport.step - 1);
     },
 
-    // 3단계(실적 추이) 진입 시에만 차트 렌더 (1회)
+    // 3단계(실적 추이) 진입 시에만 차트 렌더 (1회). 5단계(기업가치) 진입 시 월봉 주가 로드/렌더.
     _crRenderStepChart() {
         const cr = this.companyReport;
+        if (cr.step === 5 && cr.selected) {
+            this._crLoadPriceHistory(cr.selected.stockCode);
+        }
         if (cr.step !== 3 || !cr.preview?.snapshot || cr._previewChartRendered) return;
         cr._previewChartRendered = true;
         this.$nextTick(() => this._crRenderPerfChart(cr.preview.snapshot, 'report-preview-perf', cr.form.manual));
+    },
+
+    // ==================== 월봉 주가 히스토리 (상장 이후 전구간) ====================
+    // 같은 종목은 1회만 로드해 위저드/상세 양쪽 canvas에 재사용. 종목이 바뀌면 새로 로드.
+    async _crLoadPriceHistory(stockCode) {
+        const cr = this.companyReport;
+        if (!stockCode) return;
+        const ph = cr.priceHistory;
+        if (ph.stockCode === stockCode && (ph.loading || ph.points.length > 0)) {
+            this._crRenderPriceChartsForCurrentView(); // 이미 로드됨 → 렌더만
+            return;
+        }
+        const gen = ++ph._gen;
+        ph.stockCode = stockCode;
+        ph.loading = true;
+        ph.error = null;
+        ph.points = [];
+        try {
+            const res = await API.getStockPriceHistory(stockCode, 'M');
+            if (gen !== ph._gen) return;
+            ph.points = res?.points || [];
+            if (ph.points.length === 0) {
+                ph.error = '주가 데이터가 없습니다.';
+            }
+        } catch (e) {
+            if (gen !== ph._gen) return;
+            ph.error = '주가 데이터를 불러오지 못했습니다.';
+        } finally {
+            if (gen === ph._gen) {
+                ph.loading = false;
+                this._crRenderPriceChartsForCurrentView();
+            }
+        }
+    },
+
+    _crRenderPriceChartsForCurrentView() {
+        const cr = this.companyReport;
+        if (cr.view === 'form' && cr.step === 5) {
+            this.$nextTick(() => this._crRenderPriceHistoryChart('report-wizard-price-history'));
+        } else if (cr.view === 'detail') {
+            this.$nextTick(() => this._crRenderPriceHistoryChart('report-detail-price-history'));
+        }
+    },
+
+    // 월봉 종가 라인 차트. 이미 그려진 canvas(Chart.getChart)는 재렌더하지 않는다.
+    _crRenderPriceHistoryChart(canvasId) {
+        const ph = this.companyReport.priceHistory;
+        if (!ph.points.length || typeof Chart === 'undefined') return;
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || Chart.getChart(canvas)) return;
+        const labels = ph.points.map(p => (p.date || '').slice(0, 7)); // YYYY-MM
+        const data = ph.points.map(p => {
+            const n = parseFloat(p.close);
+            return isNaN(n) ? null : n;
+        });
+        const chart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: '월봉 종가(원)', data,
+                    borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)',
+                    fill: true, pointRadius: 0, borderWidth: 1.5, tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { maxTicksLimit: 12, maxRotation: 0 } },
+                    y: { title: { display: true, text: '원' } }
+                }
+            }
+        });
+        this.companyReport._charts.push(chart);
     },
 
     // ==================== 작성 시작 / 수정 / 재개 ====================
@@ -470,6 +554,7 @@ const CompanyReportComponent = {
         try {
             cr.detail = await API.getCompanyReport(id);
             this.companyReportLoadDisclosures(cr.detail?.stockCode);
+            this._crLoadPriceHistory(cr.detail?.stockCode);
             this.$nextTick(() => this._crRenderPerfChart(cr.detail?.snapshot, 'report-detail-perf', cr.detail?.manual));
         } catch (e) {
             cr.detailError = e?.message || '리포트 조회에 실패했습니다.';
@@ -487,6 +572,7 @@ const CompanyReportComponent = {
             const refreshed = await API.refreshCompanyReport(cr.detail.id);
             this._crDestroyCharts();
             cr.detail = refreshed;
+            this._crLoadPriceHistory(cr.detail?.stockCode);
             this.$nextTick(() => this._crRenderPerfChart(cr.detail?.snapshot, 'report-detail-perf', cr.detail?.manual));
         } catch (e) {
             cr.detailError = e?.message || '데이터 새로고침에 실패했습니다.';

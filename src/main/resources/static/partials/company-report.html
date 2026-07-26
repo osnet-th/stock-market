@@ -508,6 +508,16 @@
 
         <!-- ===== 5단계: 기업가치 ===== -->
         <div x-show="companyReport.step === 5" class="space-y-4">
+            <!-- 주가 추이 (월봉, 상장 이후 전구간, 실시간 조회) -->
+            <div class="bg-white border border-gray-200 rounded p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="text-sm font-semibold text-gray-700">주가 추이 (월봉)</div>
+                    <span class="text-xs text-gray-400">상장 이후 전구간 · 종가 기준 · 실시간 조회(스냅샷 미저장)</span>
+                </div>
+                <div x-show="companyReport.priceHistory.loading" class="text-sm text-gray-400 text-center py-6">주가 데이터를 불러오는 중...</div>
+                <div x-show="!companyReport.priceHistory.loading && companyReport.priceHistory.error" class="text-sm text-gray-400 text-center py-6" x-text="companyReport.priceHistory.error"></div>
+                <div x-show="!companyReport.priceHistory.loading && !companyReport.priceHistory.error && companyReport.priceHistory.points.length > 0" class="relative h-64"><canvas id="report-wizard-price-history"></canvas></div>
+            </div>
             <!-- 주가지표: 자동값 기본 표시 + 재료 인라인 편집 통합 (자동/내 계산 단일화) -->
             <div class="bg-white border border-gray-200 rounded p-4">
                 <div class="flex items-center gap-2 mb-1">
@@ -1286,6 +1296,16 @@
                             <span class="text-xs text-gray-400">기준가: <span x-text="crNum(companyReport.detail.snapshot.priceMetrics.referencePrice, 0)"></span>원 (<span x-text="companyReport.detail.snapshot.priceMetrics.referencePriceDate || '—'"></span>)</span>
                         </div>
                         <p class="text-xs text-gray-400 mb-3">재료에 직접 입력한 값이 있으면 그 값으로, 없으면 자동 산출값으로 파생 지표를 계산합니다(가운데 열은 자동값 참고). EV/EBITDA·ROIC·발생액은 자동 전용(스냅샷값).</p>
+                        <!-- 주가 추이 (월봉, 상장 이후 전구간, 실시간 조회 — 스냅샷 미저장) -->
+                        <div class="mb-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <div class="text-xs font-semibold text-gray-600">주가 추이 (월봉)</div>
+                                <span class="text-[11px] text-gray-400">상장 이후 전구간 · 종가 기준 · 실시간 조회</span>
+                            </div>
+                            <div x-show="companyReport.priceHistory.loading" class="text-sm text-gray-400 text-center py-6">주가 데이터를 불러오는 중...</div>
+                            <div x-show="!companyReport.priceHistory.loading && companyReport.priceHistory.error" class="text-sm text-gray-400 text-center py-6" x-text="companyReport.priceHistory.error"></div>
+                            <div x-show="!companyReport.priceHistory.loading && !companyReport.priceHistory.error && companyReport.priceHistory.points.length > 0" class="relative h-64"><canvas id="report-detail-price-history"></canvas></div>
+                        </div>
                         <table class="w-full text-xs border border-gray-100 rounded">
                             <thead>
                                 <tr class="text-gray-500 border-b border-gray-100 text-left">

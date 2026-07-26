@@ -3,8 +3,10 @@ package com.thlee.stock.market.stockmarket.stock.presentation;
 import com.thlee.stock.market.stockmarket.stock.application.StockPriceService;
 import com.thlee.stock.market.stockmarket.stock.application.StockSearchService;
 import com.thlee.stock.market.stockmarket.stock.application.dto.BulkStockPriceResponse;
+import com.thlee.stock.market.stockmarket.stock.application.dto.PriceHistoryResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockPriceResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockResponse;
+import com.thlee.stock.market.stockmarket.stock.domain.model.ChartPeriod;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
 import com.thlee.stock.market.stockmarket.stock.presentation.dto.BulkStockPriceRequest;
@@ -18,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 @RestController
@@ -56,5 +60,39 @@ public class StockController {
             @RequestBody BulkStockPriceRequest request) {
         BulkStockPriceResponse response = stockPriceService.getPrices(request.getStocks());
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 국내 주식 기간별(일/주/월봉) 가격 히스토리 조회.
+     *
+     * @param stockCode 종목코드 (KRX 6자리)
+     * @param period    봉 주기 D|W|M (기본 M)
+     * @param from      시작일 yyyy-MM-dd (미지정 시 1960-01-01 — 상장 이후 전구간)
+     * @param to        종료일 yyyy-MM-dd (미지정 시 오늘)
+     */
+    @GetMapping("/{stockCode}/price-history")
+    public ResponseEntity<PriceHistoryResponse> getPriceHistory(
+            @PathVariable String stockCode,
+            @RequestParam(defaultValue = "M") String period,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        if (stockCode == null || !stockCode.matches("\\d{6}")) {
+            throw new IllegalArgumentException("유효하지 않은 종목코드: " + stockCode);
+        }
+        ChartPeriod chartPeriod = ChartPeriod.fromCode(period);
+        PriceHistoryResponse response = stockPriceService.getPriceHistory(
+            stockCode, chartPeriod, parseDate(from), parseDate(to));
+        return ResponseEntity.ok(response);
+    }
+
+    private LocalDate parseDate(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("유효하지 않은 날짜 형식(yyyy-MM-dd): " + value);
+        }
     }
 }

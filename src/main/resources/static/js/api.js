@@ -368,6 +368,13 @@ const API = {
         return this.request('POST', '/api/stocks/prices', { stocks });
     },
 
+    // 기간별(일/주/월봉) 가격 히스토리. 전구간 월봉은 KIS 페이징(~5회)으로 다소 걸릴 수 있음
+    getStockPriceHistory(stockCode, period = 'M') {
+        return this.request('GET',
+            `/api/stocks/${stockCode}/price-history?period=${encodeURIComponent(period)}`,
+            null, { timeoutMs: 30000 });
+    },
+
     // ==================== Stock Financial ====================
 
     getFinancialOptions() {

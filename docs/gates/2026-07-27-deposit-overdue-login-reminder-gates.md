@@ -11,7 +11,7 @@
 - issue: approved
 - plan: approved
 - work: approved
-- review: pending
+- review: approved (2026-07-27, 태형님 "셀프 리뷰로 진행해" — 명시적 findings 없음, nit 2)
 - validation: pending
 - commit: pending
 - push: pending
@@ -23,7 +23,8 @@
   - 백엔드 무변경(기존 depositOverdue 재사용), 프론트 3파일 additive
 - issue: 완료 (2026-07-27, GitHub Issue 등록 — docs/issues/2026-07-27-deposit-overdue-login-reminder-issue.md 참조)
 - plan: 완료 (2026-07-27, docs/plans/2026-07-27-001-feat-deposit-overdue-login-reminder-plan.md — 태형님 "진행해" 승인)
-- work: 완료 (2026-07-27, docs/works/2026-07-27-deposit-overdue-login-reminder-work.md — 3파일 수정, node --check + Playwright 하네스 14/14 PASS. review·validation 게이트 대기)
+- work: 완료 (2026-07-27, docs/works/2026-07-27-deposit-overdue-login-reminder-work.md — 3파일 수정, node --check + Playwright 하네스 14/14 PASS)
+- review: 완료 (2026-07-27, 태형님 "셀프 리뷰로 진행해" — docs/reviews/2026-07-27-deposit-overdue-login-reminder-review.md. 명시적 findings 없음, nit 2(메서드 길이 관행·Escape 미지원 일관) 미반영 수용)
 
 ## Approval Gate 항목
 - 백엔드·API·Entity·DB 변경 없음 — 프런트 3파일(app.js / portfolio.js / portfolio-deposit-financial.html)만 additive 수정

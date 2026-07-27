@@ -179,6 +179,9 @@ function dashboard() {
                 return;
             }
 
+            // 미납 납입 리마인더 (#100) — 부트 블로킹 없이 병렬 확인 (내부 catch 로 실패 무해화)
+            this.checkDepositReminder();
+
             // hash 재읽기: bootstrap await 동안 사용자가 back/forward 눌러 hash 가 바뀐 경우 마지막 상태 honor
             const finalHash = location.hash.replace('#', '');
             const validPages = this.menus.map(m => m.key);

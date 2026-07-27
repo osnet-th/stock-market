@@ -9,8 +9,8 @@
 - start: approved
 - brainstorm: approved
 - issue: approved
-- plan: pending
-- work: pending
+- plan: approved
+- work: approved
 - review: pending
 - validation: pending
 - commit: pending
@@ -22,7 +22,8 @@
   - 노출 빈도/팝업 동작 2개 선택지 질의 → 태형님 확정: "오늘 하루 보지 않기 옵션 포함" + "미납 목록 + 항목별 [납입] 버튼"
   - 백엔드 무변경(기존 depositOverdue 재사용), 프론트 3파일 additive
 - issue: 완료 (2026-07-27, GitHub Issue 등록 — docs/issues/2026-07-27-deposit-overdue-login-reminder-issue.md 참조)
-- plan: 작성 (2026-07-27, docs/plans/2026-07-27-001-feat-deposit-overdue-login-reminder-plan.md) — 태형님 승인 대기
+- plan: 완료 (2026-07-27, docs/plans/2026-07-27-001-feat-deposit-overdue-login-reminder-plan.md — 태형님 "진행해" 승인)
+- work: 완료 (2026-07-27, docs/works/2026-07-27-deposit-overdue-login-reminder-work.md — 3파일 수정, node --check + Playwright 하네스 14/14 PASS. review·validation 게이트 대기)
 
 ## Approval Gate 항목
 - 백엔드·API·Entity·DB 변경 없음 — 프런트 3파일(app.js / portfolio.js / portfolio-deposit-financial.html)만 additive 수정

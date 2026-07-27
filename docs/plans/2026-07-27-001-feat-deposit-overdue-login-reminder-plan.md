@@ -28,26 +28,26 @@ gate: docs/gates/2026-07-27-deposit-overdue-login-reminder-gates.md
 
 ### 1. portfolio.js — 상태·메서드
 
-- [ ] `portfolio` 상태에 `depositReminder: { show: false, items: [], snoozeChecked: false }` 추가
-- [ ] `checkDepositReminder()`:
+- [x] `portfolio` 상태에 `depositReminder: { show: false, items: [], snoozeChecked: false }` 추가
+- [x] `checkDepositReminder()`:
   - localStorage `depositReminderSnoozeDate` === 오늘(YYYY-MM-DD)이면 skip (localStorage 접근은 try-catch — 실패 시 스누즈 무시하고 진행)
   - `API.getPortfolioItems(this.auth.userId)` 호출 → `depositOverdue === true` 필터
   - 1건 이상이면 `depositReminder.items` 세팅 + `show = true`; 0건/조회 실패 시 조용히 skip (console.error만)
-- [ ] `openDepositFromReminder(item)`: 리마인더 닫기(스누즈 저장 없음) → `navigateTo('portfolio')` → `openDepositModal(item)`
-- [ ] `closeDepositReminder()`: `snoozeChecked`면 localStorage에 오늘 날짜 저장 후 닫기, 아니면 그냥 닫기 (세션 내 재노출 없음)
-- [ ] `submitDeposit()` 성공 시: `depositReminder.items`에서 해당 항목 제거 (남은 목록이 비어도 팝업 재표시는 하지 않음 — 이미 닫힌 상태 유지)
+- [x] `openDepositFromReminder(item)`: 리마인더 닫기(스누즈 저장 없음) → `navigateTo('portfolio')` → `openDepositModal(item)`
+- [x] `closeDepositReminder()`: `snoozeChecked`면 localStorage에 오늘 날짜 저장 후 닫기, 아니면 그냥 닫기 (세션 내 재노출 없음)
+- [x] `submitDeposit()` 성공 시: `depositReminder.items`에서 해당 항목 제거 (남은 목록이 비어도 팝업 재표시는 하지 않음 — 이미 닫힌 상태 유지)
 
 ### 2. portfolio-deposit-financial.html — 팝업 마크업
 
-- [ ] 기존 모달 패턴(fixed 오버레이 + x-show + x-cloak) 재사용, `z-index`는 납입 모달보다 낮게 (겹침 시 납입 모달 우선)
-- [ ] 헤더: "미납 납입 안내" + 닫기(X)
-- [ ] 목록: 항목명, 자산 유형 라벨(펀드/현금성), 월 납입액(format), 납입일("매월 N일"), 항목별 [납입] 버튼
-- [ ] 하단: [오늘 하루 보지 않기] 체크박스 + [닫기] 버튼
-- [ ] 모바일: 기존 모달 반응형 패턴 따름
+- [x] 기존 모달 패턴(fixed 오버레이 + x-show + x-cloak) 재사용, `z-index`는 납입 모달보다 낮게 (겹침 시 납입 모달 우선)
+- [x] 헤더: "미납 납입 안내" + 닫기(X)
+- [x] 목록: 항목명, 자산 유형 라벨(펀드/현금성), 월 납입액(format), 납입일("매월 N일"), 항목별 [납입] 버튼
+- [x] 하단: [오늘 하루 보지 않기] 체크박스 + [닫기] 버튼
+- [x] 모바일: 기존 모달 반응형 패턴 따름
 
 ### 3. app.js — init 훅
 
-- [ ] `init()`의 SIGNING_USER 분기 통과 후, 초기 페이지 로드와 병렬로 `this.checkDepositReminder()` 호출 (await 하지 않음 — 부트 블로킹 금지, 내부 catch로 실패 무해화)
+- [x] `init()`의 SIGNING_USER 분기 통과 후, 초기 페이지 로드와 병렬로 `this.checkDepositReminder()` 호출 (await 하지 않음 — 부트 블로킹 금지, 내부 catch로 실패 무해화)
 
 ## Technical Considerations
 

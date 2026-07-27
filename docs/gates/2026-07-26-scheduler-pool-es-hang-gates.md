@@ -11,10 +11,10 @@
 - issue: approved
 - plan: approved
 - work: approved
-- review: approved (수행 완료 — 반영 범위는 태형님 지시 대기)
-- validation: pending
-- commit: pending
-- push: pending
+- review: approved (2026-07-26, "권장안대로 반영해" — M1·M2·L1·L2·N2 반영 + M3 문서 명기, M4·L3 보류)
+- validation: approved (2026-07-26, "진행해" — 결과 기록, 미검증 항목은 운영 배포 후 확인으로 명시)
+- commit: approved (2026-07-26, "진행해")
+- push: approved (2026-07-26, "진행해" — 세션 지정 브랜치. PR·main 병합은 별도 지시 대기)
 
 ## Stage Log
 - start: 2026-07-26, 태형님 "글로벌 경제지표 그래프에 히스토리가 하나도 안 보여" — 원인 진단 시작. 진단 결과 시스템 전체 cron 정지(본 이슈)와 글로벌 히스토리 결함(Issue B)으로 분리, "Issue A부터 진행" 제안에 태형님 "진행해" (2026-07-26)
@@ -26,6 +26,8 @@
 - work: 완료 (2026-07-26, docs/works/2026-07-26-scheduler-pool-es-hang-work.md — 4파일 수정, compileJava 통과)
 - review: 완료 (2026-07-26, 태형님 "ce:review 로 진행해" — ce:review 미설치로 #93 선례대로 compound-engineering review_agents 4종 병렬 서브에이전트 대체 수행. docs/reviews/2026-07-26-scheduler-pool-es-hang-review.md — 중간 4·낮음 4·nit 5)
 - review 반영: 태형님 "권장안대로 반영해" (2026-07-26) — M1·M2·L1·L2·N2 반영 + M3 문서 명기, M4·L3 보류(후속 논의). review 문서 "반영 내역" 절 참조
+- validation: 완료 (2026-07-26, docs/validations/2026-07-26-scheduler-pool-es-hang-validation.md — compileJava 2회 통과 + 리뷰 라인 추적 검증. 운영 확인 항목 5건 명시: log-flush 스레드·cron 재개(KST 16:00/16:30)·글로벌 적재 재개·ES 적재 동등성·재발 시 기대 동작)
+- commit/push: 완료 (2026-07-26, docs/commits·docs/pushes 기록 — 증분 커밋 dbe06bb·aeea0c6·e8410f5 + 최종 문서 커밋. PR·main 병합은 태형님 별도 지시 대기)
 
 ## Approval Gate 항목
 - 비즈니스 로직 변경: LogBatchBuffer 실행 모델 변경(공용 @Scheduled → 전용 단일 스레드 executor) — 로그 적재 의미(best-effort at-most-once)는 불변

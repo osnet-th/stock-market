@@ -12,9 +12,9 @@
 - plan: approved
 - work: approved
 - review: approved (2026-07-27, 태형님 "셀프 리뷰로 진행해" — 명시적 findings 없음, nit 2)
-- validation: pending
-- commit: pending
-- push: pending
+- validation: approved (2026-07-27, "한번에 진행해" — 결과 기록, 미검증 3건은 배포 후 확인으로 명시)
+- commit: approved (2026-07-27, "한번에 진행해")
+- push: approved (2026-07-27, "한번에 진행해" — PR 생성·main 병합 포함)
 
 ## Stage Log
 - start: 2026-07-27, 태형님 "로그인시 미처리된 납입 내역 있으면 재 팝업으로 해줄래" — 기능 요청 접수, 기존 구조(isDepositOverdue·depositOverdue 배지·납입 모달) 탐색
@@ -25,6 +25,8 @@
 - plan: 완료 (2026-07-27, docs/plans/2026-07-27-001-feat-deposit-overdue-login-reminder-plan.md — 태형님 "진행해" 승인)
 - work: 완료 (2026-07-27, docs/works/2026-07-27-deposit-overdue-login-reminder-work.md — 3파일 수정, node --check + Playwright 하네스 14/14 PASS)
 - review: 완료 (2026-07-27, 태형님 "셀프 리뷰로 진행해" — docs/reviews/2026-07-27-deposit-overdue-login-reminder-review.md. 명시적 findings 없음, nit 2(메서드 길이 관행·Escape 미지원 일관) 미반영 수용)
+- validation: 완료 (2026-07-27, docs/validations/2026-07-27-deposit-overdue-login-reminder-validation.md — node --check + 하네스 14/14 PASS. 배포 후 확인 3건 명시)
+- commit/push: 완료 (2026-07-27, 태형님 "한번에 진행해" — docs/commits·docs/pushes 기록, PR 생성·main 병합 결과는 최종 응답 보고)
 
 ## Approval Gate 항목
 - 백엔드·API·Entity·DB 변경 없음 — 프런트 3파일(app.js / portfolio.js / portfolio-deposit-financial.html)만 additive 수정

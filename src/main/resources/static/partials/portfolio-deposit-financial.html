@@ -139,6 +139,52 @@
                 </div>
             </div>
 
+            <!-- 미납 납입 리마인더 (#100) — 로그인 시 미납 항목 안내, 납입 모달(z-50)보다 아래 -->
+            <div x-show="portfolio.depositReminder.show" x-cloak
+                class="fixed inset-0 bg-black/50 flex items-center justify-center z-40">
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
+                    @click.outside="closeDepositReminder()">
+
+                    <div class="flex items-start justify-between mb-1">
+                        <h3 class="text-lg font-bold text-gray-900">미납 납입 안내</h3>
+                        <button @click="closeDepositReminder()"
+                            class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-4">이번 달 납입이 처리되지 않은 항목이 있습니다.</p>
+
+                    <div class="space-y-2 max-h-72 overflow-y-auto">
+                        <template x-for="item in portfolio.depositReminder.items" :key="item.id">
+                            <div class="flex items-center justify-between gap-3 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2.5">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-medium text-gray-900 truncate" x-text="item.itemName"></span>
+                                        <span class="text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0"
+                                            x-text="item.assetType === 'FUND' ? '펀드' : '현금성'"></span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-0.5" x-text="depositReminderMeta(item)"></div>
+                                </div>
+                                <button @click="openDepositFromReminder(item)"
+                                    class="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
+                                    납입
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="flex items-center justify-between mt-4">
+                        <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                            <input type="checkbox" x-model="portfolio.depositReminder.snoozeChecked"
+                                class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                            오늘 하루 보지 않기
+                        </label>
+                        <button @click="closeDepositReminder()"
+                            class="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
+                            닫기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Payload 모달 -->
             <div x-show="adminLogs.modal.open" x-cloak
                  class="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4"

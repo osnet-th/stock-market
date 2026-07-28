@@ -36,6 +36,7 @@ const PortfolioComponent = {
         depositHistories: [],
         editingDeposit: null,
         editDepositForm: { depositDate: '', amount: '', units: '', memo: '' },
+        depositReminder: { show: false, items: [], snoozeChecked: false },
         // 매도 상태
         activeTab: 'items',
         showSaleModal: false,
@@ -1679,6 +1680,65 @@ const PortfolioComponent = {
         if (fresh) this.portfolio.depositItem = fresh;
     },
 
+    // ──────────────────────────────────────────────────────────────────
+    // 미납 납입 리마인더 (#100)
+    // ──────────────────────────────────────────────────────────────────
+
+    // 스누즈는 사용자 로컬 하루 기준 (toISOString 은 UTC 라 KST 오전에 날짜가 어긋남)
+    _depositReminderToday() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    },
+
+    _depositReminderSnoozedToday() {
+        try {
+            return localStorage.getItem('depositReminderSnoozeDate') === this._depositReminderToday();
+        } catch (e) {
+            return false;
+        }
+    },
+
+    async checkDepositReminder() {
+        try {
+            if (this._depositReminderSnoozedToday()) return;
+            const items = await API.getPortfolioItems(this.auth.userId) || [];
+            const overdue = items.filter((i) => i.depositOverdue === true);
+            if (overdue.length === 0) return;
+            this.portfolio.depositReminder.items = overdue;
+            this.portfolio.depositReminder.snoozeChecked = false;
+            this.portfolio.depositReminder.show = true;
+        } catch (e) {
+            console.error('미납 납입 리마인더 확인 실패:', e);
+        }
+    },
+
+    depositReminderMeta(item) {
+        const detail = item.assetType === 'FUND' ? item.fundDetail
+            : (item.assetType === 'CASH' ? item.cashDetail : null);
+        if (!detail) return '';
+        const parts = [];
+        if (detail.monthlyDepositAmount) parts.push('월 ' + Format.number(detail.monthlyDepositAmount, 0) + '원');
+        if (detail.depositDay) parts.push('매월 ' + detail.depositDay + '일');
+        return parts.join(' · ');
+    },
+
+    async openDepositFromReminder(item) {
+        this.portfolio.depositReminder.show = false;
+        if (this.currentPage !== 'portfolio') {
+            await this.navigateTo('portfolio');
+        }
+        await this.openDepositModal(item);
+    },
+
+    closeDepositReminder() {
+        if (this.portfolio.depositReminder.snoozeChecked) {
+            try {
+                localStorage.setItem('depositReminderSnoozeDate', this._depositReminderToday());
+            } catch (e) { /* localStorage 불가 시 스누즈 없이 매번 노출 */ }
+        }
+        this.portfolio.depositReminder.show = false;
+    },
+
     async submitDeposit() {
         const form = this.portfolio.depositForm;
         const item = this.portfolio.depositItem;
@@ -1699,6 +1759,9 @@ const PortfolioComponent = {
             await this.loadDepositHistories(item.id);
             await this.loadPortfolio();
             this.refreshDepositItem();
+            // 납입 처리된 항목은 리마인더 목록에서 제거 (#100)
+            this.portfolio.depositReminder.items =
+                this.portfolio.depositReminder.items.filter((r) => r.id !== item.id);
         } catch (e) {
             console.error('납입 추가 실패:', e);
             alert('납입 추가에 실패했습니다.');

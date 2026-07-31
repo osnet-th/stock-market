@@ -10,8 +10,8 @@
 - brainstorm: approved (2026-07-30, 설계 선택 7건 확정)
 - issue: approved (2026-07-30, 태형님 "진행해")
 - plan: approved (2026-07-30, 태형님 "진행해" — 승인 게이트 대상 6건 일괄 승인: Entity 신규 2·GoldItemEntity 수정·신규 API 3·general 요청 확장·KRX 금시세 연동·평가 로직 변경)
-- work: done (2026-07-30, Phase 1~5 구현 완료 — 태형님 리뷰 단계 승인 대기)
-- review: pending
+- work: approved (2026-07-30, 태형님 "진행해" — review 진입 승인)
+- review: done (2026-07-30, 셀프 리뷰 — 중간 1·낮음 2·nit 2, M1·L1·L2·N1 반영, N2 수용. validation 승인 대기)
 - validation: pending
 - commit: pending
 - push: pending
@@ -24,6 +24,7 @@
 - issue: 완료 (2026-07-30, GitHub Issue #102 등록 — docs/issues/2026-07-30-asset-allocation-target-issue.md 참조)
 - plan: 완료 (2026-07-30, docs/plans/2026-07-30-001-feat-asset-allocation-target-plan.md — 태형님 "진행해" 승인, 게이트 대상 6건 일괄 승인)
 - work: 완료 (2026-07-30, docs/works/2026-07-30-asset-allocation-target-work.md — Phase 1~5, compileJava·node --check PASS. KRX 금시세 실호출·브라우저 UI 확인은 validation 항목)
+- review: 완료 (2026-07-30, docs/reviews/2026-07-30-asset-allocation-target-review.md — 셀프 리뷰. M1(금시세 최신성 가드)·L1(비율 2자리 반올림)·L2(합계 표시 반올림)·N1(데드 코드 제거) 반영, N2(클라이언트 차트 금 시세 미반영) 수용. 재검증 compileJava·node --check PASS)
 
 ## Approval Gate 항목
 - 신규 Entity(목표 배분 설정) 생성 필요 — plan 단계에서 상세 설계 후 승인 대상

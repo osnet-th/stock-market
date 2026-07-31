@@ -343,11 +343,6 @@ const PortfolioComponent = {
         return ['STOCK', 'REAL_ESTATE', 'FUND', 'GOLD', 'COMMODITY', 'OTHER'];
     },
 
-    formatAllocAmount(amount) {
-        if (amount === null || amount === undefined) return '-';
-        return Math.round(Number(amount)).toLocaleString() + '원';
-    },
-
     formatAllocDeviation(deviationAmount, deviationPctPoint) {
         if (deviationAmount === null || deviationAmount === undefined) return '';
         const amount = Math.round(Number(deviationAmount));
@@ -404,15 +399,17 @@ const PortfolioComponent = {
     },
 
     getAllocationAssetSum() {
-        return this.portfolio.allocationTargetModal.form.assets
-            .reduce((sum, row) => sum + (row.ratio === '' ? 0 : Number(row.ratio) || 0), 0);
+        const sum = this.portfolio.allocationTargetModal.form.assets
+            .reduce((acc, row) => acc + (row.ratio === '' ? 0 : Number(row.ratio) || 0), 0);
+        return Math.round(sum * 100) / 100;
     },
 
     async submitAllocationTarget() {
         const modal = this.portfolio.allocationTargetModal;
         const form = modal.form;
 
-        const safeRatio = Number(form.safeRatio);
+        // 소수 2자리로 반올림해 안전+투자 합이 정확히 100이 되도록 맞춘다
+        const safeRatio = Math.round(Number(form.safeRatio) * 100) / 100;
         if (form.safeRatio === '' || Number.isNaN(safeRatio) || safeRatio < 0 || safeRatio > 100) {
             alert('안전자산 목표 비율은 0~100 사이로 입력해 주세요.');
             return;
@@ -439,7 +436,7 @@ const PortfolioComponent = {
                 bandPctPoint: bandPctPoint,
                 investAssets: filledAssets.map((row) => ({
                     assetType: row.assetType,
-                    targetRatio: Number(row.ratio)
+                    targetRatio: Math.round(Number(row.ratio) * 100) / 100
                 }))
             });
             modal.show = false;

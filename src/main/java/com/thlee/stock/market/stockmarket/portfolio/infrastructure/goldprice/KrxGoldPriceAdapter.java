@@ -97,9 +97,12 @@ public class KrxGoldPriceAdapter implements GoldPriceProvider {
                 return Optional.empty();
             }
 
+            // 날짜 필터가 무시된 응답(과거 데이터 페이지) 방어: lookback 범위 밖 시세는 실패로 처리
+            String minBasDt = today.minusDays(properties.getLookbackDays()).format(BAS_DT_FORMATTER);
             return response.getItemList().stream()
                     .filter(item -> item.getItmsNm() != null && item.getItmsNm().startsWith(GOLD_ITEM_NAME_PREFIX))
                     .max(Comparator.comparing(GoldPriceItem::getBasDt))
+                    .filter(item -> item.getBasDt() != null && item.getBasDt().compareTo(minBasDt) >= 0)
                     .map(item -> new BigDecimal(item.getClpr()));
         } catch (Exception e) {
             log.warn("금시세 API 호출 실패: {}", e.getMessage());

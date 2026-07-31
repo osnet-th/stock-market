@@ -7,8 +7,8 @@
 
 ## Stage Decisions
 - start: approved
-- brainstorm: approved (2026-07-30, 설계 선택 4건 확정 — 문서 확인 대기)
-- issue: pending
+- brainstorm: approved (2026-07-30, 설계 선택 7건 확정)
+- issue: approved (2026-07-30, 태형님 "진행해")
 - plan: pending
 - work: pending
 - review: pending
@@ -21,6 +21,7 @@
 - brainstorm: 완료 (2026-07-30, docs/brainstorms/2026-07-30-asset-allocation-target-brainstorm.md)
   - 설계 선택 4건 질의 → 태형님 확정: 유형 고정 매핑 / 평가액 기준 / 허용밴드 초과 시 강조 / 투자자산 내부만 세부 비율
   - 추가 확정 3건 (2026-07-30): 시세 반영 확대는 금만(KRX 금시세 신규 연동) / 암호화폐는 배분 기능에서 제외(목표·집계·표시 미노출, 등록 기능 불변) / 대시보드 포트폴리오 카드에 배분 요약 추가
+- issue: 완료 (2026-07-30, GitHub Issue #102 등록 — docs/issues/2026-07-30-asset-allocation-target-issue.md 참조)
 
 ## Approval Gate 항목
 - 신규 Entity(목표 배분 설정) 생성 필요 — plan 단계에서 상세 설계 후 승인 대상

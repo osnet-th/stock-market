@@ -267,22 +267,34 @@ public class PortfolioService {
     /**
      * 일반 자산 항목 등록 (CRYPTO, GOLD, COMMODITY, OTHER)
      * CASH는 전용 API(addCashItem)를 사용해야 합니다.
+     * quantityGrams는 GOLD 전용 선택 입력 (시세 평가용 보유 중량)
      */
     @Transactional
     public PortfolioItemResponse addGeneralItem(Long userId, String assetType, String itemName,
-                                                 BigDecimal investedAmount, String region, String memo) {
+                                                 BigDecimal investedAmount, String region, String memo,
+                                                 BigDecimal quantityGrams) {
         AssetType type = AssetType.valueOf(assetType);
         if (type == AssetType.CASH) {
             throw new IllegalArgumentException("현금성 자산은 전용 API(/items/cash)를 사용해 주세요.");
         }
+        validateQuantityGramsUsage(type, quantityGrams);
         PortfolioItem item = PortfolioItem.create(userId, itemName, type, investedAmount, Region.valueOf(region));
         if (memo != null) {
             item.updateMemo(memo);
+        }
+        if (type == AssetType.GOLD && quantityGrams != null) {
+            item.updateGoldDetail(new GoldDetail(quantityGrams));
         }
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
         publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
         return PortfolioItemResponse.from(saved);
+    }
+
+    private void validateQuantityGramsUsage(AssetType type, BigDecimal quantityGrams) {
+        if (quantityGrams != null && type != AssetType.GOLD) {
+            throw new IllegalArgumentException("보유 중량(g)은 금 항목에서만 입력할 수 있습니다.");
+        }
     }
 
     /**
@@ -502,11 +514,16 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse updateGeneralItem(Long userId, Long itemId,
-                                                    String itemName, BigDecimal investedAmount, String memo) {
+                                                    String itemName, BigDecimal investedAmount, String memo,
+                                                    BigDecimal quantityGrams) {
         PortfolioItem item = findUserItem(userId, itemId);
+        validateQuantityGramsUsage(item.getAssetType(), quantityGrams);
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
         item.updateMemo(memo);
+        if (item.getAssetType() == AssetType.GOLD) {
+            item.updateGoldDetail(quantityGrams != null ? new GoldDetail(quantityGrams) : null);
+        }
         PortfolioItem saved = portfolioItemRepository.save(item);
         publishItemEvent("PORTFOLIO_ITEM_UPDATED", userId, saved);
         return PortfolioItemResponse.from(saved);

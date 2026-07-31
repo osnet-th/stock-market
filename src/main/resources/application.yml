@@ -126,6 +126,15 @@ stock:
       service-key: ${DATAGOKR_SERVICE_KEY}
       num-of-rows: 100
 
+# 금 시세 API (공공데이터포털 - 금융위원회_일반상품시세정보, KRX 금시장 1g당 종가)
+gold:
+  api:
+    base-url: https://apis.data.go.kr/1160100/service/GetGeneralProductInfoService/getGoldPriceInfo
+    service-key: ${DATAGOKR_SERVICE_KEY}
+    cache-ttl-minutes: 60
+    failure-backoff-minutes: 5
+    lookback-days: 14
+
 # 한국수출입은행 환율 API
 koreaexim:
   api:

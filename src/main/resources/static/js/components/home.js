@@ -12,7 +12,22 @@ const HomeComponent = {
         globalCategories: [],
         enrichedFavorites: null,
         recentUpdates: null,
+        allocationStatus: null,
         dashboardLoading: false,
+    },
+
+    getHomeAllocationBucket(bucketKey) {
+        const status = this.homeSummary.allocationStatus;
+        if (!status || !status.configured || !status.buckets) return null;
+        return status.buckets.find((b) => b.bucket === bucketKey) || null;
+    },
+
+    hasHomeAllocationWarning() {
+        const status = this.homeSummary.allocationStatus;
+        if (!status || !status.configured) return false;
+        const bucketExceeded = (status.buckets || []).some((b) => b.bandExceeded);
+        const assetExceeded = (status.investAssets || []).some((a) => a.bandExceeded);
+        return bucketExceeded || assetExceeded;
     },
 
     async loadHomeSummary() {
@@ -24,7 +39,8 @@ const HomeComponent = {
                 API.getGlobalCategories(),
                 this.checkLoggedIn() ? API.getPortfolioItems(this.auth.userId) : Promise.resolve(null),
                 this.checkLoggedIn() ? API.getEnrichedFavorites() : Promise.resolve(null),
-                API.getRecentUpdates()
+                API.getRecentUpdates(),
+                this.checkLoggedIn() ? API.getAllocationStatus(this.auth.userId) : Promise.resolve(null)
             ]);
 
             // 키워드
@@ -70,6 +86,11 @@ const HomeComponent = {
             // 최근 업데이트
             if (results[5].status === 'fulfilled' && results[5].value) {
                 this.homeSummary.recentUpdates = results[5].value;
+            }
+
+            // 목표 자산 배분 현황 (실패 시 카드가 기존 개수 표시로 동작)
+            if (results[6].status === 'fulfilled' && results[6].value) {
+                this.homeSummary.allocationStatus = results[6].value;
             }
         } catch (e) {
             console.error('홈 요약 로드 실패:', e);

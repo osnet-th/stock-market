@@ -6,6 +6,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.PortfolioItem;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.StockDetail;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioItemRepository;
+import com.thlee.stock.market.stockmarket.portfolio.domain.service.GoldPriceProvider;
 import com.thlee.stock.market.stockmarket.stock.application.StockPriceService;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockPriceResponse;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
@@ -33,6 +34,7 @@ public class PortfolioEvaluationService {
 
     private final PortfolioItemRepository portfolioItemRepository;
     private final StockPriceService stockPriceService;
+    private final GoldPriceProvider goldPriceProvider;
 
     /**
      * 여러 사용자의 포트폴리오를 일괄 평가
@@ -49,6 +51,9 @@ public class PortfolioEvaluationService {
          // 2. STOCK 항목에서 고유 종목 추출 + 현재가 1회 조회
         Map<String, StockPriceResponse> priceMap = fetchDistinctStockPrices(allItems);
 
+        // 3. GOLD 중량 입력 항목이 있으면 금 1g 시세 1회 조회 (실패 시 empty → 원금 평가)
+        Optional<BigDecimal> goldPricePerGram = fetchGoldPriceIfNeeded(allItems);
+
         // 4. 사용자별 그룹핑 → 평가금액 계산
         Map<Long, List<PortfolioItem>> userItemsMap = allItems.stream()
                 .collect(Collectors.groupingBy(PortfolioItem::getUserId));
@@ -56,14 +61,15 @@ public class PortfolioEvaluationService {
         Map<Long, PortfolioEvaluation> result = new HashMap<>();
         for (Long userId : userIds) {
             List<PortfolioItem> userItems = userItemsMap.getOrDefault(userId, List.of());
-            result.put(userId, buildEvaluation(userId, userItems, priceMap));
+            result.put(userId, buildEvaluation(userId, userItems, priceMap, goldPricePerGram));
         }
 
         return result;
     }
 
     private PortfolioEvaluation buildEvaluation(Long userId, List<PortfolioItem> items,
-                                                 Map<String, StockPriceResponse> priceMap) {
+                                                 Map<String, StockPriceResponse> priceMap,
+                                                 Optional<BigDecimal> goldPricePerGram) {
         List<ItemEvaluation> evaluations = new ArrayList<>();
         BigDecimal totalInvested = BigDecimal.ZERO;
         BigDecimal totalEvaluated = BigDecimal.ZERO;
@@ -91,6 +97,11 @@ public class PortfolioEvaluationService {
                 if (detail.getInvestedAmountKrw() != null) {
                     invested = detail.getInvestedAmountKrw();
                 }
+            } else if (item.getAssetType() == AssetType.GOLD && item.getGoldDetail() != null
+                    && goldPricePerGram.isPresent()) {
+                evaluated = goldPricePerGram.get()
+                        .multiply(item.getGoldDetail().getQuantityGrams())
+                        .setScale(2, java.math.RoundingMode.HALF_UP);
             }
 
             totalInvested = totalInvested.add(invested);
@@ -172,6 +183,18 @@ public class PortfolioEvaluationService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * GOLD 중량 입력 항목이 하나라도 있을 때만 금 시세 조회
+     */
+    private Optional<BigDecimal> fetchGoldPriceIfNeeded(List<PortfolioItem> allItems) {
+        boolean hasGoldWithQuantity = allItems.stream()
+                .anyMatch(item -> item.getAssetType() == AssetType.GOLD && item.getGoldDetail() != null);
+        if (!hasGoldWithQuantity) {
+            return Optional.empty();
+        }
+        return goldPriceProvider.getPricePerGram();
     }
 
     /**

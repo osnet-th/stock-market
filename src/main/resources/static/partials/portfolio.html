@@ -90,6 +90,105 @@
                                     </div>
                                 </div>
 
+                                <!-- 목표 자산 배분 섹션 -->
+                                <div class="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h3 class="text-sm font-bold text-gray-700">목표 자산 배분</h3>
+                                        <button @click="openAllocationTargetModal()"
+                                            class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">목표 설정</button>
+                                    </div>
+
+                                    <template x-if="!portfolio.allocationStatus">
+                                        <p class="text-xs text-gray-400">배분 현황을 불러오지 못했습니다.</p>
+                                    </template>
+
+                                    <template x-if="portfolio.allocationStatus && !portfolio.allocationStatus.configured">
+                                        <p class="text-xs text-gray-400">
+                                            목표 비율이 아직 없습니다. [목표 설정]에서 안전자산/투자자산 비율을 정해 두면
+                                            수익으로 비율이 틀어졌을 때 초과 금액과 %p를 알려드립니다.
+                                        </p>
+                                    </template>
+
+                                    <template x-if="portfolio.allocationStatus && portfolio.allocationStatus.configured
+                                        && Number(portfolio.allocationStatus.totalEvaluated) === 0">
+                                        <p class="text-xs text-gray-400">평가할 자산이 없어 배분 현황을 계산할 수 없습니다.</p>
+                                    </template>
+
+                                    <template x-if="portfolio.allocationStatus && portfolio.allocationStatus.configured
+                                        && Number(portfolio.allocationStatus.totalEvaluated) > 0">
+                                        <div>
+                                            <!-- 상위 안전/투자 버킷 -->
+                                            <div class="space-y-4">
+                                                <template x-for="bucket in portfolio.allocationStatus.buckets" :key="bucket.bucket">
+                                                    <div>
+                                                        <div class="flex items-center justify-between text-xs mb-1">
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="font-medium text-gray-700" x-text="bucket.bucketName"></span>
+                                                                <span class="text-gray-400"
+                                                                    x-text="'현재 ' + Number(bucket.currentRatio).toFixed(1) + '% / 목표 ' + Number(bucket.targetRatio).toFixed(1) + '%'"></span>
+                                                                <span x-show="bucket.bandExceeded"
+                                                                    class="px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-medium">밴드 초과</span>
+                                                            </div>
+                                                            <span class="font-mono"
+                                                                :class="bucket.bandExceeded ? 'text-red-600 font-medium' : 'text-gray-500'"
+                                                                x-text="formatAllocDeviation(bucket.deviationAmount, bucket.deviationPctPoint)"></span>
+                                                        </div>
+                                                        <div class="relative bg-gray-100 rounded-full h-4">
+                                                            <div class="h-full rounded-full transition-all duration-500"
+                                                                :class="bucket.bucket === 'SAFE' ? 'bg-emerald-400' : (bucket.bandExceeded ? 'bg-red-400' : 'bg-blue-400')"
+                                                                :style="getAllocationBucketBarStyle(bucket)"></div>
+                                                            <div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-gray-700"
+                                                                :style="getAllocationTargetMarkerStyle(bucket)" title="목표 비율"></div>
+                                                        </div>
+                                                        <div class="text-xs text-gray-400 mt-0.5"
+                                                            x-text="Format.number(bucket.currentAmount, 0) + '원 / 목표 ' + Format.number(bucket.targetAmount, 0) + '원'"></div>
+                                                    </div>
+                                                </template>
+                                            </div>
+
+                                            <!-- 투자자산 내부 자산군 -->
+                                            <template x-if="portfolio.allocationStatus.investAssets && portfolio.allocationStatus.investAssets.length > 0">
+                                                <div class="mt-5 pt-4 border-t border-gray-100">
+                                                    <p class="text-xs font-semibold text-gray-500 mb-2">투자자산 내부 비율 (투자자산 총액 대비)</p>
+                                                    <div class="space-y-2">
+                                                        <template x-for="asset in portfolio.allocationStatus.investAssets" :key="asset.assetType">
+                                                            <div class="flex items-center gap-3 text-xs">
+                                                                <span :class="getAssetTypeBadgeClass(asset.assetType)"
+                                                                    class="px-2 py-0.5 rounded-full font-medium w-20 text-center shrink-0"
+                                                                    x-text="asset.assetTypeName"></span>
+                                                                <span class="text-gray-500 w-40 shrink-0"
+                                                                    x-text="'현재 ' + Number(asset.currentRatio).toFixed(1) + '%'
+                                                                        + (asset.targetRatio !== undefined && asset.targetRatio !== null
+                                                                            ? ' / 목표 ' + Number(asset.targetRatio).toFixed(1) + '%' : ' / 목표 미설정')"></span>
+                                                                <div class="flex-1 relative bg-gray-100 rounded-full h-3">
+                                                                    <div class="h-full rounded-full transition-all duration-500"
+                                                                        :class="asset.bandExceeded ? 'bg-red-400' : 'bg-indigo-400'"
+                                                                        :style="getAllocationBucketBarStyle(asset)"></div>
+                                                                    <div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-gray-700"
+                                                                        :style="getAllocationTargetMarkerStyle(asset)" title="목표 비율"></div>
+                                                                </div>
+                                                                <span class="font-mono w-44 text-right shrink-0"
+                                                                    :class="asset.bandExceeded ? 'text-red-600 font-medium' : 'text-gray-500'"
+                                                                    x-text="asset.deviationAmount !== undefined && asset.deviationAmount !== null
+                                                                        ? formatAllocDeviation(asset.deviationAmount, asset.deviationPctPoint)
+                                                                        : Format.number(asset.currentAmount, 0) + '원'"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+
+                                            <!-- 암호화폐 제외 안내 -->
+                                            <template x-if="portfolio.allocationStatus.excludedCryptoCount > 0">
+                                                <p class="text-xs text-gray-400 mt-3">
+                                                    배분 제외: 암호화폐 <span x-text="portfolio.allocationStatus.excludedCryptoCount"></span>건
+                                                    (목표·비율 계산에 포함되지 않습니다)
+                                                </p>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+
                                 <!-- 카테고리별 접이식 섹션 -->
                                 <div class="space-y-3">
                                     <template x-for="alloc in getEvalAllocation()" :key="'section-' + alloc.assetType">
@@ -489,6 +588,73 @@
                                     </div>
                                 </div>
                             </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 목표 자산 배분 설정 모달 -->
+                <template x-if="portfolio.allocationTargetModal.show">
+                    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div class="absolute inset-0 bg-black bg-opacity-40" @click="closeAllocationTargetModal()"></div>
+                        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-base font-bold text-gray-800">목표 자산 배분 설정</h3>
+                                <button @click="closeAllocationTargetModal()"
+                                    class="text-gray-400 hover:text-gray-600 transition">&#10005;</button>
+                            </div>
+                            <div class="space-y-4">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">안전자산 목표 (%)</label>
+                                        <input type="number" min="0" max="100" step="0.1"
+                                            x-model="portfolio.allocationTargetModal.form.safeRatio"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                            placeholder="30">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">투자자산 목표 (%) — 자동</label>
+                                        <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-600"
+                                            x-text="getAllocationInvestRatio() !== null ? getAllocationInvestRatio() : '-'"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">허용밴드 (±%p)</label>
+                                    <input type="number" min="0" max="20" step="0.5"
+                                        x-model="portfolio.allocationTargetModal.form.bandPctPoint"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                    <p class="text-xs text-gray-400 mt-1">편차가 밴드를 넘으면 경고로 강조합니다. (기본 5)</p>
+                                </div>
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="text-xs text-gray-500">투자자산 내부 목표 (%) — 선택</label>
+                                        <span class="text-xs"
+                                            :class="getAllocationAssetSum() === 0 || Math.abs(getAllocationAssetSum() - 100) < 0.001 ? 'text-gray-400' : 'text-red-500'"
+                                            x-text="'합계 ' + getAllocationAssetSum() + '%'"></span>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <template x-for="row in portfolio.allocationTargetModal.form.assets" :key="row.assetType">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs text-gray-600 w-20 shrink-0" x-text="row.label"></span>
+                                                <input type="number" min="0" max="100" step="0.1" x-model="row.ratio"
+                                                    class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                                                    placeholder="0">
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        입력한 자산군 비율의 합이 100이어야 합니다. 모두 비우면 상위 비율만 관리합니다.
+                                        암호화폐는 배분 대상에서 제외됩니다.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-6">
+                                <button @click="closeAllocationTargetModal()"
+                                    class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">취소</button>
+                                <button @click="submitAllocationTarget()"
+                                    :disabled="portfolio.allocationTargetModal.saving"
+                                    class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                                    x-text="portfolio.allocationTargetModal.saving ? '저장 중…' : '저장'"></button>
+                            </div>
                         </div>
                     </div>
                 </template>

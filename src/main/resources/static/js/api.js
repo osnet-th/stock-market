@@ -230,6 +230,18 @@ const API = {
         return this.request('GET', `/api/portfolio/allocation?userId=${userId}`);
     },
 
+    getAllocationStatus(userId) {
+        return this.request('GET', `/api/portfolio/allocation/status?userId=${userId}`);
+    },
+
+    getAllocationTarget(userId) {
+        return this.request('GET', `/api/portfolio/allocation/target?userId=${userId}`);
+    },
+
+    saveAllocationTarget(userId, body) {
+        return this.request('PUT', `/api/portfolio/allocation/target?userId=${userId}`, body);
+    },
+
     // 등록 (타입별)
     addStockItem(userId, body) {
         return this.request('POST', `/api/portfolio/items/stock?userId=${userId}`, body);

@@ -150,12 +150,45 @@
                     </div>
                     <!-- 포트폴리오 요약 -->
                     <div @click="navigateTo('portfolio')" class="summary-card bg-white rounded-xl border border-gray-200 p-5 cursor-pointer">
-                        <p class="text-sm text-gray-500 mb-1">포트폴리오</p>
-                        <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.portfolioItemCount || 0"></p>
-                        <p class="text-xs text-gray-400 mt-1">
-                            자산 항목 · <span x-text="homeSummary.portfolioTypeSummary || ''" class="font-medium text-blue-600"></span>
-                            · 뉴스 <span x-text="homeSummary.portfolioNewsEnabledCount || 0" class="font-medium text-green-600"></span>개 활성
-                        </p>
+                        <div class="flex items-center justify-between mb-1">
+                            <p class="text-sm text-gray-500">포트폴리오</p>
+                            <span x-show="hasHomeAllocationWarning()"
+                                class="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-medium">배분 밴드 초과</span>
+                        </div>
+                        <!-- 목표 배분 설정 시: 총 평가액 + 안전/투자 현재vs목표 -->
+                        <template x-if="homeSummary.allocationStatus && homeSummary.allocationStatus.configured
+                            && Number(homeSummary.allocationStatus.totalEvaluated) > 0">
+                            <div>
+                                <p class="text-2xl font-bold text-gray-800"
+                                    x-text="Format.number(homeSummary.allocationStatus.totalEvaluated, 0) + '원'"></p>
+                                <p class="text-xs text-gray-400 mt-1">
+                                    안전 <span class="font-medium"
+                                        :class="getHomeAllocationBucket('SAFE')?.bandExceeded ? 'text-red-600' : 'text-emerald-600'"
+                                        x-text="Number(getHomeAllocationBucket('SAFE')?.currentRatio || 0).toFixed(0) + '%'"></span><span
+                                        x-text="'/' + Number(getHomeAllocationBucket('SAFE')?.targetRatio || 0).toFixed(0) + '%'"></span>
+                                    · 투자 <span class="font-medium"
+                                        :class="getHomeAllocationBucket('INVEST')?.bandExceeded ? 'text-red-600' : 'text-blue-600'"
+                                        x-text="Number(getHomeAllocationBucket('INVEST')?.currentRatio || 0).toFixed(0) + '%'"></span><span
+                                        x-text="'/' + Number(getHomeAllocationBucket('INVEST')?.targetRatio || 0).toFixed(0) + '%'"></span>
+                                    <span class="text-gray-300">(현재/목표)</span>
+                                </p>
+                                <p class="text-xs text-gray-400 mt-0.5">
+                                    자산 <span x-text="homeSummary.portfolioItemCount || 0" class="font-medium text-blue-600"></span>개
+                                    · 뉴스 <span x-text="homeSummary.portfolioNewsEnabledCount || 0" class="font-medium text-green-600"></span>개 활성
+                                </p>
+                            </div>
+                        </template>
+                        <!-- 목표 미설정/조회 실패 시: 기존 개수 표시 -->
+                        <template x-if="!(homeSummary.allocationStatus && homeSummary.allocationStatus.configured
+                            && Number(homeSummary.allocationStatus.totalEvaluated) > 0)">
+                            <div>
+                                <p class="text-2xl font-bold text-gray-800" x-text="homeSummary.portfolioItemCount || 0"></p>
+                                <p class="text-xs text-gray-400 mt-1">
+                                    자산 항목 · <span x-text="homeSummary.portfolioTypeSummary || ''" class="font-medium text-blue-600"></span>
+                                    · 뉴스 <span x-text="homeSummary.portfolioNewsEnabledCount || 0" class="font-medium text-green-600"></span>개 활성
+                                </p>
+                            </div>
+                        </template>
                     </div>
                 </div>
 

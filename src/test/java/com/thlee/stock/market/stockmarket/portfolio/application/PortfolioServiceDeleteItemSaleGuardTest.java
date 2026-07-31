@@ -72,7 +72,7 @@ class PortfolioServiceDeleteItemSaleGuardTest {
                 BigDecimal.valueOf(70_000).multiply(BigDecimal.valueOf(Math.max(quantity, 1))),
                 false, Region.DOMESTIC, null,
                 status, 0L, LocalDateTime.now(), LocalDateTime.now(),
-                detail, null, null, null, null
+                detail, null, null, null, null, null
         );
     }
 

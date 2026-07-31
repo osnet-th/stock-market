@@ -100,29 +100,29 @@ gate: docs/gates/2026-07-30-asset-allocation-target-gates.md
 ## Implementation Steps
 
 ### Phase 1: 목표 설정 백엔드
-- [ ] `AllocationTarget` 도메인 모델 + 검증 + `AssetClassification`
-- [ ] Entity 2종 + JpaRepository + RepositoryImpl + mapper + 백업 SQL
-- [ ] `AllocationTargetService` (get/save 업서트)
-- [ ] GET/PUT `/api/portfolio/allocation/target` + DTO
+- [x] `AllocationTarget` 도메인 모델 + 검증 + `AssetClassification`
+- [x] Entity 2종 + JpaRepository + RepositoryImpl + mapper + 백업 SQL
+- [x] `AllocationTargetService` (get/save 업서트)
+- [x] GET/PUT `/api/portfolio/allocation/target` + DTO
 
 ### Phase 2: 금 시세 연동 + GOLD 평가
-- [ ] `GoldDetail` 도메인 + `PortfolioItem.goldDetail` (재구성 생성자·create/update 경로)
-- [ ] `GoldItemEntity.quantityGrams` + mapper + 백업 SQL
-- [ ] `/items/general` add/update에 `quantityGrams` 처리 + `PortfolioItemResponse.goldDetail`
-- [ ] `GoldPriceProvider` port + `KrxGoldPriceAdapter` (캐시·fallback) + application.yml
-- [ ] `PortfolioEvaluationService` GOLD 평가 반영
+- [x] `GoldDetail` 도메인 + `PortfolioItem.goldDetail` (재구성 생성자·create/update 경로)
+- [x] `GoldItemEntity.quantityGrams` + mapper + 백업 SQL
+- [x] `/items/general` add/update에 `quantityGrams` 처리 + `PortfolioItemResponse.goldDetail`
+- [x] `GoldPriceProvider` port + `KrxGoldPriceAdapter` (캐시·fallback) + application.yml
+- [x] `PortfolioEvaluationService` GOLD 평가 반영
 
 ### Phase 3: 배분 현황 API
-- [ ] `AllocationStatusService` — CRYPTO 제외 집계, 버킷/자산군 편차·밴드 계산
-- [ ] GET `/api/portfolio/allocation/status` + DTO
+- [x] `AllocationStatusService` — CRYPTO 제외 집계, 버킷/자산군 편차·밴드 계산
+- [x] GET `/api/portfolio/allocation/status` + DTO
 
 ### Phase 4: 포트폴리오 페이지 UI
-- [ ] api.js 3종 + portfolio.js 상태·로드·모달·검증
-- [ ] portfolio.html 배분 섹션 + 설정 모달
-- [ ] portfolio-add/edit GOLD 중량 입력
+- [x] api.js 3종 + portfolio.js 상태·로드·모달·검증
+- [x] portfolio.html 배분 섹션 + 설정 모달
+- [x] portfolio-add/edit GOLD 중량 입력
 
 ### Phase 5: 대시보드
-- [ ] home.js status 조회(실패 무해화) + home.html 카드 업그레이드
+- [x] home.js status 조회(실패 무해화) + home.html 카드 업그레이드
 
 ## Validation
 

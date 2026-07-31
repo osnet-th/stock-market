@@ -25,6 +25,7 @@ public class PortfolioItemResponse {
     private final RealEstateDetailResponse realEstateDetail;
     private final FundDetailResponse fundDetail;
     private final CashDetailResponse cashDetail;
+    private final GoldDetailResponse goldDetail;
     private final Long linkedCashItemId;
     private final Boolean depositOverdue;
     private final BigDecimal expectedMaturityAmount;
@@ -38,6 +39,7 @@ public class PortfolioItemResponse {
                                   RealEstateDetailResponse realEstateDetail,
                                   FundDetailResponse fundDetail,
                                   CashDetailResponse cashDetail,
+                                  GoldDetailResponse goldDetail,
                                   Long linkedCashItemId,
                                   Boolean depositOverdue,
                                   BigDecimal expectedMaturityAmount) {
@@ -56,6 +58,7 @@ public class PortfolioItemResponse {
         this.realEstateDetail = realEstateDetail;
         this.fundDetail = fundDetail;
         this.cashDetail = cashDetail;
+        this.goldDetail = goldDetail;
         this.linkedCashItemId = linkedCashItemId;
         this.depositOverdue = depositOverdue;
         this.expectedMaturityAmount = expectedMaturityAmount;
@@ -87,6 +90,7 @@ public class PortfolioItemResponse {
                 item.getRealEstateDetail() != null ? RealEstateDetailResponse.from(item.getRealEstateDetail()) : null,
                 item.getFundDetail() != null ? FundDetailResponse.from(item.getFundDetail()) : null,
                 item.getCashDetail() != null ? CashDetailResponse.from(item.getCashDetail()) : null,
+                item.getGoldDetail() != null ? GoldDetailResponse.from(item.getGoldDetail()) : null,
                 linkedCashItemId,
                 depositOverdue,
                 expectedMaturityAmount

@@ -26,6 +26,7 @@ public class PortfolioItemMapper {
         RealEstateDetail realEstateDetail = null;
         FundDetail fundDetail = null;
         CashDetail cashDetail = null;
+        GoldDetail goldDetail = null;
 
         if (entity instanceof StockItemEntity stock) {
             stockDetail = new StockDetail(
@@ -72,6 +73,10 @@ public class PortfolioItemMapper {
                         cash.getDepositDay()
                 );
             }
+        } else if (entity instanceof GoldItemEntity gold) {
+            if (gold.getQuantityGrams() != null) {
+                goldDetail = new GoldDetail(gold.getQuantityGrams());
+            }
         }
 
         return new PortfolioItem(
@@ -91,7 +96,8 @@ public class PortfolioItemMapper {
                 bondDetail,
                 realEstateDetail,
                 fundDetail,
-                cashDetail
+                cashDetail,
+                goldDetail
         );
     }
 
@@ -156,7 +162,8 @@ public class PortfolioItemMapper {
             case GOLD -> new GoldItemEntity(
                     item.getId(), item.getUserId(), item.getItemName(),
                     item.getInvestedAmount(), item.isNewsEnabled(), region,
-                    item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt()
+                    item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
+                    item.getGoldDetail() != null ? item.getGoldDetail().getQuantityGrams() : null
             );
             case COMMODITY -> new CommodityItemEntity(
                     item.getId(), item.getUserId(), item.getItemName(),

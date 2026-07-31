@@ -30,6 +30,7 @@ public class PortfolioItem {
     private RealEstateDetail realEstateDetail;
     private FundDetail fundDetail;
     private CashDetail cashDetail;
+    private GoldDetail goldDetail;
 
     /**
      * 재구성용 생성자 (Repository에서 조회 시 사용)
@@ -50,7 +51,8 @@ public class PortfolioItem {
                          BondDetail bondDetail,
                          RealEstateDetail realEstateDetail,
                          FundDetail fundDetail,
-                         CashDetail cashDetail) {
+                         CashDetail cashDetail,
+                         GoldDetail goldDetail) {
         this.id = id;
         this.userId = userId;
         this.itemName = itemName;
@@ -68,6 +70,7 @@ public class PortfolioItem {
         this.realEstateDetail = realEstateDetail;
         this.fundDetail = fundDetail;
         this.cashDetail = cashDetail;
+        this.goldDetail = goldDetail;
     }
 
     private PortfolioItem(Long userId,
@@ -348,6 +351,17 @@ public class PortfolioItem {
             throw new IllegalArgumentException("현금성 자산 항목이 아닙니다.");
         }
         this.cashDetail = cashDetail;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 금 상세 갱신. 보유 중량은 선택 입력이므로 null이면 상세를 제거한다 (원금 평가 fallback).
+     */
+    public void updateGoldDetail(GoldDetail goldDetail) {
+        if (this.assetType != AssetType.GOLD) {
+            throw new IllegalArgumentException("금 항목이 아닙니다.");
+        }
+        this.goldDetail = goldDetail;
         this.updatedAt = LocalDateTime.now();
     }
 

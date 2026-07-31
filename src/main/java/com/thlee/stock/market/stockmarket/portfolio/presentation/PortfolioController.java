@@ -1,9 +1,14 @@
 package com.thlee.stock.market.stockmarket.portfolio.presentation;
 
+import com.thlee.stock.market.stockmarket.portfolio.application.AllocationStatusService;
+import com.thlee.stock.market.stockmarket.portfolio.application.AllocationTargetService;
 import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioAllocationService;
 import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioService;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.AddStockSaleParam;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.AllocationResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.AllocationStatusResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.AllocationTargetResponse;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.DepositHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockPurchaseHistoryResponse;
@@ -20,7 +25,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 포트폴리오 관련 HTTP 엔드포인트
@@ -32,6 +39,8 @@ public class PortfolioController {
 
     private final PortfolioService portfolioService;
     private final PortfolioAllocationService portfolioAllocationService;
+    private final AllocationTargetService allocationTargetService;
+    private final AllocationStatusService allocationStatusService;
 
     /**
      * JWT 인증된 사용자(principal)와 query userId의 일치 검증.
@@ -144,7 +153,8 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addGeneralItem(
                 userId, request.getAssetType(), request.getItemName(),
-                request.getInvestedAmount(), request.getRegion(), request.getMemo());
+                request.getInvestedAmount(), request.getRegion(), request.getMemo(),
+                request.getQuantityGrams());
         return ResponseEntity.ok(response);
     }
 
@@ -265,7 +275,8 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateGeneralItem(
                 userId, itemId,
-                request.getItemName(), request.getInvestedAmount(), request.getMemo());
+                request.getItemName(), request.getInvestedAmount(), request.getMemo(),
+                request.getQuantityGrams());
         return ResponseEntity.ok(response);
     }
 
@@ -557,5 +568,66 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         List<AllocationResponse> responses = portfolioAllocationService.getAllocation(userId);
         return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * 목표 자산 배분 현황 조회 (평가액 기준 현재/목표/편차)
+     */
+    @GetMapping("/allocation/status")
+    public ResponseEntity<AllocationStatusResponse> getAllocationStatus(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId) {
+        assertUserMatches(jwtUserId, userId);
+        return ResponseEntity.ok(allocationStatusService.getStatus(userId));
+    }
+
+    /**
+     * 목표 자산 배분 설정 조회 (미설정 시 204)
+     */
+    @GetMapping("/allocation/target")
+    public ResponseEntity<AllocationTargetResponse> getAllocationTarget(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId) {
+        assertUserMatches(jwtUserId, userId);
+        return allocationTargetService.getTarget(userId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    /**
+     * 목표 자산 배분 설정 저장 (업서트)
+     */
+    @PutMapping("/allocation/target")
+    public ResponseEntity<AllocationTargetResponse> saveAllocationTarget(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId,
+            @RequestBody AllocationTargetSaveRequest request) {
+        assertUserMatches(jwtUserId, userId);
+        AllocationTargetResponse response = allocationTargetService.saveTarget(
+                userId,
+                request.getSafeRatio(),
+                request.getInvestRatio(),
+                request.getBandPctPoint(),
+                toAssetRatioMap(request.getInvestAssets()));
+        return ResponseEntity.ok(response);
+    }
+
+    private Map<AssetType, BigDecimal> toAssetRatioMap(List<AllocationTargetSaveRequest.AssetRatio> assets) {
+        Map<AssetType, BigDecimal> ratios = new LinkedHashMap<>();
+        if (assets == null) {
+            return ratios;
+        }
+        for (AllocationTargetSaveRequest.AssetRatio asset : assets) {
+            AssetType type;
+            try {
+                type = AssetType.valueOf(asset.getAssetType());
+            } catch (IllegalArgumentException | NullPointerException e) {
+                throw new IllegalArgumentException("알 수 없는 자산 유형입니다: " + asset.getAssetType());
+            }
+            if (ratios.put(type, asset.getTargetRatio()) != null) {
+                throw new IllegalArgumentException("자산 유형이 중복되었습니다: " + type.getDescription());
+            }
+        }
+        return ratios;
     }
 }

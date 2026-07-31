@@ -6,6 +6,12 @@ const PortfolioComponent = {
     portfolio: {
         items: [],
         allocation: [],
+        allocationStatus: null,
+        allocationTargetModal: {
+            show: false,
+            saving: false,
+            form: { safeRatio: '', bandPctPoint: '5', assets: [] }
+        },
         loading: false,
         _initialized: false,
         showAddModal: false,
@@ -140,10 +146,15 @@ const PortfolioComponent = {
         try {
             const results = await Promise.all([
                 API.getPortfolioItems(this.auth.userId),
-                API.getPortfolioAllocation(this.auth.userId)
+                API.getPortfolioAllocation(this.auth.userId),
+                API.getAllocationStatus(this.auth.userId).catch((e) => {
+                    console.error('배분 현황 조회 실패:', e);
+                    return null;
+                })
             ]);
             this.portfolio.items = results[0] || [];
             this.portfolio.allocation = results[1] || [];
+            this.portfolio.allocationStatus = results[2] || null;
 
             this.portfolio.items
                 .filter((item) => item.assetType === 'STOCK' && !item.stockDetail)
@@ -172,6 +183,7 @@ const PortfolioComponent = {
             console.error('포트폴리오 로드 실패:', e);
             this.portfolio.items = [];
             this.portfolio.allocation = [];
+            this.portfolio.allocationStatus = null;
         } finally {
             this.portfolio.loading = false;
             this.portfolio._initialized = true;
@@ -322,6 +334,122 @@ const PortfolioComponent = {
             alloc.percentage = Math.round(alloc.totalAmount / totalEval * 1000) / 10;
             return alloc;
         }).sort((a, b) => assetTypeOrder.indexOf(a.assetType) - assetTypeOrder.indexOf(b.assetType));
+    },
+
+    // ──────────────────────────────────────────────────────────────────
+    // 목표 자산 배분
+
+    allocationInvestTypes() {
+        return ['STOCK', 'REAL_ESTATE', 'FUND', 'GOLD', 'COMMODITY', 'OTHER'];
+    },
+
+    formatAllocAmount(amount) {
+        if (amount === null || amount === undefined) return '-';
+        return Math.round(Number(amount)).toLocaleString() + '원';
+    },
+
+    formatAllocDeviation(deviationAmount, deviationPctPoint) {
+        if (deviationAmount === null || deviationAmount === undefined) return '';
+        const amount = Math.round(Number(deviationAmount));
+        const pct = Number(deviationPctPoint);
+        const sign = amount > 0 ? '+' : '';
+        const pctSign = pct > 0 ? '+' : '';
+        return `${sign}${amount.toLocaleString()}원 (${pctSign}${pct.toFixed(1)}%p)`;
+    },
+
+    getAllocationBucketBarStyle(bucket) {
+        const ratio = Math.max(0, Math.min(100, Number(bucket.currentRatio) || 0));
+        return `width: ${ratio}%`;
+    },
+
+    getAllocationTargetMarkerStyle(entry) {
+        if (entry.targetRatio === null || entry.targetRatio === undefined) return 'display: none';
+        const ratio = Math.max(0, Math.min(100, Number(entry.targetRatio)));
+        return `left: ${ratio}%`;
+    },
+
+    async openAllocationTargetModal() {
+        const modal = this.portfolio.allocationTargetModal;
+        const assets = this.allocationInvestTypes().map((type) => ({
+            assetType: type,
+            label: this.getAssetTypeLabel(type),
+            ratio: ''
+        }));
+        modal.form = { safeRatio: '', bandPctPoint: '5', assets };
+
+        try {
+            const target = await API.getAllocationTarget(this.auth.userId);
+            if (target) {
+                modal.form.safeRatio = String(target.safeRatio);
+                modal.form.bandPctPoint = String(target.bandPctPoint);
+                (target.investAssets || []).forEach((asset) => {
+                    const row = assets.find((a) => a.assetType === asset.assetType);
+                    if (row) row.ratio = String(asset.targetRatio);
+                });
+            }
+        } catch (e) {
+            console.error('배분 목표 조회 실패:', e);
+        }
+        modal.show = true;
+    },
+
+    closeAllocationTargetModal() {
+        this.portfolio.allocationTargetModal.show = false;
+    },
+
+    getAllocationInvestRatio() {
+        const safe = Number(this.portfolio.allocationTargetModal.form.safeRatio);
+        if (Number.isNaN(safe) || this.portfolio.allocationTargetModal.form.safeRatio === '') return null;
+        return Math.round((100 - safe) * 100) / 100;
+    },
+
+    getAllocationAssetSum() {
+        return this.portfolio.allocationTargetModal.form.assets
+            .reduce((sum, row) => sum + (row.ratio === '' ? 0 : Number(row.ratio) || 0), 0);
+    },
+
+    async submitAllocationTarget() {
+        const modal = this.portfolio.allocationTargetModal;
+        const form = modal.form;
+
+        const safeRatio = Number(form.safeRatio);
+        if (form.safeRatio === '' || Number.isNaN(safeRatio) || safeRatio < 0 || safeRatio > 100) {
+            alert('안전자산 목표 비율은 0~100 사이로 입력해 주세요.');
+            return;
+        }
+        const bandPctPoint = Number(form.bandPctPoint);
+        if (form.bandPctPoint === '' || Number.isNaN(bandPctPoint) || bandPctPoint < 0 || bandPctPoint > 20) {
+            alert('허용밴드는 0~20%p 사이로 입력해 주세요.');
+            return;
+        }
+        const filledAssets = form.assets.filter((row) => row.ratio !== '' && Number(row.ratio) > 0);
+        if (filledAssets.length > 0) {
+            const sum = this.getAllocationAssetSum();
+            if (Math.abs(sum - 100) > 0.001) {
+                alert(`투자자산 세부 비율의 합은 100이어야 합니다. (현재: ${sum})`);
+                return;
+            }
+        }
+
+        modal.saving = true;
+        try {
+            await API.saveAllocationTarget(this.auth.userId, {
+                safeRatio: safeRatio,
+                investRatio: Math.round((100 - safeRatio) * 100) / 100,
+                bandPctPoint: bandPctPoint,
+                investAssets: filledAssets.map((row) => ({
+                    assetType: row.assetType,
+                    targetRatio: Number(row.ratio)
+                }))
+            });
+            modal.show = false;
+            this.portfolio.allocationStatus = await API.getAllocationStatus(this.auth.userId).catch(() => null);
+        } catch (e) {
+            console.error('배분 목표 저장 실패:', e);
+            alert('배분 목표 저장에 실패했습니다.');
+        } finally {
+            modal.saving = false;
+        }
     },
 
     getItemsByType(type) {
@@ -768,7 +896,9 @@ const PortfolioComponent = {
                 case 'GENERAL':
                     await API.addGeneralItem(userId, {
                         assetType: form.assetType, itemName: form.itemName,
-                        investedAmount: Number(form.investedAmount), region: form.region, memo: form.memo || null
+                        investedAmount: Number(form.investedAmount), region: form.region, memo: form.memo || null,
+                        quantityGrams: form.assetType === 'GOLD' && form.quantityGrams
+                            ? Number(form.quantityGrams) : null
                     });
                     break;
             }
@@ -1508,6 +1638,9 @@ const PortfolioComponent = {
                     form.depositDay = item.cashDetail.depositDay;
                 }
                 break;
+            case 'GOLD':
+                form.quantityGrams = item.goldDetail ? item.goldDetail.quantityGrams : '';
+                break;
         }
 
         this.portfolio.editForm = form;
@@ -1634,7 +1767,9 @@ const PortfolioComponent = {
                 default:
                     await API.updateGeneralItem(userId, item.id, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount),
-                        memo: form.memo || null
+                        memo: form.memo || null,
+                        quantityGrams: item.assetType === 'GOLD' && form.quantityGrams
+                            ? Number(form.quantityGrams) : null
                     });
                     break;
             }

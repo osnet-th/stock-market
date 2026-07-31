@@ -100,7 +100,7 @@ class PortfolioServiceAddStockSaleTest {
                 amount, false, Region.DOMESTIC, null,
                 PortfolioItemStatus.ACTIVE, 0L,
                 LocalDateTime.now(), LocalDateTime.now(),
-                null, null, null, null, cashDetail
+                null, null, null, null, cashDetail, null
         );
     }
 
@@ -111,7 +111,7 @@ class PortfolioServiceAddStockSaleTest {
                 origin.getMemo(), origin.getStatus(), origin.getVersion(),
                 origin.getCreatedAt(), origin.getUpdatedAt(),
                 origin.getStockDetail(), origin.getBondDetail(), origin.getRealEstateDetail(),
-                origin.getFundDetail(), origin.getCashDetail()
+                origin.getFundDetail(), origin.getCashDetail(), origin.getGoldDetail()
         );
     }
 

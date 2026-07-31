@@ -11,8 +11,8 @@
 - issue: approved (2026-07-30, 태형님 "진행해")
 - plan: approved (2026-07-30, 태형님 "진행해" — 승인 게이트 대상 6건 일괄 승인: Entity 신규 2·GoldItemEntity 수정·신규 API 3·general 요청 확장·KRX 금시세 연동·평가 로직 변경)
 - work: approved (2026-07-30, 태형님 "진행해" — review 진입 승인)
-- review: done (2026-07-30, 셀프 리뷰 — 중간 1·낮음 2·nit 2, M1·L1·L2·N1 반영, N2 수용. validation 승인 대기)
-- validation: pending
+- review: approved (2026-07-30, 태형님 "진행해" — validation 진입 승인)
+- validation: done (2026-07-30 — test 116/117 PASS(1건 DB 환경 제약)·하네스 27/27 PASS. 미검증 3건 태형님 확인 대기)
 - commit: pending
 - push: pending
 
@@ -25,6 +25,7 @@
 - plan: 완료 (2026-07-30, docs/plans/2026-07-30-001-feat-asset-allocation-target-plan.md — 태형님 "진행해" 승인, 게이트 대상 6건 일괄 승인)
 - work: 완료 (2026-07-30, docs/works/2026-07-30-asset-allocation-target-work.md — Phase 1~5, compileJava·node --check PASS. KRX 금시세 실호출·브라우저 UI 확인은 validation 항목)
 - review: 완료 (2026-07-30, docs/reviews/2026-07-30-asset-allocation-target-review.md — 셀프 리뷰. M1(금시세 최신성 가드)·L1(비율 2자리 반올림)·L2(합계 표시 반올림)·N1(데드 코드 제거) 반영, N2(클라이언트 차트 금 시세 미반영) 수용. 재검증 compileJava·node --check PASS)
+- validation: 완료 (2026-07-30, docs/validations/2026-07-30-asset-allocation-target-validation.md — 기존 테스트 4파일 시그니처 수정 후 test 116/117 PASS(실패 1건은 DB 환경 제약), Node 로직 하네스 27/27 PASS. 미검증 3건: KRX 실호출·브라우저 렌더링·contextLoads)
 
 ## Approval Gate 항목
 - 신규 Entity(목표 배분 설정) 생성 필요 — plan 단계에서 상세 설계 후 승인 대상

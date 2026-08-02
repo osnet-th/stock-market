@@ -22,7 +22,7 @@ public interface GlobalIndicatorJpaRepository extends JpaRepository<GlobalIndica
                 WHERE e.indicator_type = :indicatorType
             ) t
             WHERE t.rn = 1
-            ORDER BY t.country_name, t.cycle
+            ORDER BY t.country_name, t.snapshot_date, t.id
             """, nativeQuery = true)
     List<GlobalIndicatorEntity> findLatestHistoryByIndicatorType(@Param("indicatorType") String indicatorType);
 

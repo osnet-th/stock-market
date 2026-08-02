@@ -32,6 +32,11 @@ public class GlobalIndicatorLatestRepositoryImpl implements GlobalIndicatorLates
     }
 
     @Override
+    public Optional<LocalDateTime> findMaxLastCollectedAt() {
+        return jpaRepository.findMaxLastCollectedAt();
+    }
+
+    @Override
     public void saveAll(List<GlobalIndicatorLatest> latestList) {
         for (GlobalIndicatorLatest latest : latestList) {
             GlobalIndicatorLatestEntity.LatestId id =
@@ -51,7 +56,8 @@ public class GlobalIndicatorLatestRepositoryImpl implements GlobalIndicatorLates
                     latest.getCycle(),
                     latest.getUnit(),
                     cycleChanged,
-                    updatedAt
+                    updatedAt,
+                    latest.getLastCollectedAt()
                 );
             } else {
                 jpaRepository.save(mapper.toEntity(latest));

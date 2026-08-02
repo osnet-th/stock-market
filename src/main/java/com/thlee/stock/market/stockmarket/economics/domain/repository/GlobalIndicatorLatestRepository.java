@@ -23,4 +23,9 @@ public interface GlobalIndicatorLatestRepository {
      * 최근 업데이트된 지표 조회 (updatedAt 기준, 최신순)
      */
     List<GlobalIndicatorLatest> findRecentlyUpdated(java.time.LocalDateTime after);
+
+    /**
+     * 전체 지표 중 가장 최근 수집 시각 (#51 catch-up 판단용, 수집 이력 없으면 empty)
+     */
+    java.util.Optional<java.time.LocalDateTime> findMaxLastCollectedAt();
 }

@@ -15,7 +15,8 @@ public class GlobalIndicatorLatestMapper {
             domain.getPreviousDataValue(),
             domain.getCycle(),
             domain.getUnit(),
-            domain.getUpdatedAt()
+            domain.getUpdatedAt(),
+            domain.getLastCollectedAt()
         );
     }
 
@@ -27,7 +28,8 @@ public class GlobalIndicatorLatestMapper {
             entity.getPreviousDataValue(),
             entity.getCycle(),
             entity.getUnit(),
-            entity.getUpdatedAt()
+            entity.getUpdatedAt(),
+            entity.getLastCollectedAt()
         );
     }
 }

@@ -95,12 +95,12 @@
                                                     <h3 class="text-sm font-semibold text-gray-800" x-text="country.countryName"></h3>
                                                     <span class="text-xs text-gray-400 ml-2 shrink-0" x-text="globalData.historyData.unit"></span>
                                                 </div>
-                                                <template x-if="country.history.length >= 2">
+                                                <template x-if="country.history.length >= 1">
                                                     <div class="h-48">
                                                         <canvas :id="'global-chart-' + country.countryName.replace(/[^a-zA-Z0-9가-힣]/g, '_')"></canvas>
                                                     </div>
                                                 </template>
-                                                <template x-if="country.history.length < 2">
+                                                <template x-if="country.history.length < 1">
                                                     <div class="h-48 flex items-center justify-center text-sm text-gray-400">
                                                         데이터 부족
                                                     </div>

@@ -343,24 +343,90 @@ const PortfolioComponent = {
         return ['STOCK', 'REAL_ESTATE', 'FUND', 'GOLD', 'COMMODITY', 'OTHER'];
     },
 
-    formatAllocDeviation(deviationAmount, deviationPctPoint) {
-        if (deviationAmount === null || deviationAmount === undefined) return '';
-        const amount = Math.round(Number(deviationAmount));
-        const pct = Number(deviationPctPoint);
-        const sign = amount > 0 ? '+' : '';
-        const pctSign = pct > 0 ? '+' : '';
-        return `${sign}${amount.toLocaleString()}원 (${pctSign}${pct.toFixed(1)}%p)`;
+    // 편차 표시 공통 (#107): 막대는 중앙 0 기준 다이버징 — 왼쪽 부족, 오른쪽 초과.
+    // 스케일(중앙에서 한쪽 끝까지의 %p)은 밴드 음영이 항상 보이도록 최소 밴드×2를 보장한다.
+
+    hasDeviation(entry) {
+        return entry.deviationPctPoint !== null && entry.deviationPctPoint !== undefined;
     },
 
-    getAllocationBucketBarStyle(bucket) {
-        const ratio = Math.max(0, Math.min(100, Number(bucket.currentRatio) || 0));
-        return `width: ${ratio}%`;
+    isDeviationZero(entry) {
+        return this.hasDeviation(entry) && Math.abs(Number(entry.deviationPctPoint)) < 0.05;
     },
 
-    getAllocationTargetMarkerStyle(entry) {
-        if (entry.targetRatio === null || entry.targetRatio === undefined) return 'display: none';
-        const ratio = Math.max(0, Math.min(100, Number(entry.targetRatio)));
-        return `left: ${ratio}%`;
+    getDeviationScale() {
+        const status = this.portfolio.allocationStatus;
+        if (!status) return 10;
+        const entries = [...(status.buckets || []), ...(status.investAssets || [])];
+        const maxDev = Math.max(...entries.filter((e) => this.hasDeviation(e))
+            .map((e) => Math.abs(Number(e.deviationPctPoint))), 0);
+        const band = Number(status.bandPctPoint) || 5;
+        return Math.max(band * 2, Math.ceil(maxDev * 1.1));
+    },
+
+    getDeviationBarStyle(entry) {
+        if (!this.hasDeviation(entry) || this.isDeviationZero(entry)) return 'display: none';
+        const dev = Number(entry.deviationPctPoint);
+        const half = Math.min(Math.abs(dev) / this.getDeviationScale(), 1) * 50;
+        const side = dev > 0 ? 'left: 50%' : 'right: 50%';
+        return `${side}; width: ${half}%`;
+    },
+
+    getDeviationBandStyle() {
+        const status = this.portfolio.allocationStatus;
+        const band = Number(status && status.bandPctPoint) || 5;
+        const half = Math.min(band / this.getDeviationScale(), 1) * 50;
+        return `left: ${50 - half}%; width: ${half * 2}%`;
+    },
+
+    getDeviationBarClass(entry) {
+        if (!entry.bandExceeded) return 'bg-gray-300';
+        return Number(entry.deviationPctPoint) > 0 ? 'bg-red-400' : 'bg-blue-400';
+    },
+
+    getDeviationTextClass(entry) {
+        if (!entry.bandExceeded) return 'text-gray-400';
+        return Number(entry.deviationPctPoint) > 0 ? 'text-red-600 font-medium' : 'text-blue-600 font-medium';
+    },
+
+    formatKrwCompact(amount) {
+        const abs = Math.abs(Math.round(Number(amount)));
+        if (abs < 10000) return `${Format.number(abs, 0)}원`;
+        // 만원 단위로 먼저 반올림해야 9,999.6만원 → "1억"으로 캐리가 넘어간다
+        const totalMan = Math.round(abs / 10000);
+        const eok = Math.floor(totalMan / 10000);
+        const man = totalMan % 10000;
+        if (eok === 0) return `${Format.number(man, 0)}만원`;
+        return man > 0 ? `${eok}억 ${Format.number(man, 0)}만원` : `${eok}억원`;
+    },
+
+    formatDeviationLabel(entry) {
+        if (!this.hasDeviation(entry)) {
+            return '현재 ' + Number(entry.currentRatio).toFixed(1) + '% · 목표 미설정';
+        }
+        if (this.isDeviationZero(entry)) return '목표 일치';
+        const dev = Number(entry.deviationPctPoint);
+        const sign = dev > 0 ? '+' : '−';
+        const word = dev > 0 ? '많음' : '부족';
+        return `${sign}${Math.abs(dev).toFixed(1)}%p · ${this.formatKrwCompact(entry.deviationAmount)} ${word}`;
+    },
+
+    formatAllocRatioPair(entry) {
+        const current = Number(entry.currentRatio).toFixed(1) + '%';
+        if (entry.targetRatio === null || entry.targetRatio === undefined) return current;
+        return current + ' / ' + Number(entry.targetRatio).toFixed(1) + '%';
+    },
+
+    getRebalanceSummary() {
+        const status = this.portfolio.allocationStatus;
+        if (!status || !status.buckets || status.buckets.length === 0) return '';
+        const exceeded = status.buckets.some((b) => b.bandExceeded);
+        if (!exceeded) return '안전·투자 비율이 허용밴드 안에 있습니다';
+        const short = status.buckets.find((b) => Number(b.deviationPctPoint) < 0);
+        const over = status.buckets.find((b) => Number(b.deviationPctPoint) > 0);
+        if (!short || !over) return '';
+        const amount = this.formatKrwCompact(short.deviationAmount);
+        return `${over.bucketName}에서 ${short.bucketName}으로 약 ${amount} 이동 시 목표 도달`;
     },
 
     async openAllocationTargetModal() {
@@ -566,31 +632,10 @@ const PortfolioComponent = {
                 maintainAspectRatio: true,
                 cutout: '65%',
                 plugins: {
+                    // 범례는 우측 "자산 비중" 카드가 대신한다 (#107) — 캔버스 내장 범례를 켜면
+                    // 자산 유형 수에 따라 차트 영역이 줄어 중앙 오버레이가 원 중심을 벗어난다.
                     legend: {
-                        display: true,
-                        position: 'bottom',
-                        labels: {
-                            padding: 16,
-                            usePointStyle: true,
-                            pointStyle: 'circle',
-                            font: { size: 12 },
-                            generateLabels: (chart) => {
-                                const dataset = chart.data.datasets[0];
-                                const total = dataset.data.reduce((sum, val) => sum + val, 0);
-                                return chart.data.labels.map((label, i) => {
-                                    const pct = total > 0 ? Math.round(dataset.data[i] / total * 1000) / 10 : 0;
-                                    return {
-                                        text: label + ' ' + pct + '%',
-                                        fillStyle: dataset.backgroundColor[i],
-                                        strokeStyle: '#ffffff',
-                                        lineWidth: 1,
-                                        hidden: false,
-                                        index: i,
-                                        pointStyle: 'circle'
-                                    };
-                                });
-                            }
-                        }
+                        display: false
                     },
                     tooltip: {
                         callbacks: {
@@ -1487,6 +1532,16 @@ const PortfolioComponent = {
             groups[month].totalProfit += Number(this.saleNetProfit(sale) || 0);
         }
         return Object.values(groups).sort((a, b) => b.month.localeCompare(a.month));
+    },
+
+    getSalesSummary() {
+        const sales = this.portfolio.userSales;
+        const totalProceeds = sales.reduce((sum, s) => sum + Number(this.saleNetProceeds(s) || 0), 0);
+        const totalProfit = sales.reduce((sum, s) => sum + Number(this.saleNetProfit(s) || 0), 0);
+        // 원가 = 실입금 − 손익 (KRW 기준이라 해외 매도 통화 혼합 없이 안전)
+        const cost = totalProceeds - totalProfit;
+        const profitRate = cost > 0 ? Math.round(totalProfit / cost * 10000) / 100 : null;
+        return { count: sales.length, totalProceeds, totalProfit, profitRate };
     },
 
     saleNetProceeds(sale) {

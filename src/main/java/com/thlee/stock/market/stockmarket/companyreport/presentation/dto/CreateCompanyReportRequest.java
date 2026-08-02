@@ -11,7 +11,9 @@ import jakarta.validation.constraints.Pattern;
  * 리포트 생성 요청. manual은 항목별 구조화 입력(길이/개수 상한은 도메인에서 검증).
  */
 public record CreateCompanyReportRequest(
-        @NotBlank @Pattern(regexp = "\\d{6}", message = "종목코드는 6자리 숫자여야 합니다.")
+        @NotBlank
+        @Pattern(regexp = "\\d{6}|[A-Za-z][A-Za-z0-9.\\-]{0,9}",
+                message = "종목코드는 6자리 숫자(국내) 또는 영문 티커(미국)여야 합니다.")
         String stockCode,
         ReportManual manual,
         String gradeAssetUndervalue,

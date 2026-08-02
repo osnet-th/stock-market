@@ -7,12 +7,21 @@ import java.util.Map;
 /**
  * 리포트 스냅샷 (자동 산출 원시 데이터, JSON 컬럼으로 직렬화).
  * 청산가치/DCF 결과는 저장하지 않는다 — valuationInputs와 저장된 파라미터로 조회 시 파생 계산한다.
- * 모든 금액은 원 단위 plain 문자열(쉼표 없음), 비율(%)은 소수 둘째 자리 문자열이다. 값이 없으면 null (0 대체 금지).
+ * 모든 금액은 통화 최소 단위(KRW: 원, USD: 달러) plain 문자열(쉼표 없음), 비율(%)은 소수 둘째 자리 문자열이다.
+ * 값이 없으면 null (0 대체 금지).
+ *
+ * <p>schemaVersion 2: country/currency/unsupportedSections 추가. v1 스냅샷은 역직렬화 시
+ * KR/KRW/빈 목록으로 해석한다 ({@code ReportSnapshotJsonMapper} 참조).
+ * unsupportedSections는 데이터 소스가 구조적으로 제공하지 않는 섹션 키 목록 —
+ * "데이터 없음(조회 실패)"과 "미지원(설계)"을 구분해 프론트가 섹션 제거·안내 배너를 렌더한다.
  */
 public record ReportSnapshot(
         int schemaVersion,
         String stockCode,
         String stockName,
+        String country,
+        String currency,
+        List<String> unsupportedSections,
         String fsDiv,
         CompanyProfileData companyProfile,
         List<ColumnMeta> columns,
@@ -25,7 +34,12 @@ public record ReportSnapshot(
         RiskSignals riskSignals
 ) {
 
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
+
+    public static final String COUNTRY_KR = "KR";
+    public static final String COUNTRY_US = "US";
+    public static final String CURRENCY_KRW = "KRW";
+    public static final String CURRENCY_USD = "USD";
 
     public record ColumnMeta(String year, String reportLabel, boolean partial) {}
 

@@ -499,6 +499,11 @@ const API = {
         return this.request('GET', `/api/stocks/${ticker}/sec/cik`);
     },
 
+    // 최근 SEC 제출 서식 목록 (US 리포트 공시 패널)
+    getSecFilings(ticker, limit = 40) {
+        return this.request('GET', `/api/stocks/${ticker}/sec/filings?limit=${limit}`);
+    },
+
     // ==================== Overseas News (해외뉴스) ====================
     getOverseasBreakingNews(stockCode, exchangeCode) {
         return this.request('GET',

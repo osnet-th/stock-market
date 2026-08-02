@@ -186,7 +186,8 @@ const CompanyReportComponent = {
         try {
             const results = await API.searchStocks(q) || [];
             if (gen !== cr._searchGen) return;
-            cr.searchResults = results.filter(r => r.exchangeCode === 'KRX'); // 국내(KRX)만
+            // 리포트 지원 시장만: 국내(KRX) + 미국(NAS/NYS/AMS)
+            cr.searchResults = results.filter(r => ['KRX', 'NAS', 'NYS', 'AMS'].includes(r.exchangeCode));
         } catch (e) {
             if (gen !== cr._searchGen) return;
             console.error('종목 검색 실패:', e);
@@ -220,6 +221,7 @@ const CompanyReportComponent = {
             if (gen !== cr._previewGen) return;
             cr.preview = result;
             this._crRenderStepChart();
+            this._crRerenderPriceHistoryChart(); // 통화 확정 후 라벨 갱신 (preview 전 렌더된 차트 대비)
         } catch (e) {
             if (gen !== cr._previewGen) return;
             cr.previewError = e?.message || '자동 산출 데이터를 불러오지 못했습니다.';
@@ -248,18 +250,11 @@ const CompanyReportComponent = {
         d.stockCode = stockCode;
         d.items = [];
         try {
-            const from = this._formatYmd(this._crYearsAgo(10));
-            const to = this._formatYmd(new Date());
-            const rows = await API.getDisclosures(stockCode, from, to, ['A']) || [];
+            const items = /^\d{6}$/.test(stockCode)
+                ? await this._crLoadDartDisclosures(stockCode)
+                : await this._crLoadSecFilings(stockCode);
             if (gen !== cr._disclosureGen) return;
-            d.items = rows
-                .map(r => ({
-                    reportName: r.reportName, receiptDate: r.receiptDate, viewerUrl: r.viewerUrl,
-                    kind: this._crReportKind(r.reportName), period: this._crReportPeriod(r.reportName),
-                    // 정정은 remark 또는 보고서명 '[기재정정]' 등 접두 양쪽에서 감지
-                    correction: this.isCorrectionDisclosure(r.remark) || (r.reportName || '').indexOf('정정') !== -1
-                }))
-                .filter(r => r.kind);
+            d.items = items;
         } catch (e) {
             if (gen !== cr._disclosureGen) return;
             console.error('정기보고서 조회 실패:', e);
@@ -267,6 +262,36 @@ const CompanyReportComponent = {
         } finally {
             if (gen === cr._disclosureGen) d.loading = false;
         }
+    },
+
+    async _crLoadDartDisclosures(stockCode) {
+        const from = this._formatYmd(this._crYearsAgo(10));
+        const to = this._formatYmd(new Date());
+        const rows = await API.getDisclosures(stockCode, from, to, ['A']) || [];
+        return rows
+            .map(r => ({
+                reportName: r.reportName, receiptDate: r.receiptDate, viewerUrl: r.viewerUrl,
+                kind: this._crReportKind(r.reportName), period: this._crReportPeriod(r.reportName),
+                // 정정은 remark 또는 보고서명 '[기재정정]' 등 접두 양쪽에서 감지
+                correction: this.isCorrectionDisclosure(r.remark) || (r.reportName || '').indexOf('정정') !== -1
+            }))
+            .filter(r => r.kind);
+    },
+
+    // 미국(티커): SEC 제출 서식을 DART 패널과 같은 행 구조로 매핑 (10-K=사업, 10-Q=분기만 노출)
+    async _crLoadSecFilings(ticker) {
+        const rows = await API.getSecFilings(ticker, 60) || [];
+        return rows
+            .filter(r => /^10-K|^10-Q/.test(r.form || ''))
+            .filter(r => r.viewerUrl)
+            .map(r => ({
+                reportName: (r.form || '') + (r.description ? ' · ' + r.description : ''),
+                receiptDate: (r.filingDate || '').replace(/-/g, ''),
+                viewerUrl: r.viewerUrl,
+                kind: (r.form || '').startsWith('10-K') ? '사업' : '분기',
+                period: r.filingDate ? { year: r.filingDate.slice(0, 4), month: r.filingDate.slice(5, 7) } : null,
+                correction: (r.form || '').indexOf('/A') !== -1
+            }));
     },
 
     _crYearsAgo(years) {
@@ -394,12 +419,26 @@ const CompanyReportComponent = {
         }
     },
 
+    // preview(통화 확정) 전에 그려진 월봉 차트를 파기하고 현재 통화 라벨로 다시 렌더
+    _crRerenderPriceHistoryChart() {
+        if (typeof Chart === 'undefined') return;
+        ['report-wizard-price-history', 'report-detail-price-history'].forEach(id => {
+            const canvas = document.getElementById(id);
+            const chart = canvas ? Chart.getChart(canvas) : null;
+            if (chart) {
+                try { chart.destroy(); } catch (e) { /* ignore */ }
+            }
+        });
+        this._crRenderPriceChartsForCurrentView();
+    },
+
     // 월봉 종가 라인 차트. 이미 그려진 canvas(Chart.getChart)는 재렌더하지 않는다.
     _crRenderPriceHistoryChart(canvasId) {
         const ph = this.companyReport.priceHistory;
         if (!ph.points.length || typeof Chart === 'undefined') return;
         const canvas = document.getElementById(canvasId);
         if (!canvas || Chart.getChart(canvas)) return;
+        const usd = this.crCurrency() === 'USD';
         const labels = ph.points.map(p => (p.date || '').slice(0, 7)); // YYYY-MM
         const data = ph.points.map(p => {
             const n = parseFloat(p.close);
@@ -410,7 +449,7 @@ const CompanyReportComponent = {
             data: {
                 labels,
                 datasets: [{
-                    label: '월봉 종가(원)', data,
+                    label: usd ? '월봉 종가($)' : '월봉 종가(원)', data,
                     borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)',
                     fill: true, pointRadius: 0, borderWidth: 1.5, tension: 0.1
                 }]
@@ -422,7 +461,7 @@ const CompanyReportComponent = {
                 plugins: { legend: { display: false } },
                 scales: {
                     x: { ticks: { maxTicksLimit: 12, maxRotation: 0 } },
-                    y: { title: { display: true, text: '원' } }
+                    y: { title: { display: true, text: usd ? '$' : '원' } }
                 }
             }
         });
@@ -753,26 +792,29 @@ const CompanyReportComponent = {
     },
 
     // ==================== 차트 ====================
-    // 실적 추이: 매출/영업이익/순이익(억원, bar) + 영업이익률/순이익률(%, line, 우축)
+    // 실적 추이: 매출/영업이익/순이익(KRW: 억원, USD: $B, bar) + 영업이익률/순이익률(%, line, 우축)
     _crRenderPerfChart(snapshot, canvasId, manual) {
         if (!snapshot || !Array.isArray(snapshot.performance) || typeof Chart === 'undefined') return;
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
+        const usd = snapshot.currency === 'USD';
+        const divisor = usd ? 1e9 : 1e8;
+        const unitLabel = usd ? '$B' : '억';
         const columns = snapshot.columns || [];
         const forecasts = this._crForecastSeries(manual);
         const labels = columns.map(c => c.year + (c.partial ? '*' : '')).concat(forecasts.map(f => f.year + 'E'));
         const pad = arr => arr.concat(forecasts.map(() => null));
-        const amount = key => pad(this._crSeries(snapshot.performance, key, columns, v => v / 1e8));
+        const amount = key => pad(this._crSeries(snapshot.performance, key, columns, v => v / divisor));
         const ratio = key => pad(this._crSeries(snapshot.performance, key, columns, v => v));
-        const forecastData = columns.map(() => null).concat(forecasts.map(f => f.annual / 1e8));
+        const forecastData = columns.map(() => null).concat(forecasts.map(f => f.annual / divisor));
         const chart = new Chart(canvas, {
             data: {
                 labels,
                 datasets: [
-                    { type: 'bar', label: '매출액(억)', data: amount('revenue'), backgroundColor: 'rgba(59,130,246,0.65)', yAxisID: 'y' },
-                    { type: 'bar', label: '예상 매출(억)', data: forecastData, backgroundColor: 'rgba(59,130,246,0.2)', borderColor: 'rgba(59,130,246,0.8)', borderWidth: 1, yAxisID: 'y' },
-                    { type: 'bar', label: '영업이익(억)', data: amount('operatingProfit'), backgroundColor: 'rgba(16,185,129,0.65)', yAxisID: 'y' },
-                    { type: 'bar', label: '당기순이익(억)', data: amount('netIncome'), backgroundColor: 'rgba(245,158,11,0.65)', yAxisID: 'y' },
+                    { type: 'bar', label: '매출액(' + unitLabel + ')', data: amount('revenue'), backgroundColor: 'rgba(59,130,246,0.65)', yAxisID: 'y' },
+                    { type: 'bar', label: '예상 매출(' + unitLabel + ')', data: forecastData, backgroundColor: 'rgba(59,130,246,0.2)', borderColor: 'rgba(59,130,246,0.8)', borderWidth: 1, yAxisID: 'y' },
+                    { type: 'bar', label: '영업이익(' + unitLabel + ')', data: amount('operatingProfit'), backgroundColor: 'rgba(16,185,129,0.65)', yAxisID: 'y' },
+                    { type: 'bar', label: '당기순이익(' + unitLabel + ')', data: amount('netIncome'), backgroundColor: 'rgba(245,158,11,0.65)', yAxisID: 'y' },
                     { type: 'line', label: '영업이익률(%)', data: ratio('operatingMargin'), borderColor: '#dc2626', backgroundColor: '#dc2626', yAxisID: 'y1', tension: 0.2 },
                     { type: 'line', label: '순이익률(%)', data: ratio('netMargin'), borderColor: '#7c3aed', backgroundColor: '#7c3aed', yAxisID: 'y1', tension: 0.2 }
                 ]
@@ -782,7 +824,7 @@ const CompanyReportComponent = {
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 scales: {
-                    y: { position: 'left', title: { display: true, text: '억원' } },
+                    y: { position: 'left', title: { display: true, text: usd ? '10억 달러($B)' : '억원' } },
                     y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '%' } }
                 }
             }
@@ -822,6 +864,13 @@ const CompanyReportComponent = {
         accrual: '발생액/총자산 = (당기순이익 − 영업활동현금흐름) ÷ 자산총계\n플러스로 크면 장부 이익 대비 현금이 못 따라온다는 뜻(이익의 질 주의). 마이너스면 현금흐름이 이익보다 좋다는 신호.'
     },
 
+    // 미국(SEC) 종목용 출처 문구 오버라이드 — 계산식은 동일, 데이터 출처 설명만 교체
+    crMetricHelpUs: {
+        marketCap: '시가총액(근사) = 현재가 × 보통주 유통주식수\n유통주식수는 SEC 공시(dei) 최신 10-K의 발행주식수 기준입니다.',
+        eps: 'EPS(주당순이익) = 당기순이익 ÷ 유통주식수\n최신 10-K 기준. SEC 공시에서 당기순이익을 찾지 못하면 "—"로 표시됩니다.',
+        bps: 'BPS(주당순자산) = 자본총계 ÷ 유통주식수\n최신 10-K 기준.'
+    },
+
     // 주가지표 툴팁 팝오버 상태 (hover 미리보기 / 클릭 고정)
     crHint: { show: false, text: '', x: 0, y: 0, pinned: false },
 
@@ -831,16 +880,17 @@ const CompanyReportComponent = {
         pcfr: 'x', perTimesPbr: 'x', evEbitda: 'x', roic: 'pct', accrual: 'pct'
     },
 
-    // 근거 항 값 포맷 (단위별)
+    // 근거 항 값 포맷 (단위별, 활성 스냅샷 통화 기준)
     _crBdVal(value, unit) {
         if (value == null) return '—';
         const n = parseFloat(value);
         if (isNaN(n)) return '—';
+        const usd = this.crCurrency() === 'USD';
         if (unit === 'x') return Format.number(n, 2) + '배';
         if (unit === 'pct') return Format.number(n, 2) + '%';
-        if (unit === 'price') return Format.number(n, 0) + '원';
+        if (unit === 'price') return usd ? '$' + Format.number(n, 2) : Format.number(n, 0) + '원';
         if (unit === 'shares') return Format.compactNumber(n) + '주';
-        return Format.compactNumber(n); // amount
+        return usd ? this._crUsdAmt(n) : Format.compactNumber(n); // amount
     },
 
     // 현재 활성 스냅샷(작성=preview / 상세=detail)의 계산 근거를 식으로 조립. 없으면 '' (공식만 표시)
@@ -859,7 +909,15 @@ const CompanyReportComponent = {
     },
 
     _crHintText(key, showBreakdown) {
-        return (this.crMetricHelp[key] || '') + this.crBreakdownText(key, showBreakdown);
+        return this._crMetricHelpText(key) + this.crBreakdownText(key, showBreakdown);
+    },
+
+    // 활성 스냅샷 통화 기준으로 툴팁 출처 문구 선택 (USD면 SEC 오버라이드 우선)
+    _crMetricHelpText(key) {
+        if (this.crCurrency() === 'USD' && this.crMetricHelpUs[key]) {
+            return this.crMetricHelpUs[key];
+        }
+        return this.crMetricHelp[key] || '';
     },
 
     crHintShow(event, key, showBreakdown) {
@@ -891,9 +949,75 @@ const CompanyReportComponent = {
     },
 
     // ==================== 표시 헬퍼 ====================
+    // 현재 활성 스냅샷 (작성=preview / 상세=detail)
+    _crActiveSnapshot() {
+        return this.companyReport.view === 'detail'
+            ? this.companyReport.detail?.snapshot : this.companyReport.preview?.snapshot;
+    },
+
+    // 스냅샷 통화 — v1/국내 스냅샷은 KRW
+    crCurrency() {
+        return this._crActiveSnapshot()?.currency || 'KRW';
+    },
+
+    // 데이터 소스가 구조적으로 제공하지 않는 섹션 여부 (조회 실패의 빈 값과 구분)
+    crUnsupported(section) {
+        return (this._crActiveSnapshot()?.unsupportedSections || []).includes(section);
+    },
+
+    // 미지원 섹션 안내 배너 문구 (없으면 '')
+    crUnsupportedNotice() {
+        const list = this._crActiveSnapshot()?.unsupportedSections || [];
+        if (list.length === 0) return '';
+        return '미국 종목은 최대주주 이력·5%룰 대량보유 정보를 제공하지 않아 주주 동향 일부가 표시되지 않습니다.';
+    },
+
+    // 검색 결과 거래소 배지 라벨
+    crExchangeLabel(code) {
+        return ({ KRX: 'KRX', NAS: 'NASDAQ', NYS: 'NYSE', AMS: 'AMEX' })[code] || code;
+    },
+
+    _crIsTickerCode(code) {
+        return !!code && !/^\d{6}$/.test(code);
+    },
+
+    _crDisclosureCode() {
+        return this.companyReport.disclosures.stockCode
+            || this.companyReport.selected?.stockCode
+            || this.companyReport.detail?.stockCode;
+    },
+
+    // 공시 패널 제목/부제 — 종목코드 형태로 DART/SEC 구분
+    crDisclosureTitle() {
+        return this._crIsTickerCode(this._crDisclosureCode()) ? 'SEC 제출 서식 바로가기' : 'DART 정기보고서 바로가기';
+    },
+
+    crDisclosureSubtitle() {
+        return this._crIsTickerCode(this._crDisclosureCode()) ? '최근 제출 · 10-K/10-Q 원문' : '최근 10년 · 사업/반기/분기 원문';
+    },
+
+    // 위험 시그널 라벨 — 미국은 유상증자 서식 대신 발행주식수 희석 판정
+    crRiskItemLabel(risk) {
+        if (risk.key === 'recentCapitalIncrease' && this.crCurrency() === 'USD') return '발행주식수 증가(희석)';
+        return risk.label;
+    },
+
+    // 달러 금액 축약 표기 ($B/$M)
+    _crUsdAmt(value) {
+        const n = parseFloat(value);
+        if (isNaN(n)) return '—';
+        const sign = n < 0 ? '-' : '';
+        const abs = Math.abs(n);
+        if (abs >= 1e9) return sign + '$' + Format.number(abs / 1e9, 2) + 'B';
+        if (abs >= 1e6) return sign + '$' + Format.number(abs / 1e6, 1) + 'M';
+        return sign + '$' + Format.number(abs, 0);
+    },
+
     crAmt(value) {
+        if (value == null || value === '') return '—';
+        if (this.crCurrency() === 'USD') return this._crUsdAmt(value);
         // 조 단위는 2자리 버림(반올림 X) — 기업 리포트 표시용
-        return (value == null || value === '') ? '—' : Format.compactNumber(value, true);
+        return Format.compactNumber(value, true);
     },
 
     crNum(value, decimals = 2) {

@@ -170,7 +170,7 @@ public class GradeSuggestionCalculator {
 
     private List<String> healthBasis(ReportSnapshot snapshot) {
         List<String> basis = ratioBasis(snapshot, "equityRatio", "currentRatio", "debtRatio");
-        addEok(basis, "순현금", netCash(snapshot));
+        addAmount(basis, "순현금", netCash(snapshot), snapshot.currency());
         return basis;
     }
 
@@ -391,10 +391,16 @@ public class GradeSuggestionCalculator {
         }
     }
 
-    private void addEok(List<String> basis, String label, BigDecimal amount) {
-        if (amount != null) {
-            basis.add(label + " " + amount.movePointLeft(8).setScale(0, RoundingMode.HALF_UP).toPlainString() + "억원");
+    /** 큰 금액 근거 표기 — KRW: 억원, USD: $B(10억 달러). currency 부재(v1 스냅샷)는 KRW로 해석 */
+    private void addAmount(List<String> basis, String label, BigDecimal amount, String currency) {
+        if (amount == null) {
+            return;
         }
+        if (ReportSnapshot.CURRENCY_USD.equals(currency)) {
+            basis.add(label + " $" + amount.movePointLeft(9).setScale(1, RoundingMode.HALF_UP).toPlainString() + "B");
+            return;
+        }
+        basis.add(label + " " + amount.movePointLeft(8).setScale(0, RoundingMode.HALF_UP).toPlainString() + "억원");
     }
 
     private BigDecimal parse(String value) {

@@ -466,6 +466,35 @@ const PortfolioComponent = {
         return this.portfolio.items.filter((item) => item.assetType === 'STOCK' && item.stockDetail && item.stockDetail.country !== 'KR');
     },
 
+    getCashSubTypeKey(item) {
+        return item.cashDetail?.subType || 'ETC';
+    },
+
+    getCashItemsSorted() {
+        const order = ['DEPOSIT', 'SAVINGS', 'CMA'];
+        return this.getItemsByType('CASH').slice().sort((a, b) => {
+            const aIdx = order.indexOf(this.getCashSubTypeKey(a));
+            const bIdx = order.indexOf(this.getCashSubTypeKey(b));
+            return (aIdx === -1 ? order.length : aIdx) - (bIdx === -1 ? order.length : bIdx);
+        });
+    },
+
+    isCashGroupStart(item) {
+        const sorted = this.getCashItemsSorted();
+        const idx = sorted.findIndex((i) => i.id === item.id);
+        if (idx < 0) return false;
+        if (idx === 0) return true;
+        return this.getCashSubTypeKey(sorted[idx - 1]) !== this.getCashSubTypeKey(item);
+    },
+
+    getCashGroupSummary(item) {
+        const key = this.getCashSubTypeKey(item);
+        const labels = { DEPOSIT: '🏦 예금', SAVINGS: '💰 적금', CMA: '💳 CMA' };
+        const groupItems = this.getItemsByType('CASH').filter((i) => this.getCashSubTypeKey(i) === key);
+        const total = groupItems.reduce((sum, i) => sum + this.getEvalAmount(i), 0);
+        return (labels[key] || '📦 기타') + ' ' + groupItems.length + '건 · ' + Format.number(total, 0) + '원';
+    },
+
     getTotalInvested() {
         return this.portfolio.items.reduce((sum, item) => sum + this.getInvestedAmountKrw(item), 0);
     },

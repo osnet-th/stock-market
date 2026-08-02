@@ -32,7 +32,7 @@ public class CompanyAnalysisReportEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "stock_code", nullable = false, length = 6)
+    @Column(name = "stock_code", nullable = false, length = 20)
     private String stockCode;
 
     @Column(name = "stock_name", length = 100)

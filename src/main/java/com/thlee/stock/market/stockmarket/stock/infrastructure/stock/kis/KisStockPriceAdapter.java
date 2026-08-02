@@ -10,6 +10,7 @@ import com.thlee.stock.market.stockmarket.stock.domain.service.StockPricePort;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.config.StockPriceCacheConfig;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDailyChartResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticMultiPriceOutput;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOverseasDailyChartResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOvertimePriceOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -106,10 +107,8 @@ public class KisStockPriceAdapter implements StockPricePort {
     }
 
     /**
-     * 국내 기간별(일/주/월봉) 조회. KIS inquire-daily-itemchartprice 가 단일 호출 ~100봉 한계라
-     * 슬라이딩 윈도우(windowEnd 후방 이동) 로 청크 호출 + LinkedHashMap dedup 후 ASC 정렬 반환.
-     * 창 크기는 주기별 상수({@link ChartPeriod#getChunkCalendarDays()}).
-     * 해외는 base 인터페이스의 default(빈 리스트)를 유지 — 별도 어댑터 도입 시 확장.
+     * 기간별(일/주/월봉) 조회. KIS 기간별시세가 단일 호출 ~100봉 한계라
+     * 청크 호출 + LinkedHashMap dedup 후 ASC 정렬 반환 (국내는 슬라이딩 윈도우, 해외는 기준일 후방 이동).
      *
      * <p>중간 청크 실패 시 이미 모은 부분 결과를 반환 (graceful degrade). 전체 실패면 빈 리스트.
      */
@@ -122,9 +121,19 @@ public class KisStockPriceAdapter implements StockPricePort {
     )
     public List<DailyPrice> getPriceHistory(String stockCode, MarketType marketType, ExchangeCode exchangeCode,
                                             ChartPeriod period, LocalDate from, LocalDate to) {
-        if (!marketType.isDomestic() || period == null || from == null || to == null || from.isAfter(to)) {
+        if (period == null || from == null || to == null || from.isAfter(to)) {
             return List.of();
         }
+        return marketType.isDomestic()
+                ? getDomesticPriceHistory(stockCode, period, from, to)
+                : getOverseasPriceHistory(stockCode, exchangeCode, period, from, to);
+    }
+
+    /**
+     * 국내: 슬라이딩 윈도우(windowEnd 후방 이동). 창 크기는 주기별 상수({@link ChartPeriod#getChunkCalendarDays()}).
+     */
+    private List<DailyPrice> getDomesticPriceHistory(String stockCode, ChartPeriod period,
+                                                     LocalDate from, LocalDate to) {
         Map<LocalDate, DailyPrice> dedup = new LinkedHashMap<>();
         LocalDate windowEnd = to;
         int iterations = 0;
@@ -152,6 +161,43 @@ public class KisStockPriceAdapter implements StockPricePort {
         } catch (Exception e) {
             log.warn("KIS 기간별시세 조회 실패 — degrade to partial/empty: stockCode={}, period={}, range={}~{}, collected={}, reason={}",
                     stockCode, period, from, to, dedup.size(), e.getMessage());
+        }
+        return dedup.values().stream()
+                .sorted(Comparator.comparing(DailyPrice::date))
+                .toList();
+    }
+
+    /**
+     * 해외: HHDFS76240000 이 기준일(BYMD) 이전 최대 100봉을 반환하므로, 기준일을 청크의 최고(最古) 일자
+     * 직전으로 옮겨가며 페이징한다. 응답에 from 이전 봉이 섞일 수 있어 범위 필터 후 수집.
+     */
+    private List<DailyPrice> getOverseasPriceHistory(String stockCode, ExchangeCode exchangeCode,
+                                                     ChartPeriod period, LocalDate from, LocalDate to) {
+        Map<LocalDate, DailyPrice> dedup = new LinkedHashMap<>();
+        LocalDate baseDate = to;
+        int iterations = 0;
+        try {
+            while (!baseDate.isBefore(from) && iterations++ < MAX_CHUNK_ITERATIONS) {
+                KisOverseasDailyChartResponse response =
+                        priceClient.getOverseasPeriodChart(stockCode, exchangeCode, period, baseDate);
+                List<DailyPrice> chunk = KisStockPriceMapper.fromOverseasDailyChart(response.getItems());
+                if (chunk.isEmpty()) {
+                    break;
+                }
+                for (DailyPrice p : chunk) {
+                    if (!p.date().isBefore(from) && !p.date().isAfter(to)) {
+                        dedup.putIfAbsent(p.date(), p);
+                    }
+                }
+                LocalDate oldestInChunk = chunk.get(0).date();
+                if (!oldestInChunk.isAfter(from)) {
+                    break;
+                }
+                baseDate = oldestInChunk.minusDays(1);
+            }
+        } catch (Exception e) {
+            log.warn("KIS 해외 기간별시세 조회 실패 — degrade to partial/empty: stockCode={}, exchange={}, period={}, range={}~{}, collected={}, reason={}",
+                    stockCode, exchangeCode, period, from, to, dedup.size(), e.getMessage());
         }
         return dedup.values().stream()
                 .sorted(Comparator.comparing(DailyPrice::date))

@@ -6,15 +6,23 @@ import com.thlee.stock.market.stockmarket.stock.domain.model.SecFinancialItem;
 import com.thlee.stock.market.stockmarket.stock.domain.model.SecFinancialStatement;
 import com.thlee.stock.market.stockmarket.stock.domain.model.SecFinancialStatement.StatementType;
 import com.thlee.stock.market.stockmarket.stock.domain.model.SecInvestmentMetric;
+import com.thlee.stock.market.stockmarket.stock.domain.model.UsCompanyFacts;
+import com.thlee.stock.market.stockmarket.stock.domain.model.UsCompanyProfile;
+import com.thlee.stock.market.stockmarket.stock.domain.model.UsFiling;
+import com.thlee.stock.market.stockmarket.stock.domain.model.UsFinancialConcept;
 import com.thlee.stock.market.stockmarket.stock.domain.service.SecFinancialPort;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.dto.SecCompanyFactsResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.dto.SecCompanyFactsResponse.FactEntry;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.dto.SecCompanyFactsResponse.TagData;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.dto.SecSubmissionsResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecApiException;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecErrorType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -31,6 +39,14 @@ public class SecFinancialAdapter implements SecFinancialPort {
      * raw 응답(2-8MB)이 아닌 가공된 데이터만 캐싱
      */
     private final Cache<String, ParsedCompanyFacts> factsCache = Caffeine.newBuilder()
+            .expireAfterWrite(24, TimeUnit.HOURS)
+            .maximumSize(100)
+            .build();
+
+    /**
+     * submissions 응답 캐시 (ticker → 원본 응답, ~100KB급이라 원본 보관)
+     */
+    private final Cache<String, SecSubmissionsResponse> submissionsCache = Caffeine.newBuilder()
             .expireAfterWrite(24, TimeUnit.HOURS)
             .maximumSize(100)
             .build();
@@ -140,6 +156,7 @@ public class SecFinancialAdapter implements SecFinancialPort {
         // 연간 데이터
         Map<String, Map<Integer, Double>> usdData = new HashMap<>();
         Map<String, Map<Integer, Double>> sharesData = new HashMap<>();
+        Map<String, Map<Integer, Double>> shareCountData = new HashMap<>();
         Set<Integer> allYears = new TreeSet<>(Comparator.reverseOrder());
 
         // 분기 데이터
@@ -165,6 +182,12 @@ public class SecFinancialAdapter implements SecFinancialPort {
                 allYears.addAll(sharesYearValues.keySet());
             }
 
+            // 연간 shares (주식수 — 리포트 조달용, recentYears 산정에는 미반영)
+            Map<Integer, Double> shareCountValues = extractAnnualValues(tagData.getShareCountEntries());
+            if (!shareCountValues.isEmpty()) {
+                shareCountData.put(tag, shareCountValues);
+            }
+
             // 분기 USD (10-Q + 10-K fp="Q4", FY Fallback)
             Map<String, Double> qtrUsdValues = extractQuarterlyValues(tagData.getUsdEntries());
             fillQ4Fallback(qtrUsdValues, usdYearValues, tagData.getUsdEntries());
@@ -182,25 +205,64 @@ public class SecFinancialAdapter implements SecFinancialPort {
             }
         }
 
+        // dei 네임스페이스 주식수 (EntityCommonStockSharesOutstanding 등)
+        for (Map.Entry<String, TagData> entry : response.getDeiFacts().entrySet()) {
+            Map<Integer, Double> shareCountValues = extractAnnualValues(entry.getValue().getShareCountEntries());
+            if (!shareCountValues.isEmpty()) {
+                shareCountData.put(entry.getKey(), shareCountValues);
+            }
+        }
+
         List<Integer> recentYears = allYears.stream().limit(3).toList();
         List<String> recentQuarters = allQuarters.stream().limit(8).toList();
 
-        return new ParsedCompanyFacts(usdData, sharesData, recentYears,
+        return new ParsedCompanyFacts(usdData, sharesData, shareCountData, recentYears,
                 quarterlyUsdData, quarterlySharesData, recentQuarters);
     }
 
     /**
-     * 10-K + FY 필터로 연간 데이터만 추출, 중복 연도는 최신 filed 기준
+     * 10-K + FY 필터로 연간 데이터만 추출.
+     * 10-K 파일링에 포함된 분기 행(Q4)·전기 비교치 행도 fy/fp가 파일링 기준(FY)으로 라벨되므로,
+     * 기간 데이터는 연간 기간(300~400일)만 채택하고 같은 연도 중복은 종료일(end)이 최신인 엔트리를 취한다
+     * (전기 비교치는 end가 이르고, Q4는 기간 필터에서 배제됨).
      */
     private Map<Integer, Double> extractAnnualValues(List<FactEntry> entries) {
-        return entries.stream()
-                .filter(e -> "10-K".equals(e.getForm()) && "FY".equals(e.getFp()))
-                .filter(e -> e.getFy() != null && e.getVal() != null)
-                .collect(Collectors.toMap(
-                        e -> e.getFy().intValue(),
-                        FactEntry::getVal,
-                        (existing, replacement) -> replacement
-                ));
+        Map<Integer, FactEntry> best = new HashMap<>();
+        for (FactEntry entry : entries) {
+            if (!isAnnualEntry(entry)) {
+                continue;
+            }
+            best.merge(entry.getFy().intValue(), entry, this::laterEnd);
+        }
+        Map<Integer, Double> values = new HashMap<>();
+        best.forEach((year, entry) -> values.put(year, entry.getVal()));
+        return values;
+    }
+
+    private boolean isAnnualEntry(FactEntry entry) {
+        return "10-K".equals(entry.getForm()) && "FY".equals(entry.getFp())
+                && entry.getFy() != null && entry.getVal() != null
+                && isAnnualPeriod(entry);
+    }
+
+    /** 시점 데이터(start 없음)는 통과, 기간 데이터는 약 1년(300~400일)만 연간으로 인정 */
+    private boolean isAnnualPeriod(FactEntry entry) {
+        if (entry.getStart() == null || entry.getEnd() == null) {
+            return true;
+        }
+        try {
+            long days = ChronoUnit.DAYS.between(
+                    LocalDate.parse(entry.getStart()), LocalDate.parse(entry.getEnd()));
+            return days >= 300 && days <= 400;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private FactEntry laterEnd(FactEntry current, FactEntry candidate) {
+        String currentEnd = current.getEnd() == null ? "" : current.getEnd();
+        String candidateEnd = candidate.getEnd() == null ? "" : candidate.getEnd();
+        return candidateEnd.compareTo(currentEnd) > 0 ? candidate : current;
     }
 
     /**
@@ -338,10 +400,12 @@ public class SecFinancialAdapter implements SecFinancialPort {
                 .filter(e -> "10-K".equals(e.getForm()) && "FY".equals(e.getFp()))
                 .anyMatch(e -> e.getStart() == null);
 
-        // 기간 데이터용: FY 엔트리의 start 날짜를 연도별로 수집 (누적 Q3 매칭용)
+        // 기간 데이터용: FY 엔트리의 start 날짜를 연도별로 수집 (누적 Q3 매칭용).
+        // 연간 기간 필터로 10-K 내 Q4 행의 start가 섞이는 것 방지 (섞이면 누적 Q3 매칭 실패로 Q4 누락)
         Map<Integer, String> fyStartByYear = isPointInTime ? Map.of() : entries.stream()
                 .filter(e -> "10-K".equals(e.getForm()) && "FY".equals(e.getFp()))
                 .filter(e -> e.getFy() != null && e.getStart() != null)
+                .filter(this::isAnnualPeriod)
                 .collect(Collectors.toMap(
                         e -> e.getFy().intValue(),
                         FactEntry::getStart,
@@ -456,24 +520,49 @@ public class SecFinancialAdapter implements SecFinancialPort {
 
     // === 태그 조회 헬퍼 ===
 
+    /**
+     * 폴백 체인 중 최신 연도를 커버하는 태그의 시리즈 선택 (동률이면 데이터 포인트 많은 쪽, 그것도 같으면 체인 순서).
+     * "첫 번째 비어있지 않은 태그" 방식은 태그 세대교체 기업(예: AAPL 매출 Revenues→RevenueFromContract...)에서
+     * 옛 태그의 잔존 값이 채택돼 최근 연도가 전부 null이 되는 문제가 있어 커버리지 기준으로 선택한다.
+     */
     private Map<Integer, Double> getTagValues(ParsedCompanyFacts parsed, String... tags) {
+        Map<Integer, Double> best = Map.of();
         for (String tag : tags) {
             Map<Integer, Double> values = parsed.usdData().get(tag);
-            if (values != null && !values.isEmpty()) {
-                return values;
+            if (values == null || values.isEmpty()) {
+                continue;
+            }
+            if (best.isEmpty() || compareCoverage(values, best) > 0) {
+                best = values;
             }
         }
-        return Map.of();
+        return best;
     }
 
     private Map<String, Double> getQuarterlyTagValues(ParsedCompanyFacts parsed, String... tags) {
+        Map<String, Double> best = Map.of();
         for (String tag : tags) {
             Map<String, Double> values = parsed.quarterlyUsdData().get(tag);
-            if (values != null && !values.isEmpty()) {
-                return values;
+            if (values == null || values.isEmpty()) {
+                continue;
+            }
+            if (best.isEmpty() || compareQuarterCoverage(values, best) > 0) {
+                best = values;
             }
         }
-        return Map.of();
+        return best;
+    }
+
+    /** 최신 연도 우선, 동률이면 데이터 포인트 수 (양수면 left가 더 나은 커버리지) */
+    private int compareCoverage(Map<Integer, Double> left, Map<Integer, Double> right) {
+        int byLatest = Integer.compare(Collections.max(left.keySet()), Collections.max(right.keySet()));
+        return byLatest != 0 ? byLatest : Integer.compare(left.size(), right.size());
+    }
+
+    /** 분기 키("2024Q3")는 고정 포맷이라 사전순 비교가 시간순과 일치 */
+    private int compareQuarterCoverage(Map<String, Double> left, Map<String, Double> right) {
+        int byLatest = Collections.max(left.keySet()).compareTo(Collections.max(right.keySet()));
+        return byLatest != 0 ? byLatest : Integer.compare(left.size(), right.size());
     }
 
     private Double getLatestValue(ParsedCompanyFacts parsed, String... tags) {
@@ -484,21 +573,254 @@ public class SecFinancialAdapter implements SecFinancialPort {
         return getLatestValue(parsed, new String[]{tag}, isShares);
     }
 
+    /**
+     * 최근 연도부터 폴백 체인 전체를 훑어 가장 최신 값을 반환 (태그 순서보다 연도 최신성 우선)
+     */
     private Double getLatestValue(ParsedCompanyFacts parsed, String[] tags, boolean isShares) {
-        for (String tag : tags) {
-            Map<String, Map<Integer, Double>> dataSource = isShares ? parsed.sharesData() : parsed.usdData();
-            Map<Integer, Double> values = dataSource.get(tag);
-            if (values != null && !values.isEmpty()) {
-                for (Integer year : parsed.recentYears()) {
-                    Double val = values.get(year);
-                    if (val != null) {
-                        return val;
-                    }
+        Map<String, Map<Integer, Double>> dataSource = isShares ? parsed.sharesData() : parsed.usdData();
+        for (Integer year : parsed.recentYears()) {
+            for (String tag : tags) {
+                Map<Integer, Double> values = dataSource.get(tag);
+                Double val = values == null ? null : values.get(year);
+                if (val != null) {
+                    return val;
                 }
             }
         }
         return null;
     }
+
+    // === 리포트 조달 (연간 팩트 / 프로필 / 제출 서식) ===
+
+    @Override
+    public UsCompanyFacts getAnnualReportFacts(String ticker, int years) {
+        ParsedCompanyFacts parsed = getParsedFacts(ticker);
+        Map<UsFinancialConcept, Map<Integer, Double>> merged = new EnumMap<>(UsFinancialConcept.class);
+        for (ConceptMapping mapping : CONCEPT_MAPPINGS) {
+            Map<Integer, Double> series = mergeChain(sourceOf(parsed, mapping.source()), mapping.tags());
+            if (!series.isEmpty()) {
+                merged.put(mapping.concept(), series);
+            }
+        }
+        List<Integer> recent = recentReportYears(merged, years);
+        Map<UsFinancialConcept, Map<String, BigDecimal>> annual = new EnumMap<>(UsFinancialConcept.class);
+        merged.forEach((concept, series) -> {
+            Map<String, BigDecimal> filtered = new LinkedHashMap<>();
+            for (Integer year : recent) {
+                Double val = series.get(year);
+                if (val != null) {
+                    filtered.put(String.valueOf(year), BigDecimal.valueOf(val));
+                }
+            }
+            if (!filtered.isEmpty()) {
+                annual.put(concept, filtered);
+            }
+        });
+        return new UsCompanyFacts(recent.stream().map(String::valueOf).toList(), annual);
+    }
+
+    private Map<String, Map<Integer, Double>> sourceOf(ParsedCompanyFacts parsed, ConceptSource source) {
+        return switch (source) {
+            case USD -> parsed.usdData();
+            case PER_SHARE -> parsed.sharesData();
+            case SHARES -> parsed.shareCountData();
+        };
+    }
+
+    /**
+     * 폴백 체인 병합: 최신 연도 커버 태그 우선으로 정렬 후, 남은 태그로 과거 연도 공백을 채운다
+     * (태그 세대교체 시 과거 이력 보존 — 예: AAPL 매출 SalesRevenueNet(과거) + RevenueFromContract...(현행))
+     */
+    private Map<Integer, Double> mergeChain(Map<String, Map<Integer, Double>> source, List<String> tags) {
+        List<Map<Integer, Double>> candidates = tags.stream()
+                .map(source::get)
+                .filter(values -> values != null && !values.isEmpty())
+                .sorted((left, right) -> compareCoverage(right, left))
+                .toList();
+        Map<Integer, Double> merged = new HashMap<>();
+        for (Map<Integer, Double> candidate : candidates) {
+            candidate.forEach(merged::putIfAbsent);
+        }
+        return merged;
+    }
+
+    /**
+     * 리포트 컬럼 연도: 핵심 개념(매출·순이익·자산총계)이 커버하는 연도의 합집합에서 최근 years개 (오름차순)
+     */
+    private List<Integer> recentReportYears(Map<UsFinancialConcept, Map<Integer, Double>> merged, int years) {
+        TreeSet<Integer> all = new TreeSet<>();
+        for (UsFinancialConcept anchor : List.of(UsFinancialConcept.REVENUE,
+                UsFinancialConcept.NET_INCOME, UsFinancialConcept.TOTAL_ASSETS)) {
+            all.addAll(merged.getOrDefault(anchor, Map.of()).keySet());
+        }
+        return all.descendingSet().stream().limit(years).sorted().toList();
+    }
+
+    @Override
+    public UsCompanyProfile getCompanyProfile(String ticker) {
+        SecSubmissionsResponse subs = getSubmissions(ticker);
+        String primaryTicker = firstOrNull(subs.getTickers());
+        return new UsCompanyProfile(
+                subs.getName(),
+                subs.getSic(),
+                subs.getSicDescription(),
+                subs.getFiscalYearEnd(),
+                firstOrNull(subs.getExchanges()),
+                primaryTicker != null ? primaryTicker : ticker.toUpperCase(),
+                formatAddress(subs.getBusinessAddress()),
+                firstNonBlank(subs.getWebsite(), subs.getInvestorWebsite()));
+    }
+
+    @Override
+    public List<UsFiling> getRecentFilings(String ticker, int limit) {
+        SecSubmissionsResponse subs = getSubmissions(ticker);
+        SecSubmissionsResponse.Recent recent = subs.getFilings() == null ? null : subs.getFilings().getRecent();
+        if (recent == null || recent.getForm() == null) {
+            return List.of();
+        }
+        Long cik = secCikCache.getCik(ticker).orElse(null);
+        List<UsFiling> filings = new ArrayList<>();
+        for (int i = 0; i < recent.getForm().size() && filings.size() < limit; i++) {
+            String accessionNumber = listValue(recent.getAccessionNumber(), i);
+            String primaryDocument = listValue(recent.getPrimaryDocument(), i);
+            filings.add(new UsFiling(
+                    recent.getForm().get(i),
+                    listValue(recent.getFilingDate(), i),
+                    accessionNumber,
+                    primaryDocument,
+                    listValue(recent.getPrimaryDocDescription(), i),
+                    viewerUrl(cik, accessionNumber, primaryDocument)));
+        }
+        return filings;
+    }
+
+    /** EDGAR 원문 문서 URL — https://www.sec.gov/Archives/edgar/data/{cik}/{접수번호 대시 제거}/{문서} */
+    private String viewerUrl(Long cik, String accessionNumber, String primaryDocument) {
+        if (cik == null || accessionNumber == null || primaryDocument == null) {
+            return null;
+        }
+        return "https://www.sec.gov/Archives/edgar/data/" + cik + "/"
+                + accessionNumber.replace("-", "") + "/" + primaryDocument;
+    }
+
+    private SecSubmissionsResponse getSubmissions(String ticker) {
+        String key = ticker.toUpperCase();
+        SecSubmissionsResponse cached = submissionsCache.getIfPresent(key);
+        if (cached != null) {
+            return cached;
+        }
+        Long cik = secCikCache.getCik(ticker)
+                .orElseThrow(() -> new SecApiException(SecErrorType.CIK_NOT_FOUND,
+                        "SEC CIK 매핑을 찾을 수 없습니다: " + ticker));
+        SecSubmissionsResponse response = secApiClient.fetchSubmissions(SecCikCache.formatCik(cik));
+        submissionsCache.put(key, response);
+        return response;
+    }
+
+    private String formatAddress(SecSubmissionsResponse.Address address) {
+        if (address == null) {
+            return null;
+        }
+        List<String> parts = Arrays.asList(address.getStreet1(), address.getStreet2(),
+                        address.getCity(), address.getStateOrCountry(), address.getZipCode()).stream()
+                .filter(part -> part != null && !part.isBlank())
+                .toList();
+        return parts.isEmpty() ? null : String.join(", ", parts);
+    }
+
+    private String firstOrNull(List<String> values) {
+        return values == null || values.isEmpty() ? null : values.get(0);
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        return second != null && !second.isBlank() ? second : null;
+    }
+
+    private String listValue(List<String> values, int index) {
+        return values == null || index >= values.size() ? null : values.get(index);
+    }
+
+    /** 리포트 조달용 개념 → us-gaap/dei 태그 폴백 체인 (기업·연도별 태그 세대교체는 mergeChain으로 흡수) */
+    private static final List<ConceptMapping> CONCEPT_MAPPINGS = List.of(
+            new ConceptMapping(UsFinancialConcept.REVENUE, ConceptSource.USD, List.of(
+                    "Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax",
+                    "SalesRevenueNet", "SalesRevenueGoodsNet", "SalesRevenueServicesNet")),
+            new ConceptMapping(UsFinancialConcept.COST_OF_REVENUE, ConceptSource.USD, List.of(
+                    "CostOfGoodsAndServicesSold", "CostOfRevenue", "CostOfGoodsSold")),
+            new ConceptMapping(UsFinancialConcept.SGA_EXPENSE, ConceptSource.USD, List.of(
+                    "SellingGeneralAndAdministrativeExpense")),
+            new ConceptMapping(UsFinancialConcept.OPERATING_INCOME, ConceptSource.USD, List.of(
+                    "OperatingIncomeLoss")),
+            new ConceptMapping(UsFinancialConcept.PRETAX_INCOME, ConceptSource.USD, List.of(
+                    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+                    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments")),
+            new ConceptMapping(UsFinancialConcept.NET_INCOME, ConceptSource.USD, List.of(
+                    "NetIncomeLoss", "ProfitLoss")),
+            new ConceptMapping(UsFinancialConcept.OPERATING_CF, ConceptSource.USD, List.of(
+                    "NetCashProvidedByUsedInOperatingActivities",
+                    "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations")),
+            new ConceptMapping(UsFinancialConcept.INVESTING_CF, ConceptSource.USD, List.of(
+                    "NetCashProvidedByUsedInInvestingActivities",
+                    "NetCashProvidedByUsedInInvestingActivitiesContinuingOperations")),
+            new ConceptMapping(UsFinancialConcept.FINANCING_CF, ConceptSource.USD, List.of(
+                    "NetCashProvidedByUsedInFinancingActivities",
+                    "NetCashProvidedByUsedInFinancingActivitiesContinuingOperations")),
+            new ConceptMapping(UsFinancialConcept.CAPEX, ConceptSource.USD, List.of(
+                    "PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets")),
+            new ConceptMapping(UsFinancialConcept.DEPRECIATION_AMORTIZATION, ConceptSource.USD, List.of(
+                    "DepreciationDepletionAndAmortization", "DepreciationAmortizationAndAccretionNet",
+                    "Depreciation")),
+            new ConceptMapping(UsFinancialConcept.TOTAL_ASSETS, ConceptSource.USD, List.of("Assets")),
+            new ConceptMapping(UsFinancialConcept.CURRENT_ASSETS, ConceptSource.USD, List.of("AssetsCurrent")),
+            new ConceptMapping(UsFinancialConcept.TOTAL_LIABILITIES, ConceptSource.USD, List.of("Liabilities")),
+            new ConceptMapping(UsFinancialConcept.CURRENT_LIABILITIES, ConceptSource.USD, List.of(
+                    "LiabilitiesCurrent")),
+            new ConceptMapping(UsFinancialConcept.EQUITY, ConceptSource.USD, List.of(
+                    "StockholdersEquity",
+                    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest")),
+            new ConceptMapping(UsFinancialConcept.RETAINED_EARNINGS, ConceptSource.USD, List.of(
+                    "RetainedEarningsAccumulatedDeficit")),
+            new ConceptMapping(UsFinancialConcept.CAPITAL_STOCK, ConceptSource.USD, List.of(
+                    "CommonStocksIncludingAdditionalPaidInCapital", "CommonStockValue")),
+            new ConceptMapping(UsFinancialConcept.CASH, ConceptSource.USD, List.of(
+                    "CashAndCashEquivalentsAtCarryingValue",
+                    "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents")),
+            new ConceptMapping(UsFinancialConcept.SECURITIES_CURRENT, ConceptSource.USD, List.of(
+                    "MarketableSecuritiesCurrent", "ShortTermInvestments", "AvailableForSaleSecuritiesCurrent")),
+            new ConceptMapping(UsFinancialConcept.RECEIVABLES, ConceptSource.USD, List.of(
+                    "AccountsReceivableNetCurrent", "ReceivablesNetCurrent")),
+            new ConceptMapping(UsFinancialConcept.INVENTORY, ConceptSource.USD, List.of("InventoryNet")),
+            new ConceptMapping(UsFinancialConcept.INVESTMENTS_NONCURRENT, ConceptSource.USD, List.of(
+                    "MarketableSecuritiesNoncurrent", "LongTermInvestments",
+                    "AvailableForSaleSecuritiesNoncurrent")),
+            new ConceptMapping(UsFinancialConcept.TANGIBLE_ASSETS, ConceptSource.USD, List.of(
+                    "PropertyPlantAndEquipmentNet")),
+            new ConceptMapping(UsFinancialConcept.GOODWILL, ConceptSource.USD, List.of("Goodwill")),
+            new ConceptMapping(UsFinancialConcept.INTANGIBLE_ASSETS, ConceptSource.USD, List.of(
+                    "IntangibleAssetsNetExcludingGoodwill", "FiniteLivedIntangibleAssetsNet")),
+            new ConceptMapping(UsFinancialConcept.DEBT_NONCURRENT, ConceptSource.USD, List.of(
+                    "LongTermDebtNoncurrent")),
+            new ConceptMapping(UsFinancialConcept.DEBT_CURRENT, ConceptSource.USD, List.of(
+                    "LongTermDebtCurrent", "DebtCurrent")),
+            new ConceptMapping(UsFinancialConcept.SHORT_TERM_BORROWINGS, ConceptSource.USD, List.of(
+                    "CommercialPaper", "ShortTermBorrowings")),
+            new ConceptMapping(UsFinancialConcept.EPS_DILUTED, ConceptSource.PER_SHARE, List.of(
+                    "EarningsPerShareDiluted")),
+            new ConceptMapping(UsFinancialConcept.EPS_BASIC, ConceptSource.PER_SHARE, List.of(
+                    "EarningsPerShareBasic")),
+            new ConceptMapping(UsFinancialConcept.DPS_DECLARED, ConceptSource.PER_SHARE, List.of(
+                    "CommonStockDividendsPerShareDeclared", "CommonStockDividendsPerShareCashPaid")),
+            new ConceptMapping(UsFinancialConcept.DIVIDENDS_PAID, ConceptSource.USD, List.of(
+                    "PaymentsOfDividends", "PaymentsOfDividendsCommonStock")),
+            new ConceptMapping(UsFinancialConcept.SHARES_OUTSTANDING, ConceptSource.SHARES, List.of(
+                    "EntityCommonStockSharesOutstanding", "CommonStockSharesOutstanding")));
+
+    private enum ConceptSource { USD, PER_SHARE, SHARES }
+
+    private record ConceptMapping(UsFinancialConcept concept, ConceptSource source, List<String> tags) {}
 
     /**
      * 파싱된 Company Facts (캐시 대상)
@@ -506,6 +828,7 @@ public class SecFinancialAdapter implements SecFinancialPort {
     record ParsedCompanyFacts(
             Map<String, Map<Integer, Double>> usdData,
             Map<String, Map<Integer, Double>> sharesData,
+            Map<String, Map<Integer, Double>> shareCountData,
             List<Integer> recentYears,
             Map<String, Map<String, Double>> quarterlyUsdData,
             Map<String, Map<String, Double>> quarterlySharesData,

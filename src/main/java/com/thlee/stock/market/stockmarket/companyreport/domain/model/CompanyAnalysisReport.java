@@ -11,7 +11,8 @@ import java.time.LocalDateTime;
  * 항목별 구조화 입력)과 투자판단({@link InvestmentGrades})은 사용자가 직접 입력한다.
  * 청산가치/DCF 결과는 저장하지 않고 {@link ValuationParams}와 스냅샷 원시 입력으로 조회 시 파생 계산한다.
  *
- * <p>다른 도메인은 stockCode(6자리)로만 참조한다. 동일 종목 복수 리포트를 허용한다(시점별 기록).
+ * <p>다른 도메인은 stockCode(국내 6자리 숫자 또는 미국 영문 티커)로만 참조한다.
+ * 동일 종목 복수 리포트를 허용한다(시점별 기록).
  */
 @Getter
 public class CompanyAnalysisReport {
@@ -61,10 +62,11 @@ public class CompanyAnalysisReport {
                                                boolean draft, Integer draftStep,
                                                String snapshotJson, LocalDateTime snapshotAt) {
         requireUserId(userId);
-        requireStockCode(stockCode);
+        String normalizedStockCode = normalizeStockCode(stockCode);
+        requireStockCode(normalizedStockCode);
         ReportManual validManual = normalizeManual(manual);
         LocalDateTime now = LocalDateTime.now();
-        return new CompanyAnalysisReport(null, userId, stockCode, stockName, validManual,
+        return new CompanyAnalysisReport(null, userId, normalizedStockCode, stockName, validManual,
                 orEmptyGrades(grades), requireParams(valuationParams),
                 draft, normalizeDraftStep(draft, draftStep), snapshotJson, snapshotAt, now, now);
     }
@@ -107,9 +109,14 @@ public class CompanyAnalysisReport {
         }
     }
 
+    private static String normalizeStockCode(String stockCode) {
+        return stockCode == null ? null : stockCode.trim().toUpperCase();
+    }
+
     private static void requireStockCode(String stockCode) {
-        if (stockCode == null || !stockCode.matches("\\d{6}")) {
-            throw new IllegalArgumentException("종목코드는 6자리 숫자여야 합니다: " + stockCode);
+        if (stockCode == null || !stockCode.matches("\\d{6}|[A-Z][A-Z0-9.\\-]{0,9}")) {
+            throw new IllegalArgumentException(
+                    "종목코드는 6자리 숫자(국내) 또는 영문 티커(미국)여야 합니다: " + stockCode);
         }
     }
 

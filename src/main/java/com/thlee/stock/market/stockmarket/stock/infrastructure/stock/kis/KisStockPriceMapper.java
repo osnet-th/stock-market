@@ -7,6 +7,7 @@ import com.thlee.stock.market.stockmarket.stock.domain.model.StockPrice;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDailyChartItem;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticMultiPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticPriceOutput;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOverseasDailyChartResponse.KisOverseasDailyChartItem;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOverseasPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOvertimePriceOutput;
 import lombok.AccessLevel;
@@ -39,6 +40,39 @@ public class KisStockPriceMapper {
     }
 
     private static DailyPrice toDailyPrice(KisDailyChartItem item) {
+        if (item == null || isBlank(item.getBusinessDate()) || isBlank(item.getClosePrice())) {
+            return null;
+        }
+        try {
+            LocalDate date = LocalDate.parse(item.getBusinessDate(), KIS_DATE_FORMAT);
+            return new DailyPrice(
+                    date,
+                    parseDecimal(item.getOpenPrice()),
+                    parseDecimal(item.getHighPrice()),
+                    parseDecimal(item.getLowPrice()),
+                    parseDecimal(item.getClosePrice()),
+                    parseLong(item.getVolume())
+            );
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * KIS 해외 기간별시세 응답 항목을 도메인 {@link DailyPrice} 로 변환. 날짜 오름차순 정렬을 보장한다.
+     */
+    public static List<DailyPrice> fromOverseasDailyChart(List<KisOverseasDailyChartItem> items) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        return items.stream()
+                .map(KisStockPriceMapper::toOverseasDailyPrice)
+                .filter(p -> p != null)
+                .sorted(Comparator.comparing(DailyPrice::date))
+                .toList();
+    }
+
+    private static DailyPrice toOverseasDailyPrice(KisOverseasDailyChartItem item) {
         if (item == null || isBlank(item.getBusinessDate()) || isBlank(item.getClosePrice())) {
             return null;
         }

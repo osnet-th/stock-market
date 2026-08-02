@@ -63,9 +63,9 @@ public class StockController {
     }
 
     /**
-     * 국내 주식 기간별(일/주/월봉) 가격 히스토리 조회.
+     * 기간별(일/주/월봉) 가격 히스토리 조회.
      *
-     * @param stockCode 종목코드 (KRX 6자리)
+     * @param stockCode 종목코드 (국내 KRX 6자리 또는 미국 영문 티커)
      * @param period    봉 주기 D|W|M (기본 M)
      * @param from      시작일 yyyy-MM-dd (미지정 시 1960-01-01 — 상장 이후 전구간)
      * @param to        종료일 yyyy-MM-dd (미지정 시 오늘)
@@ -76,7 +76,7 @@ public class StockController {
             @RequestParam(defaultValue = "M") String period,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to) {
-        if (stockCode == null || !stockCode.matches("\\d{6}")) {
+        if (stockCode == null || !stockCode.matches("\\d{6}|[A-Za-z][A-Za-z0-9.\\-]{0,9}")) {
             throw new IllegalArgumentException("유효하지 않은 종목코드: " + stockCode);
         }
         ChartPeriod chartPeriod = ChartPeriod.fromCode(period);

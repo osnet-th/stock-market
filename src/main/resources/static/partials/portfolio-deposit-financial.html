@@ -139,18 +139,18 @@
                 </div>
             </div>
 
-            <!-- 미납 납입 리마인더 (#100) — 로그인 시 미납 항목 안내, 납입 모달(z-50)보다 아래 -->
+            <!-- 납입 확인 리마인더 (#100, #111) — 로그인 시 당일·미납 항목 안내, 납입 모달(z-50)보다 아래 -->
             <div x-show="portfolio.depositReminder.show" x-cloak
                 class="fixed inset-0 bg-black/50 flex items-center justify-center z-40">
                 <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
                     @click.outside="closeDepositReminder()">
 
                     <div class="flex items-start justify-between mb-1">
-                        <h3 class="text-lg font-bold text-gray-900">미납 납입 안내</h3>
+                        <h3 class="text-lg font-bold text-gray-900">납입 확인 안내</h3>
                         <button @click="closeDepositReminder()"
                             class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
                     </div>
-                    <p class="text-sm text-gray-500 mb-4">이번 달 납입이 처리되지 않은 항목이 있습니다.</p>
+                    <p class="text-sm text-gray-500 mb-4">오늘이 납입일이거나 이번 달 납입이 처리되지 않은 항목이 있습니다.</p>
 
                     <div class="space-y-2 max-h-72 overflow-y-auto">
                         <template x-for="item in portfolio.depositReminder.items" :key="item.id">
@@ -160,6 +160,9 @@
                                         <span class="text-sm font-medium text-gray-900 truncate" x-text="item.itemName"></span>
                                         <span class="text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0"
                                             x-text="item.assetType === 'FUND' ? '펀드' : '현금성'"></span>
+                                        <span class="text-[11px] px-1.5 py-0.5 rounded shrink-0"
+                                            :class="item.depositOverdue === true ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'"
+                                            x-text="item.depositOverdue === true ? '미납' : '오늘 납입일'"></span>
                                     </div>
                                     <div class="text-xs text-gray-500 mt-0.5" x-text="depositReminderMeta(item)"></div>
                                 </div>

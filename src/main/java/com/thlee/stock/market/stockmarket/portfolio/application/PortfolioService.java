@@ -335,18 +335,21 @@ public class PortfolioService {
         return items.stream()
                 .map(item -> {
                     Long linkedId = finalLinkMap.get(item.getId());
-                    List<DepositHistory> deposits = finalDepositMap.get(item.getId());
                     Boolean overdue = null;
+                    Boolean dueToday = null;
                     BigDecimal maturityAmount = null;
 
-                    if (deposits != null) {
+                    // 이력 0건 항목도 판정 대상 — 빈 리스트로 폴백 (#111)
+                    if (item.getAssetType() == AssetType.CASH || item.getAssetType() == AssetType.FUND) {
+                        List<DepositHistory> deposits = finalDepositMap.getOrDefault(item.getId(), List.of());
                         overdue = isDepositOverdue(item, deposits, today);
+                        dueToday = isDepositDueToday(item, deposits, today);
                         if (item.getAssetType() == AssetType.CASH && item.getCashDetail() != null) {
                             maturityAmount = calculateMaturityAmount(item);
                         }
                     }
 
-                    return PortfolioItemResponse.from(item, linkedId, overdue, maturityAmount);
+                    return PortfolioItemResponse.from(item, linkedId, overdue, dueToday, maturityAmount);
                 })
                 .collect(Collectors.toList());
     }
@@ -1121,33 +1124,57 @@ public class PortfolioService {
 
     /**
      * 미납 여부 판정
-     * 자동납입 설정이 있고, 당월 납입일이 지났는데 당월 납입 기록이 없으면 미납
-     */
-    /**
-     * 미납 여부 판정
      * 자동납입 설정이 있고, 기준일 기준 당월 납입일이 지났는데 당월 납입 기록이 없으면 미납
      */
     public boolean isDepositOverdue(PortfolioItem item, List<DepositHistory> histories, LocalDate referenceDate) {
-        Integer depositDay = null;
-        if (item.getAssetType() == AssetType.CASH && item.getCashDetail() != null) {
-            depositDay = item.getCashDetail().getDepositDay();
-        } else if (item.getAssetType() == AssetType.FUND && item.getFundDetail() != null) {
-            depositDay = item.getFundDetail().getDepositDay();
-        }
-
+        Integer depositDay = resolveDepositDay(item);
         if (depositDay == null) {
             return false;
         }
 
-        int lastDayOfMonth = referenceDate.lengthOfMonth();
-        int effectiveDay = Math.min(depositDay, lastDayOfMonth);
-        LocalDate depositDueDate = referenceDate.withDayOfMonth(effectiveDay);
+        LocalDate depositDueDate = referenceDate.withDayOfMonth(effectiveDepositDay(depositDay, referenceDate));
 
         // 납입일 다음날부터 미납 처리
         if (!referenceDate.isAfter(depositDueDate)) {
             return false;
         }
 
+        return hasNoDepositThisMonth(histories, referenceDate);
+    }
+
+    /**
+     * 납입일 당일 여부 판정 (#111)
+     * 자동납입 설정이 있고, 기준일이 당월 납입일 당일인데 당월 납입 기록이 없으면 true — 리마인더 팝업 당일 안내용
+     */
+    public boolean isDepositDueToday(PortfolioItem item, List<DepositHistory> histories, LocalDate referenceDate) {
+        Integer depositDay = resolveDepositDay(item);
+        if (depositDay == null) {
+            return false;
+        }
+
+        if (referenceDate.getDayOfMonth() != effectiveDepositDay(depositDay, referenceDate)) {
+            return false;
+        }
+
+        return hasNoDepositThisMonth(histories, referenceDate);
+    }
+
+    private Integer resolveDepositDay(PortfolioItem item) {
+        if (item.getAssetType() == AssetType.CASH && item.getCashDetail() != null) {
+            return item.getCashDetail().getDepositDay();
+        }
+        if (item.getAssetType() == AssetType.FUND && item.getFundDetail() != null) {
+            return item.getFundDetail().getDepositDay();
+        }
+        return null;
+    }
+
+    // 말일 보정: 설정 납입일이 해당 월 일수보다 크면 말일로 당김
+    private int effectiveDepositDay(int depositDay, LocalDate referenceDate) {
+        return Math.min(depositDay, referenceDate.lengthOfMonth());
+    }
+
+    private boolean hasNoDepositThisMonth(List<DepositHistory> histories, LocalDate referenceDate) {
         LocalDate monthStart = referenceDate.withDayOfMonth(1);
         return histories.stream()
                 .noneMatch(h -> !h.getDepositDate().isBefore(monthStart)

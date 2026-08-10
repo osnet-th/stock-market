@@ -1918,9 +1918,10 @@ const PortfolioComponent = {
         try {
             if (this._depositReminderSnoozedToday()) return;
             const items = await API.getPortfolioItems(this.auth.userId) || [];
-            const overdue = items.filter((i) => i.depositOverdue === true);
-            if (overdue.length === 0) return;
-            this.portfolio.depositReminder.items = overdue;
+            // 당일(depositDueToday) + 미납(depositOverdue) 모두 안내 (#99 스펙, #111)
+            const targets = items.filter((i) => i.depositOverdue === true || i.depositDueToday === true);
+            if (targets.length === 0) return;
+            this.portfolio.depositReminder.items = targets;
             this.portfolio.depositReminder.snoozeChecked = false;
             this.portfolio.depositReminder.show = true;
         } catch (e) {

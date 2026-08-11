@@ -63,7 +63,7 @@ class PortfolioEvaluationServicePerItemTest {
                 item.getInvestedAmount(), item.isNewsEnabled(), item.getRegion(),
                 item.getMemo(), item.getStatus(), item.getVersion(),
                 item.getCreatedAt(), item.getUpdatedAt(),
-                item.getStockDetail(), null, null, null, null, null
+                item.getStockDetail(), null, null, null, null, null, null
         );
     }
 
@@ -149,7 +149,7 @@ class PortfolioEvaluationServicePerItemTest {
                 cash.getInvestedAmount(), cash.isNewsEnabled(), cash.getRegion(),
                 cash.getMemo(), cash.getStatus(), cash.getVersion(),
                 cash.getCreatedAt(), cash.getUpdatedAt(),
-                null, null, null, null, null, null
+                null, null, null, null, null, null, null
         );
         given(portfolioItemRepository.findById(200L)).willReturn(Optional.of(reconstructed));
 
@@ -177,7 +177,7 @@ class PortfolioEvaluationServicePerItemTest {
                 null, com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus.ACTIVE,
                 0L,
                 java.time.LocalDateTime.now(), java.time.LocalDateTime.now(),
-                null, null, null, null, null, null
+                null, null, null, null, null, null, null
         );
         given(portfolioItemRepository.findByUserIdIn(List.of(1L)))
                 .willReturn(List.of(stock, cash));

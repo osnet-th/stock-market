@@ -80,7 +80,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
                 BigDecimal.valueOf(70_000).multiply(BigDecimal.valueOf(Math.max(quantity, 0))),
                 false, Region.DOMESTIC, null,
                 status, 0L, LocalDateTime.now(), LocalDateTime.now(),
-                detail, null, null, null, null, null
+                detail, null, null, null, null, null, null
         );
     }
 
@@ -92,7 +92,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
                 amount, false, Region.DOMESTIC, null,
                 PortfolioItemStatus.ACTIVE, 0L,
                 LocalDateTime.now(), LocalDateTime.now(),
-                null, null, null, null, cashDetail, null
+                null, null, null, null, cashDetail, null, null
         );
     }
 
@@ -309,7 +309,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
                 stock.getInvestedAmount(), stock.isNewsEnabled(), stock.getRegion(),
                 stock.getMemo(), stock.getStatus(), stock.getVersion(),
                 stock.getCreatedAt(), stock.getUpdatedAt(),
-                stock.getStockDetail(), null, null, null, null, null
+                stock.getStockDetail(), null, null, null, null, null, null
         );
         given(portfolioItemRepository.findById(STOCK_ITEM_ID)).willReturn(Optional.of(stockOfOtherUser));
 

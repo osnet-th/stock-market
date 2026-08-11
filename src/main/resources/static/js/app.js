@@ -82,7 +82,7 @@ function dashboard() {
             // ==================== Partial 부트스트랩 ====================
             // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
             // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
-            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'portfolio', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate', 'stock-eval', 'company-report'];
+            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'portfolio', 'portfolio-holdings', 'portfolio-sales', 'portfolio-targets', 'portfolio-analysis', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate', 'stock-eval', 'company-report'];
             const cleanupRegistry = {
                 // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
                 // home: dashboardSummary 차트 + favorite 위젯 차트를 정리해 중복 인스턴스 방지.
@@ -122,7 +122,7 @@ function dashboard() {
                 // portfolio: navigateTo 인라인 destroy 흐름과 동일 — chartInstance 3종 정리
                 portfolio: (dash) => {
                     if (!dash.portfolio) return;
-                    ['chartInstance', 'financialChartInstance', '_secChartInstance'].forEach(key => {
+                    ['chartInstance', 'trendChartInstance', 'financialChartInstance', '_secChartInstance'].forEach(key => {
                         const c = dash.portfolio[key];
                         if (c) {
                             try { c.destroy(); } catch (e) { /* ignore */ }
@@ -215,6 +215,10 @@ function dashboard() {
                 if (this.portfolio.chartInstance) {
                     this.portfolio.chartInstance.destroy();
                     this.portfolio.chartInstance = null;
+                }
+                if (this.portfolio.trendChartInstance) {
+                    this.portfolio.trendChartInstance.destroy();
+                    this.portfolio.trendChartInstance = null;
                 }
                 if (this.portfolio.financialChartInstance) {
                     this.portfolio.financialChartInstance.destroy();

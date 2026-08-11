@@ -6,5 +6,6 @@ import java.util.List;
 
 public interface StockPurchaseHistoryJpaRepository extends JpaRepository<StockPurchaseHistoryEntity, Long> {
     List<StockPurchaseHistoryEntity> findByPortfolioItemIdOrderByPurchasedAtAsc(Long portfolioItemId);
+    List<StockPurchaseHistoryEntity> findByPortfolioItemIdIn(List<Long> portfolioItemIds);
     void deleteByPortfolioItemId(Long portfolioItemId);
 }

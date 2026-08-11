@@ -6,6 +6,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.CashSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PensionSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PriceCurrency;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstateSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.StockSubType;
@@ -27,6 +28,7 @@ public class PortfolioItemMapper {
         FundDetail fundDetail = null;
         CashDetail cashDetail = null;
         GoldDetail goldDetail = null;
+        PensionDetail pensionDetail = null;
 
         if (entity instanceof StockItemEntity stock) {
             stockDetail = new StockDetail(
@@ -77,6 +79,14 @@ public class PortfolioItemMapper {
             if (gold.getQuantityGrams() != null) {
                 goldDetail = new GoldDetail(gold.getQuantityGrams());
             }
+        } else if (entity instanceof PensionItemEntity pension) {
+            pensionDetail = new PensionDetail(
+                    pension.getSubType() != null ? PensionSubType.valueOf(pension.getSubType()) : null,
+                    pension.getProvider(),
+                    pension.getEvaluatedAmount(),
+                    pension.getMonthlyDepositAmount(),
+                    pension.getDepositDay()
+            );
         }
 
         return new PortfolioItem(
@@ -97,7 +107,8 @@ public class PortfolioItemMapper {
                 realEstateDetail,
                 fundDetail,
                 cashDetail,
-                goldDetail
+                goldDetail,
+                pensionDetail
         );
     }
 
@@ -185,6 +196,19 @@ public class PortfolioItemMapper {
                         cashDtl != null ? cashDtl.getDepositDay() : null
                 );
             }
+            case PENSION -> {
+                PensionDetail detail = item.getPensionDetail();
+                yield new PensionItemEntity(
+                        item.getId(), item.getUserId(), item.getItemName(),
+                        item.getInvestedAmount(), item.isNewsEnabled(), region,
+                        item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
+                        detail.getSubType() != null ? detail.getSubType().name() : null,
+                        detail.getProvider(),
+                        detail.getEvaluatedAmount(),
+                        detail.getMonthlyDepositAmount(),
+                        detail.getDepositDay()
+                );
+            }
             case OTHER -> new OtherItemEntity(
                     item.getId(), item.getUserId(), item.getItemName(),
                     item.getInvestedAmount(), item.isNewsEnabled(), region,
@@ -202,6 +226,7 @@ public class PortfolioItemMapper {
         if (entity instanceof GoldItemEntity) return AssetType.GOLD;
         if (entity instanceof CommodityItemEntity) return AssetType.COMMODITY;
         if (entity instanceof CashItemEntity) return AssetType.CASH;
+        if (entity instanceof PensionItemEntity) return AssetType.PENSION;
         if (entity instanceof OtherItemEntity) return AssetType.OTHER;
         throw new IllegalArgumentException("Unknown entity type: " + entity.getClass().getSimpleName());
     }

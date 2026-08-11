@@ -1,0 +1,321 @@
+            <!-- ========== PORTFOLIO / 보유 자산 탭 (#110) ========== -->
+            <div x-show="currentPage === 'portfolio' && portfolio.activeTab === 'holdings'
+                    && !portfolio.loading && portfolio.items.length > 0" x-cloak>
+
+                <!-- KPI 4장 -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                        <p class="text-xs text-gray-500 mb-1.5">총 자산</p>
+                        <p class="text-xl font-bold text-gray-800 font-mono"
+                            x-text="formatKrwCompact(getTotalEvalAmount())"></p>
+                        <p class="text-xs text-gray-400 font-mono mt-1"
+                            x-text="Format.number(getTotalEvalAmount(), 0) + '원'"></p>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                        <p class="text-xs text-gray-500 mb-1.5">총 평가손익</p>
+                        <p class="text-xl font-bold font-mono"
+                            :class="getTotalProfit() > 0 ? 'text-red-600' : getTotalProfit() < 0 ? 'text-blue-600' : 'text-gray-800'"
+                            x-text="(getTotalProfit() >= 0 ? '+' : '−') + formatKrwCompact(Math.abs(getTotalProfit()))"></p>
+                        <!-- 투자원금은 항상 보이고, 환차손익은 해외 자산이 있을 때만 덧붙인다 (#110 review L1) -->
+                        <p class="text-xs text-gray-400 font-mono mt-1"
+                            x-text="'투자원금 ' + formatKrwCompact(getTotalInvested())"></p>
+                        <p x-show="hasFxProfitInfo()" class="text-[10px] text-gray-400 font-mono mt-0.5"
+                            x-text="!portfolio.summary ? '' : '환차손익 '
+                                + (Number(portfolio.summary.fxProfit) >= 0 ? '+' : '−')
+                                + formatKrwCompact(Math.abs(Number(portfolio.summary.fxProfit)))
+                                + (portfolio.summary.fxUnknownCount > 0 ? ' · 환율 미기록 ' + portfolio.summary.fxUnknownCount + '건 제외' : '')"></p>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                        <p class="text-xs text-gray-500 mb-1.5">누적 수익률</p>
+                        <p class="text-xl font-bold font-mono"
+                            :class="getTotalProfitRate() > 0 ? 'text-red-600' : getTotalProfitRate() < 0 ? 'text-blue-600' : 'text-gray-800'"
+                            x-text="getTotalProfitRate() === null ? '—'
+                                : (getTotalProfitRate() >= 0 ? '+' : '') + getTotalProfitRate().toFixed(2) + '%'"></p>
+                        <p class="text-xs font-mono mt-1"
+                            :class="portfolio.summary && portfolio.summary.cagr !== null ? 'text-gray-400' : 'text-gray-300'"
+                            x-text="portfolio.summary && portfolio.summary.cagr !== null && portfolio.summary.cagr !== undefined
+                                ? 'CAGR ' + (Number(portfolio.summary.cagr) >= 0 ? '+' : '') + Number(portfolio.summary.cagr).toFixed(2) + '%'
+                                    + (portfolio.summary.holdingDays ? ' · 보유 ' + portfolio.summary.holdingDays + '일' : '')
+                                : 'CAGR —'"></p>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                        <p class="text-xs text-gray-500 mb-1.5">이달 배당 · 이자</p>
+                        <p class="text-xl font-bold font-mono"
+                            :class="portfolio.income && Number(portfolio.income.monthAmount) > 0 ? 'text-red-600' : 'text-gray-300'"
+                            x-text="portfolio.income ? '+' + formatKrwCompact(Number(portfolio.income.monthAmount)) : '—'"></p>
+                        <p class="text-xs text-gray-400 font-mono mt-1"
+                            x-text="portfolio.income
+                                ? '연 예상 ' + formatKrwCompact(Number(portfolio.income.yearEstimate))
+                                    + (portfolio.income.dividendYield !== null && portfolio.income.dividendYield !== undefined
+                                        ? ' · 시가배당 ' + Number(portfolio.income.dividendYield).toFixed(2) + '%' : '')
+                                : '연 예상 —'"></p>
+                        <p x-show="portfolio.income && portfolio.income.excludedCount > 0"
+                            class="text-[10px] text-gray-400 mt-0.5"
+                            x-text="'배당률·금리 미입력 ' + (portfolio.income ? portfolio.income.excludedCount : 0) + '건 제외 · 월 평균 환산 기준'"></p>
+                    </div>
+                </div>
+
+                <!-- 자산 추이 + 자산군 구성 -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                    <div class="bg-white rounded-xl border border-gray-200 p-5 lg:col-span-2 flex flex-col">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                            <div class="flex items-baseline gap-2">
+                                <h3 class="text-sm font-bold text-gray-700">자산 추이</h3>
+                                <span class="text-xs text-gray-400" x-text="getLatestSnapshotLabel()"></span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="flex items-center gap-1.5 text-xs text-gray-500">
+                                    <span class="inline-block w-3 h-0.5 bg-rose-600"></span>총 자산
+                                </span>
+                                <span class="flex items-center gap-1.5 text-xs text-gray-500">
+                                    <span class="inline-block w-3 h-0.5 bg-gray-400"></span>투자원금
+                                </span>
+                                <button @click="saveSnapshot()" :disabled="portfolio.snapshotSaving"
+                                    class="text-xs text-gray-600 border border-gray-300 px-2.5 py-1 rounded hover:border-gray-500 transition disabled:opacity-50"
+                                    x-text="portfolio.snapshotSaving ? '저장 중…' : '스냅샷 저장'"></button>
+                            </div>
+                        </div>
+                        <!-- 스냅샷 2건 이상일 때만 선이 그려진다.
+                             maintainAspectRatio:false 라 컨테이너 높이를 고정해야 카드가 늘어나지 않는다 -->
+                        <div x-show="portfolio.snapshots.length >= 2" class="relative" style="height: 220px;">
+                            <canvas id="portfolioTrendChart"></canvas>
+                        </div>
+                        <div x-show="portfolio.snapshots.length < 2"
+                            class="flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200"
+                            style="height: 220px;">
+                            <p class="text-xs text-gray-400 text-center px-6">
+                                <span x-show="portfolio.snapshots.length === 0">일자별 스냅샷이 아직 없습니다.</span>
+                                <span x-show="portfolio.snapshots.length === 1">스냅샷이 1건뿐이라 추이를 그릴 수 없습니다.</span><br>
+                                [스냅샷 저장]을 누르면 오늘 기준 총 자산과 투자원금이 기록됩니다.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-5">
+                        <h3 class="text-sm font-bold text-gray-700 mb-3">자산군 구성</h3>
+                        <div class="relative flex justify-center">
+                            <div class="relative" style="max-width: 220px; width: 100%;">
+                                <canvas id="portfolioDonutChart"></canvas>
+                                <!-- 중앙 텍스트 (CSS overlay) — 범례가 없어 캔버스 중심 = 원 중심 (#107) -->
+                                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span class="text-[10px] text-gray-400">총 평가</span>
+                                    <span class="text-sm font-bold text-gray-800"
+                                        x-text="formatKrwCompact(getTotalEvalAmount())"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4 space-y-1.5">
+                            <template x-for="alloc in getEvalAllocation()" :key="'legend-' + alloc.assetType">
+                                <div class="flex items-center gap-2 text-xs">
+                                    <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
+                                        :class="getAssetTypeBarClass(alloc.assetType)"></span>
+                                    <span class="text-gray-600 flex-1 truncate" x-text="alloc.assetTypeName"></span>
+                                    <span class="font-mono text-gray-700" x-text="alloc.percentage + '%'"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 보유 자산 테이블 -->
+                <div class="bg-white rounded-xl border border-gray-200 p-5">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div class="flex items-baseline gap-2">
+                            <h3 class="text-sm font-bold text-gray-700">보유 자산</h3>
+                            <span class="text-xs text-gray-400"
+                                x-text="portfolio.items.length + '건 · 미연결 계좌 ' + getUnlinkedStockCount() + '건'"></span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="expandAllSections()"
+                                class="text-xs text-gray-600 border border-gray-300 px-2.5 py-1 rounded hover:border-gray-500 transition">모두 펼치기</button>
+                            <button @click="collapseAllSections()"
+                                class="text-xs text-gray-600 border border-gray-300 px-2.5 py-1 rounded hover:border-gray-500 transition">모두 접기</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <div style="min-width: 1280px;">
+                            <!-- 헤더 행 -->
+                            <div class="flex items-center gap-2 px-3 pb-2 border-b border-gray-200 text-[10px] tracking-wide text-gray-400">
+                                <span class="flex-1 min-w-[220px]">종목 · 상품</span>
+                                <span class="w-[84px] shrink-0 text-right">수량</span>
+                                <span class="w-[104px] shrink-0 text-right">평단 · 금리</span>
+                                <span class="w-[112px] shrink-0 text-right">현재가 · 만기</span>
+                                <span class="w-[124px] shrink-0 text-right">평가액</span>
+                                <span class="w-[124px] shrink-0 text-right">평가손익</span>
+                                <span class="w-[78px] shrink-0 text-right">수익률</span>
+                                <span class="w-[60px] shrink-0 text-right">비중</span>
+                                <span class="w-[300px] shrink-0 text-right">관리</span>
+                            </div>
+
+                            <template x-for="group in getHoldingGroups()" :key="group.key">
+                                <div class="border-b border-gray-100">
+                                    <!-- 그룹 헤더 -->
+                                    <div @click="toggleSection(group.key)"
+                                        class="flex items-center gap-2 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 cursor-pointer transition">
+                                        <div class="flex-1 min-w-[220px] flex items-center gap-2">
+                                            <span class="text-[10px] text-gray-400 w-3"
+                                                x-text="portfolio.expandedSections[group.key] ? '▼' : '▶'"></span>
+                                            <span :class="getAssetTypeBadgeClass(group.assetType)"
+                                                class="text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0"
+                                                x-text="getAssetTypeLabel(group.assetType)"></span>
+                                            <span class="text-sm font-medium text-gray-800 truncate" x-text="group.name"></span>
+                                            <span class="text-xs text-gray-400 font-mono shrink-0"
+                                                x-text="group.count + '건 · 원금 ' + formatKrwCompact(group.invested)"></span>
+                                        </div>
+                                        <span class="w-[84px] shrink-0"></span>
+                                        <span class="w-[104px] shrink-0"></span>
+                                        <span class="w-[112px] shrink-0"></span>
+                                        <span class="w-[124px] shrink-0 text-right text-sm font-bold text-gray-800 font-mono"
+                                            x-text="Format.number(group.evaluated, 0)"></span>
+                                        <span class="w-[124px] shrink-0 text-right text-sm font-mono"
+                                            :class="group.profit > 0 ? 'text-red-500' : group.profit < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                            x-text="(group.profit >= 0 ? '+' : '') + Format.number(group.profit, 0)"></span>
+                                        <span class="w-[78px] shrink-0 text-right text-sm font-mono"
+                                            :class="group.profitRate > 0 ? 'text-red-500' : group.profitRate < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                            x-text="group.profitRate === null ? '—'
+                                                : (group.profitRate >= 0 ? '+' : '') + group.profitRate.toFixed(2) + '%'"></span>
+                                        <span class="w-[60px] shrink-0 text-right text-xs text-gray-500 font-mono"
+                                            x-text="group.weight.toFixed(1) + '%'"></span>
+                                        <span class="w-[300px] shrink-0"></span>
+                                    </div>
+
+                                    <!-- 그룹 본문 -->
+                                    <div x-show="portfolio.expandedSections[group.key]">
+                                        <!-- 서브그룹(현금성 자산: 예금/적금/CMA) -->
+                                        <template x-if="group.subGroups">
+                                            <div>
+                                                <template x-for="sub in group.subGroups" :key="group.key + '-' + sub.key">
+                                                    <div>
+                                                        <div class="flex items-center gap-2 px-3 py-1.5 pl-8 bg-gray-50/60 border-t border-gray-100">
+                                                            <span class="flex-1 min-w-[220px] text-xs font-medium text-gray-500"
+                                                                x-text="sub.name + ' · ' + sub.count + '건'"></span>
+                                                            <span class="w-[84px] shrink-0"></span>
+                                                            <span class="w-[104px] shrink-0"></span>
+                                                            <span class="w-[112px] shrink-0"></span>
+                                                            <span class="w-[124px] shrink-0 text-right text-xs text-gray-600 font-mono"
+                                                                x-text="Format.number(sub.evaluated, 0)"></span>
+                                                            <span class="w-[124px] shrink-0"></span>
+                                                            <span class="w-[78px] shrink-0"></span>
+                                                            <span class="w-[60px] shrink-0"></span>
+                                                            <span class="w-[300px] shrink-0"></span>
+                                                        </div>
+                                                        <template x-for="item in sub.items" :key="'row-' + item.id">
+                                                            <div class="flex items-center gap-2 px-3 py-2.5 pl-8 border-t border-gray-50 hover:bg-gray-50 transition">
+                                                                <div class="flex-1 min-w-[220px] min-w-0">
+                                                                    <div class="flex flex-wrap items-center gap-1.5">
+                                                                        <span class="text-sm text-gray-800" x-text="item.itemName"></span>
+                                                                        <span x-show="item.depositOverdue"
+                                                                            class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">미납</span>
+                                                                    </div>
+                                                                    <p class="text-[11px] text-gray-400 mt-0.5 truncate" x-text="getItemSummary(item)"></p>
+                                                                </div>
+                                                                <span class="w-[84px] shrink-0 text-right text-xs text-gray-500 font-mono"
+                                                                    x-text="getRowQuantity(item)"></span>
+                                                                <span class="w-[104px] shrink-0 text-right text-xs text-gray-500 font-mono"
+                                                                    x-text="getRowAvgLabel(item)"></span>
+                                                                <span class="w-[112px] shrink-0 text-right text-xs text-gray-500 font-mono"
+                                                                    x-text="getRowCurrentLabel(item)"></span>
+                                                                <span class="w-[124px] shrink-0 text-right text-sm text-gray-800 font-mono"
+                                                                    x-text="Format.number(getEvalAmount(item), 0)"></span>
+                                                                <span class="w-[124px] shrink-0 text-right text-sm font-mono"
+                                                                    :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                                                    x-text="(getProfitAmount(item) >= 0 ? '+' : '') + Format.number(getProfitAmount(item), 0)"></span>
+                                                                <span class="w-[78px] shrink-0 text-right text-sm font-mono"
+                                                                    :class="getRowProfitRate(item) > 0 ? 'text-red-500' : getRowProfitRate(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                                                    x-text="getRowProfitRate(item) === null ? '—'
+                                                                        : (getRowProfitRate(item) >= 0 ? '+' : '') + getRowProfitRate(item).toFixed(2) + '%'"></span>
+                                                                <span class="w-[60px] shrink-0 text-right text-xs text-gray-400 font-mono"
+                                                                    x-text="getRowWeight(item).toFixed(1) + '%'"></span>
+                                                                <div class="w-[300px] shrink-0 flex items-center justify-end gap-1.5">
+                                                                    <button x-show="isDepositTarget(item)" @click.stop="openDepositModal(item)"
+                                                                        class="text-[11px] text-emerald-600 hover:text-emerald-800 font-medium transition">납입</button>
+                                                                    <button @click.stop="openEditModal(item)"
+                                                                        class="text-[11px] text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
+                                                                    <button @click.stop="deleteItem(item.id)"
+                                                                        class="text-[11px] text-red-500 hover:text-red-700 font-medium transition">삭제</button>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+
+                                        <!-- 서브그룹이 없는 자산군 -->
+                                        <template x-if="!group.subGroups">
+                                            <div>
+                                                <template x-for="item in group.items" :key="'row-' + item.id">
+                                                    <div class="flex items-center gap-2 px-3 py-2.5 pl-8 border-t border-gray-50 hover:bg-gray-50 transition">
+                                                        <div class="flex-1 min-w-[220px] min-w-0">
+                                                            <div class="flex flex-wrap items-center gap-1.5">
+                                                                <span class="text-sm text-gray-800" x-text="item.itemName"></span>
+                                                                <span x-show="item.assetType === 'STOCK'"
+                                                                    class="text-[10px] px-1.5 py-0.5 rounded border"
+                                                                    :class="item.linkedCashItemId ? 'border-amber-200 text-amber-600' : 'border-red-200 text-red-500'"
+                                                                    x-text="getLinkedCashName(item) ? '연결 · ' + getLinkedCashName(item) : '미연결'"></span>
+                                                                <span x-show="item.depositOverdue"
+                                                                    class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">미납</span>
+                                                            </div>
+                                                            <p class="text-[11px] text-gray-400 mt-0.5 truncate" x-text="getItemSummary(item)"></p>
+                                                        </div>
+                                                        <span class="w-[84px] shrink-0 text-right text-xs text-gray-500 font-mono"
+                                                            x-text="getRowQuantity(item)"></span>
+                                                        <span class="w-[104px] shrink-0 text-right text-xs text-gray-500 font-mono"
+                                                            x-text="getRowAvgLabel(item)"></span>
+                                                        <span class="w-[112px] shrink-0 text-right text-xs font-mono"
+                                                            :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-500'"
+                                                            x-text="getRowCurrentLabel(item)"></span>
+                                                        <span class="w-[124px] shrink-0 text-right text-sm text-gray-800 font-mono"
+                                                            x-text="Format.number(getEvalAmount(item), 0)"></span>
+                                                        <span class="w-[124px] shrink-0 text-right text-sm font-mono"
+                                                            :class="getProfitAmount(item) > 0 ? 'text-red-500' : getProfitAmount(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                                            x-text="(getProfitAmount(item) >= 0 ? '+' : '') + Format.number(getProfitAmount(item), 0)"></span>
+                                                        <span class="w-[78px] shrink-0 text-right text-sm font-mono"
+                                                            :class="getRowProfitRate(item) > 0 ? 'text-red-500' : getRowProfitRate(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                                            x-text="getRowProfitRate(item) === null ? '—'
+                                                                : (getRowProfitRate(item) >= 0 ? '+' : '') + getRowProfitRate(item).toFixed(2) + '%'"></span>
+                                                        <span class="w-[60px] shrink-0 text-right text-xs text-gray-400 font-mono"
+                                                            x-text="getRowWeight(item).toFixed(1) + '%'"></span>
+                                                        <!-- 관리: 자산군별 노출 규칙 -->
+                                                        <div class="w-[300px] shrink-0 flex items-center justify-end gap-1.5">
+                                                            <!-- 키워드는 등록만. 기사 열람·삭제는 키워드 메뉴에서 (#110) -->
+                                                            <button x-show="canKeyword(item)" @click.stop="openKeywordModal(item)"
+                                                                :disabled="item.newsEnabled"
+                                                                :class="item.newsEnabled ? 'text-green-600 cursor-default' : 'text-gray-400 hover:text-gray-600'"
+                                                                class="text-[11px] font-medium transition"
+                                                                :title="item.newsEnabled ? '이미 키워드에 등록된 종목입니다' : '키워드 메뉴에 등록'"
+                                                                x-text="item.newsEnabled ? '등록됨' : '키워드'"></button>
+                                                            <button x-show="canFinancial(item)" @click.stop="openStockDetail(item)"
+                                                                class="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium transition"
+                                                                title="재무상세">재무</button>
+                                                            <button x-show="canFinancial(item)" @click.stop="openChatForPortfolioStockAnalysis(item)"
+                                                                class="text-[11px] text-violet-600 hover:text-violet-800 font-medium transition"
+                                                                title="AI 분석">AI</button>
+                                                            <button x-show="canPurchase(item)" @click.stop="openPurchaseModal(item)"
+                                                                class="text-[11px] text-emerald-600 hover:text-emerald-800 font-medium transition"
+                                                                title="추가 매수 · 매수 이력">매수</button>
+                                                            <button x-show="canSell(item)" @click.stop="openSaleModal(item)"
+                                                                class="text-[11px] text-rose-600 hover:text-rose-800 font-medium transition"
+                                                                title="매도">매도</button>
+                                                            <button x-show="isDepositTarget(item)" @click.stop="openDepositModal(item)"
+                                                                class="text-[11px] text-emerald-600 hover:text-emerald-800 font-medium transition"
+                                                                title="납입 · 납입 이력">납입</button>
+                                                            <button @click.stop="openEditModal(item)"
+                                                                class="text-[11px] text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
+                                                            <button @click.stop="deleteItem(item.id)"
+                                                                :disabled="!canDelete(item)"
+                                                                :class="canDelete(item) ? 'text-red-500 hover:text-red-700' : 'text-gray-400 opacity-50 cursor-not-allowed'"
+                                                                :title="canDelete(item) ? '' : '매도 이력이 있어 삭제할 수 없습니다. 매도 이력 탭에서 정리해 주세요.'"
+                                                                class="text-[11px] font-medium transition">삭제</button>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>

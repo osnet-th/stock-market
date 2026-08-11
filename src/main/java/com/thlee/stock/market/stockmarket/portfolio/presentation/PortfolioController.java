@@ -4,6 +4,7 @@ import com.thlee.stock.market.stockmarket.portfolio.application.AllocationStatus
 import com.thlee.stock.market.stockmarket.portfolio.application.AllocationTargetService;
 import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioAllocationService;
 import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioService;
+import com.thlee.stock.market.stockmarket.portfolio.application.PortfolioSummaryService;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.AddStockSaleParam;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.AllocationResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.AllocationStatusResponse;
@@ -11,6 +12,8 @@ import com.thlee.stock.market.stockmarket.portfolio.application.dto.AllocationTa
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.DepositHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioItemResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioSnapshotResponse;
+import com.thlee.stock.market.stockmarket.portfolio.application.dto.PortfolioSummaryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockPurchaseHistoryResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockSaleContextResponse;
 import com.thlee.stock.market.stockmarket.portfolio.application.dto.StockSaleHistoryResponse;
@@ -41,6 +44,7 @@ public class PortfolioController {
     private final PortfolioAllocationService portfolioAllocationService;
     private final AllocationTargetService allocationTargetService;
     private final AllocationStatusService allocationStatusService;
+    private final PortfolioSummaryService portfolioSummaryService;
 
     /**
      * JWT 인증된 사용자(principal)와 query userId의 일치 검증.
@@ -51,6 +55,40 @@ public class PortfolioController {
         if (jwtUserId != null && !jwtUserId.equals(requestedUserId)) {
             throw new AccessDeniedException("요청한 사용자 정보가 인증된 사용자와 일치하지 않습니다.");
         }
+    }
+
+    /**
+     * 포트폴리오 상단 요약 — 누적 수익률·보유일수·CAGR·환차손익 (#110)
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<PortfolioSummaryResponse> getSummary(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId) {
+        assertUserMatches(jwtUserId, userId);
+        return ResponseEntity.ok(portfolioSummaryService.getSummary(userId));
+    }
+
+    /**
+     * 오늘자 자산 스냅샷 저장 (같은 날 재저장은 덮어쓰기) (#110)
+     */
+    @PostMapping("/snapshots")
+    public ResponseEntity<PortfolioSnapshotResponse> saveSnapshot(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId) {
+        assertUserMatches(jwtUserId, userId);
+        return ResponseEntity.ok(portfolioSummaryService.saveTodaySnapshot(userId));
+    }
+
+    /**
+     * 최근 N개월 자산 스냅샷 (날짜 오름차순) (#110)
+     */
+    @GetMapping("/snapshots")
+    public ResponseEntity<List<PortfolioSnapshotResponse>> getSnapshots(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId,
+            @RequestParam(defaultValue = "12") int months) {
+        assertUserMatches(jwtUserId, userId);
+        return ResponseEntity.ok(portfolioSummaryService.getSnapshots(userId, months));
     }
 
     /**
@@ -119,6 +157,23 @@ public class PortfolioController {
                 userId, request.getItemName(), request.getInvestedAmount(),
                 request.getRegion(), request.getMemo(),
                 request.getSubType(), request.getManagementFee(),
+                request.getMonthlyDepositAmount(), request.getDepositDay());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 연금 항목 등록 (IRP / 연금저축 / DC / DB)
+     */
+    @PostMapping("/items/pension")
+    public ResponseEntity<PortfolioItemResponse> addPensionItem(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId,
+            @RequestBody PensionItemAddRequest request) {
+        assertUserMatches(jwtUserId, userId);
+        PortfolioItemResponse response = portfolioService.addPensionItem(
+                userId, request.getItemName(), request.getInvestedAmount(),
+                request.getRegion(), request.getMemo(),
+                request.getSubType(), request.getProvider(), request.getEvaluatedAmount(),
                 request.getMonthlyDepositAmount(), request.getDepositDay());
         return ResponseEntity.ok(response);
     }
@@ -245,6 +300,24 @@ public class PortfolioController {
     }
 
     /**
+     * 연금 항목 수정
+     */
+    @PutMapping("/items/pension/{itemId}")
+    public ResponseEntity<PortfolioItemResponse> updatePensionItem(
+            @AuthenticationPrincipal Long jwtUserId,
+            @RequestParam Long userId,
+            @PathVariable Long itemId,
+            @RequestBody PensionItemUpdateRequest request) {
+        assertUserMatches(jwtUserId, userId);
+        PortfolioItemResponse response = portfolioService.updatePensionItem(
+                userId, itemId,
+                request.getItemName(), request.getInvestedAmount(), request.getMemo(),
+                request.getSubType(), request.getProvider(), request.getEvaluatedAmount(),
+                request.getMonthlyDepositAmount(), request.getDepositDay());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * 현금성 자산 항목 수정
      */
     @PutMapping("/items/cash/{itemId}")
@@ -323,7 +396,7 @@ public class PortfolioController {
         PortfolioItemResponse response = portfolioService.updatePurchaseHistory(
                 userId, itemId, historyId,
                 request.getQuantity(), request.getPurchasePrice(),
-                request.getPurchasedAt(), request.getMemo());
+                request.getPurchasedAt(), request.getMemo(), request.getFxRate());
         return ResponseEntity.ok(response);
     }
 

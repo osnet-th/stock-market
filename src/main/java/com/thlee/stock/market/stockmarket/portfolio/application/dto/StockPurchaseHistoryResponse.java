@@ -16,11 +16,13 @@ public class StockPurchaseHistoryResponse {
     private final BigDecimal totalCost;
     private final LocalDate purchasedAt;
     private final String memo;
+    private final BigDecimal fxRate;
     private final LocalDateTime createdAt;
 
     private StockPurchaseHistoryResponse(Long id, Long portfolioItemId, int quantity,
                                           BigDecimal purchasePrice, BigDecimal totalCost,
-                                          LocalDate purchasedAt, String memo, LocalDateTime createdAt) {
+                                          LocalDate purchasedAt, String memo, BigDecimal fxRate,
+                                          LocalDateTime createdAt) {
         this.id = id;
         this.portfolioItemId = portfolioItemId;
         this.quantity = quantity;
@@ -28,6 +30,7 @@ public class StockPurchaseHistoryResponse {
         this.totalCost = totalCost;
         this.purchasedAt = purchasedAt;
         this.memo = memo;
+        this.fxRate = fxRate;
         this.createdAt = createdAt;
     }
 
@@ -40,6 +43,7 @@ public class StockPurchaseHistoryResponse {
                 history.getTotalCost(),
                 history.getPurchasedAt(),
                 history.getMemo(),
+                history.getFxRate(),
                 history.getCreatedAt()
         );
     }

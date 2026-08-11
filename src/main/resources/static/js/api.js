@@ -263,6 +263,22 @@ const API = {
         return this.request('POST', `/api/portfolio/items/cash?userId=${userId}`, body);
     },
 
+    getPortfolioSummary(userId) {
+        return this.request('GET', `/api/portfolio/summary?userId=${userId}`);
+    },
+
+    savePortfolioSnapshot(userId) {
+        return this.request('POST', `/api/portfolio/snapshots?userId=${userId}`);
+    },
+
+    getPortfolioSnapshots(userId, months = 12) {
+        return this.request('GET', `/api/portfolio/snapshots?userId=${userId}&months=${months}`);
+    },
+
+    addPensionItem(userId, body) {
+        return this.request('POST', `/api/portfolio/items/pension?userId=${userId}`, body);
+    },
+
     addGeneralItem(userId, body) {
         return this.request('POST', `/api/portfolio/items/general?userId=${userId}`, body);
     },
@@ -355,6 +371,10 @@ const API = {
 
     updateCashItem(userId, itemId, body) {
         return this.request('PUT', `/api/portfolio/items/cash/${itemId}?userId=${userId}`, body);
+    },
+
+    updatePensionItem(userId, itemId, body) {
+        return this.request('PUT', `/api/portfolio/items/pension/${itemId}?userId=${userId}`, body);
     },
 
     updateGeneralItem(userId, itemId, body) {
@@ -505,6 +525,9 @@ const API = {
     },
 
     // ==================== Overseas News (해외뉴스) ====================
+    // #110 에서 포트폴리오의 해외속보/해외뉴스종합 패널을 걷어내며 현재 호출부가 없다.
+    // 백엔드 `/api/overseas-news/**` 는 그대로 살아 있고 키워드 메뉴 편입 가능성이 열려 있어
+    // 태형님 결정(2026-08-10)으로 래퍼를 남긴다 — 미사용이라고 지우지 말 것.
     getOverseasBreakingNews(stockCode, exchangeCode) {
         return this.request('GET',
             `/api/overseas-news/breaking?stockCode=${stockCode}&exchangeCode=${exchangeCode}`);

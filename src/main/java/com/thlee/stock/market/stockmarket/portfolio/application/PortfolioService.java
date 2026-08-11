@@ -19,6 +19,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.CashSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PensionSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PriceCurrency;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstateSubType;
@@ -116,9 +117,10 @@ public class PortfolioService {
 
         PortfolioItem saved = portfolioItemRepository.save(item);
 
-        // 최초 매수이력 생성
+        // 최초 매수이력 생성 (해외 주식은 매수 시점 환율을 함께 기록 — 환차손익 산출용 #110)
         StockPurchaseHistory history = StockPurchaseHistory.create(
-                saved.getId(), quantity, purchasePrice, LocalDate.now(), null);
+                saved.getId(), quantity, purchasePrice, LocalDate.now(), null,
+                resolvePurchaseFxRate(detail.getPriceCurrency(), quantity, purchasePrice, investedAmountKrw));
         purchaseHistoryRepository.save(history);
 
         // CASH 연결 저장
@@ -192,6 +194,33 @@ public class PortfolioService {
                 depositDay
         );
         PortfolioItem item = PortfolioItem.createWithFund(
+                userId, itemName, investedAmount, Region.valueOf(region), detail);
+        if (memo != null) {
+            item.updateMemo(memo);
+        }
+        validateDuplicate(userId, item);
+        PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
+        return PortfolioItemResponse.from(saved);
+    }
+
+    /**
+     * 연금 항목 등록 (IRP / 연금저축 / DC / DB)
+     * investedAmount 는 납입 원금, evaluatedAmount 는 사용자가 직접 갱신하는 평가액이다.
+     */
+    @Transactional
+    public PortfolioItemResponse addPensionItem(Long userId, String itemName, BigDecimal investedAmount,
+                                                 String region, String memo,
+                                                 String subType, String provider, BigDecimal evaluatedAmount,
+                                                 BigDecimal monthlyDepositAmount, Integer depositDay) {
+        PensionDetail detail = new PensionDetail(
+                subType != null ? PensionSubType.valueOf(subType) : null,
+                provider,
+                evaluatedAmount,
+                monthlyDepositAmount,
+                depositDay
+        );
+        PortfolioItem item = PortfolioItem.createWithPension(
                 userId, itemName, investedAmount, Region.valueOf(region), detail);
         if (memo != null) {
             item.updateMemo(memo);
@@ -317,9 +346,11 @@ public class PortfolioService {
 
         Map<Long, Long> finalLinkMap = linkMap;
 
-        // CASH/FUND 항목의 미납 여부 + 만기 예상 금액 배치 계산 (단일 쿼리)
+        // CASH/FUND/PENSION 항목의 미납 여부 + 만기 예상 금액 배치 계산 (단일 쿼리)
         List<Long> depositTargetIds = items.stream()
-                .filter(i -> i.getAssetType() == AssetType.CASH || i.getAssetType() == AssetType.FUND)
+                .filter(i -> i.getAssetType() == AssetType.CASH
+                        || i.getAssetType() == AssetType.FUND
+                        || i.getAssetType() == AssetType.PENSION)
                 .map(PortfolioItem::getId)
                 .collect(Collectors.toList());
 
@@ -421,9 +452,10 @@ public class PortfolioService {
         // 기존 매수이력이 없으면 현재 보유분으로 초기 이력 자동 생성
         List<StockPurchaseHistory> existingHistories = purchaseHistoryRepository.findByPortfolioItemId(itemId);
         if (existingHistories.isEmpty() && item.getStockDetail() != null) {
+            // 기존 보유분은 매수 시점 환율을 알 수 없어 null (환차손익 산출에서 제외)
             StockPurchaseHistory initialHistory = StockPurchaseHistory.create(
                     itemId, item.getStockDetail().getQuantity(),
-                    item.getStockDetail().getAvgBuyPrice(), LocalDate.now(), "기존 보유분");
+                    item.getStockDetail().getAvgBuyPrice(), LocalDate.now(), "기존 보유분", null);
             purchaseHistoryRepository.save(initialHistory);
         }
 
@@ -432,7 +464,10 @@ public class PortfolioService {
 
         // 매수이력 저장
         StockPurchaseHistory history = StockPurchaseHistory.create(
-                itemId, quantity, purchasePrice, LocalDate.now(), null);
+                itemId, quantity, purchasePrice, LocalDate.now(), null,
+                resolvePurchaseFxRate(
+                        item.getStockDetail() != null ? item.getStockDetail().getPriceCurrency() : null,
+                        quantity, purchasePrice, investedAmountKrw));
         purchaseHistoryRepository.save(history);
 
         // 전체 이력 기반 재계산
@@ -513,6 +548,31 @@ public class PortfolioService {
     }
 
     /**
+     * 연금 항목 수정
+     */
+    @Transactional
+    public PortfolioItemResponse updatePensionItem(Long userId, Long itemId,
+                                                    String itemName, BigDecimal investedAmount, String memo,
+                                                    String subType, String provider, BigDecimal evaluatedAmount,
+                                                    BigDecimal monthlyDepositAmount, Integer depositDay) {
+        PortfolioItem item = findUserItem(userId, itemId);
+        item.updateItemName(itemName);
+        item.updateAmount(investedAmount);
+        item.updateMemo(memo);
+        PensionDetail detail = new PensionDetail(
+                subType != null ? PensionSubType.valueOf(subType) : null,
+                provider,
+                evaluatedAmount,
+                monthlyDepositAmount,
+                depositDay
+        );
+        item.updatePensionDetail(detail);
+        PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_UPDATED", userId, saved);
+        return PortfolioItemResponse.from(saved);
+    }
+
+    /**
      * 일반 자산 항목 수정
      */
     @Transactional
@@ -572,7 +632,8 @@ public class PortfolioService {
     @Transactional
     public PortfolioItemResponse updatePurchaseHistory(Long userId, Long itemId, Long historyId,
                                                         Integer quantity, BigDecimal purchasePrice,
-                                                        LocalDate purchasedAt, String memo) {
+                                                        LocalDate purchasedAt, String memo,
+                                                        BigDecimal fxRate) {
         PortfolioItem item = findUserItem(userId, itemId);
 
         StockPurchaseHistory history = purchaseHistoryRepository.findById(historyId)
@@ -584,7 +645,7 @@ public class PortfolioService {
         // 재계산 전 금액 스냅샷
         BigDecimal oldAmount = item.getInvestedAmount();
 
-        history.update(quantity, purchasePrice, purchasedAt, memo);
+        history.update(quantity, purchasePrice, purchasedAt, memo, fxRate);
         purchaseHistoryRepository.save(history);
 
         // 전체 이력 기반 재계산
@@ -1166,6 +1227,9 @@ public class PortfolioService {
         if (item.getAssetType() == AssetType.FUND && item.getFundDetail() != null) {
             return item.getFundDetail().getDepositDay();
         }
+        if (item.getAssetType() == AssetType.PENSION && item.getPensionDetail() != null) {
+            return item.getPensionDetail().getDepositDay();
+        }
         return null;
     }
 
@@ -1182,8 +1246,10 @@ public class PortfolioService {
     }
 
     private void validateDepositTarget(PortfolioItem item) {
-        if (item.getAssetType() != AssetType.CASH && item.getAssetType() != AssetType.FUND) {
-            throw new IllegalArgumentException("납입 이력은 현금성 자산(예금/적금/CMA) 또는 펀드만 등록��� 수 있습니다.");
+        AssetType type = item.getAssetType();
+        if (type != AssetType.CASH && type != AssetType.FUND && type != AssetType.PENSION) {
+            throw new IllegalArgumentException(
+                    "납입 이력은 현금성 자산(예금/적금/CMA), 펀드, 연금만 등록할 수 있습니다.");
         }
     }
 
@@ -1250,6 +1316,26 @@ public class PortfolioService {
             return investedAmountKrw;
         }
         return purchasePrice.multiply(BigDecimal.valueOf(quantity));
+    }
+
+    /**
+     * 매수 시점 적용 환율 산출 (#110)
+     *
+     * 프런트가 환율을 따로 보내지 않고 원화 환산 금액(investedAmountKrw)만 보내므로
+     * `원화환산금액 / (수량 × 매수단가)` 로 역산한다. 원화 주식이거나 역산 불가면 null.
+     */
+    private BigDecimal resolvePurchaseFxRate(PriceCurrency currency, Integer quantity,
+                                              BigDecimal purchasePrice, BigDecimal investedAmountKrw) {
+        if (currency == null || currency == PriceCurrency.KRW) {
+            return null;
+        }
+        if (investedAmountKrw == null || investedAmountKrw.compareTo(BigDecimal.ZERO) <= 0
+                || quantity == null || quantity <= 0
+                || purchasePrice == null || purchasePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+        BigDecimal foreignCost = purchasePrice.multiply(BigDecimal.valueOf(quantity));
+        return investedAmountKrw.divide(foreignCost, 4, RoundingMode.HALF_UP);
     }
 
     /**

@@ -10,11 +10,11 @@
 - brainstorm: approved (2026-08-10, 태형님 "진행해" — Open Questions 6건 회신 반영본 확정)
 - issue: approved (2026-08-10, 태형님 "진행해" — GitHub Issue #110 등록, worktree feat/issue-110-portfolio-dashboard-redesign 생성)
 - plan: approved (2026-08-10, 태형님 "진행해" — Phase 3·4 스키마/API 제안 포함 승인, Phase 1부터 착수)
-- work: in progress (Phase 1 진행 중)
-- review: pending
-- validation: pending
-- commit: pending
-- push: pending
+- work: approved (2026-08-10, Phase 1~4 각 단계 태형님 "다음 진행해"/"진행해" 승인)
+- review: approved (2026-08-10, 태형님 "다 고쳐줘"/"리뷰에서 수정이 필요한 부분은 없어?" — findings 전건 조치 후 진행)
+- validation: approved (2026-08-11, 태형님 "진행하고 운영에 필수로 적용해야 하는 것만 알려줘")
+- commit: approved (2026-08-11, 태형님 "적용 했어 main 에 병합해줘" + 커밋 메시지 확인 "이대로 진행")
+- push: approved (2026-08-11, 동일 지시 — 브랜치 푸시 + main 병합 + main 푸시 포함)
 
 ## Stage Log
 - start: 2026-08-09, 태형님이 Claude 디자인 목업(`~/Downloads/포트폴리오 대시보드 (단일파일).html`)을 제시하며 "현재 포트폴리오 화면을 이걸로 변경하면 어떤 기능이 누락되는지" 확인 요청 → 번들 해제 후 기능 대조, 누락 항목 정리
@@ -78,7 +78,11 @@
     `ddl-auto: update` 는 기존 CHECK 제약을 갱신하지 않는다 → `pension_detail_2026_08_10.sql` 에 CHECK 재생성 ALTER 를 추가하고 "운영 적용 필수" 로 표시
   - 연금 평가액 분리·안전자산 배분 편입·수정·납입 모두 실서버에서 정상
   - 테스트 데이터 정리 완료 (연금 항목·스냅샷 삭제, 앱 종료)
-  - commit 단계 진입 대기
+  - commit 단계 진입 승인 (2026-08-11)
+- commit: 완료 (2026-08-11, docs/commits/2026-08-10-portfolio-dashboard-redesign-commit.md — 단일 커밋 `63bd7fa`, 59 files, +3,696/-892)
+- push: 완료 (2026-08-11, docs/pushes/2026-08-10-portfolio-dashboard-redesign-push.md)
+  - 브랜치 푸시 → main 병합(`--no-ff`, `ce51527`) → `origin/main` 푸시 (`e902831..ce51527`)
+  - **병합 충돌 2건**: 분기 이후 들어온 #111(납입 리마인더)과 같은 로직 충돌 → PENSION 분기를 #111 의 `resolveDepositDay()` 헬퍼 안으로 이동, 리마인더 뱃지는 양쪽 다 유지. 해소 후 컴파일·테스트 재검증 PASS
 
 ## 운영 배포 시 필수 적용
 - **`pension_detail_2026_08_10.sql` 의 CHECK 제약 ALTER 2줄** — 이것만 수동 필수. 없으면 연금 등록 409 실패

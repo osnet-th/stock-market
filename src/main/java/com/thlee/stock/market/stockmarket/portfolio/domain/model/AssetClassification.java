@@ -8,11 +8,12 @@ import java.util.Set;
 
 /**
  * 자산 배분용 안전/투자 고정 분류.
- * CASH·BOND=안전, CRYPTO=배분 제외, 나머지=투자 (#102 확정 매핑)
+ * CASH·BOND·PENSION=안전, CRYPTO=배분 제외, 나머지=투자 (#102 확정 매핑, #110에서 PENSION 편입)
  */
 public final class AssetClassification {
 
-    private static final Set<AssetType> SAFE_TYPES = EnumSet.of(AssetType.CASH, AssetType.BOND);
+    private static final Set<AssetType> SAFE_TYPES =
+            EnumSet.of(AssetType.CASH, AssetType.BOND, AssetType.PENSION);
     private static final Set<AssetType> EXCLUDED_TYPES = EnumSet.of(AssetType.CRYPTO);
 
     private AssetClassification() {

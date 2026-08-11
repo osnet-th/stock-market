@@ -31,6 +31,7 @@ public class PortfolioItem {
     private FundDetail fundDetail;
     private CashDetail cashDetail;
     private GoldDetail goldDetail;
+    private PensionDetail pensionDetail;
 
     /**
      * 재구성용 생성자 (Repository에서 조회 시 사용)
@@ -52,7 +53,8 @@ public class PortfolioItem {
                          RealEstateDetail realEstateDetail,
                          FundDetail fundDetail,
                          CashDetail cashDetail,
-                         GoldDetail goldDetail) {
+                         GoldDetail goldDetail,
+                         PensionDetail pensionDetail) {
         this.id = id;
         this.userId = userId;
         this.itemName = itemName;
@@ -71,6 +73,7 @@ public class PortfolioItem {
         this.fundDetail = fundDetail;
         this.cashDetail = cashDetail;
         this.goldDetail = goldDetail;
+        this.pensionDetail = pensionDetail;
     }
 
     private PortfolioItem(Long userId,
@@ -169,6 +172,21 @@ public class PortfolioItem {
         validateDetail(cashDetail, "cashDetail");
         PortfolioItem item = new PortfolioItem(userId, itemName, AssetType.CASH, investedAmount, region);
         item.cashDetail = cashDetail;
+        return item;
+    }
+
+    /**
+     * 연금 항목 생성 (IRP / 연금저축 / DC / DB)
+     * investedAmount 는 납입 원금, 평가액은 pensionDetail.evaluatedAmount 로 별도 관리한다.
+     */
+    public static PortfolioItem createWithPension(Long userId,
+                                                  String itemName,
+                                                  BigDecimal investedAmount,
+                                                  Region region,
+                                                  PensionDetail pensionDetail) {
+        validateDetail(pensionDetail, "pensionDetail");
+        PortfolioItem item = new PortfolioItem(userId, itemName, AssetType.PENSION, investedAmount, region);
+        item.pensionDetail = pensionDetail;
         return item;
     }
 
@@ -351,6 +369,15 @@ public class PortfolioItem {
             throw new IllegalArgumentException("현금성 자산 항목이 아닙니다.");
         }
         this.cashDetail = cashDetail;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updatePensionDetail(PensionDetail pensionDetail) {
+        validateDetail(pensionDetail, "pensionDetail");
+        if (this.assetType != AssetType.PENSION) {
+            throw new IllegalArgumentException("연금 항목이 아닙니다.");
+        }
+        this.pensionDetail = pensionDetail;
         this.updatedAt = LocalDateTime.now();
     }
 

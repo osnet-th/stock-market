@@ -11,4 +11,5 @@ public class StockPurchaseHistoryUpdateRequest {
     private BigDecimal purchasePrice;
     private LocalDate purchasedAt;
     private String memo;
+    private BigDecimal fxRate;
 }

@@ -277,6 +277,7 @@ const FinancialComponent = {
         GOLD:        { label: '금',       color: 'amber',  barColor: 'bg-amber-500',  chartColor: '#F59E0B' },
         COMMODITY:   { label: '원자재',   color: 'red',    barColor: 'bg-red-500',    chartColor: '#EF4444' },
         CASH:        { label: '현금',     color: 'gray',   barColor: 'bg-gray-500',   chartColor: '#6B7280' },
+        PENSION:     { label: '연금',     color: 'sky',    barColor: 'bg-sky-500',    chartColor: '#0EA5E9' },
         OTHER:       { label: '기타',     color: 'slate',  barColor: 'bg-slate-500',  chartColor: '#64748B' }
     },
 

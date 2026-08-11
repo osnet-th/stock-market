@@ -102,6 +102,10 @@ public class PortfolioEvaluationService {
                 evaluated = goldPricePerGram.get()
                         .multiply(item.getGoldDetail().getQuantityGrams())
                         .setScale(2, java.math.RoundingMode.HALF_UP);
+            } else if (item.getAssetType() == AssetType.PENSION && item.getPensionDetail() != null
+                    && item.getPensionDetail().getEvaluatedAmount() != null) {
+                // 연금은 시세 연동 대상이 아니라 사용자가 갱신한 평가액을 쓴다. 미입력이면 원금 유지.
+                evaluated = item.getPensionDetail().getEvaluatedAmount();
             }
 
             totalInvested = totalInvested.add(invested);

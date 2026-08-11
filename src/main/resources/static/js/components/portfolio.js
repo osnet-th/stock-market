@@ -35,7 +35,7 @@ const PortfolioComponent = {
         purchaseForm: { quantity: '', purchasePrice: '' },
         purchaseHistories: [],
         editingHistory: null,
-        editHistoryForm: { quantity: '', purchasePrice: '', purchasedAt: '', memo: '' },
+        editHistoryForm: { quantity: '', purchasePrice: '', purchasedAt: '', memo: '', fxRate: '' },
         showDepositModal: false,
         depositItem: null,
         depositForm: { depositDate: '', amount: '', units: '', memo: '' },
@@ -44,7 +44,7 @@ const PortfolioComponent = {
         editDepositForm: { depositDate: '', amount: '', units: '', memo: '' },
         depositReminder: { show: false, items: [], snoozeChecked: false },
         // 매도 상태
-        activeTab: 'items',
+        activeTab: 'holdings',
         showSaleModal: false,
         saleItem: null,
         saleForm: { quantity: '', salePrice: '', soldAt: '', reason: 'OTHER', memo: '', fxRate: '', deductionAmountKrw: '', netProceedsKrw: '', depositCashItemId: '', confirmUnrecorded: false },
@@ -58,9 +58,16 @@ const PortfolioComponent = {
         saleDetail: null,
         editingSaleHistory: false,
         editSaleForm: { quantity: '', salePrice: '', deductionAmountKrw: '', netProceedsKrw: '', reason: 'OTHER', memo: '' },
-        selectedNewsItemId: null,
-        news: { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false },
-        collectingItemId: null,
+        // 키워드 등록 모달 (#110) — 기사 열람은 키워드 메뉴가 담당한다
+        keywordModal: { show: false, item: null, saving: false },
+        // 상단 요약 · 배당/이자 · 자산 추이 (#110)
+        summary: null,
+        income: null,
+        snapshots: [],
+        snapshotSaving: false,
+        _holdingGroupsCache: null,
+        trendChartInstance: null,
+        _trendChartRetry: 0,
         chartInstance: null,
         // 재무정보 상태
         financialChartInstance: null,
@@ -116,16 +123,7 @@ const PortfolioComponent = {
         secMetricsData: null,
         _secChartInstance: null,
         secFinancialError: null,
-        secEdgarUrl: null,
-        // 해외뉴스 상태
-        _overseasNewsGeneration: 0,
-        _overseasNewsDebounceTimer: null,
-        overseasNews: {
-            selectedItemId: null,
-            activeTab: 'breaking',
-            breaking: { list: [], loading: false, error: null },
-            comprehensive: { list: [], loading: false, error: null, hasMore: false, lastDt: '', lastTm: '' }
-        }
+        secEdgarUrl: null
     },
 
     getAssetTypeLabel(type) {
@@ -155,6 +153,7 @@ const PortfolioComponent = {
             this.portfolio.items = results[0] || [];
             this.portfolio.allocation = results[1] || [];
             this.portfolio.allocationStatus = results[2] || null;
+            this.invalidateHoldingGroups();
 
             this.portfolio.items
                 .filter((item) => item.assetType === 'STOCK' && !item.stockDetail)
@@ -168,22 +167,27 @@ const PortfolioComponent = {
 
             await this.loadStockPrices();
 
+            // 섹션 키는 assetType 이 아니라 getHoldingGroups() 의 group.key 다.
+            // 주식은 STOCK_KR / STOCK_OVERSEAS 로 쪼개지므로 assetType 으로 채우면 주식 그룹만 접힌 채 시작한다.
             const sections = {};
-            this.portfolio.items.forEach((item) => {
-                if (sections[item.assetType] === undefined) {
-                    sections[item.assetType] = true;
-                }
+            this.getHoldingGroups().forEach((group) => {
+                sections[group.key] = true;
             });
             this.portfolio.expandedSections = sections;
 
             // 보유 카드의 삭제 disabled 판정용 경량 itemId 인덱스 갱신
             // (전체 매도 이력 페이로드는 매도 이력 탭 진입 시에만 fetch)
             this.loadSaleItemIds();
+
+            // KPI/자산 추이는 실패해도 목록 표시를 막지 않는다 (#110)
+            this.loadSummary();
+            this.loadSnapshots();
         } catch (e) {
             console.error('포트폴리오 로드 실패:', e);
             this.portfolio.items = [];
             this.portfolio.allocation = [];
             this.portfolio.allocationStatus = null;
+            this.invalidateHoldingGroups();
         } finally {
             this.portfolio.loading = false;
             this.portfolio._initialized = true;
@@ -193,10 +197,139 @@ const PortfolioComponent = {
         }
     },
 
+    // ──────────────────────────────────────────────────────────────────
+    // 상단 요약 · 배당/이자 · 자산 추이 스냅샷 (#110)
+
+    // 배당·이자는 /summary 응답의 income 에 함께 실려 온다 (평가 중복 실행 방지 — review M1)
+    async loadSummary() {
+        try {
+            const summary = await API.getPortfolioSummary(this.auth.userId);
+            this.portfolio.summary = summary;
+            this.portfolio.income = summary ? summary.income : null;
+        } catch (e) {
+            console.error('포트폴리오 요약 조회 실패:', e);
+            this.portfolio.summary = null;
+            this.portfolio.income = null;
+        }
+    },
+
+    async loadSnapshots() {
+        try {
+            this.portfolio.snapshots = await API.getPortfolioSnapshots(this.auth.userId, 12) || [];
+        } catch (e) {
+            console.error('자산 추이 조회 실패:', e);
+            this.portfolio.snapshots = [];
+        }
+        this.$nextTick(() => this.renderPortfolioTrendChart());
+    },
+
+    async saveSnapshot() {
+        if (this.portfolio.snapshotSaving) return;
+        this.portfolio.snapshotSaving = true;
+        try {
+            await API.savePortfolioSnapshot(this.auth.userId);
+            await this.loadSnapshots();
+        } catch (e) {
+            console.error('스냅샷 저장 실패:', e);
+            alert('스냅샷 저장에 실패했습니다.');
+        } finally {
+            this.portfolio.snapshotSaving = false;
+        }
+    },
+
+    // 환차손익 줄은 해외 자산이 실제로 있을 때만 노출한다 (#110 review L1).
+    // 원화만 보유하면 fxProfit 이 항상 0이라 표시할 정보가 없다.
+    hasFxProfitInfo() {
+        const summary = this.portfolio.summary;
+        if (!summary) return false;
+        return Number(summary.fxProfit) !== 0 || summary.fxUnknownCount > 0;
+    },
+
+    getLatestSnapshotLabel() {
+        const list = this.portfolio.snapshots;
+        if (!list || list.length === 0) return '';
+        return '마지막 저장 ' + list[list.length - 1].snapshotDate;
+    },
+
+    // salary.js 에도 renderTrendChart 가 있어 이름이 겹치면 나중에 로드되는 쪽이 덮어쓴다.
+    // 컴포넌트가 같은 dashboard 객체에 병합되는 구조라 포트폴리오 전용 이름을 쓴다.
+    renderPortfolioTrendChart() {
+        const canvas = document.getElementById('portfolioTrendChart');
+        if (!canvas) return;
+
+        if (this.portfolio.trendChartInstance) {
+            this.portfolio.trendChartInstance.destroy();
+            this.portfolio.trendChartInstance = null;
+        }
+
+        const snapshots = this.portfolio.snapshots || [];
+        if (snapshots.length < 2) return;   // 1건뿐이면 선이 그려지지 않아 안내 문구로 대체
+
+        // x-show 가 아직 display:none 인 시점에 그리면 캔버스가 0 크기로 잡힌다.
+        // requestAnimationFrame 은 탭이 백그라운드면 호출되지 않으므로 setTimeout 으로 재시도한다.
+        if (canvas.clientHeight === 0) {
+            if (this.portfolio._trendChartRetry >= 10) return;
+            this.portfolio._trendChartRetry = (this.portfolio._trendChartRetry || 0) + 1;
+            setTimeout(() => this.renderPortfolioTrendChart(), 50);
+            return;
+        }
+        this.portfolio._trendChartRetry = 0;
+
+        this.portfolio.trendChartInstance = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: snapshots.map((s) => s.snapshotDate),
+                datasets: [
+                    {
+                        label: '총 자산',
+                        data: snapshots.map((s) => Number(s.totalEvaluated)),
+                        borderColor: '#E11D48',
+                        backgroundColor: 'rgba(225, 29, 72, 0.08)',
+                        fill: true,
+                        tension: 0.25,
+                        pointRadius: 2
+                    },
+                    {
+                        label: '투자원금',
+                        data: snapshots.map((s) => Number(s.totalInvested)),
+                        borderColor: '#94A3B8',
+                        borderDash: [4, 3],
+                        fill: false,
+                        tension: 0.25,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => ctx.dataset.label + ': ' + Format.number(ctx.parsed.y, 0) + '원'
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                    y: {
+                        ticks: {
+                            font: { size: 10 },
+                            callback: (value) => Math.round(value / 10000).toLocaleString('ko-KR') + '만'
+                        }
+                    }
+                }
+            }
+        });
+    },
+
     async loadStockPrices() {
         const stockItems = this.portfolio.items.filter((item) => item.assetType === 'STOCK' && item.stockDetail);
         if (stockItems.length === 0) {
             this.portfolio.stockPrices = {};
+            this.invalidateHoldingGroups();
             return;
         }
 
@@ -213,6 +346,7 @@ const PortfolioComponent = {
             console.error('현재가 조회 실패:', e);
             this.portfolio.stockPrices = {};
         }
+        this.invalidateHoldingGroups();
     },
 
     getEvalAmount(item) {
@@ -221,6 +355,10 @@ const PortfolioComponent = {
             if (priceData && priceData.currentPriceKrw) {
                 return parseFloat(priceData.currentPriceKrw) * item.stockDetail.quantity;
             }
+        }
+        // 연금은 시세 연동이 없어 사용자가 갱신한 평가액을 쓴다 (미입력이면 원금)
+        if (item.assetType === 'PENSION' && item.pensionDetail?.evaluatedAmount) {
+            return parseFloat(item.pensionDetail.evaluatedAmount);
         }
         return item.investedAmount;
     },
@@ -281,16 +419,6 @@ const PortfolioComponent = {
         return this.getEvalAmount(item) - this.getInvestedAmountKrw(item);
     },
 
-    getProfitRate(item) {
-        if (item.assetType !== 'STOCK' || !item.stockDetail || !item.stockDetail.avgBuyPrice) return null;
-        const priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
-        if (!priceData || !priceData.currentPrice) return null;
-        const currentPrice = parseFloat(priceData.currentPrice);
-        const avgPrice = parseFloat(item.stockDetail.avgBuyPrice);
-        if (avgPrice === 0) return null;
-        return ((currentPrice - avgPrice) / avgPrice * 100);
-    },
-
     getCacheRemainingText(priceData) {
         if (!priceData || priceData.remainingSeconds === undefined) return '';
         const remaining = priceData.remainingSeconds;
@@ -329,7 +457,7 @@ const PortfolioComponent = {
             typeMap[item.assetType].totalAmount += this.getEvalAmount(item);
         });
 
-        const assetTypeOrder = ['STOCK', 'BOND', 'REAL_ESTATE', 'FUND', 'OTHER', 'CRYPTO', 'GOLD', 'COMMODITY', 'CASH'];
+        const assetTypeOrder = ['STOCK', 'BOND', 'REAL_ESTATE', 'FUND', 'OTHER', 'CRYPTO', 'GOLD', 'COMMODITY', 'PENSION', 'CASH'];
         return Object.values(typeMap).map((alloc) => {
             alloc.percentage = Math.round(alloc.totalAmount / totalEval * 1000) / 10;
             return alloc;
@@ -427,6 +555,99 @@ const PortfolioComponent = {
         if (!short || !over) return '';
         const amount = this.formatKrwCompact(short.deviationAmount);
         return `${over.bucketName}에서 ${short.bucketName}으로 약 ${amount} 이동 시 목표 도달`;
+    },
+
+    // ──────────────────────────────────────────────────────────────────
+    // 리밸런싱 제안 (#110) — 밴드를 벗어난 항목만 금액 제안. 주문 연동은 하지 않는다.
+
+    // 상위 버킷(전체 대비)과 투자자산 내부(투자자산 총액 대비)는 기준이 다르므로
+    // 한 목록에 섞더라도 level 로 구분하고, 이동 금액도 레벨별로 따로 합산한다.
+    _rebalanceEntries(level) {
+        const status = this.portfolio.allocationStatus;
+        if (!status || !status.configured) return [];
+        const source = level === 'bucket' ? (status.buckets || []) : (status.investAssets || []);
+        return source
+            .filter((entry) => entry.bandExceeded && this.hasDeviation(entry))
+            .map((entry) => {
+                const dev = Number(entry.deviationPctPoint);
+                return {
+                    key: level + ':' + (entry.bucket || entry.assetType),
+                    level: level,
+                    levelLabel: level === 'bucket' ? '상위 배분' : '투자자산 내부',
+                    name: entry.bucketName || entry.assetTypeName,
+                    over: dev > 0,
+                    verb: dev > 0 ? '줄이기' : '채우기',
+                    amount: Math.abs(Number(entry.deviationAmount || 0)),
+                    detail: `현재 ${Number(entry.currentRatio).toFixed(1)}% → 목표 ${Number(entry.targetRatio).toFixed(1)}%`
+                        + ` · ${dev > 0 ? '+' : '−'}${Math.abs(dev).toFixed(1)}%p`
+                };
+            })
+            .sort((a, b) => b.amount - a.amount);
+    },
+
+    getRebalanceActions() {
+        return [...this._rebalanceEntries('bucket'), ...this._rebalanceEntries('asset')];
+    },
+
+    getBandExceededCount() {
+        return this.getRebalanceActions().length;
+    },
+
+    // 초과분과 부족분이 짝을 이루므로 레벨별 합계의 절반이 실제 이동 금액이다.
+    // 두 레벨을 합산하면 같은 돈을 두 번 세므로, 상위 배분이 밴드를 벗어난 경우 그 금액을 우선한다.
+    getRebalanceMoveTotal() {
+        const half = (entries) => entries.reduce((sum, action) => sum + action.amount, 0) / 2;
+        const buckets = this._rebalanceEntries('bucket');
+        if (buckets.length > 0) return half(buckets);
+        return half(this._rebalanceEntries('asset'));
+    },
+
+    getRebalanceMoveNote() {
+        const buckets = this._rebalanceEntries('bucket');
+        if (buckets.length > 0) {
+            return '안전·투자 상위 배분 기준 이동액입니다. 투자자산 내부 조정은 아래 목록을 참고해 주세요.';
+        }
+        return '투자자산 내부 재배치 기준입니다. 매도 대금으로 매수분을 채우면 추가 입금 없이 조정됩니다.';
+    },
+
+    async adjustBand(delta) {
+        const status = this.portfolio.allocationStatus;
+        if (!status || !status.configured) return;
+        const next = Math.round((Number(status.bandPctPoint) + delta) * 10) / 10;
+        if (next < 0.5 || next > 20) return;
+
+        try {
+            const target = await API.getAllocationTarget(this.auth.userId);
+            if (!target) return;
+            await API.saveAllocationTarget(this.auth.userId, {
+                safeRatio: target.safeRatio,
+                investRatio: target.investRatio,
+                bandPctPoint: next,
+                investAssets: (target.investAssets || []).map((asset) => ({
+                    assetType: asset.assetType,
+                    targetRatio: asset.targetRatio
+                }))
+            });
+            this.portfolio.allocationStatus = await API.getAllocationStatus(this.auth.userId).catch(() => null);
+        } catch (e) {
+            console.error('허용밴드 변경 실패:', e);
+            alert('허용밴드 변경에 실패했습니다.');
+        }
+    },
+
+    async copyRebalanceChecklist() {
+        const actions = this.getRebalanceActions();
+        if (actions.length === 0) return;
+        const lines = actions.map((action) =>
+            `- [${action.levelLabel}] ${action.name}: ${action.verb} ${this.formatKrwCompact(action.amount)} (${action.detail})`);
+        const text = ['[리밸런싱 체크리스트]', ...lines].join('\n');
+        try {
+            await navigator.clipboard.writeText(text);
+            alert('체크리스트를 복사했습니다.');
+        } catch (e) {
+            console.error('클립보드 복사 실패:', e);
+            alert('복사에 실패했습니다. 브라우저 클립보드 권한을 확인해 주세요.');
+        }
     },
 
     async openAllocationTargetModal() {
@@ -545,51 +766,215 @@ const PortfolioComponent = {
         });
     },
 
-    isCashGroupStart(item) {
-        const sorted = this.getCashItemsSorted();
-        const idx = sorted.findIndex((i) => i.id === item.id);
-        if (idx < 0) return false;
-        if (idx === 0) return true;
-        return this.getCashSubTypeKey(sorted[idx - 1]) !== this.getCashSubTypeKey(item);
-    },
-
-    getCashGroupSummary(item) {
-        const key = this.getCashSubTypeKey(item);
-        const labels = { DEPOSIT: '🏦 예금', SAVINGS: '💰 적금', CMA: '💳 CMA' };
-        const groupItems = this.getItemsByType('CASH').filter((i) => this.getCashSubTypeKey(i) === key);
-        const total = groupItems.reduce((sum, i) => sum + this.getEvalAmount(i), 0);
-        return (labels[key] || '📦 기타') + ' ' + groupItems.length + '건 · ' + Format.number(total, 0) + '원';
-    },
-
     getTotalInvested() {
         return this.portfolio.items.reduce((sum, item) => sum + this.getInvestedAmountKrw(item), 0);
     },
 
-    getSubTotalInvested(assetType) {
-        return this.portfolio.items
-            .filter((item) => item.assetType === assetType)
-            .reduce((sum, item) => sum + this.getInvestedAmountKrw(item), 0);
+    toggleSection(sectionKey) {
+        this.portfolio.expandedSections[sectionKey] = !this.portfolio.expandedSections[sectionKey];
     },
 
-    getSubTotalEvalAmount(assetType) {
-        return this.portfolio.items
-            .filter((item) => item.assetType === assetType)
-            .reduce((sum, item) => sum + this.getEvalAmount(item), 0);
+    expandAllSections() {
+        this.getHoldingGroups().forEach((group) => {
+            this.portfolio.expandedSections[group.key] = true;
+        });
     },
 
-    getSubTotalProfitRate(assetType) {
-        const invested = this.getSubTotalInvested(assetType);
-        if (invested === 0) return null;
-        const evalAmount = this.getSubTotalEvalAmount(assetType);
-        return ((evalAmount - invested) / invested * 100);
+    collapseAllSections() {
+        this.portfolio.expandedSections = {};
     },
 
-    getNewsEnabledCount() {
-        return this.portfolio.items.filter((item) => item.newsEnabled).length;
+    // ──────────────────────────────────────────────────────────────────
+    // 보유 자산 테이블 (#110)
+    // 그룹은 자산군 단위. 주식만 표시 레벨에서 국내/해외로 쪼개고(AssetType 은 STOCK 그대로),
+    // 현금성 자산은 예금/적금/CMA 서브그룹을 함께 넘긴다.
+
+    // 템플릿 x-for·배지·초기 확장에서 반복 호출되므로 결과를 캐시한다 (#110 review L4).
+    // items 와 stockPrices 가 바뀌는 지점(loadPortfolio·loadStockPrices)에서만 무효화한다.
+    getHoldingGroups() {
+        if (this.portfolio._holdingGroupsCache) return this.portfolio._holdingGroupsCache;
+        const totalEval = this.getTotalEvalAmount();
+        const build = (key, name, assetType, items, subGroups) => {
+            const invested = items.reduce((sum, item) => sum + this.getInvestedAmountKrw(item), 0);
+            const evaluated = items.reduce((sum, item) => sum + this.getEvalAmount(item), 0);
+            return {
+                key: key,
+                name: name,
+                assetType: assetType,
+                items: items,
+                subGroups: subGroups || null,
+                count: items.length,
+                invested: invested,
+                evaluated: evaluated,
+                profit: evaluated - invested,
+                profitRate: invested > 0 ? (evaluated - invested) / invested * 100 : null,
+                weight: totalEval > 0 ? evaluated / totalEval * 100 : 0
+            };
+        };
+
+        const groups = [];
+        this.getEvalAllocation().forEach((alloc) => {
+            const type = alloc.assetType;
+
+            if (type === 'STOCK') {
+                const domestic = this.getDomesticStocks();
+                const overseas = this.getOverseasStocks();
+                if (domestic.length > 0) groups.push(build('STOCK_KR', '🇰🇷 국내 주식', 'STOCK', domestic));
+                if (overseas.length > 0) groups.push(build('STOCK_OVERSEAS', '🌐 해외 주식', 'STOCK', overseas));
+                return;
+            }
+
+            if (type === 'CASH') {
+                const labels = { DEPOSIT: '예금', SAVINGS: '적금', CMA: 'CMA' };
+                const sorted = this.getCashItemsSorted();
+                const subGroups = [];
+                sorted.forEach((item) => {
+                    const subKey = this.getCashSubTypeKey(item);
+                    let sub = subGroups.find((s) => s.key === subKey);
+                    if (!sub) {
+                        sub = { key: subKey, name: labels[subKey] || '기타', items: [] };
+                        subGroups.push(sub);
+                    }
+                    sub.items.push(item);
+                });
+                subGroups.forEach((sub) => {
+                    sub.count = sub.items.length;
+                    sub.evaluated = sub.items.reduce((sum, item) => sum + this.getEvalAmount(item), 0);
+                });
+                groups.push(build('CASH', alloc.assetTypeName, 'CASH', sorted, subGroups));
+                return;
+            }
+
+            groups.push(build(type, alloc.assetTypeName, type, this.getItemsByType(type)));
+        });
+        this.portfolio._holdingGroupsCache = groups;
+        return groups;
     },
 
-    toggleSection(assetType) {
-        this.portfolio.expandedSections[assetType] = !this.portfolio.expandedSections[assetType];
+    invalidateHoldingGroups() {
+        this.portfolio._holdingGroupsCache = null;
+    },
+
+    getDaysUntil(dateStr) {
+        if (!dateStr) return null;
+        const target = new Date(dateStr + 'T00:00:00');
+        if (Number.isNaN(target.getTime())) return null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return Math.round((target - today) / 86400000);
+    },
+
+    getRowQuantity(item) {
+        if (item.assetType === 'STOCK' && item.stockDetail?.quantity) {
+            return Format.number(item.stockDetail.quantity, 0) + '주';
+        }
+        if (item.assetType === 'GOLD' && item.goldDetail?.quantityGrams) {
+            return Format.number(item.goldDetail.quantityGrams, 2) + 'g';
+        }
+        return '—';
+    },
+
+    // 평단(주식) 또는 금리(현금성·채권·펀드 보수) 열
+    getRowAvgLabel(item) {
+        if (item.assetType === 'STOCK' && item.stockDetail?.avgBuyPrice) {
+            const currency = item.stockDetail.priceCurrency;
+            const isKrw = !currency || currency === 'KRW';
+            return Format.number(item.stockDetail.avgBuyPrice, isKrw ? 0 : 2) + (isKrw ? '원' : ' ' + currency);
+        }
+        if (item.assetType === 'CASH' && item.cashDetail?.interestRate) {
+            return '연 ' + item.cashDetail.interestRate + '%';
+        }
+        if (item.assetType === 'BOND' && item.bondDetail?.couponRate) {
+            return '표면 ' + item.bondDetail.couponRate + '%';
+        }
+        if (item.assetType === 'FUND' && item.fundDetail?.managementFee) {
+            return '보수 ' + item.fundDetail.managementFee + '%';
+        }
+        return '—';
+    },
+
+    // 현재가(주식) 또는 만기 D-day(현금성·채권) 열
+    getRowCurrentLabel(item) {
+        if (item.assetType === 'STOCK' && item.stockDetail) {
+            const priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
+            if (!priceData || !priceData.currentPrice) return '—';
+            const currency = priceData.currency || 'KRW';
+            return currency === 'KRW'
+                ? Format.number(priceData.currentPrice, 0) + '원'
+                : Format.number(priceData.currentPrice, 2) + ' ' + currency;
+        }
+        const maturity = item.cashDetail?.maturityDate || item.bondDetail?.maturityDate;
+        if (maturity) {
+            const days = this.getDaysUntil(maturity);
+            if (days === null) return maturity;
+            return days >= 0 ? 'D-' + days : '만기 경과';
+        }
+        if (item.assetType === 'CASH') return '수시입출';
+        return '—';
+    },
+
+    getRowProfitRate(item) {
+        const invested = this.getInvestedAmountKrw(item);
+        if (!invested) return null;
+        return (this.getEvalAmount(item) - invested) / invested * 100;
+    },
+
+    getRowWeight(item) {
+        const totalEval = this.getTotalEvalAmount();
+        if (totalEval === 0) return 0;
+        return this.getEvalAmount(item) / totalEval * 100;
+    },
+
+    getTotalProfit() {
+        return this.getTotalEvalAmount() - this.getTotalInvested();
+    },
+
+    getTotalProfitRate() {
+        const invested = this.getTotalInvested();
+        if (invested <= 0) return null;
+        return (this.getTotalEvalAmount() - invested) / invested * 100;
+    },
+
+    getUnlinkedStockCount() {
+        return this.portfolio.items.filter((item) => item.assetType === 'STOCK' && !item.linkedCashItemId).length;
+    },
+
+    // 가장 최근에 조회된 주가 캐시 1건 — 헤더의 "시세 N분 전 · TTL" 표기에 사용
+    getLatestPriceCache() {
+        const list = Object.values(this.portfolio.stockPrices || {});
+        return list.length > 0 ? list[0] : null;
+    },
+
+    // ──────────────────────────────────────────────────────────────────
+    // 행 액션 노출 규칙 (#110)
+    // 기존 partial 의 x-show 조건식을 헬퍼로 옮긴 것 — 규칙 자체는 그대로다.
+
+    // 현금성·연금은 상품명이 뉴스 키워드로 의미가 없어 제외한다 (#110 review L3)
+    canKeyword(item) {
+        if (item.assetType === 'CASH' || item.assetType === 'PENSION') return false;
+        return item.stockDetail?.subType !== 'ETF';
+    },
+
+    canFinancial(item) {
+        if (item.assetType !== 'STOCK' || !item.stockDetail) return false;
+        if (item.stockDetail.subType === 'ETF') return false;
+        return item.stockDetail.country === 'KR' || item.stockDetail.country === 'US';
+    },
+
+    canPurchase(item) {
+        return item.assetType === 'STOCK' && !!item.stockDetail;
+    },
+
+    canSell(item) {
+        return this.canPurchase(item) && (item.status === 'ACTIVE' || !item.status);
+    },
+
+    canDelete(item) {
+        return !(item.assetType === 'STOCK' && this.hasSaleHistories(item.id));
+    },
+
+    getAnalysisTargets() {
+        return this.portfolio.items.filter((item) => this.canFinancial(item));
     },
 
     renderDonutChart() {
@@ -652,24 +1037,6 @@ const PortfolioComponent = {
         });
     },
 
-    getStockPriceSummary(item) {
-        if (item.assetType !== 'STOCK' || !item.stockDetail) return '';
-        const priceData = this.portfolio.stockPrices[item.stockDetail.stockCode];
-        if (!priceData || !priceData.currentPrice) return '';
-        const currency = priceData.currency || 'KRW';
-        const priceDisplay = currency === 'KRW'
-            ? '현재가 ' + Format.number(priceData.currentPrice) + '원'
-            : '현재가 ' + Format.number(priceData.currentPrice, 2) + ' ' + currency;
-        const parts = [priceDisplay];
-        const rate = this.getProfitRate(item);
-        if (rate !== null) {
-            const sign = rate >= 0 ? '+' : '';
-            parts.push(sign + rate.toFixed(2) + '%');
-        }
-        parts.push('총 ' + Format.number(this.getEvalAmount(item), 0) + '원');
-        return parts.join(' · ');
-    },
-
     getItemSummary(item) {
         switch (item.assetType) {
             case 'STOCK':
@@ -708,6 +1075,17 @@ const PortfolioComponent = {
                 if (item.fundDetail.monthlyDepositAmount) fundParts.push('월 ' + Format.number(item.fundDetail.monthlyDepositAmount, 0) + '원');
                 if (item.depositOverdue) fundParts.push('⚠ 미납');
                 return fundParts.join(' · ');
+            case 'PENSION':
+                if (!item.pensionDetail) return item.memo || '';
+                const pensionParts = [];
+                const pensionSubTypes = { IRP: 'IRP', PENSION_SAVING: '연금저축', DC: '퇴직연금 DC', DB: '퇴직연금 DB' };
+                pensionParts.push(pensionSubTypes[item.pensionDetail.subType] || item.pensionDetail.subType);
+                if (item.pensionDetail.provider) pensionParts.push(item.pensionDetail.provider);
+                if (item.pensionDetail.monthlyDepositAmount) {
+                    pensionParts.push('월 ' + Format.number(item.pensionDetail.monthlyDepositAmount, 0) + '원');
+                }
+                if (item.depositOverdue) pensionParts.push('⚠ 미납');
+                return pensionParts.join(' · ');
             case 'CASH':
                 if (!item.cashDetail) return item.memo || '';
                 const cashParts = [];
@@ -776,14 +1154,39 @@ const PortfolioComponent = {
         this.portfolio.deleteConfirm = { show: false };
     },
 
-    async toggleNews(item) {
+    // ──────────────────────────────────────────────────────────────────
+    // 키워드 등록 (#110)
+    // 기사 열람·수집·삭제는 키워드 메뉴가 담당한다. 포트폴리오에는 등록 진입점만 남긴다.
+
+    openKeywordModal(item) {
+        if (item.newsEnabled) return;
+        this.portfolio.keywordModal = { show: true, item: item, saving: false };
+    },
+
+    closeKeywordModal() {
+        this.portfolio.keywordModal = { show: false, item: null, saving: false };
+    },
+
+    async submitKeyword() {
+        const modal = this.portfolio.keywordModal;
+        if (!modal.item || modal.saving) return;
+        modal.saving = true;
         try {
-            await API.togglePortfolioNews(this.auth.userId, item.id, !item.newsEnabled);
+            await API.togglePortfolioNews(this.auth.userId, modal.item.id, true);
             await this.loadPortfolio();
+            this.closeKeywordModal();
         } catch (e) {
-            console.error('뉴스 토글 실패:', e);
-            alert('뉴스 설정 변경에 실패했습니다.');
+            console.error('키워드 등록 실패:', e);
+            alert('키워드 등록에 실패했습니다.');
+            modal.saving = false;
         }
+    },
+
+    // 서버는 item.region 을 그대로 키워드 region 으로 등록한다(PortfolioService.toggleNews).
+    // 화면 표기도 stockDetail.country 가 아니라 item.region 을 따라가야 실제 등록값과 어긋나지 않는다.
+    getKeywordRegion(item) {
+        const labels = { DOMESTIC: '국내', INTERNATIONAL: '해외' };
+        return labels[item?.region] || item?.region || '국내';
     },
 
     async toggleNotification() {
@@ -952,6 +1355,16 @@ const PortfolioComponent = {
                         depositDay: form.depositDay ? Number(form.depositDay) : null
                     });
                     break;
+                case 'PENSION':
+                    await API.addPensionItem(userId, {
+                        itemName: form.itemName, investedAmount: Number(form.investedAmount), region: form.region,
+                        memo: form.memo || null, subType: form.subType || 'IRP',
+                        provider: form.provider || null,
+                        evaluatedAmount: form.evaluatedAmount ? Number(form.evaluatedAmount) : null,
+                        monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
+                        depositDay: form.depositDay ? Number(form.depositDay) : null
+                    });
+                    break;
                 case 'CASH':
                     await API.addCashItem(userId, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount), region: form.region,
@@ -981,189 +1394,13 @@ const PortfolioComponent = {
         }
     },
 
-    async findKeywordIdByItemName(itemName, region) {
-        const keywords = await API.getKeywords(this.auth.userId) || [];
-        const matched = keywords.find(k => k.keyword === itemName && k.region === region);
-        return matched ? matched.id : null;
-    },
-
-    async selectPortfolioNewsItem(item) {
-        if (this.portfolio.selectedNewsItemId === item.id) {
-            this.portfolio.selectedNewsItemId = null;
-            this.portfolio.selectedNewsKeywordId = null;
-            this.portfolio.news = { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false };
-            return;
-        }
-        this.portfolio.selectedNewsItemId = item.id;
-        this.portfolio.selectedNewsKeywordId = await this.findKeywordIdByItemName(item.itemName, item.region);
-        this.portfolio.news.page = 0;
-        await this.loadPortfolioNews(0);
-    },
-
-    async loadPortfolioNews(page) {
-        if (!this.portfolio.selectedNewsKeywordId) return;
-        this.portfolio.news.loading = true;
-        try {
-            const result = await API.getNewsByKeyword(this.portfolio.selectedNewsKeywordId, page, this.portfolio.news.size);
-            this.portfolio.news.list = result.content || [];
-            this.portfolio.news.page = result.page;
-            this.portfolio.news.totalPages = result.totalPages;
-            this.portfolio.news.totalElements = result.totalElements;
-        } catch (e) {
-            console.error('포트폴리오 뉴스 로드 실패:', e);
-            this.portfolio.news.list = [];
-        } finally {
-            this.portfolio.news.loading = false;
-        }
-    },
-
-    async collectPortfolioNews(item) {
-        if (this.portfolio.collectingItemId) return;
-        this.portfolio.collectingItemId = item.id;
-        try {
-            const keywordId = await this.findKeywordIdByItemName(item.itemName, item.region);
-            if (!keywordId) {
-                alert('키워드를 찾을 수 없습니다. 뉴스를 먼저 활성화해주세요.');
-                return;
-            }
-            const result = await API.collectNewsByKeyword(keywordId, item.itemName, item.region);
-            let msg = '수집 완료: ' + result.successCount + '건 저장';
-            if (result.ignoredCount > 0) msg += ', ' + result.ignoredCount + '건 중복';
-            alert(msg);
-
-            if (this.portfolio.selectedNewsItemId === item.id) {
-                await this.loadPortfolioNews(0);
-            }
-        } catch (e) {
-            console.error('포트폴리오 뉴스 수집 실패:', e);
-            alert('뉴스 수집에 실패했습니다.');
-        } finally {
-            this.portfolio.collectingItemId = null;
-        }
-    },
-
-    // ==================== 해외뉴스 (속보/뉴스종합) ====================
-
-    toggleOverseasNews(item) {
-        const news = this.portfolio.overseasNews;
-
-        // 기존 키워드 뉴스 패널 닫기
-        if (this.portfolio.selectedNewsItemId) {
-            this.portfolio.selectedNewsItemId = null;
-            this.portfolio.selectedNewsKeywordId = null;
-            this.portfolio.news = { list: [], page: 0, size: 20, totalPages: 0, totalElements: 0, loading: false };
-        }
-
-        // 동일 종목 재클릭 → 토글 닫기
-        if (news.selectedItemId === item.id) {
-            this.portfolio._overseasNewsGeneration++;
-            clearTimeout(this.portfolio._overseasNewsDebounceTimer);
-            news.selectedItemId = null;
-            news.activeTab = 'breaking';
-            news.breaking = { list: [], loading: false, error: null };
-            news.comprehensive = { list: [], loading: false, error: null, hasMore: false, lastDt: '', lastTm: '' };
-            return;
-        }
-
-        // 새 종목 열기
-        this.portfolio._overseasNewsGeneration++;
-        clearTimeout(this.portfolio._overseasNewsDebounceTimer);
-        news.selectedItemId = item.id;
-        news.activeTab = 'breaking';
-        news.breaking = { list: [], loading: false, error: null };
-        news.comprehensive = { list: [], loading: false, error: null, hasMore: false, lastDt: '', lastTm: '' };
-        this._overseasNewsItem = item;
-        this.loadOverseasNews('breaking');
-    },
-
-    switchOverseasNewsTab(tab) {
-        const news = this.portfolio.overseasNews;
-        news.activeTab = tab;
-
-        clearTimeout(this.portfolio._overseasNewsDebounceTimer);
-        this.portfolio._overseasNewsDebounceTimer = setTimeout(() => {
-            this.loadOverseasNews(tab);
-        }, 200);
-    },
-
-    async loadOverseasNews(tab) {
-        const item = this._overseasNewsItem;
-        if (!item || !item.stockDetail) return;
-
-        const gen = ++this.portfolio._overseasNewsGeneration;
-        const tabState = this.portfolio.overseasNews[tab];
-        tabState.loading = true;
-        tabState.error = null;
-        tabState.list = [];
-        if (tab === 'comprehensive') {
-            tabState.hasMore = false;
-            tabState.lastDt = '';
-            tabState.lastTm = '';
-        }
-
-        try {
-            const { stockCode, exchangeCode, country } = item.stockDetail;
-            let result;
-
-            if (tab === 'breaking') {
-                result = await API.getOverseasBreakingNews(stockCode, exchangeCode);
-                if (gen !== this.portfolio._overseasNewsGeneration) return;
-                tabState.list = result || [];
-            } else {
-                result = await API.getOverseasComprehensiveNews(stockCode, exchangeCode, country);
-                if (gen !== this.portfolio._overseasNewsGeneration) return;
-                tabState.list = result.items || [];
-                tabState.hasMore = result.hasMore || false;
-                tabState.lastDt = result.lastDataDt || '';
-                tabState.lastTm = result.lastDataTm || '';
-            }
-        } catch (e) {
-            if (gen !== this.portfolio._overseasNewsGeneration) return;
-            tabState.error = '뉴스를 불러올 수 없습니다';
-            console.error('해외뉴스 로드 실패:', e);
-        } finally {
-            if (gen === this.portfolio._overseasNewsGeneration) {
-                tabState.loading = false;
-            }
-        }
-    },
-
-    async loadMoreOverseasNews() {
-        const news = this.portfolio.overseasNews;
-        const tabState = news.comprehensive;
-        const item = this._overseasNewsItem;
-        if (!item || !item.stockDetail || !tabState.hasMore) return;
-
-        const gen = ++this.portfolio._overseasNewsGeneration;
-        tabState.loading = true;
-
-        try {
-            const { stockCode, exchangeCode, country } = item.stockDetail;
-            const result = await API.getOverseasComprehensiveNews(
-                stockCode, exchangeCode, country, tabState.lastDt, tabState.lastTm);
-            if (gen !== this.portfolio._overseasNewsGeneration) return;
-            tabState.list = [...tabState.list, ...(result.items || [])];
-            tabState.hasMore = result.hasMore || false;
-            tabState.lastDt = result.lastDataDt || '';
-            tabState.lastTm = result.lastDataTm || '';
-        } catch (e) {
-            if (gen !== this.portfolio._overseasNewsGeneration) return;
-            tabState.error = '추가 뉴스를 불러올 수 없습니다';
-            console.error('해외뉴스 추가 로드 실패:', e);
-        } finally {
-            if (gen === this.portfolio._overseasNewsGeneration) {
-                tabState.loading = false;
-            }
-        }
-    },
-
     closePurchaseModal() {
         this.portfolio.showPurchaseModal = false;
         this.portfolio.purchaseItem = null;
         this.portfolio.purchaseForm = { quantity: '', purchasePrice: '' };
         this.portfolio.purchaseHistories = [];
         this.portfolio.editingHistory = null;
-        this.portfolio.editHistoryForm = { quantity: '', purchasePrice: '', purchasedAt: '', memo: '' };
+        this.portfolio.editHistoryForm = { quantity: '', purchasePrice: '', purchasedAt: '', memo: '', fxRate: '' };
     },
 
     async openPurchaseModal(item) {
@@ -1226,7 +1463,9 @@ const PortfolioComponent = {
             quantity: history.quantity,
             purchasePrice: history.purchasePrice,
             purchasedAt: history.purchasedAt || '',
-            memo: history.memo || ''
+            memo: history.memo || '',
+            // 폼에서 빼면 저장 시 서버가 환율을 null 로 덮어써 기록이 사라진다 (#110 review R3)
+            fxRate: history.fxRate ?? ''
         };
     },
 
@@ -1252,7 +1491,8 @@ const PortfolioComponent = {
                 quantity: Number(form.quantity),
                 purchasePrice: Number(form.purchasePrice),
                 purchasedAt: form.purchasedAt || null,
-                memo: form.memo || null
+                memo: form.memo || null,
+                fxRate: form.fxRate === '' || form.fxRate === null ? null : Number(form.fxRate)
             });
             this.portfolio.editingHistory = null;
             await this.loadPurchaseHistories(item.id);
@@ -1552,10 +1792,19 @@ const PortfolioComponent = {
         return sale?.netProfitKrw ?? sale?.profitKrw ?? sale?.profit ?? 0;
     },
 
+    // 탭: holdings / sales / targets / analysis (#110)
     setActiveTab(tab) {
         this.portfolio.activeTab = tab;
         if (tab === 'sales') {
             this.loadAllUserSales();
+        }
+        if (tab === 'analysis') {
+            // 분석 탭은 재무 슬라이드 패널을 재사용한다. 탭 이탈 시 열려 있던 패널은 닫는다.
+            return;
+        }
+        // selectedStockItem 만 비우면 재무 패널의 Chart.js 인스턴스가 남는다 → closeStockDetail 로 정리
+        if (this.portfolio.selectedStockItem) {
+            this.closeStockDetail();
         }
     },
 
@@ -1719,6 +1968,15 @@ const PortfolioComponent = {
                     form.depositDay = item.cashDetail.depositDay;
                 }
                 break;
+            case 'PENSION':
+                if (item.pensionDetail) {
+                    form.subType = item.pensionDetail.subType;
+                    form.provider = item.pensionDetail.provider;
+                    form.evaluatedAmount = item.pensionDetail.evaluatedAmount;
+                    form.monthlyDepositAmount = item.pensionDetail.monthlyDepositAmount;
+                    form.depositDay = item.pensionDetail.depositDay;
+                }
+                break;
             case 'GOLD':
                 form.quantityGrams = item.goldDetail ? item.goldDetail.quantityGrams : '';
                 break;
@@ -1845,6 +2103,16 @@ const PortfolioComponent = {
                         depositDay: form.depositDay ? Number(form.depositDay) : null
                     });
                     break;
+                case 'PENSION':
+                    await API.updatePensionItem(userId, item.id, {
+                        itemName: form.itemName, investedAmount: Number(form.investedAmount),
+                        memo: form.memo || null, subType: form.subType || 'IRP',
+                        provider: form.provider || null,
+                        evaluatedAmount: form.evaluatedAmount ? Number(form.evaluatedAmount) : null,
+                        monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
+                        depositDay: form.depositDay ? Number(form.depositDay) : null
+                    });
+                    break;
                 default:
                     await API.updateGeneralItem(userId, item.id, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount),
@@ -1868,7 +2136,7 @@ const PortfolioComponent = {
     // ──────────────────────────────────────────────────────────────────
 
     isDepositTarget(item) {
-        return item && (item.assetType === 'CASH' || item.assetType === 'FUND');
+        return item && (item.assetType === 'CASH' || item.assetType === 'FUND' || item.assetType === 'PENSION');
     },
 
     async openDepositModal(item) {
@@ -1930,7 +2198,8 @@ const PortfolioComponent = {
 
     depositReminderMeta(item) {
         const detail = item.assetType === 'FUND' ? item.fundDetail
-            : (item.assetType === 'CASH' ? item.cashDetail : null);
+            : item.assetType === 'CASH' ? item.cashDetail
+                : item.assetType === 'PENSION' ? item.pensionDetail : null;
         if (!detail) return '';
         const parts = [];
         if (detail.monthlyDepositAmount) parts.push('월 ' + Format.number(detail.monthlyDepositAmount, 0) + '원');

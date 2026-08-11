@@ -159,7 +159,7 @@
                                     <div class="flex items-center gap-2">
                                         <span class="text-sm font-medium text-gray-900 truncate" x-text="item.itemName"></span>
                                         <span class="text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0"
-                                            x-text="item.assetType === 'FUND' ? '펀드' : '현금성'"></span>
+                                            x-text="getAssetTypeLabel(item.assetType)"></span>
                                     </div>
                                     <div class="text-xs text-gray-500 mt-0.5" x-text="depositReminderMeta(item)"></div>
                                 </div>

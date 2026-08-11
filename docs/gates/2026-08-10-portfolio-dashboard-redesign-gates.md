@@ -10,9 +10,9 @@
 - brainstorm: approved (2026-08-10, 태형님 "진행해" — Open Questions 6건 회신 반영본 확정)
 - issue: approved (2026-08-10, 태형님 "진행해" — GitHub Issue #110 등록, worktree feat/issue-110-portfolio-dashboard-redesign 생성)
 - plan: approved (2026-08-10, 태형님 "진행해" — Phase 3·4 스키마/API 제안 포함 승인, Phase 1부터 착수)
-- work: in progress (Phase 1 진행 중)
-- review: pending
-- validation: pending
+- work: approved (2026-08-10, Phase 1~4 각 단계 태형님 "다음 진행해"/"진행해" 승인)
+- review: approved (2026-08-10, 태형님 "다 고쳐줘"/"리뷰에서 수정이 필요한 부분은 없어?" — findings 전건 조치 후 진행)
+- validation: approved (2026-08-11, 태형님 "진행하고 운영에 필수로 적용해야 하는 것만 알려줘")
 - commit: approved (2026-08-11, 태형님 "적용 했어 main 에 병합해줘" + 커밋 메시지 확인 "이대로 진행")
 - push: approved (2026-08-11, 동일 지시 — 브랜치 푸시 + main 병합 + main 푸시 포함)
 

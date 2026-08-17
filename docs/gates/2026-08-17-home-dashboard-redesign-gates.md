@@ -13,8 +13,8 @@
 - work: Phase 1~5 완료
 - review: approved (2026-08-17, 태형님 "리뷰 진행해" → findings 제시 → "수정안대로 바꿔줘" 로 조치 승인)
 - validation: approved (2026-08-17, 태형님 "진행해" — 실서버 기동·로그인·검증 데이터 등록까지 승인)
-- commit: 대기
-- push: 대기
+- commit: approved (2026-08-17, 태형님 "맞아 커밋해")
+- push: approved (2026-08-17, 태형님 "진행해" — 브랜치 푸시 + main 병합 + main 푸시)
 
 ## Stage Log
 - 2026-08-17: 태형님이 목업 제시. 번들 HTML(React + `x-dc` 템플릿)이라 템플릿·로직 스크립트를 추출해 현재 `home.html`(496줄)과 대조
@@ -106,7 +106,22 @@
     → M1 메모이제이션·M2 배치화 **둘 다 조치 불필요**
   - 모바일 반응형 통과, 타 화면 11종 회귀 통과(콘솔 오류 0건)
   - **운영 적용 필수 항목 없음** (마이그레이션 없음)
-  - commit 단계 진입 승인: 대기
+  - commit 단계 진입 승인 (2026-08-17)
+- commit: 완료 (2026-08-17, docs/commits/2026-08-17-home-dashboard-redesign-commit.md — 단일 커밋 `db5b73d`, 38 files, +3,073/−1,148)
+  - 마이그레이션 없음 (`display_mode` 는 DB DEFAULT 가 있어 매핑 제거만으로 안전, 컬럼 DROP 은 후속)
+  - **정정**: 커밋 직전 요약에서 표시 모드 폐지를 "비가역"이라 설명했으나 부정확했다.
+    컬럼·값이 DB 에 그대로 남아 revert 하면 기존 설정이 살아난다 → "되돌릴 수 있으나 현재는 아무도 읽지 않는 상태"가 정확
+- push: 완료 (2026-08-17, docs/pushes/2026-08-17-home-dashboard-redesign-push.md)
+  - 브랜치 푸시 → main `--no-ff` 병합(`4c337a8`) → `origin/main` 푸시 (`2162979..4c337a8`)
+  - 분기 이후 `origin/main` 이 움직이지 않아 **충돌 없음** (#110 과 달리 해소 작업 불필요)
+  - 병합 후 `main` 에서 `compileJava`·`test` 재검증 PASS
+
+## 잔여 처리 항목
+- **GitHub Issue #114 종료 여부** — 병합됐으나 이슈는 열린 상태 (#110 도 동일하게 열려 있음)
+- worktree `wt-issue-114-...` 정리 여부
+- 로컬 dev 서버(:8080) 기동 상태 유지 중
+- 후속 후보: `GlobalExceptionHandler` 인증/인가 예외 핸들러(401/403), 기존 엔드포인트 userId 검증 일괄 적용,
+  `formatKrwCompact` 공용화(review L4), `display_mode` 컬럼 DROP
 
 ## Approval Gate 항목
 - **표시 모드(displayMode) 폐지** — `changeFavoriteDisplayMode` 제거 + `reorderFavorites` 시그니처에서 displayMode 제거. **public API 변경 → 태형님 승인 완료 (2026-08-17, "표시 모드 없애고")**. 세부 처리(엔드포인트 제거 vs 유지·컬럼 처리)는 plan에서 확정

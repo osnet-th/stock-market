@@ -1,0 +1,267 @@
+            <!-- ========== HOME / 지표 본문 (#114) ========== -->
+            <!-- Phase 2 에서 비교 보기, Phase 3 에서 카드 그리드로 재구성한다.
+                 지금은 기존 마크업을 그대로 옮겨 회귀 없이 동작만 유지한다 -->
+            <div x-show="currentPage === 'home'" x-cloak>
+
+                <!-- ===== 비교 보기 (#114 Phase 2) ===== -->
+                <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+                    <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
+                        <div>
+                            <h3 class="dc-title">비교 보기</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5" x-text="getHomeModeNote()"></p>
+                        </div>
+                        <!-- 선택 칩 -->
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <template x-for="s in getHomeCompareSeries()" :key="'chip-' + s.key">
+                                <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded border"
+                                    :style="'border-color:' + s.color + ';color:' + s.color">
+                                    <span class="inline-block w-2 h-2 rounded-full" :style="'background-color:' + s.color"></span>
+                                    <span x-text="s.name"></span>
+                                    <span class="font-mono-num" x-text="s.lastValue"></span>
+                                    <button @click="removeHomeCompare(s.key)" class="ml-0.5 text-gray-400 hover:text-gray-600">&#10005;</button>
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div x-show="getHomeCompareSeries().length > 0" class="relative" style="height: 240px;">
+                        <canvas id="homeCompareChart"></canvas>
+                    </div>
+                    <div x-show="getHomeCompareSeries().length === 0"
+                        class="flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200"
+                        style="height: 240px;">
+                        <p class="text-xs text-gray-400 text-center px-6">
+                            아래 지표 카드를 클릭하면 여기에 겹쳐서 비교됩니다<br>
+                            <span class="text-gray-300">최대 3개 · 단위가 달라도 같은 축에서 볼 수 있습니다</span>
+                        </p>
+                    </div>
+                </div>
+                <!-- ===== 관심 지표 (국내) ===== -->
+                <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div class="flex items-baseline gap-2">
+                            <h3 class="dc-title">관심 지표</h3>
+                            <span class="text-[11px] text-gray-400"
+                                x-text="favoriteEdit.active !== null
+                                    ? '카드를 끌어 순서를 바꾼 뒤 저장하세요'
+                                    : '클릭해 비교에 추가 · 최대 3개'"></span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <!-- 카테고리 필터 (편집 중에는 숨긴다 — 숨겨진 카드가 순서에서 빠지면 안 되므로) -->
+                            <div x-show="favoriteEdit.active === null" class="flex flex-wrap gap-1">
+                                <template x-for="cat in getHomeCategories()" :key="'cat-' + cat">
+                                    <button @click="setHomeFilter(cat)"
+                                        class="text-[11px] px-2 py-0.5 rounded border transition"
+                                        :class="homeDashboard.filter === cat
+                                            ? 'bg-gray-900 border-gray-900 text-white'
+                                            : 'bg-white border-gray-300 text-gray-600 hover:border-gray-500'"
+                                        x-text="cat"></button>
+                                </template>
+                            </div>
+                            <template x-if="!isEditing('ECOS')">
+                                <button @click="enterEditMode('ECOS', 'home-ecos-grid')"
+                                    :disabled="!canEnterEditMode('ECOS')"
+                                    class="text-[11px] px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600">순서 편집</button>
+                            </template>
+                            <template x-if="isEditing('ECOS')">
+                                <div class="flex gap-1">
+                                    <button @click="saveOrder()" :disabled="favoriteEdit.saving"
+                                        class="text-[11px] px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white">저장</button>
+                                    <button @click="cancelOrder()" :disabled="favoriteEdit.saving"
+                                        class="text-[11px] px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600">취소</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <template x-if="getHomeIndicatorCards('ECOS').length === 0">
+                        <div class="py-10 text-center bg-gray-50 rounded-lg">
+                            <p class="text-xs text-gray-400 mb-2"
+                                x-text="homeDashboard.filter === '전체'
+                                    ? '관심 지표가 없습니다.'
+                                    : '이 분류에 해당하는 관심 지표가 없습니다.'"></p>
+                            <button x-show="homeDashboard.filter === '전체'" @click="navigateTo('ecos')"
+                                class="text-xs text-blue-600 hover:text-blue-800 font-medium">국내 경제지표에서 추가하기 &rarr;</button>
+                        </div>
+                    </template>
+
+                    <div id="home-ecos-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                        <template x-for="card in getHomeIndicatorCards('ECOS')" :key="'card-' + card.key">
+                            <div @click="card.hasSeries && favoriteEdit.active === null
+                                    ? toggleHomeCompare(card.sourceType, card.indicatorCode) : null"
+                                class="dc-cell transition"
+                                :class="(card.hasSeries && favoriteEdit.active === null) ? 'cursor-pointer' : ''"
+                                :title="!card.hasSeries ? '시계열이 없어 비교할 수 없습니다'
+                                    : (card.selected ? '클릭해 비교에서 제외' : '클릭해 비교에 추가')"
+                                :style="'border-color:' + card.borderColor + ';background-color:' + card.bgColor">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <p class="dc-cell-name truncate" x-text="card.name"></p>
+                                        <p class="dc-cell-cat truncate" x-text="card.category"></p>
+                                    </div>
+                                    <div class="flex items-center gap-1 shrink-0">
+                                        <!-- 별표는 선택 상태 표시. 토글은 카드 클릭이 받는다 (목업 동작) -->
+                                        <span class="text-base leading-none" :style="'color:' + card.starColor">&#9733;</span>
+                                        <!-- 관심 해제 -->
+                                        <button @click.stop="removeDashboardFavorite(card.sourceType, card.indicatorCode)"
+                                            class="text-xs leading-none text-gray-300 hover:text-red-500 transition"
+                                            title="관심 지표에서 제거">&#10005;</button>
+                                    </div>
+                                </div>
+
+                                <!-- 조회 실패(글로벌 전용) -->
+                                <template x-if="card.failed">
+                                    <div class="mt-2">
+                                        <p class="text-[11px] text-red-400" x-text="globalFailureMessage(card.raw)"></p>
+                                        <button @click.stop="refreshGlobal(card.raw)"
+                                            :disabled="!card.refreshable || card.raw.refreshing"
+                                            class="mt-1 text-[11px] text-blue-600 hover:text-blue-800 disabled:text-gray-300 disabled:cursor-not-allowed"
+                                            x-text="card.raw.refreshing ? '조회 중…' : '다시 조회'"></button>
+                                    </div>
+                                </template>
+
+                                <template x-if="!card.failed">
+                                    <div>
+                                        <div class="flex items-end gap-2 mt-2">
+                                            <p class="dc-cell-value font-mono-num leading-none"
+                                                x-text="card.hasData ? card.value + (card.unit ? ' ' + card.unit : '') : '—'"></p>
+                                            <span x-show="card.delta" class="text-[10.5px] font-mono-num pb-0.5"
+                                                :style="'color:' + (card.direction === 'up' ? 'var(--dc-red)'
+                                                    : card.direction === 'down' ? 'var(--dc-blue)' : 'var(--dc-muted)')"
+                                                x-text="card.delta"></span>
+                                        </div>
+
+                                        <!-- 스파크라인: 카드마다 1개라 Chart.js 대신 인라인 SVG -->
+                                        <div class="h-11 mt-2">
+                                            <template x-if="card.spark">
+                                                <svg viewBox="0 0 200 44" preserveAspectRatio="none"
+                                                    style="width:100%;height:100%;display:block">
+                                                    <path :d="card.spark.area" :fill="card.spark.color" opacity="0.09"></path>
+                                                    <path :d="card.spark.line" fill="none" :stroke="card.spark.color"
+                                                        stroke-width="1.6" vector-effect="non-scaling-stroke"
+                                                        stroke-linejoin="round"></path>
+                                                    <circle :cx="card.spark.dotX" :cy="card.spark.dotY" r="2.4"
+                                                        :fill="card.spark.color"></circle>
+                                                </svg>
+                                            </template>
+                                            <template x-if="!card.spark">
+                                                <div class="h-full flex items-center justify-center">
+                                                    <span class="text-[11px] text-gray-300">시계열 없음</span>
+                                                </div>
+                                            </template>
+                                        </div>
+
+                                        <div class="flex items-center justify-between mt-1">
+                                            <span class="dc-cell-foot font-mono-num" :title="card.periodTitle || ''"
+                                                x-text="card.periodLabel || ''"></span>
+                                            <span class="dc-cell-foot font-mono-num" x-text="card.date"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ===== 글로벌 지표 ===== -->
+                <div class="dc-card p-5" x-show="getHomeIndicatorCards('GLOBAL').length > 0">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div class="flex items-baseline gap-2">
+                            <h3 class="dc-title">글로벌 지표</h3>
+                            <span class="text-[11px] text-gray-400">국가별 경제지표</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <template x-if="!isEditing('GLOBAL')">
+                                <button @click="enterEditMode('GLOBAL', 'home-global-grid')"
+                                    :disabled="!canEnterEditMode('GLOBAL')"
+                                    class="text-[11px] px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600">순서 편집</button>
+                            </template>
+                            <template x-if="isEditing('GLOBAL')">
+                                <div class="flex gap-1">
+                                    <button @click="saveOrder()" :disabled="favoriteEdit.saving"
+                                        class="text-[11px] px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white">저장</button>
+                                    <button @click="cancelOrder()" :disabled="favoriteEdit.saving"
+                                        class="text-[11px] px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600">취소</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div id="home-global-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                        <template x-for="card in getHomeIndicatorCards('GLOBAL')" :key="'card-' + card.key">
+                            <div @click="card.hasSeries && favoriteEdit.active === null
+                                    ? toggleHomeCompare(card.sourceType, card.indicatorCode) : null"
+                                class="dc-cell transition"
+                                :class="(card.hasSeries && favoriteEdit.active === null) ? 'cursor-pointer' : ''"
+                                :title="!card.hasSeries ? '시계열이 없어 비교할 수 없습니다'
+                                    : (card.selected ? '클릭해 비교에서 제외' : '클릭해 비교에 추가')"
+                                :style="'border-color:' + card.borderColor + ';background-color:' + card.bgColor">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <p class="dc-cell-name truncate" x-text="card.name"></p>
+                                        <p class="dc-cell-cat truncate" x-text="card.category"></p>
+                                    </div>
+                                    <div class="flex items-center gap-1 shrink-0">
+                                        <!-- 별표는 선택 상태 표시. 토글은 카드 클릭이 받는다 (목업 동작) -->
+                                        <span class="text-base leading-none" :style="'color:' + card.starColor">&#9733;</span>
+                                        <!-- 관심 해제 -->
+                                        <button @click.stop="removeDashboardFavorite(card.sourceType, card.indicatorCode)"
+                                            class="text-xs leading-none text-gray-300 hover:text-red-500 transition"
+                                            title="관심 지표에서 제거">&#10005;</button>
+                                    </div>
+                                </div>
+
+                                <!-- 조회 실패(글로벌 전용) -->
+                                <template x-if="card.failed">
+                                    <div class="mt-2">
+                                        <p class="text-[11px] text-red-400" x-text="globalFailureMessage(card.raw)"></p>
+                                        <button @click.stop="refreshGlobal(card.raw)"
+                                            :disabled="!card.refreshable || card.raw.refreshing"
+                                            class="mt-1 text-[11px] text-blue-600 hover:text-blue-800 disabled:text-gray-300 disabled:cursor-not-allowed"
+                                            x-text="card.raw.refreshing ? '조회 중…' : '다시 조회'"></button>
+                                    </div>
+                                </template>
+
+                                <template x-if="!card.failed">
+                                    <div>
+                                        <div class="flex items-end gap-2 mt-2">
+                                            <p class="dc-cell-value font-mono-num leading-none"
+                                                x-text="card.hasData ? card.value + (card.unit ? ' ' + card.unit : '') : '—'"></p>
+                                            <span x-show="card.delta" class="text-[10.5px] font-mono-num pb-0.5"
+                                                :style="'color:' + (card.direction === 'up' ? 'var(--dc-red)'
+                                                    : card.direction === 'down' ? 'var(--dc-blue)' : 'var(--dc-muted)')"
+                                                x-text="card.delta"></span>
+                                        </div>
+
+                                        <!-- 스파크라인: 카드마다 1개라 Chart.js 대신 인라인 SVG -->
+                                        <div class="h-11 mt-2">
+                                            <template x-if="card.spark">
+                                                <svg viewBox="0 0 200 44" preserveAspectRatio="none"
+                                                    style="width:100%;height:100%;display:block">
+                                                    <path :d="card.spark.area" :fill="card.spark.color" opacity="0.09"></path>
+                                                    <path :d="card.spark.line" fill="none" :stroke="card.spark.color"
+                                                        stroke-width="1.6" vector-effect="non-scaling-stroke"
+                                                        stroke-linejoin="round"></path>
+                                                    <circle :cx="card.spark.dotX" :cy="card.spark.dotY" r="2.4"
+                                                        :fill="card.spark.color"></circle>
+                                                </svg>
+                                            </template>
+                                            <template x-if="!card.spark">
+                                                <div class="h-full flex items-center justify-center">
+                                                    <span class="text-[11px] text-gray-300">시계열 없음</span>
+                                                </div>
+                                            </template>
+                                        </div>
+
+                                        <div class="flex items-center justify-between mt-1">
+                                            <span class="dc-cell-foot font-mono-num" :title="card.periodTitle || ''"
+                                                x-text="card.periodLabel || ''"></span>
+                                            <span class="dc-cell-foot font-mono-num" x-text="card.date"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>

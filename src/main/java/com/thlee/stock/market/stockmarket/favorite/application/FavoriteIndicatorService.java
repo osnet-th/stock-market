@@ -14,7 +14,6 @@ import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradin
 import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradingeconomics.exception.TradingEconomicsParseException;
 import com.thlee.stock.market.stockmarket.favorite.application.exception.FavoriteRefreshForbiddenException;
 import com.thlee.stock.market.stockmarket.favorite.application.exception.RefreshRateLimitExceededException;
-import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteDisplayMode;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicator;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 import com.thlee.stock.market.stockmarket.favorite.domain.repository.FavoriteIndicatorRepository;
@@ -30,7 +29,6 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -140,92 +138,66 @@ public class FavoriteIndicatorService {
     }
 
     /**
-     * 관심 지표 표시 모드 변경 (INDICATOR ↔ GRAPH)
-     */
-    @Transactional
-    public void changeDisplayMode(Long userId,
-                                  FavoriteIndicatorSourceType sourceType,
-                                  String indicatorCode,
-                                  FavoriteDisplayMode displayMode) {
-        favoriteIndicatorRepository.updateDisplayMode(userId, sourceType, indicatorCode, displayMode);
-    }
-
-    /**
-     * 컨테이너 (sourceType × displayMode) 내 항목들의 새 순서를 일괄 반영한다.
-     * 알고리즘 (Option B — group-wide dense reassignment):
-     *  1) (user_id, sourceType) 그룹을 PESSIMISTIC_WRITE로 잠그고 priority ASC NULLS LAST + id ASC로 조회
-     *  2) edited(현재 컨테이너 항목)와 others(다른 displayMode 항목)로 분리
-     *  3) 페이로드 indicatorCodes에서 dedup 후 매칭되는 edited 항목을 그 순서로, 매칭 안 된 edited 항목(다른 탭에서 추가됨)은 기존 priority 순으로 뒤에 append
-     *  4) others의 기존 *상대 순서*를 유지하면서 ordered_edited와 인터리브해 group dense 0..N-1 할당
-     *  5) 변경된 행만 bulk update (no-op 단축)
-     *  6) Post-write invariant assertion: 같은 그룹의 priority 목록이 0..N-1 contiguous인지 검증, 위반 시 IllegalStateException
+     * (userId, sourceType) 그룹 내 항목들의 새 순서를 일괄 반영한다.
+     * 표시 모드 폐지(#114)로 컨테이너가 그룹 하나가 되어 인터리브 단계가 사라졌다.
+     *
+     * 알고리즘 (group-wide dense reassignment):
+     *  1) 그룹을 PESSIMISTIC_WRITE 로 잠그고 priority ASC NULLS LAST + id ASC 로 조회
+     *  2) 페이로드 indicatorCodes 를 dedup 해 매칭되는 항목을 그 순서로 배치
+     *  3) 페이로드에 없는 항목(다른 탭에서 추가됨)은 기존 priority 순으로 뒤에 append
+     *  4) dense 0..N-1 할당 후 변경된 행만 bulk update (no-op 단축)
+     *  5) Post-write invariant assertion: priority 가 0..N-1 contiguous 인지 검증
      *
      * R7 정책:
-     *  (a) 페이로드의 cross-container 코드는 silent ignore
-     *  (b) 다른 displayMode 항목의 *상대 순서* 보존 (priority 정수 자체는 dense 재할당 — 코드 주석 참조)
-     *  (c) 다른 탭에서 추가된 항목은 컨테이너 맨 뒤로 부여
-     *  (d) 동시 저장 시 ordering intent는 last-writer-wins
+     *  (a) 페이로드의 다른 sourceType 코드는 silent ignore
+     *  (b) 다른 탭에서 추가된 항목은 맨 뒤로 부여
+     *  (c) 동시 저장 시 ordering intent 는 last-writer-wins
      */
     @Transactional
     public void reorder(Long userId,
                         FavoriteIndicatorSourceType sourceType,
-                        FavoriteDisplayMode displayMode,
                         List<String> indicatorCodes) {
         try {
             List<FavoriteIndicator> rows = favoriteIndicatorRepository.findForReorderUpdate(userId, sourceType);
-            List<FavoriteIndicator> combined = computeNewOrder(rows, displayMode, indicatorCodes);
+            List<FavoriteIndicator> combined = computeNewOrder(rows, indicatorCodes);
             Map<Long, Integer> assignments = denseAssign(combined);
             Map<Long, Integer> diff = filterChanged(rows, assignments);
             if (!diff.isEmpty()) {
                 favoriteIndicatorRepository.bulkUpdatePriority(diff);
             }
             assertGroupInvariant(userId, sourceType, combined.size());
-            log.info("FAVORITE_REORDER_OK userId={} sourceType={} displayMode={} payloadSize={} rowsUpdated={}",
-                userId, sourceType, displayMode, indicatorCodes.size(), diff.size());
+            log.info("FAVORITE_REORDER_OK userId={} sourceType={} payloadSize={} rowsUpdated={}",
+                userId, sourceType, indicatorCodes.size(), diff.size());
         } catch (IllegalStateException e) {
-            log.error("FAVORITE_REORDER_INVARIANT_VIOLATION userId={} sourceType={} displayMode={}",
-                userId, sourceType, displayMode, e);
+            log.error("FAVORITE_REORDER_INVARIANT_VIOLATION userId={} sourceType={}", userId, sourceType, e);
             throw e;
         }
         // DEFERRABLE INITIALLY DEFERRED UNIQUE 제약 위반은 commit 시점에만 검증되므로
         // 본 메서드 내부에서 catch 불가능 — GlobalExceptionHandler.handleDataIntegrityViolation 이
-        // 409 CONFLICT 응답으로 매핑한다(공식 race 시그널). 운영 모니터링은 그 핸들러의
-        // publishError 이벤트로 잡힌다.
+        // 409 CONFLICT 응답으로 매핑한다(공식 race 시그널).
     }
 
     /**
      * 페이로드 + 서버 상태에서 그룹 전체의 새 순서를 산출한다 (순수 함수).
+     * 페이로드에 있는 코드가 앞, 없는 항목은 기존 순서 그대로 뒤에 붙는다.
      */
-    private List<FavoriteIndicator> computeNewOrder(List<FavoriteIndicator> rows,
-                                                   FavoriteDisplayMode mode,
-                                                   List<String> codes) {
-        List<FavoriteIndicator> edited = filterByMode(rows, mode, true);
-        List<FavoriteIndicator> others = filterByMode(rows, mode, false);
-        Map<String, FavoriteIndicator> byCode = indexFirstOccurrenceByCode(edited);
+    private List<FavoriteIndicator> computeNewOrder(List<FavoriteIndicator> rows, List<String> codes) {
+        Map<String, FavoriteIndicator> byCode = indexFirstOccurrenceByCode(rows);
         List<FavoriteIndicator> fromPayload = pickByCodes(codes, byCode);
-        List<FavoriteIndicator> appended = appendMissing(edited, fromPayload);
-        List<FavoriteIndicator> orderedEdited = concat(fromPayload, appended);
-        return interleavePreservingOthersOrder(rows, others, orderedEdited);
+        List<FavoriteIndicator> appended = appendMissing(rows, fromPayload);
+        return concat(fromPayload, appended);
     }
 
-    private List<FavoriteIndicator> filterByMode(List<FavoriteIndicator> rows,
-                                                FavoriteDisplayMode mode,
-                                                boolean equals) {
-        return rows.stream()
-            .filter(r -> equals == (r.getDisplayMode() == mode))
-            .toList();
-    }
-
-    private Map<String, FavoriteIndicator> indexFirstOccurrenceByCode(List<FavoriteIndicator> edited) {
+    private Map<String, FavoriteIndicator> indexFirstOccurrenceByCode(List<FavoriteIndicator> rows) {
         Map<String, FavoriteIndicator> byCode = new HashMap<>();
-        for (FavoriteIndicator e : edited) {
+        for (FavoriteIndicator e : rows) {
             byCode.putIfAbsent(e.getIndicatorCode(), e);
         }
         return byCode;
     }
 
     private List<FavoriteIndicator> pickByCodes(List<String> codes, Map<String, FavoriteIndicator> byCode) {
-        java.util.LinkedHashSet<String> seen = new LinkedHashSet<>();
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
         List<FavoriteIndicator> picked = new ArrayList<>();
         for (String code : codes) {
             if (!seen.add(code)) {
@@ -239,12 +211,12 @@ public class FavoriteIndicatorService {
         return picked;
     }
 
-    private List<FavoriteIndicator> appendMissing(List<FavoriteIndicator> edited,
+    private List<FavoriteIndicator> appendMissing(List<FavoriteIndicator> rows,
                                                  List<FavoriteIndicator> fromPayload) {
         Set<Long> picked = fromPayload.stream()
             .map(FavoriteIndicator::getId)
             .collect(Collectors.toSet());
-        return edited.stream()
+        return rows.stream()
             .filter(e -> !picked.contains(e.getId()))
             .toList();
     }
@@ -254,56 +226,6 @@ public class FavoriteIndicatorService {
         out.addAll(a);
         out.addAll(b);
         return out;
-    }
-
-    /**
-     * others(다른 displayMode 항목)는 기존 등장 순서 그대로, edited는 orderedEdited 순서로,
-     * 두 시퀀스가 원본 rows의 displayMode 패턴을 따라 인터리브된 새 List를 반환한다.
-     * 결과는 group dense 0..N-1로 할당될 수 있다.
-     */
-    private List<FavoriteIndicator> interleavePreservingOthersOrder(List<FavoriteIndicator> rows,
-                                                                    List<FavoriteIndicator> others,
-                                                                    List<FavoriteIndicator> orderedEdited) {
-        List<FavoriteIndicator> result = new ArrayList<>(others.size() + orderedEdited.size());
-        Iterator<FavoriteIndicator> othersIt = others.iterator();
-        Iterator<FavoriteIndicator> editedIt = orderedEdited.iterator();
-        FavoriteDisplayMode editedMode = resolveEditedMode(orderedEdited);
-        fillByPattern(rows, editedMode, othersIt, editedIt, result);
-        drain(editedIt, result);
-        drain(othersIt, result);
-        return result;
-    }
-
-    private FavoriteDisplayMode resolveEditedMode(List<FavoriteIndicator> orderedEdited) {
-        return orderedEdited.isEmpty() ? null : orderedEdited.get(0).getDisplayMode();
-    }
-
-    private void fillByPattern(List<FavoriteIndicator> rows,
-                              FavoriteDisplayMode editedMode,
-                              Iterator<FavoriteIndicator> othersIt,
-                              Iterator<FavoriteIndicator> editedIt,
-                              List<FavoriteIndicator> result) {
-        for (FavoriteIndicator r : rows) {
-            takeNextSlot(r, editedMode, othersIt, editedIt, result);
-        }
-    }
-
-    private void takeNextSlot(FavoriteIndicator r,
-                             FavoriteDisplayMode editedMode,
-                             Iterator<FavoriteIndicator> othersIt,
-                             Iterator<FavoriteIndicator> editedIt,
-                             List<FavoriteIndicator> result) {
-        boolean isEditedSlot = editedMode != null && r.getDisplayMode() == editedMode;
-        Iterator<FavoriteIndicator> source = isEditedSlot ? editedIt : othersIt;
-        if (source.hasNext()) {
-            result.add(source.next());
-        }
-    }
-
-    private void drain(Iterator<FavoriteIndicator> it, List<FavoriteIndicator> result) {
-        while (it.hasNext()) {
-            result.add(it.next());
-        }
     }
 
     private Map<Long, Integer> denseAssign(List<FavoriteIndicator> combined) {
@@ -370,7 +292,7 @@ public class FavoriteIndicatorService {
 
     /**
      * 관심 지표 + Latest 데이터 통합 조회 (대시보드용)
-     * GRAPH 모드 항목들에는 시계열 history 포함.
+     * 모든 항목에 시계열 history 포함 (#114).
      */
     @Transactional(readOnly = true)
     public EnrichedFavorites findEnrichedByUserId(Long userId) {
@@ -548,22 +470,21 @@ public class FavoriteIndicatorService {
     }
 
     /**
-     * GRAPH 모드 ECOS 항목에 한해 시계열을 조회해 history 를 채운 새 리스트 반환.
-     * INDICATOR 모드 항목은 history 비어있는 상태로 통과.
+     * ECOS 항목 전체에 시계열을 붙인다. 표시 모드 폐지(#114)로 모든 카드가 스파크라인을 그리기 때문이다.
+     *
+     * <p>항목당 1회 조회라 관심 지표 수에 비례한다(HISTORY_LIMIT=30 행). 지표별 조회 키가
+     * (statCode, itemCode) 쌍이라 배치 조회는 도메인 리포지토리 변경이 필요해 이번 범위에서는 두었다.
      */
     private List<EnrichedEcosFavorite> attachHistoryToEcos(List<EnrichedEcosFavorite> enriched) {
         if (enriched.isEmpty()) {
             return enriched;
         }
         return enriched.stream()
-            .map(this::attachEcosHistoryIfGraph)
+            .map(this::attachEcosHistory)
             .toList();
     }
 
-    private EnrichedEcosFavorite attachEcosHistoryIfGraph(EnrichedEcosFavorite item) {
-        if (item.favorite().getDisplayMode() != FavoriteDisplayMode.GRAPH) {
-            return item;
-        }
+    private EnrichedEcosFavorite attachEcosHistory(EnrichedEcosFavorite item) {
         String[] parts = item.favorite().getIndicatorCode().split("::", 2);
         if (parts.length != 2 || parts[0].isBlank() || parts[1].isBlank()) {
             return item;
@@ -576,21 +497,18 @@ public class FavoriteIndicatorService {
     }
 
     /**
-     * GRAPH 모드 GLOBAL 항목에 한해 시계열을 조회해 history 를 채운 새 리스트 반환.
+     * GLOBAL 항목 전체에 시계열을 붙인다 (#114 — ECOS 와 동일).
      */
     private List<EnrichedGlobalFavorite> attachHistoryToGlobal(List<EnrichedGlobalFavorite> enriched) {
         if (enriched.isEmpty()) {
             return enriched;
         }
         return enriched.stream()
-            .map(this::attachGlobalHistoryIfGraph)
+            .map(this::attachGlobalHistory)
             .toList();
     }
 
-    private EnrichedGlobalFavorite attachGlobalHistoryIfGraph(EnrichedGlobalFavorite item) {
-        if (item.favorite().getDisplayMode() != FavoriteDisplayMode.GRAPH) {
-            return item;
-        }
+    private EnrichedGlobalFavorite attachGlobalHistory(EnrichedGlobalFavorite item) {
         ParsedGlobalFavorite parsed = ParsedGlobalFavorite.of(item.favorite());
         if (parsed.indicatorType() == null) {
             return item;

@@ -1,6 +1,5 @@
 package com.thlee.stock.market.stockmarket.favorite.domain.repository;
 
-import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteDisplayMode;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicator;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 
@@ -28,11 +27,6 @@ public interface FavoriteIndicatorRepository {
     List<FavoriteIndicator> findByUserId(Long userId);
 
     List<FavoriteIndicator> findByUserIdAndSourceType(Long userId, FavoriteIndicatorSourceType sourceType);
-
-    int updateDisplayMode(Long userId,
-                          FavoriteIndicatorSourceType sourceType,
-                          String indicatorCode,
-                          FavoriteDisplayMode displayMode);
 
     /**
      * 일괄 reorder를 위한 잠금 조회. 호출 트랜잭션 안에서 (user_id, sourceType) 그룹을 PESSIMISTIC_WRITE로 잠근다.

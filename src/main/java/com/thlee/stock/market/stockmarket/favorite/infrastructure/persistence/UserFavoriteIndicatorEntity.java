@@ -1,6 +1,5 @@
 package com.thlee.stock.market.stockmarket.favorite.infrastructure.persistence;
 
-import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteDisplayMode;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -37,14 +36,9 @@ public class UserFavoriteIndicatorEntity {
     @Column(name = "indicator_code", nullable = false, length = 310)
     private String indicatorCode;
 
-    @Enumerated(EnumType.STRING)
-    @Column(
-            name = "display_mode",
-            nullable = false,
-            length = 10,
-            columnDefinition = "VARCHAR(10) NOT NULL DEFAULT 'INDICATOR'"
-    )
-    private FavoriteDisplayMode displayMode;
+    // display_mode 컬럼은 DB 에 남아 있다 (#114 에서 표시 모드 폐지).
+    // NOT NULL DEFAULT 'INDICATOR' 라 매핑을 지워도 INSERT 가 통과하며,
+    // 롤백 여지를 남기려고 컬럼 DROP 은 후속으로 미뤘다.
 
     /**
      * 표시 우선순위. (user_id, source_type) 그룹 내 dense 0..N-1 시퀀스.
@@ -65,14 +59,12 @@ public class UserFavoriteIndicatorEntity {
                                        Long userId,
                                        FavoriteIndicatorSourceType sourceType,
                                        String indicatorCode,
-                                       FavoriteDisplayMode displayMode,
                                        Integer priority,
                                        LocalDateTime createdAt) {
         this.id = id;
         this.userId = userId;
         this.sourceType = sourceType;
         this.indicatorCode = indicatorCode;
-        this.displayMode = displayMode;
         this.priority = priority;
         this.createdAt = createdAt;
     }
@@ -81,9 +73,6 @@ public class UserFavoriteIndicatorEntity {
     protected void onCreate() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
-        }
-        if (displayMode == null) {
-            displayMode = FavoriteDisplayMode.INDICATOR;
         }
     }
 }

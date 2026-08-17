@@ -1,3 +1,52 @@
+/* ===== #114 목업 디자인 토큰 (경제 대시보드 리디자인) =====
+   값은 목업에서 computed style 로 추출한 실측치다. */
+:root {
+    --dc-bg: #eef0f3;          /* 페이지 배경 */
+    --dc-surface: #ffffff;     /* 카드 */
+    --dc-border: rgba(0, 0, 0, .08);
+    --dc-text: #14161a;        /* 본문 */
+    --dc-sub: #33383d;         /* 카드 지표명 */
+    --dc-muted: #8b9299;       /* 보조 텍스트 */
+    --dc-red: #c02a22;         /* 상승 · 투자자산 */
+    --dc-blue: #1f4f9e;        /* 하락 · 안전자산 */
+    --dc-amber: #b5854a;       /* 3번째 비교 계열 · 만기 알림 */
+    --dc-blue-tint: #f4f7fc;   /* 지표 셀 선택 */
+    --dc-nav-active: #eff3fa;  /* 사이드바 활성 (목업은 셀과 다른 톤) */
+    --dc-red-tint: #fdf5f4;
+    --dc-amber-tint: #fbf8f3;
+}
+
+body.app-surface {
+    background-color: var(--dc-bg);
+    color: var(--dc-text);
+    font-family: 'IBM Plex Sans KR', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    letter-spacing: -0.2px;
+}
+
+/* 숫자는 전부 모노. 자릿수가 정렬돼야 지표 비교가 읽힌다 (목업 기준) */
+.font-mono-num,
+.font-mono {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 홈 대시보드 카드 — 목업 실측: radius 10px, border rgba(0,0,0,.08), 그림자 없음 */
+.dc-card {
+    background: var(--dc-surface);
+    border: 1px solid var(--dc-border);
+    border-radius: 10px;
+}
+.dc-title { font-size: 12.5px; font-weight: 600; color: var(--dc-text); }
+.dc-h1 { font-size: 20px; font-weight: 600; color: var(--dc-text); letter-spacing: -0.2px; }
+.dc-meta { font-size: 11.5px; color: var(--dc-muted); }
+/* 지표 셀 — 목업 실측: radius 9px, padding 11px 12px 8px */
+.dc-cell { border-radius: 9px; padding: 11px 12px 8px; border: 1px solid var(--dc-border); }
+.dc-cell-name { font-size: 11px; color: var(--dc-sub); }
+.dc-cell-cat { font-size: 10px; color: var(--dc-muted); }
+.dc-cell-value { font-size: 17px; font-weight: 600; letter-spacing: -0.34px; }
+.dc-cell-foot { font-size: 9.5px; color: var(--dc-muted); }
+
 [x-cloak] {
     display: none !important;
 }
@@ -137,9 +186,6 @@
 /* ===== ECOS Dashboard ===== */
 
 /* Font classes */
-.font-mono-num {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-}
 .font-pretendard {
     font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }

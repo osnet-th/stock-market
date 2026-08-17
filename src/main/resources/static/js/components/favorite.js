@@ -10,10 +10,11 @@ const FavoriteComponent = {
 
     /**
      * 우선순위 편집 모드 상태.
-     * 한 번에 한 컨테이너만 편집 가능. dirty가 true이면 표시 모드 전환·새로고침 시 confirm 다이얼로그.
+     * 한 번에 한 컨테이너(sourceType)만 편집 가능. dirty가 true이면 새로고침 시 confirm 다이얼로그.
+     * 표시 모드 폐지(#114)로 컨테이너 스코프가 sourceType 하나가 됐다.
      */
     favoriteEdit: {
-        active: null,      // null | { sourceType, displayMode, containerId }
+        active: null,      // null | { sourceType, containerId }
         dirty: false,      // 드래그로 변경된 미저장 순서 존재 여부
         snapshotIds: [],   // 편집 진입 시점 카드 indicatorCode 순서 (취소용)
         snapshotKey: null, // snapshot이 어느 컨테이너용인지 검증
@@ -116,53 +117,34 @@ const FavoriteComponent = {
         return countryName + '::' + indicatorType;
     },
 
-    /**
-     * 수평 스크롤
-     */
-    scrollFavorites(direction, containerId) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        container.scrollBy({ left: direction * 320, behavior: 'smooth' });
-    },
-
     // ==================== 우선순위 편집 모드 ====================
-    isEditing(sourceType, displayMode) {
+    isEditing(sourceType) {
         const a = this.favoriteEdit.active;
-        return a !== null && a.sourceType === sourceType && a.displayMode === displayMode;
+        return a !== null && a.sourceType === sourceType;
     },
 
-    canEnterEditMode(sourceType, displayMode) {
+    canEnterEditMode(sourceType) {
         if (this.favoriteEdit.active !== null) return false;
-        const items = this.containerCards(sourceType, displayMode);
-        return items.length >= 2;
+        return this.containerCards(sourceType).length >= 2;
     },
 
-    containerCards(sourceType, displayMode) {
+    /**
+     * 컨테이너 = (sourceType) 버킷 전체. 표시 모드 폐지(#114)로 하위 분기가 사라졌다.
+     * 조회 실패한 글로벌 카드도 자리를 차지하므로 순서 대상에 포함한다.
+     */
+    containerCards(sourceType) {
         const enriched = this.homeSummary?.enrichedFavorites;
         if (!enriched) return [];
         const bucket = sourceType === 'ECOS' ? enriched.ecos : enriched.global;
-        if (!Array.isArray(bucket)) return [];
-        if (sourceType === 'GLOBAL' && displayMode === 'GRAPH') {
-            return bucket.filter(c => c.displayMode === 'GRAPH' && !c.failed);
-        }
-        if (displayMode === 'GRAPH') {
-            return bucket.filter(c => c.displayMode === 'GRAPH');
-        }
-        // GLOBAL+INDICATOR: home.html에서 `c.displayMode !== 'GRAPH' || c.failed`(failed GRAPH 카드 fallback 렌더링)
-        // 패턴을 사용하므로 동일 필터를 적용해 향후 INDICATOR 편집 모드 도입 시 snapshotIds 정합성 유지.
-        if (sourceType === 'GLOBAL') {
-            return bucket.filter(c => c.displayMode !== 'GRAPH' || c.failed);
-        }
-        return bucket.filter(c => c.displayMode !== 'GRAPH');
+        return Array.isArray(bucket) ? bucket : [];
     },
 
-    enterEditMode(sourceType, displayMode, containerId) {
-        if (!this.canEnterEditMode(sourceType, displayMode)) return;
-        this.favoriteEdit.active = { sourceType, displayMode, containerId };
+    enterEditMode(sourceType, containerId) {
+        if (!this.canEnterEditMode(sourceType)) return;
+        this.favoriteEdit.active = { sourceType, containerId };
         this.favoriteEdit.dirty = false;
-        this.favoriteEdit.snapshotIds = this.containerCards(sourceType, displayMode)
-            .map(c => c.indicatorCode);
-        this.favoriteEdit.snapshotKey = sourceType + '::' + displayMode;
+        this.favoriteEdit.snapshotIds = this.containerCards(sourceType).map(c => c.indicatorCode);
+        this.favoriteEdit.snapshotKey = sourceType;
         this.$nextTick(() => this.attachSortable(containerId));
     },
 
@@ -190,7 +172,7 @@ const FavoriteComponent = {
      *  (1) SortableJS가 옮긴 DOM을 즉시 되돌려 Alpine이 reactive array를 source-of-truth로 다시 그리게 한다.
      *  (2) `containerCards` 결과(현재 컨테이너 카드들의 *pre-revert* 순서)에서 oldIndex → newIndex 로 항목을 재배치한 새 컨테이너 순서를 만든다.
      *  (3) bucket 내 컨테이너 카드 위치(절대 인덱스)는 그대로 두고, 그 슬롯들에 새 컨테이너 순서를 차례로 다시 채워 넣는다.
-     *      → 다른 displayMode 항목의 절대 위치는 보존되며, 인덱스 보정이 필요 없는 안전한 슬롯-기반 갱신.
+     *      → 인덱스 보정이 필요 없는 안전한 슬롯-기반 갱신.
      */
     handleSortEnd(evt) {
         if (evt.oldIndex === evt.newIndex) return;
@@ -204,7 +186,7 @@ const FavoriteComponent = {
         const enriched = this.homeSummary?.enrichedFavorites;
         if (!enriched) return;
         const bucket = a.sourceType === 'ECOS' ? enriched.ecos : enriched.global;
-        const items = this.containerCards(a.sourceType, a.displayMode);
+        const items = this.containerCards(a.sourceType);
         if (evt.oldIndex >= items.length || evt.newIndex >= items.length) return;
         // (2) 컨테이너 카드들의 새 순서 계산 — splice on copy.
         const reordered = items.slice();
@@ -221,9 +203,9 @@ const FavoriteComponent = {
         const a = this.favoriteEdit.active;
         if (!a || this.favoriteEdit.saving) return;
         this.favoriteEdit.saving = true;
-        const codes = this.containerCards(a.sourceType, a.displayMode).map(c => c.indicatorCode);
+        const codes = this.containerCards(a.sourceType).map(c => c.indicatorCode);
         try {
-            await API.reorderFavorites(a.sourceType, a.displayMode, codes);
+            await API.reorderFavorites(a.sourceType, codes);
             this.exitEditMode(true);
         } catch (e) {
             console.error('관심지표 순서 저장 실패:', e);
@@ -244,17 +226,17 @@ const FavoriteComponent = {
      * 편집 진입 시점의 컨테이너 카드 순서로 되돌린다.
      *
      * Slot-based 갱신: 컨테이너 카드들이 점유한 bucket 절대 인덱스 슬롯들에 snapshot 순서로 다시 채워 넣는다.
-     * 다른 컨테이너 항목의 절대 위치는 변경하지 않는다 — handleSortEnd와 동일 패턴이라 cancel/save 동작 일관성 확보.
+     * handleSortEnd와 동일 패턴이라 cancel/save 동작 일관성이 확보된다.
      * snapshot에 있던 카드가 그 사이 다른 탭/액션으로 사라졌으면 silent skip(R8 즉시 반영 정책과 정합).
      */
     restoreSnapshot() {
         const a = this.favoriteEdit.active;
         if (!a) return;
-        if (this.favoriteEdit.snapshotKey !== a.sourceType + '::' + a.displayMode) return;
+        if (this.favoriteEdit.snapshotKey !== a.sourceType) return;
         const enriched = this.homeSummary?.enrichedFavorites;
         if (!enriched) return;
         const bucket = a.sourceType === 'ECOS' ? enriched.ecos : enriched.global;
-        const items = this.containerCards(a.sourceType, a.displayMode);
+        const items = this.containerCards(a.sourceType);
         const slots = items.map(card => bucket.indexOf(card)).filter(idx => idx >= 0);
         if (slots.length !== items.length) return;
         const restored = this.favoriteEdit.snapshotIds
@@ -276,21 +258,6 @@ const FavoriteComponent = {
         this.favoriteEdit.dirty = false;
         this.favoriteEdit.snapshotIds = [];
         this.favoriteEdit.snapshotKey = null;
-    },
-
-    /**
-     * R8: 표시 모드 전환은 편집 종료를 트리거한다. dirty이면 confirm.
-     */
-    attemptToggleDisplayMode(card, sourceType) {
-        const a = this.favoriteEdit.active;
-        if (a && this.favoriteEdit.dirty) {
-            const ok = confirm('저장하지 않은 순서 변경이 있어요. 폐기하고 표시 모드를 전환할까요?');
-            if (!ok) return;
-            this.cancelOrder();
-        } else if (a) {
-            this.exitEditMode(false);
-        }
-        return this.toggleDisplayMode(card, sourceType);
     },
 
     /**
@@ -336,122 +303,6 @@ const FavoriteComponent = {
             case 'INVALID_CODE': return '알 수 없는 지표 코드입니다. 관심 지표에서 제거해주세요';
             default: return '실시간 조회 실패. 잠시 후 재조회해주세요';
         }
-    },
-
-    /**
-     * 관심 지표 표시 모드 토글 (INDICATOR ↔ GRAPH).
-     * 토글 후 enriched 재조회로 history 동기화.
-     * GRAPH → INDICATOR 전환 시 차트 인스턴스 정리.
-     */
-    async toggleDisplayMode(card, sourceType) {
-        if (!this.checkLoggedIn()) return;
-        if (!card || card._displayModePending) return;
-        card._displayModePending = true;
-
-        const oldMode = card.displayMode || 'INDICATOR';
-        const newMode = oldMode === 'GRAPH' ? 'INDICATOR' : 'GRAPH';
-
-        try {
-            await API.changeFavoriteDisplayMode(sourceType, card.indicatorCode, newMode);
-
-            if (oldMode === 'GRAPH') {
-                this.destroyFavoriteChart(card.indicatorCode);
-            }
-
-            const fresh = await API.getEnrichedFavorites();
-            if (fresh && this.homeSummary) {
-                this.homeSummary.enrichedFavorites = fresh;
-            }
-        } catch (e) {
-            console.error('표시 모드 변경 실패:', e);
-            alert('표시 모드 변경에 실패했어요. 잠시 후 다시 시도해주세요');
-        } finally {
-            card._displayModePending = false;
-        }
-    },
-
-    /**
-     * 단일 indicatorCode 의 차트 인스턴스를 destroy 하고 캐시에서 제거한다.
-     */
-    destroyFavoriteChart(indicatorCode) {
-        if (!this.favorites._charts) return;
-        const chart = this.favorites._charts[indicatorCode];
-        if (chart) {
-            try { chart.destroy(); } catch (_) { /* noop */ }
-            delete this.favorites._charts[indicatorCode];
-        }
-    },
-
-    /**
-     * 카드 안 canvas 에 시계열 라인 차트 렌더.
-     * 동일 indicatorCode 의 기존 차트는 destroy 후 재생성한다.
-     * 차트 스타일은 ECOS 페이지(국내 경제지표 → 차트 뷰) 와 동일.
-     */
-    renderFavoriteChart(canvasEl, history, indicatorCode, unit) {
-        if (!canvasEl) return;
-        if (!this.favorites._charts) this.favorites._charts = {};
-
-        const prev = this.favorites._charts[indicatorCode];
-        if (prev) {
-            try { prev.destroy(); } catch (_) { /* noop */ }
-            delete this.favorites._charts[indicatorCode];
-        }
-
-        if (!history || history.length === 0) return;
-
-        const labels = history.map(p => p.snapshotDate);
-        const values = history.map(p => {
-            const num = parseFloat(String(p.dataValue || '').replace(/,/g, ''));
-            return Number.isFinite(num) ? num : null;
-        });
-
-        const chart = new Chart(canvasEl, {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    data: values,
-                    borderColor: '#3B82F6',
-                    borderWidth: 1.5,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    tension: 0.3,
-                    fill: false,
-                    spanGaps: false
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        enabled: true,
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: (ctx) => {
-                                const val = ctx.parsed.y;
-                                return val !== null ? `${val} ${unit || ''}`.trim() : '데이터 없음';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        display: true,
-                        ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 8, font: { size: 10 } },
-                        grid: { display: false }
-                    },
-                    y: {
-                        display: true,
-                        ticks: { maxTicksLimit: 5, font: { size: 10 } }
-                    }
-                }
-            }
-        });
-
-        this.favorites._charts[indicatorCode] = chart;
     }
+
 };

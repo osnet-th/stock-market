@@ -143,6 +143,13 @@ const API = {
     },
 
     // News
+    /**
+     * 사용자 활성 키워드 전체를 합친 최신 뉴스 피드 (#114 홈 대시보드).
+     */
+    getKeywordNewsFeed(userId, size = 5) {
+        return this.request('GET', `/api/news/feed?userId=${userId}&size=${size}`);
+    },
+
     getNewsByKeyword(keywordId, page, size) {
         page = page || 0;
         size = size || 20;
@@ -201,15 +208,11 @@ const API = {
         return this.request('POST', `/api/favorites/global/refresh/${indicatorType}`);
     },
 
-    changeFavoriteDisplayMode(sourceType, indicatorCode, displayMode) {
-        return this.request('PUT', '/api/favorites/display-mode', { sourceType, indicatorCode, displayMode });
-    },
-
     /**
-     * 컨테이너 (sourceType × displayMode) 단위 일괄 순서 갱신.
+     * 컨테이너 (sourceType) 단위 일괄 순서 갱신. 표시 모드 폐지(#114).
      */
-    reorderFavorites(sourceType, displayMode, indicatorCodes) {
-        return this.request('PUT', '/api/favorites/order', { sourceType, displayMode, indicatorCodes });
+    reorderFavorites(sourceType, indicatorCodes) {
+        return this.request('PUT', '/api/favorites/order', { sourceType, indicatorCodes });
     },
 
     getRecentUpdates() {

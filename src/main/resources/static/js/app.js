@@ -82,13 +82,13 @@ function dashboard() {
             // ==================== Partial 부트스트랩 ====================
             // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
             // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
-            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'portfolio', 'portfolio-holdings', 'portfolio-sales', 'portfolio-targets', 'portfolio-analysis', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate', 'stock-eval', 'company-report'];
+            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'home-indicators', 'home-side', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'portfolio', 'portfolio-holdings', 'portfolio-sales', 'portfolio-targets', 'portfolio-analysis', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate', 'stock-eval', 'company-report'];
             const cleanupRegistry = {
                 // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
-                // home: dashboardSummary 차트 + favorite 위젯 차트를 정리해 중복 인스턴스 방지.
-                home: (dash) => {
-                    if (typeof dash.destroyDashboardSummaryChart === 'function') {
-                        try { dash.destroyDashboardSummaryChart(); } catch (e) { /* ignore */ }
+                // home-indicators: 비교 보기 차트 destroy (#114). 리마운트 시 stale 인스턴스 방지
+                'home-indicators': (dash) => {
+                    if (typeof dash.destroyHomeCompareChart === 'function') {
+                        try { dash.destroyHomeCompareChart(); } catch (e) { /* ignore */ }
                     }
                 },
                 // ecos: _chartInstances Map 안의 차트 destroy. initEcosCharts 가 navigateTo 재 dispatch 시 새로 정의.
@@ -235,9 +235,9 @@ function dashboard() {
                 this.destroySalaryCharts();
             }
 
-            // home 떠날 때 대시보드 요약 차트 정리
+            // home 떠날 때 비교 보기 차트 정리 (#114 — 월급 도넛은 스택 바로 대체돼 사라졌다)
             if (this.currentPage === 'home' && page !== 'home') {
-                this.destroyDashboardSummaryChart();
+                this.destroyHomeCompareChart();
             }
 
             // 기업 리포트에서 떠날 때 Chart.js 인스턴스 정리

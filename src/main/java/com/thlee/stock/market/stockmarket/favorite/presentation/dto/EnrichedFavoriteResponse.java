@@ -8,7 +8,6 @@ import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicator
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedFavorites;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedGlobalFavorite;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.HistoryPoint;
-import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteDisplayMode;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -38,12 +37,9 @@ public record EnrichedFavoriteResponse(
         String previousDataValue,
         String cycle,
         boolean hasData,
-        String displayMode,
         List<EnrichedHistoryPoint> history
     ) {
         public static EcosItem from(EnrichedEcosFavorite enriched) {
-            FavoriteDisplayMode mode = enriched.favorite().getDisplayMode();
-            String displayMode = (mode != null ? mode : FavoriteDisplayMode.INDICATOR).name();
             List<EnrichedHistoryPoint> history = toHistoryPoints(enriched.history());
 
             EcosIndicatorLatest latest = enriched.latest();
@@ -54,7 +50,7 @@ public record EnrichedFavoriteResponse(
                     parts.length > 0 ? parts[0] : "",
                     parts.length > 1 ? parts[1] : "",
                     null, null, null, false,
-                    displayMode, history
+                    history
                 );
             }
             return new EcosItem(
@@ -65,7 +61,7 @@ public record EnrichedFavoriteResponse(
                 latest.getPreviousDataValue(),
                 latest.getCycle(),
                 true,
-                displayMode, history
+                history
             );
         }
     }
@@ -83,7 +79,6 @@ public record EnrichedFavoriteResponse(
         boolean failed,
         String failureReason,
         boolean refreshable,
-        String displayMode,
         List<EnrichedHistoryPoint> history
     ) {
         public static GlobalItem from(EnrichedGlobalFavorite enriched) {
@@ -91,8 +86,6 @@ public record EnrichedFavoriteResponse(
             String parsedCountry = parts.length > 0 ? parts[0] : "";
             String parsedType = parts.length > 1 ? parts[1] : "";
             String parsedDisplayName = resolveDisplayName(parsedType);
-            FavoriteDisplayMode mode = enriched.favorite().getDisplayMode();
-            String displayMode = (mode != null ? mode : FavoriteDisplayMode.INDICATOR).name();
             List<EnrichedHistoryPoint> history = toHistoryPoints(enriched.history());
 
             if (enriched.isFailed()) {
@@ -101,7 +94,7 @@ public record EnrichedFavoriteResponse(
                     parsedCountry, parsedType, parsedDisplayName,
                     null, null, null, null,
                     false, true, enriched.failureReason(), enriched.refreshable(),
-                    displayMode, history
+                    history
                 );
             }
 
@@ -112,7 +105,7 @@ public record EnrichedFavoriteResponse(
                     parsedCountry, parsedType, parsedDisplayName,
                     null, null, null, null,
                     false, false, null, true,
-                    displayMode, history
+                    history
                 );
             }
 
@@ -129,7 +122,7 @@ public record EnrichedFavoriteResponse(
                 last != null ? last.getUnit() : null,
                 last != null,
                 false, null, true,
-                displayMode, history
+                history
             );
         }
 

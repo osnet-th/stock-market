@@ -1,6 +1,5 @@
 package com.thlee.stock.market.stockmarket.favorite.infrastructure.persistence;
 
-import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteDisplayMode;
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -52,15 +51,6 @@ public interface UserFavoriteIndicatorJpaRepository
     int deleteByUserIdAndSourceTypeAndIndicatorCode(@Param("userId") Long userId,
                                                      @Param("sourceType") FavoriteIndicatorSourceType sourceType,
                                                      @Param("indicatorCode") String indicatorCode);
-
-    @Modifying
-    @Query("UPDATE UserFavoriteIndicatorEntity e " +
-           "SET e.displayMode = :displayMode " +
-           "WHERE e.userId = :userId AND e.sourceType = :sourceType AND e.indicatorCode = :indicatorCode")
-    int updateDisplayMode(@Param("userId") Long userId,
-                          @Param("sourceType") FavoriteIndicatorSourceType sourceType,
-                          @Param("indicatorCode") String indicatorCode,
-                          @Param("displayMode") FavoriteDisplayMode displayMode);
 
     /**
      * 신규 관심지표를 단일 SQL로 INSERT — priority는 동일 (user_id, source_type) 그룹의 MAX(priority)+1로 산출.

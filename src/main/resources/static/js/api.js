@@ -717,6 +717,10 @@ const API = {
     getNewsEventCategories() {
         return this.request('GET', '/api/news-journal/categories');
     },
+    /** 화면 통계 — 임팩트/분류별 건수 + 사건별 키워드 목록 (칩·추천 패널·관계도 원자료). */
+    getNewsJournalStats() {
+        return this.request('GET', '/api/news-journal/stats');
+    },
 
     // ========== Real Estate Market (부동산 시장 데이터) ==========
     getRealEstateRegions() {

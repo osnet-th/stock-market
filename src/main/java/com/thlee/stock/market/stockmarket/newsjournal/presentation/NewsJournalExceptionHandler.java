@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  * {@code @Valid} 검증 실패는 추가로 {@code fieldErrors} 를 포함한다.
  */
 @Slf4j
-@RestControllerAdvice(assignableTypes = NewsJournalController.class)
+@RestControllerAdvice(assignableTypes = {NewsJournalController.class, NewsJournalStatsController.class})
 public class NewsJournalExceptionHandler {
 
     @ExceptionHandler(NewsEventNotFoundException.class)

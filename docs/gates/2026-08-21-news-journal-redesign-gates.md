@@ -77,9 +77,10 @@ harness(`check-documented-workflow.sh`) 형식 요건에 맞춰 마커만 표준
 - 패키지 구조/레이어 책임 변경 **없음** — newsjournal 컨텍스트 내 기존 레이어에 파일 추가만
 
 ## 잔여 처리 항목
-- GitHub Issue 수동 등록 (자격 증명 복구 후) — 제안 제목은 issue 문서 참조
+- ~~GitHub Issue 수동 등록~~ → **완료**: 세션 GitHub 연결 복구 후 사후 등록
+  (2026-08-21, https://github.com/osnet-th/stock-market/issues/117)
 - main 병합 여부 — 태형님 검토 후 결정 (본 세션은 지정 브랜치 푸시까지)
-- 서버 실행 검증(실서버 + 로그인) — 원격 컨테이너에 DB/OAuth 미구성으로 목 하네스까지만 실측
+- 병합 시 Issue #117 종료 처리 (#110/#114 는 병합 후에도 열린 상태였음 — 관례 확인 필요)
 
 ## Notes
 - 목업 색 토큰: RED `#c02a22` · BLUE `#1f4f9e` · GREEN `#2e8b62` · AMBER `#b5854a` —

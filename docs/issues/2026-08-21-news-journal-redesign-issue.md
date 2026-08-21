@@ -3,12 +3,13 @@
 gate: docs/gates/2026-08-21-news-journal-redesign-gates.md
 
 ## GitHub Issue
-- status: bootstrap-exception
-- 사유: 원격 세션의 GitHub MCP 자격 증명 오류(Bad credentials)로 등록 실패 (2회 시도).
-  코드 푸시는 세션 git 프록시로 정상 동작하므로 구현은 진행.
-- 후속: 태형님 확인 후 수동 등록 또는 자격 복구 후 등록. 제안 제목:
-  `[enhancement] 뉴스 기록 마스터-디테일 리디자인 — 통합 검색·키워드 필터·인라인 편집·초안 보관·키워드 관계도`
+- status: created
+- issue_number: 117
+- issue_url: https://github.com/osnet-th/stock-market/issues/117
+- title: [enhancement] 뉴스 기록 마스터-디테일 리디자인 — 통합 검색·키워드 필터·인라인 편집·초안 보관·키워드 관계도
 - label: enhancement
+- 경위: 최초 시도 시 GitHub MCP 자격 증명 오류(Bad credentials, 2회)로 실패해 구현이 선행됨.
+  세션 GitHub 연결 복구 후 **사후 등록** (2026-08-21, push 이후).
 
 ## 근거
 - brainstorm: docs/brainstorms/2026-08-21-news-journal-redesign-brainstorm.md (Status: Decided)

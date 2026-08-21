@@ -85,3 +85,4 @@ harness(`check-documented-workflow.sh`) 형식 요건에 맞춰 마커만 표준
 - 목업 색 토큰: RED `#c02a22` · BLUE `#1f4f9e` · GREEN `#2e8b62` · AMBER `#b5854a` —
   #110/#114 와 동일 계열, `custom.css` 의 `--dc-*` 토큰 재사용
 - 목업 '약재' 표기는 오타로 판단해 '악재' 유지 (EventImpact.BAD)
+  — **태형님 확인 완료 (2026-08-21, "오타야")**. 구현은 이미 '악재'라 코드 변경 없음

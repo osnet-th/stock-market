@@ -1,14 +1,20 @@
 package com.thlee.stock.market.stockmarket.salary.application;
 
+import com.thlee.stock.market.stockmarket.salary.application.dto.CategoryAmountResponse;
 import com.thlee.stock.market.stockmarket.salary.application.dto.MonthlySalaryResponse;
+import com.thlee.stock.market.stockmarket.salary.application.dto.PreviousMonthResponse;
 import com.thlee.stock.market.stockmarket.salary.application.dto.SalaryTrendResponse;
 import com.thlee.stock.market.stockmarket.salary.application.dto.SpendingLineResponse;
 import com.thlee.stock.market.stockmarket.salary.application.dto.UpsertResultResponse;
 import com.thlee.stock.market.stockmarket.salary.domain.model.MonthlyIncome;
 import com.thlee.stock.market.stockmarket.salary.domain.model.SpendingConfig;
+import com.thlee.stock.market.stockmarket.salary.domain.model.SpendingItem;
+import com.thlee.stock.market.stockmarket.salary.domain.model.SpendingItemSet;
 import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
+import com.thlee.stock.market.stockmarket.salary.application.dto.SaveMonthlyCommand;
 import com.thlee.stock.market.stockmarket.salary.domain.repository.MonthlyIncomeRepository;
 import com.thlee.stock.market.stockmarket.salary.domain.repository.SpendingConfigRepository;
+import com.thlee.stock.market.stockmarket.salary.domain.repository.SpendingItemSetRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -46,25 +52,52 @@ public class SalaryService {
 
     private final MonthlyIncomeRepository monthlyIncomeRepository;
     private final SpendingConfigRepository spendingConfigRepository;
+    private final SpendingItemSetRepository spendingItemSetRepository;
 
     // =========================================================================
     // 조회 (readOnly)
     // =========================================================================
 
-    /** 특정 월의 월급 사용 현황 (상속 적용). */
+    /** 특정 월의 월급 사용 현황 (상속 적용) + 전월 요약. */
     @Transactional(readOnly = true)
     public MonthlySalaryResponse getMonthly(Long userId, YearMonth yearMonth) {
         Optional<MonthlyIncome> incomeOpt = monthlyIncomeRepository.findEffectiveAsOf(userId, yearMonth);
-        List<SpendingConfig> configs = spendingConfigRepository.findEffectiveAsOf(userId, yearMonth);
+        SpendingItemSet itemSet = spendingItemSetRepository.findEffectiveAsOf(userId, yearMonth).orElse(null);
+        List<SpendingLineResponse> lines = buildLines(userId, yearMonth, itemSet);
+        return MonthlySalaryResponse.from(yearMonth, incomeOpt.orElse(null), lines,
+                itemsInheritedFrom(itemSet, yearMonth), buildPreviousSummary(userId, yearMonth.minusMonths(1)));
+    }
 
-        Map<SpendingCategory, SpendingConfig> byCategory = configs.stream()
-                .collect(Collectors.toMap(SpendingConfig::getCategory, Function.identity()));
-
-        List<SpendingLineResponse> lines = ALL_CATEGORIES.stream()
-                .map(cat -> SpendingLineResponse.from(cat, byCategory.get(cat), yearMonth))
+    private List<SpendingLineResponse> buildLines(Long userId, YearMonth yearMonth, SpendingItemSet itemSet) {
+        Map<SpendingCategory, SpendingConfig> byCategory = effectiveConfigsByCategory(userId, yearMonth);
+        return ALL_CATEGORIES.stream()
+                .map(cat -> SpendingLineResponse.from(cat, byCategory.get(cat), itemsOf(itemSet, cat), yearMonth))
                 .collect(Collectors.toList());
+    }
 
-        return MonthlySalaryResponse.from(yearMonth, incomeOpt.orElse(null), lines);
+    private Map<SpendingCategory, SpendingConfig> effectiveConfigsByCategory(Long userId, YearMonth yearMonth) {
+        return spendingConfigRepository.findEffectiveAsOf(userId, yearMonth).stream()
+                .collect(Collectors.toMap(SpendingConfig::getCategory, Function.identity()));
+    }
+
+    private static List<SpendingItem> itemsOf(SpendingItemSet itemSet, SpendingCategory category) {
+        return itemSet == null ? List.of() : itemSet.itemsOf(category);
+    }
+
+    private static YearMonth itemsInheritedFrom(SpendingItemSet itemSet, YearMonth targetMonth) {
+        if (itemSet == null || itemSet.getEffectiveFromMonth().equals(targetMonth)) {
+            return null;
+        }
+        return itemSet.getEffectiveFromMonth();
+    }
+
+    private PreviousMonthResponse buildPreviousSummary(Long userId, YearMonth prevMonth) {
+        Optional<MonthlyIncome> income = monthlyIncomeRepository.findEffectiveAsOf(userId, prevMonth);
+        List<SpendingConfig> configs = spendingConfigRepository.findEffectiveAsOf(userId, prevMonth);
+        if (income.isEmpty() && configs.isEmpty()) {
+            return null;
+        }
+        return PreviousMonthResponse.from(prevMonth, income.orElse(null), configs);
     }
 
     /** 변경 레코드가 존재하는 월 목록 (최신 우선). */
@@ -111,26 +144,48 @@ public class SalaryService {
         List<SalaryTrendResponse.TrendPoint> points = new ArrayList<>();
         YearMonth cursor = rangeStart;
         while (!cursor.isAfter(today)) {
-            MonthlyIncome income = latestIncomeAsOf(allIncomes, cursor);
-            BigDecimal incomeAmount = income != null ? income.getAmount() : null;
-
-            BigDecimal totalSpending = BigDecimal.ZERO;
-            BigDecimal savingsAmount = BigDecimal.ZERO;
-            for (SpendingCategory cat : SpendingCategory.values()) {
-                SpendingConfig effective = latestConfigAsOf(byCategory.get(cat), cursor);
-                if (effective == null) continue;
-                totalSpending = totalSpending.add(effective.getAmount());
-                if (cat == SpendingCategory.SAVINGS_INVESTMENT) {
-                    savingsAmount = effective.getAmount();
-                }
-            }
-
-            BigDecimal savingsRatio = income != null ? income.calculateSavingsRatio(savingsAmount) : null;
-            points.add(new SalaryTrendResponse.TrendPoint(cursor, incomeAmount, totalSpending, savingsRatio));
+            points.add(buildTrendPoint(cursor, allIncomes, byCategory));
             cursor = cursor.plusMonths(1);
         }
 
         return SalaryTrendResponse.of(points);
+    }
+
+    private SalaryTrendResponse.TrendPoint buildTrendPoint(YearMonth cursor, List<MonthlyIncome> allIncomes,
+                                                           Map<SpendingCategory, List<SpendingConfig>> byCategory) {
+        MonthlyIncome income = latestIncomeAsOf(allIncomes, cursor);
+        List<CategoryAmountResponse> categoryTotals = effectiveCategoryTotals(byCategory, cursor);
+        BigDecimal totalSpending = sumAmounts(categoryTotals);
+        BigDecimal savingsRatio = income == null
+                ? null
+                : income.calculateSavingsRatio(amountOf(categoryTotals, SpendingCategory.SAVINGS_INVESTMENT));
+        return new SalaryTrendResponse.TrendPoint(cursor, income != null ? income.getAmount() : null,
+                totalSpending, savingsRatio, categoryTotals);
+    }
+
+    /** 각 카테고리의 해당 월 유효 금액. 8개 카테고리 모두 포함(레코드 없으면 0). */
+    private List<CategoryAmountResponse> effectiveCategoryTotals(
+            Map<SpendingCategory, List<SpendingConfig>> byCategory, YearMonth cursor) {
+        List<CategoryAmountResponse> totals = new ArrayList<>();
+        for (SpendingCategory cat : SpendingCategory.values()) {
+            SpendingConfig effective = latestConfigAsOf(byCategory.get(cat), cursor);
+            totals.add(new CategoryAmountResponse(cat, effective != null ? effective.getAmount() : BigDecimal.ZERO));
+        }
+        return totals;
+    }
+
+    private static BigDecimal sumAmounts(List<CategoryAmountResponse> totals) {
+        return totals.stream()
+                .map(CategoryAmountResponse::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal amountOf(List<CategoryAmountResponse> totals, SpendingCategory category) {
+        return totals.stream()
+                .filter(t -> t.getCategory() == category)
+                .map(CategoryAmountResponse::getAmount)
+                .findFirst()
+                .orElse(BigDecimal.ZERO);
     }
 
     // =========================================================================
@@ -189,11 +244,113 @@ public class SalaryService {
             return UpsertResultResponse.noop(inherited.get().getEffectiveFromMonth());
         }
 
-        SpendingConfig created = SpendingConfig.create(userId, category, yearMonth, referenceMonth, amount, memo);
+        BigDecimal inheritedBudget = inherited.map(SpendingConfig::getBudget).orElse(null);
+        SpendingConfig created = SpendingConfig.create(userId, category, yearMonth, referenceMonth,
+                amount, memo, inheritedBudget);
         spendingConfigRepository.save(created);
         log.info("upsertSpending created: userId={}, category={}, yearMonth={}, amount={}",
                 userId, category, yearMonth, amount);
         return UpsertResultResponse.created();
+    }
+
+    /**
+     * 해당 월 일괄 저장 — 월급 + 카테고리(금액·예산) + 하위 항목 세트를 한 트랜잭션으로 upsert.
+     * 개별 upsert와 동일한 NOOP 의미론(상속값과 동일하면 레코드 미생성)을 유지한다.
+     * 항목이 있는 카테고리의 금액은 항목 합계 파생값으로 저장된다.
+     */
+    @Transactional
+    public MonthlySalaryResponse saveMonthly(Long userId, YearMonth yearMonth, SaveMonthlyCommand command) {
+        if (command.getIncome() != null) {
+            upsertIncome(userId, yearMonth, command.getIncome());
+        }
+        upsertCategoryConfigs(userId, yearMonth, command.getCategories());
+        upsertItemSet(userId, yearMonth, command.getCategories());
+        return getMonthly(userId, yearMonth);
+    }
+
+    private void upsertCategoryConfigs(Long userId, YearMonth yearMonth,
+                                       List<SaveMonthlyCommand.CategoryCommand> categories) {
+        Map<SpendingCategory, SpendingConfig> effective = effectiveConfigsByCategory(userId, yearMonth);
+        categories.forEach(c -> upsertCategoryConfig(userId, yearMonth, c, effective.get(c.getCategory())));
+    }
+
+    private void upsertCategoryConfig(Long userId, YearMonth yearMonth,
+                                      SaveMonthlyCommand.CategoryCommand payload, SpendingConfig effective) {
+        Optional<SpendingConfig> direct = spendingConfigRepository
+                .findByUserIdAndCategoryAndEffectiveFromMonth(userId, payload.getCategory(), yearMonth);
+        if (direct.isPresent()) {
+            updateConfigIfChanged(direct.get(), payload.resolvedAmount(), payload.getBudget());
+            return;
+        }
+        createConfigIfChanged(userId, yearMonth, payload, effective);
+    }
+
+    private void updateConfigIfChanged(SpendingConfig config, BigDecimal amount, BigDecimal budget) {
+        if (config.isSameAmountAndBudgetAs(amount, budget)) {
+            return;
+        }
+        config.updateAmountAndBudget(amount, budget);
+        spendingConfigRepository.save(config);
+    }
+
+    /** 상속값과 다를 때만 새 레코드 생성. 상속 메모는 이어받아 보존한다. */
+    private void createConfigIfChanged(Long userId, YearMonth yearMonth,
+                                       SaveMonthlyCommand.CategoryCommand payload, SpendingConfig inherited) {
+        BigDecimal amount = payload.resolvedAmount();
+        if (inherited != null && inherited.isSameAmountAndBudgetAs(amount, payload.getBudget())) {
+            return;
+        }
+        if (inherited == null && isBlankConfig(amount, payload.getBudget())) {
+            return;
+        }
+        String memo = inherited != null ? inherited.getMemo() : null;
+        spendingConfigRepository.save(SpendingConfig.create(userId, payload.getCategory(), yearMonth,
+                YearMonth.now(), amount, memo, payload.getBudget()));
+    }
+
+    private static boolean isBlankConfig(BigDecimal amount, BigDecimal budget) {
+        return amount.signum() == 0 && (budget == null || budget.signum() == 0);
+    }
+
+    private void upsertItemSet(Long userId, YearMonth yearMonth,
+                               List<SaveMonthlyCommand.CategoryCommand> categories) {
+        List<SpendingItem> newItems = toSpendingItems(categories);
+        Optional<SpendingItemSet> direct = spendingItemSetRepository
+                .findByUserIdAndEffectiveFromMonth(userId, yearMonth);
+        if (direct.isPresent()) {
+            replaceItemsIfChanged(direct.get(), newItems);
+            return;
+        }
+        createItemSetIfChanged(userId, yearMonth, newItems);
+    }
+
+    private void replaceItemsIfChanged(SpendingItemSet itemSet, List<SpendingItem> newItems) {
+        if (itemSet.hasSameItemsAs(newItems)) {
+            return;
+        }
+        itemSet.replaceItems(newItems);
+        spendingItemSetRepository.save(itemSet);
+    }
+
+    private void createItemSetIfChanged(Long userId, YearMonth yearMonth, List<SpendingItem> newItems) {
+        Optional<SpendingItemSet> effective = spendingItemSetRepository.findEffectiveAsOf(userId, yearMonth);
+        if (effective.isPresent() && effective.get().hasSameItemsAs(newItems)) {
+            return;
+        }
+        if (effective.isEmpty() && newItems.isEmpty()) {
+            return;
+        }
+        spendingItemSetRepository.save(SpendingItemSet.create(userId, yearMonth, YearMonth.now(), newItems));
+    }
+
+    /** 요청 순서를 유지한 채 전 카테고리 항목을 하나의 세트 스냅샷으로 펼친다. */
+    private static List<SpendingItem> toSpendingItems(List<SaveMonthlyCommand.CategoryCommand> categories) {
+        List<SpendingItem> items = new ArrayList<>();
+        for (SaveMonthlyCommand.CategoryCommand c : categories) {
+            c.getItems().forEach(i -> items.add(
+                    SpendingItem.create(c.getCategory(), i.getName(), i.getAmount(), i.isFixed(), items.size())));
+        }
+        return items;
     }
 
     @Transactional

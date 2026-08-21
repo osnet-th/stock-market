@@ -62,6 +62,10 @@ public class SpendingConfigEntity {
     @Column(name = "memo", length = 200)
     private String memo;
 
+    /** 카테고리 월 예산 (nullable — 미설정). KRW whole-number */
+    @Column(name = "budget", precision = 15, scale = 0)
+    private BigDecimal budget;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -73,13 +77,14 @@ public class SpendingConfigEntity {
 
     public SpendingConfigEntity(Long id, Long userId, SpendingCategory category,
                                 LocalDate effectiveFromMonth, BigDecimal amount, String memo,
-                                LocalDateTime createdAt, LocalDateTime updatedAt) {
+                                BigDecimal budget, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.category = category;
         this.effectiveFromMonth = effectiveFromMonth;
         this.amount = amount;
         this.memo = memo;
+        this.budget = budget;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }

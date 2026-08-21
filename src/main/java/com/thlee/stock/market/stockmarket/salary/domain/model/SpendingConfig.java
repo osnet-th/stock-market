@@ -20,19 +20,24 @@ public class SpendingConfig {
     private YearMonth effectiveFromMonth;
     private BigDecimal amount;
     private String memo;
+
+    /** 카테고리 월 예산. null이면 예산 미설정 (0과 동일하게 "예산 없음"으로 취급). */
+    private BigDecimal budget;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     /** 재구성용 생성자 (Repository 조회 시) */
     public SpendingConfig(Long id, Long userId, SpendingCategory category,
                           YearMonth effectiveFromMonth, BigDecimal amount, String memo,
-                          LocalDateTime createdAt, LocalDateTime updatedAt) {
+                          BigDecimal budget, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.category = category;
         this.effectiveFromMonth = effectiveFromMonth;
         this.amount = amount;
         this.memo = memo;
+        this.budget = budget;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -44,14 +49,15 @@ public class SpendingConfig {
      */
     public static SpendingConfig create(Long userId, SpendingCategory category,
                                         YearMonth effectiveFromMonth, YearMonth referenceMonth,
-                                        BigDecimal amount, String memo) {
+                                        BigDecimal amount, String memo, BigDecimal budget) {
         validateUserId(userId);
         validateCategory(category);
         validateAmount(amount);
+        validateBudget(budget);
         requireNotFuture(effectiveFromMonth, referenceMonth);
         LocalDateTime now = LocalDateTime.now();
         return new SpendingConfig(null, userId, category, effectiveFromMonth, amount,
-                                  normalizeMemo(memo), now, now);
+                                  normalizeMemo(memo), budget, now, now);
     }
 
     /** 금액 및 메모 수정 */
@@ -62,12 +68,33 @@ public class SpendingConfig {
         this.updatedAt = LocalDateTime.now();
     }
 
+    /** 금액 및 예산 수정 (일괄 저장 경로 — 메모는 보존) */
+    public void updateAmountAndBudget(BigDecimal amount, BigDecimal budget) {
+        validateAmount(amount);
+        validateBudget(budget);
+        this.amount = amount;
+        this.budget = budget;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     /** upsert noop 판정 — 금액과 메모가 모두 같아야 동일로 취급 */
     public boolean isSameAs(BigDecimal otherAmount, String otherMemo) {
         if (otherAmount == null || this.amount.compareTo(otherAmount) != 0) {
             return false;
         }
         return Objects.equals(this.memo, normalizeMemo(otherMemo));
+    }
+
+    /** 일괄 저장 noop 판정 — 금액과 예산이 모두 같아야 동일로 취급 (null 예산은 0과 동일) */
+    public boolean isSameAmountAndBudgetAs(BigDecimal otherAmount, BigDecimal otherBudget) {
+        if (otherAmount == null || this.amount.compareTo(otherAmount) != 0) {
+            return false;
+        }
+        return normalizeBudget(this.budget).compareTo(normalizeBudget(otherBudget)) == 0;
+    }
+
+    private static BigDecimal normalizeBudget(BigDecimal budget) {
+        return budget == null ? BigDecimal.ZERO : budget;
     }
 
     private static String normalizeMemo(String memo) {
@@ -93,6 +120,12 @@ public class SpendingConfig {
     private static void validateAmount(BigDecimal amount) {
         if (amount == null || amount.signum() < 0) {
             throw new IllegalArgumentException("지출 금액은 0 이상이어야 합니다.");
+        }
+    }
+
+    private static void validateBudget(BigDecimal budget) {
+        if (budget != null && budget.signum() < 0) {
+            throw new IllegalArgumentException("예산은 0 이상이어야 합니다.");
         }
     }
 

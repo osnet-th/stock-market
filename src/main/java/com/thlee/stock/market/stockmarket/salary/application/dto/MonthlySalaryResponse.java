@@ -36,9 +36,16 @@ public class MonthlySalaryResponse {
     /** 온보딩 화면 판정용. 월급 또는 지출이 하나라도 있으면 true. */
     private final boolean hasAnyData;
 
+    /** 하위 항목 세트가 상속값이면 출처 월, 해당 월 직접 저장이면 null. */
+    private final YearMonth itemsInheritedFromMonth;
+
+    /** 전월 유효값 요약 (전월 기록이 전혀 없으면 null). */
+    private final PreviousMonthResponse previous;
+
     private MonthlySalaryResponse(YearMonth yearMonth, BigDecimal income, YearMonth incomeInheritedFromMonth,
                                   List<SpendingLineResponse> spendings, BigDecimal totalSpending,
-                                  BigDecimal remaining, BigDecimal savingsRatio, boolean hasAnyData) {
+                                  BigDecimal remaining, BigDecimal savingsRatio, boolean hasAnyData,
+                                  YearMonth itemsInheritedFromMonth, PreviousMonthResponse previous) {
         this.yearMonth = yearMonth;
         this.income = income;
         this.incomeInheritedFromMonth = incomeInheritedFromMonth;
@@ -47,11 +54,15 @@ public class MonthlySalaryResponse {
         this.remaining = remaining;
         this.savingsRatio = savingsRatio;
         this.hasAnyData = hasAnyData;
+        this.itemsInheritedFromMonth = itemsInheritedFromMonth;
+        this.previous = previous;
     }
 
     public static MonthlySalaryResponse from(YearMonth yearMonth,
                                              MonthlyIncome income,
-                                             List<SpendingLineResponse> spendings) {
+                                             List<SpendingLineResponse> spendings,
+                                             YearMonth itemsInheritedFromMonth,
+                                             PreviousMonthResponse previous) {
         BigDecimal totalSpending = spendings.stream()
                 .map(SpendingLineResponse::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -80,6 +91,6 @@ public class MonthlySalaryResponse {
                 || spendings.stream().anyMatch(s -> s.getAmount().signum() > 0);
 
         return new MonthlySalaryResponse(yearMonth, incomeAmount, incomeInherited, spendings,
-                totalSpending, remaining, savingsRatio, hasAnyData);
+                totalSpending, remaining, savingsRatio, hasAnyData, itemsInheritedFromMonth, previous);
     }
 }

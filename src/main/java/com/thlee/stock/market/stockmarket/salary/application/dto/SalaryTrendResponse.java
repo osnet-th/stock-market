@@ -40,12 +40,16 @@ public class SalaryTrendResponse {
         /** 저축율 scale=4. income이 null이거나 0이면 null. */
         private final BigDecimal savingsRatio;
 
+        /** 카테고리별 유효 금액 — 추이 `구성` 모드용. 8개 카테고리 모두 포함(없으면 0). */
+        private final List<CategoryAmountResponse> categoryTotals;
+
         public TrendPoint(YearMonth yearMonth, BigDecimal income, BigDecimal totalSpending,
-                          BigDecimal savingsRatio) {
+                          BigDecimal savingsRatio, List<CategoryAmountResponse> categoryTotals) {
             this.yearMonth = yearMonth;
             this.income = income;
             this.totalSpending = totalSpending;
             this.savingsRatio = savingsRatio;
+            this.categoryTotals = categoryTotals;
         }
     }
 }

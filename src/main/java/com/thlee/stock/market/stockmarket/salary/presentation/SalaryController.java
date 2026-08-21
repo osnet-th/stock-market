@@ -5,6 +5,7 @@ import com.thlee.stock.market.stockmarket.salary.application.dto.MonthlySalaryRe
 import com.thlee.stock.market.stockmarket.salary.application.dto.SalaryTrendResponse;
 import com.thlee.stock.market.stockmarket.salary.application.dto.UpsertResultResponse;
 import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
+import com.thlee.stock.market.stockmarket.salary.presentation.dto.SaveMonthlyRequest;
 import com.thlee.stock.market.stockmarket.salary.presentation.dto.UpsertIncomeRequest;
 import com.thlee.stock.market.stockmarket.salary.presentation.dto.UpsertSpendingRequest;
 import jakarta.validation.Valid;
@@ -57,6 +58,18 @@ public class SalaryController {
     @GetMapping("/months")
     public ResponseEntity<List<YearMonth>> getAvailableMonths(@RequestParam Long userId) {
         return ResponseEntity.ok(salaryService.getAvailableMonths(userId));
+    }
+
+    /**
+     * 해당 월 일괄 저장 — 월급 + 카테고리(금액·예산) + 하위 항목 세트.
+     * 상속값과 동일한 부분은 레코드를 만들지 않는다(NOOP). 갱신된 월별 뷰를 반환한다.
+     */
+    @PutMapping("/monthly/{yearMonth}")
+    public ResponseEntity<MonthlySalaryResponse> saveMonthly(
+            @RequestParam Long userId,
+            @PathVariable YearMonth yearMonth,
+            @Valid @RequestBody SaveMonthlyRequest request) {
+        return ResponseEntity.ok(salaryService.saveMonthly(userId, yearMonth, request.toCommand()));
     }
 
     /** 해당 월 기점 월급 upsert. 상속값과 동일하면 NOOP. */

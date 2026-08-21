@@ -21,7 +21,7 @@ public interface SpendingConfigJpaRepository extends JpaRepository<SpendingConfi
     @Query(value = """
             SELECT DISTINCT ON (s.category)
                    s.id, s.user_id, s.category, s.effective_from_month,
-                   s.amount, s.memo, s.created_at, s.updated_at
+                   s.amount, s.memo, s.budget, s.created_at, s.updated_at
             FROM spending_config s
             WHERE s.user_id = :userId
               AND s.effective_from_month <= :targetMonth

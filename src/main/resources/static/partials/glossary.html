@@ -1,281 +1,406 @@
-<!-- ========== GLOSSARY (개인 용어 사전) ========== -->
-<div x-show="currentPage === 'glossary'" x-cloak
-     x-init="$watch('currentPage', v => { if (v === 'glossary') glossaryLoad(); }); if (currentPage === 'glossary') glossaryLoad();">
+<!-- ========== GLOSSARY (용어 사전) — 마스터-디테일 리디자인 ==========
+     목업: 업로드 4b044daa-*.html (docs/plans/2026-08-21-001-feat-glossary-redesign-plan.md)
+     보기·수정·새 용어 모두 디테일 pane 인라인 (모달 없음). 새 용어 초안은 localStorage 자동 보관.
+     :style 은 항상 객체 바인딩 (#117 실버그 회피). 사용자 입력 렌더링은 x-text 만. -->
+<div id="glPage" x-show="currentPage === 'glossary'" x-cloak
+     @resize.window="glossary.vw = window.innerWidth"
+     @keydown.escape.window="glEsc()">
 
-    <!-- 헤더 -->
-    <div class="flex items-center justify-between mb-4">
-        <div>
-            <h2 class="text-xl font-bold text-gray-800">용어 사전</h2>
-            <p class="text-xs text-gray-500 mt-1">모르는 경제·주식 용어를 등록해 두고 카테고리로 묶어 다시 찾아보세요.</p>
-        </div>
-        <button type="button" @click="glossaryOpenCreate()"
-                class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-            용어 등록
-        </button>
-    </div>
+    <div class="gl-shell dc-card flex flex-col overflow-hidden">
 
-    <div class="flex flex-col gap-4 lg:flex-row">
-        <!-- 좌측: 카테고리 사이드바 -->
-        <aside class="lg:w-56 shrink-0 bg-white border border-gray-200 rounded p-3">
-            <div class="text-xs font-medium text-gray-500 mb-2">카테고리</div>
-            <ul class="space-y-1">
-                <li>
-                    <button type="button" @click="glossarySelectCategoryFilter(null)"
-                            class="w-full text-left text-sm px-2 py-1.5 rounded"
-                            :class="glossary.activeCategoryFilter === null
-                                    ? 'bg-blue-50 text-blue-700 font-medium'
-                                    : 'text-gray-700 hover:bg-gray-50'">
-                        전체
-                    </button>
-                </li>
-                <li>
-                    <button type="button" @click="glossarySelectCategoryFilter('uncategorized')"
-                            class="w-full text-left text-sm px-2 py-1.5 rounded"
-                            :class="glossary.activeCategoryFilter === 'uncategorized'
-                                    ? 'bg-blue-50 text-blue-700 font-medium'
-                                    : 'text-gray-700 hover:bg-gray-50'">
-                        미분류
-                    </button>
-                </li>
-                <template x-for="cat in glossary.categories" :key="cat.id">
-                    <li class="group">
-                        <template x-if="glossary.categoryEditId !== cat.id">
-                            <div class="flex items-center gap-1">
-                                <button type="button" @click="glossarySelectCategoryFilter(cat.id)"
-                                        class="flex-1 text-left text-sm px-2 py-1.5 rounded truncate"
-                                        :class="glossary.activeCategoryFilter === cat.id
-                                                ? 'bg-blue-50 text-blue-700 font-medium'
-                                                : 'text-gray-700 hover:bg-gray-50'"
-                                        x-text="cat.name"></button>
-                                <button type="button" @click="glossaryStartRenameCategory(cat)"
-                                        class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-700 transition px-1"
-                                        title="이름 변경">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                </button>
-                                <button type="button" @click="glossaryRequestDeleteCategory(cat)"
-                                        class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 transition px-1"
-                                        title="삭제">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" /></svg>
-                                </button>
-                            </div>
-                        </template>
-                        <template x-if="glossary.categoryEditId === cat.id">
-                            <div class="space-y-1">
-                                <input type="text" x-model="glossary.categoryEditName"
-                                       @keyup.enter="glossarySaveRenameCategory()"
-                                       @keyup.escape="glossaryCancelRenameCategory()"
-                                       maxlength="50"
-                                       class="w-full text-sm px-2 py-1.5 border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                <div class="flex gap-1">
-                                    <button type="button" @click="glossarySaveRenameCategory()"
-                                            class="flex-1 text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">저장</button>
-                                    <button type="button" @click="glossaryCancelRenameCategory()"
-                                            class="flex-1 text-xs px-2 py-1 border border-gray-300 rounded hover:bg-gray-50">취소</button>
-                                </div>
-                                <p x-show="glossary.categoryEditError" class="text-xs text-rose-600" x-text="glossary.categoryEditError"></p>
-                            </div>
-                        </template>
-                    </li>
-                </template>
-            </ul>
-
-            <!-- 신규 카테고리 입력 -->
-            <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                <input type="text" x-model="glossary.newCategoryName"
-                       @keyup.enter="glossaryAddCategory()"
-                       placeholder="새 카테고리"
-                       maxlength="50"
-                       class="w-full text-xs px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
-                <p x-show="glossary.newCategoryError" class="text-xs text-rose-600" x-text="glossary.newCategoryError"></p>
+        <!-- ===== 헤더 (제목 · 통합 검색 · 카운트 · 초안 · 등록) ===== -->
+        <header class="flex-none bg-white flex items-center justify-between flex-wrap"
+                style="border-bottom:1px solid rgba(0,0,0,.09);padding:14px 24px;gap:14px">
+            <div class="flex items-center flex-wrap" style="gap:14px;min-width:0">
+                <h2 class="dc-h1" style="margin:0;font-size:19px">용어 사전</h2>
+                <div class="flex items-center" style="gap:9px;padding:0 13px;height:36px;border-radius:8px;background:#f7f8fa"
+                     :style="{ border: '1px solid ' + (glossary.query.trim() ? '#1f4f9e' : 'rgba(0,0,0,.12)'), width: glSearchW() }">
+                    <span style="font-size:13px;color:#8b9299">⌕</span>
+                    <input data-gl="search" x-model="glossary.query"
+                           placeholder="용어 · 정의 · 예시까지 검색 · ㅅㅂㅈ 초성도 됩니다" maxlength="100"
+                           style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-size:12.5px;color:#14161a;font-family:inherit">
+                    <button type="button" data-gl="search-clear" aria-label="검색어 지우기"
+                            x-show="glossary.query.length > 0" @click="glossary.query = ''"
+                            style="border:none;background:transparent;color:#8b9299;font-size:14px;cursor:pointer;padding:0 2px;font-family:inherit">×</button>
+                </div>
+                <span style="font-size:11px;color:#8b9299;white-space:nowrap" x-text="glCountNote()"></span>
             </div>
-        </aside>
-
-        <!-- 우측: 검색 + 정렬 + 목록 -->
-        <section class="flex-1 min-w-0">
-            <!-- 검색바 + 정렬 -->
-            <div class="bg-white border border-gray-200 rounded p-3 mb-3 flex flex-wrap items-end gap-3">
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs text-gray-500 mb-1">용어명</label>
-                    <input type="text" x-model="glossary.filter.q"
-                           @input="glossaryApplyQuery()"
-                           placeholder="용어 검색"
-                           maxlength="100"
-                           class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                </div>
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs text-gray-500 mb-1">설명</label>
-                    <input type="text" x-model="glossary.filter.definitionQ"
-                           @input="glossaryApplyQuery()"
-                           placeholder="설명 검색"
-                           maxlength="100"
-                           class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">정렬</label>
-                    <select x-model="glossary.sort"
-                            @change="glossaryChangeSort(glossary.sort)"
-                            class="text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                        <option value="REGISTERED_DESC">최신순</option>
-                        <option value="REGISTERED_ASC">오래된순</option>
-                        <option value="ALPHA_ASC">가나다순</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- 상태 메시지 -->
-            <div x-show="glossary.loading" class="text-sm text-gray-400 mb-2">로딩 중…</div>
-            <div x-show="glossary.error" class="text-sm text-rose-600 mb-2" x-text="glossary.error"></div>
-
-            <!-- Empty state -->
-            <template x-if="!glossary.loading && glossary.terms.length === 0 && !glossary.error && !glossary.filter.q && !glossary.filter.definitionQ && glossary.activeCategoryFilter === null">
-                <div class="bg-white border border-dashed border-gray-300 rounded p-8 text-center text-sm text-gray-500">
-                    <p class="mb-3">첫 용어를 등록해보세요. 모르는 경제·주식 용어를 정리해두면 나중에 카테고리로 묶어 찾아볼 수 있어요.</p>
-                    <button type="button" @click="glossaryOpenCreate()"
-                            class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
-                        용어 등록
-                    </button>
-                </div>
-            </template>
-
-            <template x-if="!glossary.loading && glossary.terms.length === 0 && !glossary.error && (glossary.filter.q || glossary.filter.definitionQ)">
-                <div class="bg-white border border-dashed border-gray-300 rounded p-8 text-center text-sm text-gray-500">
-                    검색 결과가 없습니다.
-                </div>
-            </template>
-
-            <template x-if="!glossary.loading && glossary.terms.length === 0 && !glossary.error && !glossary.filter.q && !glossary.filter.definitionQ && glossary.activeCategoryFilter !== null">
-                <div class="bg-white border border-dashed border-gray-300 rounded p-8 text-center text-sm text-gray-500">
-                    이 카테고리에 등록된 용어가 없습니다.
-                </div>
-            </template>
-
-            <!-- 용어 카드 리스트 -->
-            <ul x-show="glossary.terms.length > 0" class="space-y-2">
-                <template x-for="term in glossary.terms" :key="term.id">
-                    <li class="bg-white border border-gray-200 rounded p-3 hover:border-blue-300 transition">
-                        <div class="flex items-start justify-between gap-2 mb-1">
-                            <h3 class="text-sm font-semibold text-gray-800 truncate" x-text="term.name"></h3>
-                            <div class="flex items-center gap-1 shrink-0">
-                                <button type="button" @click="glossaryOpenEdit(term)"
-                                        class="text-xs text-gray-500 hover:text-blue-600 px-2 py-0.5">수정</button>
-                                <button type="button" @click="glossaryDeleteTerm(term.id)"
-                                        class="text-xs text-gray-500 hover:text-rose-600 px-2 py-0.5">삭제</button>
-                            </div>
-                        </div>
-                        <p class="text-xs text-gray-600 whitespace-pre-wrap break-words" x-text="term.definition || '(설명 없음)'"></p>
-                        <div class="flex items-center gap-2 mt-2 text-[11px] text-gray-400">
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600"
-                                  x-text="glossaryCategoryName(term.categoryId)"></span>
-                            <span x-text="(term.createdAt || '').slice(0, 10)"></span>
-                        </div>
-                    </li>
-                </template>
-            </ul>
-
-            <!-- 페이지네이션 -->
-            <div x-show="glossary.terms.length > 0" class="flex items-center justify-between mt-4 text-xs text-gray-500">
-                <span>
-                    <span x-text="(glossary.pagination.page * glossary.pagination.size) + 1"></span>-<span
-                          x-text="Math.min((glossary.pagination.page + 1) * glossary.pagination.size, glossary.pagination.totalCount)"></span>
-                    /
-                    <span x-text="glossary.pagination.totalCount"></span>건
-                </span>
-                <div class="flex items-center gap-2">
-                    <button type="button" @click="glossaryChangePage(-1)"
-                            :disabled="glossary.pagination.page === 0"
-                            class="px-2 py-1 border border-gray-300 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50">이전</button>
-                    <span>
-                        <span x-text="glossary.pagination.page + 1"></span> / <span x-text="glossaryTotalPages()"></span>
-                    </span>
-                    <button type="button" @click="glossaryChangePage(1)"
-                            :disabled="glossary.pagination.page + 1 >= glossaryTotalPages()"
-                            class="px-2 py-1 border border-gray-300 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50">다음</button>
-                </div>
-            </div>
-        </section>
-    </div>
-
-    <!-- 용어 등록/수정 모달 (slideover) -->
-    <div x-show="glossary.mode" x-cloak class="fixed inset-0 z-50 flex">
-        <div class="absolute inset-0 bg-black/40" @click="glossaryCloseModal()"></div>
-        <div class="relative ml-auto h-full w-full max-w-md bg-white shadow-xl overflow-y-auto">
-            <div class="p-4 border-b border-gray-200 flex items-center justify-between">
-                <h3 class="text-base font-semibold text-gray-800"
-                    x-text="glossary.mode === 'edit' ? '용어 수정' : '용어 등록'"></h3>
-                <button type="button" @click="glossaryCloseModal()" class="text-gray-400 hover:text-gray-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            <div class="flex items-center" style="gap:8px">
+                <button type="button" data-gl="draft-chip" x-show="glHasSavedDraft()" @click="glResumeDraft()"
+                        class="flex items-center"
+                        style="gap:7px;border:1px solid #ecdcc2;background:#fbf8f3;color:#8a6a34;border-radius:7px;padding:7px 13px;font-family:inherit;font-size:11.5px;cursor:pointer">
+                    <span style="width:6px;height:6px;border-radius:50%;background:#b5854a"></span>
+                    <span x-text="'작성 중 · ' + glDraftPreview() + ' — 이어쓰기'"></span>
                 </button>
+                <button type="button" data-gl="new" class="gl-btn-primary" style="font-family:inherit" @click="glNewTerm()">+ 용어 등록</button>
             </div>
+        </header>
 
-            <div class="p-4 space-y-3">
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">용어명 <span class="text-rose-500">*</span></label>
-                    <input type="text" x-model="glossary.form.name" maxlength="200"
-                           placeholder="예: PER, 영업이익률"
-                           class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                </div>
+        <!-- ===== 본문: 목록 + 디테일 ===== -->
+        <main class="flex-1 flex items-stretch" style="min-width:0;min-height:0">
 
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">설명</label>
-                    <textarea x-model="glossary.form.definition" maxlength="4000" rows="6"
-                              placeholder="용어의 의미를 자유롭게 적어보세요."
-                              class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
-                </div>
+            <!-- ── 목록 pane ── -->
+            <section data-gl="list-pane" x-show="glShowList()" class="flex flex-col"
+                     style="min-width:0;min-height:0;border-right:1px solid rgba(0,0,0,.08);background:#f7f8fa"
+                     :style="glListPaneStyle()">
 
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">카테고리</label>
-                    <select x-model.number="glossary.form.categoryId"
-                            class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                        <option :value="null">미분류</option>
-                        <template x-for="cat in glossary.categories" :key="cat.id">
-                            <option :value="cat.id" x-text="cat.name"></option>
+                <div class="flex-none flex flex-col bg-white" style="gap:8px;padding:11px 14px;border-bottom:1px solid rgba(0,0,0,.07)">
+                    <!-- 카테고리 칩 + 관리 -->
+                    <div class="flex items-center" style="gap:5px;overflow-x:auto;padding-bottom:2px">
+                        <template x-for="c in glCats()" :key="c.key">
+                            <button type="button" data-gl="cat-chip" style="font-family:inherit"
+                                    :class="glossary.cat === c.key ? 'gl-chip on' : 'gl-chip'"
+                                    @click="glSetCat(c.key)">
+                                <span x-text="c.name"></span>
+                                <span class="font-mono" style="font-size:9.5px;opacity:.65" x-text="c.count"></span>
+                            </button>
                         </template>
-                    </select>
-                    <div class="mt-2">
-                        <label class="block text-[11px] text-gray-500 mb-1">또는 새 카테고리로 분류</label>
-                        <input type="text" x-model="glossary.form.categoryName"
-                               maxlength="50"
-                               placeholder="새 카테고리명 (선택)"
-                               class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                        <p class="text-[11px] text-gray-400 mt-1">새 카테고리명을 입력하면 이름 일치 카테고리에 자동 연결되거나 새로 생성됩니다.</p>
+                        <div style="position:relative;flex:none" @click.outside="glossary.manageOpen = false">
+                            <button type="button" data-gl="cat-manage" @click="glToggleManage()"
+                                    style="border-radius:20px;padding:5px 11px;font-family:inherit;font-size:10.5px;cursor:pointer;white-space:nowrap;color:#8b9299"
+                                    :style="glossary.manageOpen
+                                            ? { border: '1px dashed #1f4f9e', background: '#eff3fa', color: '#1f4f9e' }
+                                            : { border: '1px dashed rgba(0,0,0,.2)', background: 'transparent' }">관리</button>
+                            <div data-gl="cat-manage-pop" x-show="glossary.manageOpen" x-cloak class="gl-pop" style="left:0;top:32px;width:252px">
+                                <div style="padding:9px 12px;border-bottom:1px solid rgba(0,0,0,.07);font-size:11px;font-weight:600;color:#4a5158">카테고리 관리</div>
+                                <div class="flex flex-col" style="max-height:240px;overflow-y:auto">
+                                    <template x-for="cat in glossary.categories" :key="cat.id">
+                                        <div style="border-bottom:1px solid rgba(0,0,0,.05);padding:8px 12px">
+                                            <template x-if="glossary.catEditId !== cat.id">
+                                                <div class="flex items-center" style="gap:6px">
+                                                    <span style="flex:1;min-width:0;font-size:11.5px;color:#33383d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-text="cat.name"></span>
+                                                    <button type="button" @click="glStartRename(cat)"
+                                                            style="border:none;background:transparent;color:#8b9299;font-size:10.5px;cursor:pointer;font-family:inherit;padding:2px 4px;flex:none">이름 변경</button>
+                                                    <button type="button" @click="glRequestDeleteCategory(cat)"
+                                                            style="border:none;background:transparent;color:#c02a22;font-size:10.5px;cursor:pointer;font-family:inherit;padding:2px 4px;flex:none">삭제</button>
+                                                </div>
+                                            </template>
+                                            <template x-if="glossary.catEditId === cat.id">
+                                                <div class="flex flex-col" style="gap:5px">
+                                                    <input x-model="glossary.catEditName" maxlength="50"
+                                                           @keydown.enter.prevent="glSaveRename()" @keydown.escape.stop="glCancelRename()"
+                                                           style="width:100%;box-sizing:border-box;border:1px solid #1f4f9e;border-radius:6px;padding:6px 9px;font-size:11.5px;outline:none;font-family:inherit">
+                                                    <div class="flex" style="gap:5px">
+                                                        <button type="button" @click="glSaveRename()"
+                                                                style="flex:1;border:none;background:#1f4f9e;color:#fff;border-radius:6px;padding:5px 0;font-size:10.5px;cursor:pointer;font-family:inherit">저장</button>
+                                                        <button type="button" @click="glCancelRename()"
+                                                                style="flex:1;border:1px solid rgba(0,0,0,.14);background:#fff;color:#4a5158;border-radius:6px;padding:5px 0;font-size:10.5px;cursor:pointer;font-family:inherit">취소</button>
+                                                    </div>
+                                                    <p x-show="glossary.catError" style="font-size:10px;color:#c02a22;margin:0" x-text="glossary.catError"></p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <div x-show="glossary.categories.length === 0" style="padding:12px;font-size:11px;color:#98a0a7">카테고리가 없습니다.</div>
+                                </div>
+                                <div style="padding:9px 12px;border-top:1px solid rgba(0,0,0,.06)">
+                                    <input data-gl="cat-new" x-model="glossary.manageNewName" maxlength="50"
+                                           @keydown.enter.prevent="glAddCategory()"
+                                           placeholder="새 카테고리 후 Enter"
+                                           style="width:100%;box-sizing:border-box;border:1px dashed rgba(0,0,0,.2);border-radius:6px;padding:7px 9px;font-size:11px;outline:none;font-family:inherit;background:transparent">
+                                    <p x-show="glossary.manageError" style="font-size:10px;color:#c02a22;margin:4px 0 0" x-text="glossary.manageError"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 결과 노트 + 정렬 -->
+                    <div class="flex items-center justify-between" style="gap:10px">
+                        <span data-gl="result-note" style="font-size:11px;color:#4a5158" x-text="glResultNote()"></span>
+                        <div class="gl-seg">
+                            <button type="button" data-gl="sort-alpha" style="font-family:inherit"
+                                    :class="glossary.sort === 'ALPHA' ? 'gl-seg-btn on' : 'gl-seg-btn'"
+                                    @click="glSetSort('ALPHA')">가나다순</button>
+                            <button type="button" data-gl="sort-recent" style="font-family:inherit"
+                                    :class="glossary.sort === 'RECENT' ? 'gl-seg-btn on' : 'gl-seg-btn'"
+                                    @click="glSetSort('RECENT')">최신순</button>
+                        </div>
                     </div>
                 </div>
 
-                <p x-show="glossary.formError" class="text-xs text-rose-600" x-text="glossary.formError"></p>
-            </div>
+                <!-- 그룹 목록 -->
+                <div data-gl="list-scroll" class="flex-1 flex flex-col" style="min-height:0;overflow-y:auto">
+                    <div x-show="glossary.loading" style="padding:20px 14px;font-size:11.5px;color:#98a0a7">불러오는 중…</div>
+                    <div x-show="glossary.error" style="padding:14px;font-size:11.5px;color:#c02a22" x-text="glossary.error"></div>
 
-            <div class="p-4 border-t border-gray-200 flex items-center justify-end gap-2">
-                <button type="button" @click="glossaryCloseModal()"
-                        class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50">취소</button>
-                <button type="button" @click="glossarySave()"
-                        class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">저장</button>
-            </div>
-        </div>
+                    <template x-for="g in glGroups()" :key="g.key">
+                        <div class="flex flex-col">
+                            <div class="gl-group-head">
+                                <span class="font-mono" style="font-size:11px;font-weight:600;color:#4a5158" x-text="g.label"></span>
+                                <span style="font-size:10px;color:#98a0a7" x-text="g.count"></span>
+                            </div>
+                            <template x-for="t in g.rows" :key="t.id">
+                                <div class="gl-row flex flex-col" data-gl="term-row" style="gap:5px;padding:11px 14px"
+                                     :class="{ on: glossary.selId === t.id }"
+                                     @click="glSelect(t.id)">
+                                    <div class="flex items-baseline flex-wrap" style="gap:7px">
+                                        <span style="font-size:13px"
+                                              :style="glossary.selId === t.id
+                                                      ? { fontWeight: '600', color: '#14161a' }
+                                                      : { fontWeight: '500', color: '#33383d' }"
+                                              x-text="t.name"></span>
+                                        <span class="font-mono" style="font-size:10px;color:#98a0a7" x-text="t.abbreviation || ''"></span>
+                                    </div>
+                                    <span style="font-size:11.5px;color:#6b737a;line-height:1.55" x-text="t.oneLine || '한 줄 정의가 비어 있습니다'"></span>
+                                    <div class="flex items-center flex-wrap" style="gap:6px">
+                                        <span style="font-size:9.5px;padding:1px 7px;border-radius:4px;background:#eff2f6;color:#4a5158" x-text="glCatName(t.categoryId)"></span>
+                                        <span x-show="glFilledCount(t) < 4"
+                                              style="font-size:9.5px;padding:1px 7px;border-radius:4px;background:#fbf8f3;color:#8a6a34"
+                                              x-text="glFilledCount(t) + '/4 작성'"></span>
+                                        <span class="font-mono" style="font-size:9.5px;color:#b2b8bd" x-text="glRowDate(t)"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- 빈 결과 -->
+                    <div x-show="!glossary.loading && !glossary.error && glRows().length === 0"
+                         class="flex flex-col items-center" style="gap:11px;padding:44px 20px">
+                        <span style="font-size:24px;color:#c9ced6">⌕</span>
+                        <span style="font-size:12.5px;color:#4a5158">해당하는 용어가 없습니다</span>
+                        <button type="button" data-gl="new-from-query" class="gl-btn-primary"
+                                style="font-family:inherit;font-size:11.5px;padding:9px 15px"
+                                @click="glNewFromQuery()" x-text="glNewFromQueryLabel()"></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── 디테일 pane ── -->
+            <section data-gl="detail-pane" x-show="glShowDetail()" class="flex flex-col bg-white"
+                     style="min-width:0;min-height:0;overflow:hidden"
+                     :style="glDetailPaneStyle()">
+
+                <!-- 좁은 화면: 목록 복귀 -->
+                <button type="button" data-gl="back" x-show="glIsNarrow()" @click="glBackToList()"
+                        class="flex-none flex items-center"
+                        style="gap:8px;border:none;border-bottom:1px solid rgba(0,0,0,.08);background:#f7f8fa;color:#1f4f9e;font-family:inherit;font-size:11.5px;padding:11px 18px;cursor:pointer;text-align:left"
+                        x-text="'‹ 용어 목록 (' + glRows().length + '개)'"></button>
+
+                <!-- ===== 편집 (인라인) ===== -->
+                <template x-if="glossary.mode === 'edit'">
+                    <div class="flex-1 flex flex-col" style="min-height:0">
+                        <div class="flex-none flex items-center justify-between" style="gap:14px;padding:13px 22px;border-bottom:1px solid rgba(0,0,0,.08);background:#fbfcfd">
+                            <div class="flex flex-col" style="gap:3px;min-width:0">
+                                <span data-gl="edit-title" style="font-size:13.5px;font-weight:600" x-text="glossary.form.id ? '용어 수정' : '새 용어 등록'"></span>
+                                <span class="flex items-center" style="gap:6px;font-size:10.5px"
+                                      :style="{ color: glossary.dirty ? '#b5854a' : '#98a0a7' }">
+                                    <span style="width:5px;height:5px;border-radius:50%;flex:none"
+                                          :style="{ background: glossary.dirty ? '#b5854a' : '#98a0a7' }"></span>
+                                    <span x-text="glDraftNote()"></span>
+                                </span>
+                            </div>
+                            <div class="flex items-center" style="gap:8px;flex:none">
+                                <button type="button" data-gl="edit-close" class="gl-btn-ghost" style="font-family:inherit" @click="glCloseEdit()">닫기</button>
+                                <button type="button" data-gl="edit-save" class="gl-btn-primary"
+                                        style="font-family:inherit;font-size:11.5px;padding:9px 18px"
+                                        :disabled="glossary.saving" @click="glSave()">저장</button>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 flex flex-col" style="min-height:0;overflow-y:auto;padding:18px 22px 28px;gap:15px">
+                            <p data-gl="form-error" x-show="glossary.formError"
+                               style="font-size:11.5px;color:#c02a22;background:#fdf6f5;border:1px solid #f0d5d2;border-radius:7px;padding:9px 12px;margin:0"
+                               x-text="glossary.formError"></p>
+
+                            <!-- 용어명 + 약어 -->
+                            <div class="flex flex-wrap" style="gap:10px">
+                                <label class="flex flex-col" style="flex:2 1 220px;gap:6px">
+                                    <span class="gl-label">용어명 <span style="color:#c02a22">*</span></span>
+                                    <input data-gl="f-name" x-model="glossary.form.name" @input="glTouch()" maxlength="200"
+                                           placeholder="예: 소비자물가지수" class="gl-input" style="font-size:14px;font-weight:500"
+                                           :style="{ borderColor: (glossary.form.name || '').trim() ? 'rgba(0,0,0,.16)' : '#e8c9c6' }">
+                                </label>
+                                <label class="flex flex-col" style="flex:1 1 160px;gap:6px">
+                                    <span class="gl-label">약어 · 영문</span>
+                                    <input data-gl="f-abbr" x-model="glossary.form.abbreviation" @input="glTouch()" maxlength="200"
+                                           placeholder="CPI, Consumer Price Index" class="gl-input font-mono" style="font-size:12.5px">
+                                </label>
+                            </div>
+
+                            <!-- 카테고리 -->
+                            <div class="flex flex-col" style="gap:7px">
+                                <span class="gl-label">카테고리</span>
+                                <div class="flex flex-wrap items-center" style="gap:6px">
+                                    <template x-for="p in glCatPicks()" :key="p.key">
+                                        <button type="button" data-gl="cat-pick" class="gl-cat-pick" style="font-family:inherit"
+                                                :style="p.on
+                                                        ? { border: '1px solid #b9cbe8', background: '#eff3fa', color: '#1f4f9e' }
+                                                        : { border: '1px solid rgba(0,0,0,.13)', background: '#fff', color: '#4a5158' }"
+                                                @click="glPickCat(p)" x-text="p.name"></button>
+                                    </template>
+                                    <input data-gl="new-cat" x-model="glossary.newCat" maxlength="50"
+                                           @keydown.enter.prevent="glNewCatEnter()"
+                                           placeholder="+ 새 카테고리 후 Enter"
+                                           style="border:1px dashed rgba(0,0,0,.2);border-radius:20px;padding:7px 13px;font-size:11.5px;outline:none;background:transparent;width:186px;font-family:inherit">
+                                </div>
+                            </div>
+
+                            <!-- 한 줄 정의 (강조 박스) -->
+                            <label class="flex flex-col" style="gap:6px;padding:14px 15px;background:#f4f7fc;border:1px solid #dbe4f2;border-radius:9px">
+                                <span class="flex items-baseline flex-wrap" style="gap:8px">
+                                    <span style="font-size:11px;font-weight:600;color:#1f4f9e">한 줄 정의 <span style="color:#c02a22">*</span></span>
+                                    <span style="font-size:10.5px;color:#8b9299">목록과 관련 용어에서 이 문장만 보입니다 — 한 문장으로</span>
+                                </span>
+                                <input data-gl="f-one" x-model="glossary.form.oneLine" @input="glTouch()" maxlength="300"
+                                       placeholder="예: 사람들이 자주 사는 상품·서비스 가격이 얼마나 올랐는지 보여주는 지표"
+                                       style="border-radius:7px;padding:10px 12px;font-size:13px;outline:none;background:#fff;font-family:inherit"
+                                       :style="{ border: '1px solid ' + ((glossary.form.oneLine || '').trim() ? 'rgba(0,0,0,.14)' : '#e8c9c6') }">
+                            </label>
+
+                            <!-- 구조화 섹션 4종 -->
+                            <template x-for="f in glFieldDefs()" :key="f.key">
+                                <label class="flex flex-col" style="gap:6px">
+                                    <span class="flex items-baseline flex-wrap" style="gap:8px">
+                                        <span style="font-size:11px;font-weight:600" :style="{ color: f.color }" x-text="f.label"></span>
+                                        <span style="font-size:10.5px;color:#8b9299" x-text="f.hint"></span>
+                                        <span class="font-mono" style="margin-left:auto;font-size:9.5px;color:#b2b8bd" x-text="glFieldLen(f.key)"></span>
+                                    </span>
+                                    <textarea :data-gl="'f-' + f.key" :rows="f.rows" x-model="glossary.form[f.key]" @input="glTouch()"
+                                              :placeholder="f.ph" maxlength="4000"
+                                              style="border:1px solid rgba(0,0,0,.14);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.7;outline:none;background:#fff;font-family:inherit"></textarea>
+                                </label>
+                            </template>
+
+                            <!-- 함께 볼 용어 -->
+                            <div class="flex flex-col" style="gap:8px">
+                                <span class="flex items-baseline flex-wrap" style="gap:8px">
+                                    <span style="font-size:11px;font-weight:600;color:#4a5158">함께 볼 용어</span>
+                                    <span style="font-size:10.5px;color:#8b9299">선택 — 사전 안에서 서로 연결됩니다</span>
+                                </span>
+                                <div class="flex flex-wrap items-center" style="gap:6px" x-show="glRelatedChips().length > 0">
+                                    <template x-for="r in glRelatedChips()" :key="r.id">
+                                        <span class="flex items-center" data-gl="rel-chip"
+                                              style="gap:6px;padding:5px 8px 5px 11px;border:1px solid #b9cbe8;background:#eff3fa;border-radius:20px;font-size:11px;color:#1f4f9e">
+                                            <span x-text="r.name"></span>
+                                            <button type="button" aria-label="연결 해제"
+                                                    style="border:none;background:transparent;color:#7d90ad;font-size:12px;cursor:pointer;padding:0 1px;font-family:inherit"
+                                                    @click="glRemoveRelated(r.id)">×</button>
+                                        </span>
+                                    </template>
+                                </div>
+                                <div class="flex flex-wrap items-center" style="gap:5px" x-show="glRelCandidates().length > 0">
+                                    <span style="font-size:10px;color:#b2b8bd;margin-right:2px">추가</span>
+                                    <template x-for="c in glRelCandidates()" :key="c.id">
+                                        <button type="button" data-gl="rel-add" class="gl-add-chip" style="font-family:inherit"
+                                                @click="glAddRelated(c.id)" x-text="'+ ' + c.name"></button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- ===== 보기 ===== -->
+                <template x-if="glossary.mode === 'view' && glCurrent()">
+                    <div class="flex-1 flex flex-col" style="min-height:0">
+                        <div class="flex-none flex items-start justify-between" style="gap:14px;padding:16px 22px;border-bottom:1px solid rgba(0,0,0,.08);background:#fbfcfd">
+                            <div class="flex flex-col" style="gap:7px;min-width:0">
+                                <div class="flex items-center flex-wrap" style="gap:7px">
+                                    <span style="font-size:10px;padding:3px 9px;border-radius:5px;background:#eff2f6;color:#4a5158" x-text="glCatName(glCurrent().categoryId)"></span>
+                                    <span class="font-mono" style="font-size:10.5px;color:#8b9299" x-text="glDetailDate()"></span>
+                                </div>
+                                <div class="flex items-baseline flex-wrap" style="gap:10px">
+                                    <h3 data-gl="d-name" style="margin:0;font-size:21px;font-weight:600;letter-spacing:-.01em" x-text="glCurrent().name"></h3>
+                                    <span class="font-mono" style="font-size:12px;color:#8b9299" x-text="glCurrent().abbreviation || ''"></span>
+                                </div>
+                                <span style="font-size:13px;color:#33383d;line-height:1.6" x-text="glCurrent().oneLine || '한 줄 정의가 비어 있습니다'"></span>
+                            </div>
+                            <div class="flex" style="gap:7px;flex:none">
+                                <button type="button" data-gl="edit" @click="glEditCurrent()"
+                                        style="border:1px solid rgba(0,0,0,.14);background:#fff;color:#1f4f9e;border-radius:7px;padding:8px 14px;font-family:inherit;font-size:11.5px;cursor:pointer">수정</button>
+                                <button type="button" data-gl="delete" @click="glDeleteTerm()"
+                                        style="border:1px solid rgba(0,0,0,.12);background:#fff;color:#c02a22;border-radius:7px;padding:8px 13px;font-family:inherit;font-size:11.5px;cursor:pointer">삭제</button>
+                            </div>
+                        </div>
+
+                        <!-- 섹션 점프 칩 -->
+                        <div class="flex-none flex items-center" style="gap:5px;padding:9px 22px;border-bottom:1px solid rgba(0,0,0,.07);background:#fff;overflow-x:auto">
+                            <template x-for="j in glJumpChips()" :key="j.key">
+                                <span class="flex items-center" data-gl="jump-chip"
+                                      style="gap:6px;border-radius:20px;padding:4px 11px;font-size:10.5px;white-space:nowrap;flex:none"
+                                      :style="j.style" x-text="j.label"></span>
+                            </template>
+                        </div>
+
+                        <div class="flex-1 flex flex-col" style="min-height:0;overflow-y:auto;padding:16px 22px 30px;gap:12px">
+                            <!-- 구조화 섹션 카드 -->
+                            <template x-for="s in glDetailSections()" :key="s.key">
+                                <div class="flex flex-col" data-gl="section-card"
+                                     style="gap:9px;padding:15px 17px;border:1px solid rgba(0,0,0,.07);border-radius:9px"
+                                     :style="{ background: s.bg, borderLeft: '3px solid ' + s.color }">
+                                    <div class="flex items-baseline" style="gap:9px">
+                                        <span style="font-size:11px;font-weight:600" :style="{ color: s.color }" x-text="s.label"></span>
+                                        <span style="font-size:10.5px;color:#8b9299" x-text="s.hint"></span>
+                                    </div>
+                                    <template x-for="(b, bi) in s.blocks" :key="s.key + '-' + bi">
+                                        <div class="flex" style="gap:9px" :style="{ paddingLeft: b.indent }">
+                                            <span style="border-radius:50%;flex:none;margin-top:8px;opacity:.45"
+                                                  :style="{ width: b.dot, height: b.dot, background: s.color }"></span>
+                                            <span style="flex:1;min-width:0;color:#33383d;line-height:1.75"
+                                                  :style="{ fontSize: b.size }" x-text="b.text"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- 함께 볼 용어 -->
+                            <div x-show="glRelatedObjs().length > 0" class="flex flex-col" style="gap:8px;padding-top:4px;border-top:1px solid rgba(0,0,0,.07)">
+                                <span style="font-size:11px;font-weight:600;color:#4a5158">함께 볼 용어</span>
+                                <template x-for="r in glRelatedObjs()" :key="r.id">
+                                    <div class="gl-rel-card flex flex-col" data-gl="rel-card" style="gap:3px;padding:11px 13px" @click="glSelect(r.id)">
+                                        <div class="flex items-baseline" style="gap:8px">
+                                            <span style="font-size:12.5px;font-weight:500;color:#14161a" x-text="r.name"></span>
+                                            <span class="font-mono" style="font-size:10px;color:#98a0a7" x-text="r.abbreviation || ''"></span>
+                                            <span style="margin-left:auto;font-size:11px;color:#1f4f9e;flex:none">→</span>
+                                        </div>
+                                        <span style="font-size:11px;color:#6b737a;line-height:1.55" x-text="r.oneLine || '한 줄 정의가 비어 있습니다'"></span>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- 미작성 nudge -->
+                            <div x-show="glMissingLabels().length > 0" class="flex items-center" data-gl="missing-nudge"
+                                 style="gap:11px;padding:13px 15px;background:#fbf8f3;border:1px solid #ecdcc2;border-radius:9px">
+                                <span style="flex:1;min-width:0;font-size:11.5px;color:#8a6a34;line-height:1.55" x-text="glMissingNote()"></span>
+                                <button type="button" data-gl="fill-missing" @click="glEditCurrent()"
+                                        style="border:1px solid #d9c49b;background:#fff;color:#8a6a34;border-radius:7px;padding:7px 13px;font-family:inherit;font-size:11px;cursor:pointer;flex:none">채우기</button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- ===== 빈 상태 ===== -->
+                <div x-show="glossary.mode === 'view' && !glCurrent()"
+                     class="flex-1 flex flex-col items-center justify-center" style="gap:12px;padding:40px">
+                    <span style="font-size:26px;color:#c9ced6">☰</span>
+                    <span style="font-size:13px;color:#4a5158">왼쪽에서 용어를 선택하세요</span>
+                    <span style="font-size:11.5px;color:#8b9299;text-align:center;line-height:1.6;max-width:320px">정의 · 풀이 · 예시 · 해석이 나눠 저장되어, 필요한 부분만 골라 읽을 수 있습니다.</span>
+                </div>
+            </section>
+        </main>
     </div>
 
     <!-- 카테고리 삭제 확인 다이얼로그 (R6) -->
     <div x-show="glossary.deleteImpact" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40" @click="glossaryCancelDeleteCategory()"></div>
-        <div class="relative bg-white rounded-lg shadow-xl max-w-sm w-full p-5">
-            <h3 class="text-base font-semibold text-gray-800 mb-2">카테고리 삭제</h3>
+        <div class="absolute inset-0 bg-black/40" @click="glCancelDeleteCategory()"></div>
+        <div class="relative bg-white w-full" style="max-width:360px;border-radius:10px;box-shadow:0 18px 44px rgba(0,0,0,.22);padding:20px">
+            <h3 style="margin:0 0 8px;font-size:14.5px;font-weight:600;color:#14161a">카테고리 삭제</h3>
             <template x-if="glossary.deleteImpact && glossary.deleteImpact.count > 0">
-                <p class="text-sm text-gray-600 mb-4">
+                <p style="margin:0 0 16px;font-size:12.5px;color:#4a5158;line-height:1.6">
                     "<span x-text="glossary.deleteImpact.name"></span>" 카테고리를 삭제하면
-                    속한 용어 <span class="font-medium" x-text="glossary.deleteImpact.count"></span>개가
+                    속한 용어 <span style="font-weight:600" x-text="glossary.deleteImpact.count"></span>개가
                     "미분류"로 이동합니다. 계속할까요?
                 </p>
             </template>
             <template x-if="glossary.deleteImpact && glossary.deleteImpact.count === 0">
-                <p class="text-sm text-gray-600 mb-4">
+                <p style="margin:0 0 16px;font-size:12.5px;color:#4a5158;line-height:1.6">
                     "<span x-text="glossary.deleteImpact.name"></span>" 카테고리를 삭제할까요?
                 </p>
             </template>
-            <div class="flex items-center justify-end gap-2">
-                <button type="button" @click="glossaryCancelDeleteCategory()"
-                        class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50">취소</button>
-                <button type="button" @click="glossaryConfirmDeleteCategory()"
-                        class="px-3 py-1.5 text-sm font-medium text-white bg-rose-600 rounded hover:bg-rose-700">삭제</button>
+            <div class="flex items-center justify-end" style="gap:8px">
+                <button type="button" class="gl-btn-ghost" style="font-family:inherit" @click="glCancelDeleteCategory()">취소</button>
+                <button type="button" data-gl="cat-delete-confirm" @click="glConfirmDeleteCategory()"
+                        style="border:none;background:#c02a22;color:#fff;border-radius:7px;padding:8px 15px;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer">삭제</button>
             </div>
         </div>
     </div>

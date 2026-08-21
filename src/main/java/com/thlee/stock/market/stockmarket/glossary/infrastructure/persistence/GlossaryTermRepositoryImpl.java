@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -68,8 +69,20 @@ public class GlossaryTermRepositoryImpl implements GlossaryTermRepository {
     }
 
     @Override
+    public List<Long> findOwnedIds(Long userId, Collection<Long> candidateIds) {
+        if (candidateIds == null || candidateIds.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findOwnedIds(userId, candidateIds);
+    }
+
+    @Override
     public int deleteByIdAndUserId(Long id, Long userId) {
-        return jpaRepository.deleteByIdAndUserId(id, userId);
+        int deleted = jpaRepository.deleteByIdAndUserId(id, userId);
+        if (deleted > 0) {
+            jpaRepository.deleteRelationsForTerm(id);
+        }
+        return deleted;
     }
 
     @Override

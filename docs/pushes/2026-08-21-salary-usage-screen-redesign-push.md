@@ -18,3 +18,7 @@
 - 2026-08-21: `git push -u origin claude/salary-usage-ratio-screen-udb2mz` 성공 (커밋 1건)
 - 2026-08-21 (2차): 범위 확장분 push — 커스텀 카테고리 + 저축률 목표 설정화 (동일 브랜치)
 - 2026-08-21 (3차): 후속 확장분 push — 저축 지정·순서 변경 (동일 브랜치)
+- 2026-08-21 (merge): 태형님 승인("병합해") → main 병합(--no-ff) + main push 진행.
+  main push는 deploy.yml 자동 배포를 트리거한다. 배포 후 운영 DB에
+  `salary_category_check_drop_2026_08_21.sql` 1회 실행 필요 (커스텀 카테고리 저장 전제조건).
+  결과는 최종 응답으로 보고.

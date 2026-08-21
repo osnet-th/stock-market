@@ -22,3 +22,9 @@
   main push는 deploy.yml 자동 배포를 트리거한다. 배포 후 운영 DB에
   `salary_category_check_drop_2026_08_21.sql` 1회 실행 필요 (커스텀 카테고리 저장 전제조건).
   결과는 최종 응답으로 보고.
+- 2026-08-21 (merge 결과): main 병합 커밋 `8fa0056` push 완료.
+  **정정**: deploy.yml은 2026-07-07부터 수동 비활성화 상태(`disabled_manually`, 7/5 실패 후)로
+  자동 배포가 실행되지 않았다. 최근 병합(#110·#114)들도 자동 배포 이력이 없어 그간 수동 배포로
+  운영된 것으로 판단. → 이번 반영도 서버에서 수동 배포 필요:
+  `git pull origin main && ./gradlew clean build -x test && docker compose up -d --build`
+  + 운영 DB에 `salary_category_check_drop_2026_08_21.sql` 1회 실행.

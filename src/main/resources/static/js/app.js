@@ -113,12 +113,7 @@ function dashboard() {
                         try { dash._crDestroyCharts(); } catch (e) { /* ignore */ }
                     }
                 },
-                // salary: 5개 차트 destroy
-                salary: (dash) => {
-                    if (typeof dash.destroySalaryCharts === 'function') {
-                        try { dash.destroySalaryCharts(); } catch (e) { /* ignore */ }
-                    }
-                },
+                // salary: SVG 직접 렌더로 전환 (목업 재설계) — Chart.js 인스턴스 없음, cleanup 불필요
                 // portfolio: navigateTo 인라인 destroy 흐름과 동일 — chartInstance 3종 정리
                 portfolio: (dash) => {
                     if (!dash.portfolio) return;
@@ -228,11 +223,6 @@ function dashboard() {
                     this.portfolio._secChartInstance.destroy();
                     this.portfolio._secChartInstance = null;
                 }
-            }
-
-            // 월급 사용 비율에서 떠날 때 Chart.js 인스턴스 정리
-            if (this.currentPage === 'salary' && page !== 'salary') {
-                this.destroySalaryCharts();
             }
 
             // home 떠날 때 비교 보기 차트 정리 (#114 — 월급 도넛은 스택 바로 대체돼 사라졌다)

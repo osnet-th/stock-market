@@ -614,6 +614,11 @@ const API = {
         return this.request('GET', `/api/salary/months?userId=${userId}`, null, options);
     },
 
+    /** 해당 월 일괄 저장 (월급 + 카테고리 금액·예산 + 하위 항목 세트) */
+    saveSalaryMonthly(userId, yearMonth, payload) {
+        return this.request('PUT', `/api/salary/monthly/${yearMonth}?userId=${userId}`, payload);
+    },
+
     upsertSalaryIncome(userId, yearMonth, amount) {
         return this.request('PUT', `/api/salary/income/${yearMonth}?userId=${userId}`, { amount });
     },

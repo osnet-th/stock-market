@@ -21,6 +21,12 @@ public interface NewsEventKeywordRepository {
     Map<Long, List<NewsEventKeyword>> findAllByEventIds(Collection<Long> eventIds);
 
     /**
+     * 사용자 전체 사건의 키워드 평탄화 행 (화면 통계용).
+     * 정렬은 {@code occurredDate DESC, eventId DESC, displayOrder ASC} — 최근 사용 계산에 사용.
+     */
+    List<NewsEventKeywordRow> findRowsByUserId(Long userId);
+
+    /**
      * 사건의 자식 키워드를 새 리스트로 교체한다.
      * <p>{@code deleteByEventId} 후 일괄 저장하는 replace-all 정책. 동일 트랜잭션 안에서 호출 필수.
      */

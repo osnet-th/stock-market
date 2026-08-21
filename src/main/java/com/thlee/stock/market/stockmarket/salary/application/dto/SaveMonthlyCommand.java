@@ -42,14 +42,18 @@ public class SaveMonthlyCommand {
 
         private final BigDecimal budget;
 
+        /** 저축률 산입 여부 — 커스텀 카테고리만 반영, null이면 미변경. */
+        private final Boolean savings;
+
         private final List<ItemCommand> items;
 
         public CategoryCommand(String category, String name, BigDecimal amount,
-                               BigDecimal budget, List<ItemCommand> items) {
+                               BigDecimal budget, Boolean savings, List<ItemCommand> items) {
             this.category = category;
             this.name = name;
             this.amount = amount;
             this.budget = budget;
+            this.savings = savings;
             this.items = List.copyOf(items);
         }
 

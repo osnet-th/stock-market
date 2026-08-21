@@ -60,12 +60,15 @@ public class SaveMonthlyRequest {
         @DecimalMin(value = "0", inclusive = true, message = "예산은 0 이상이어야 합니다.")
         private BigDecimal budget;
 
+        /** 저축률 산입 여부 — 커스텀 카테고리만 반영, null이면 미변경. */
+        private Boolean savings;
+
         @Valid
         @Size(max = 100, message = "항목은 카테고리당 100개 이하여야 합니다.")
         private List<ItemPayload> items = new ArrayList<>();
 
         private SaveMonthlyCommand.CategoryCommand toCommand() {
-            return new SaveMonthlyCommand.CategoryCommand(category, name, amount, budget,
+            return new SaveMonthlyCommand.CategoryCommand(category, name, amount, budget, savings,
                     items.stream().map(ItemPayload::toCommand).collect(Collectors.toList()));
         }
     }

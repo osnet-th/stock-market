@@ -93,3 +93,11 @@
 - 저축률 목표 인라인 입력(다크 카드) — 추이 목표선·인사이트·범례 즉시 반영, dirty 추적.
 - 구성 모드·범례를 추이 `categories` 메타 기반 동적 스택으로 전환 (값 있는 카테고리 전부).
 - 리본/지난달 대비 x-for key를 로컬 uid로 전환 (신규 카테고리 key null 충돌 방지).
+
+### 후속 확장 (저축 지정·순서 변경)
+- `UserSpendingCategory.updateSavings`(커스텀 한정)·`updateSortOrder`, `createCustom(+savings)`.
+- `SalaryCategoryService` — payload `savings` 반영(`applySavingsIfChanged`), payload 순서를
+  sort_order로 반영(`reorderToPayload`), 삭제 보호를 기본 저축·투자(system+savings)로 한정.
+- DTO `savings`(Boolean) 추가 (Request/Command).
+- 프론트 — 카테고리 행 ▲▼ 순서 버튼(호버 표시·양끝 disabled), 커스텀 종류 배지를 저축 토글
+  버튼으로(점선 테두리·title 안내), payload에 savings 포함, '저축·투자' 고정 문구를 '저축'으로 일반화.

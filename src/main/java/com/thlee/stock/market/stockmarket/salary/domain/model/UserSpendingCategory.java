@@ -89,13 +89,14 @@ public class UserSpendingCategory {
     }
 
     /** 커스텀 카테고리 생성. code는 서버 생성('U'+base36), 색은 팔레트 순환 */
-    public static UserSpendingCategory createCustom(Long userId, String name, int sortOrder, long seq) {
+    public static UserSpendingCategory createCustom(Long userId, String name, int sortOrder,
+                                                    long seq, boolean savings) {
         validateUserId(userId);
         LocalDateTime now = LocalDateTime.now();
         String code = generateCode(seq);
         String color = CUSTOM_COLORS.get((int) (seq % CUSTOM_COLORS.size()));
         return new UserSpendingCategory(null, userId, code, normalizeName(name), color,
-                false, false, true, sortOrder, now, now);
+                savings, false, true, sortOrder, now, now);
     }
 
     /** 이름 변경 — 커스텀 카테고리만 허용 */
@@ -104,6 +105,21 @@ public class UserSpendingCategory {
             return;
         }
         this.name = normalizeName(name);
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /** 저축률 산입 여부 변경 — 커스텀 카테고리만 허용 (기본 8종은 시드 값 고정) */
+    public void updateSavings(boolean savings) {
+        if (this.system) {
+            return;
+        }
+        this.savings = savings;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /** 표시 순서 변경 (일괄 저장 payload 순서가 authoritative) */
+    public void updateSortOrder(int sortOrder) {
+        this.sortOrder = sortOrder;
         this.updatedAt = LocalDateTime.now();
     }
 

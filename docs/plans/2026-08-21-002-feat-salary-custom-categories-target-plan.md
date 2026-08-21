@@ -61,3 +61,14 @@
 - enum→String 전환은 wire 포맷 동일(JSON 'FOOD')이라 홈 대시보드 등 소비처 무영향.
 - 커스텀 code는 varchar(20) 내 생성('U'+base36) — ddl-auto가 기존 컬럼 길이를 바꾸지 않는 제약 준수.
 - 재활성 정책: 같은 이름의 inactive 카테고리를 새로 추가하면 기존 code 재활성(이력 연결).
+
+## 후속 확장 (태형님 지시 "사소한 후속 저것도 지금 처리해줘")
+
+- [x] 커스텀 카테고리 저축 지정 — payload `savings`(Boolean, null=미변경), 커스텀만 반영
+  (system은 시드 값 고정). 삭제 보호는 기본 저축·투자(system+savings)로 한정 —
+  커스텀 저축 카테고리는 자유 삭제.
+- [x] 카테고리 순서 변경 — 일괄 저장 payload 순서가 sort_order로 authoritative 반영
+  (`reorderToPayload`, 변경분만 저장). UI는 카테고리 행 좌측 ▲▼ 버튼(호버 시 표시,
+  Alpine 배열 재배치 — SortableJS는 입력 밀집 행과 드래그 충돌이 커서 배제).
+- [x] 문구 일반화 — 저축 카테고리가 복수가 될 수 있어 '저축·투자 N' → '저축 N',
+  인사이트 '저축 카테고리로 옮기면'.

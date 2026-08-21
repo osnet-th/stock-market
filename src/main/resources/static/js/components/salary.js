@@ -198,6 +198,25 @@ const SalaryComponent = {
         this.markSalaryDirty();
     },
 
+    /** 커스텀 카테고리의 저축률 산입 토글 (system은 시드 값 고정) */
+    toggleSalaryCatSavings(cat) {
+        if (cat.system) return;
+        cat.savings = !cat.savings;
+        this.markSalaryDirty();
+    },
+
+    /** 카테고리 표시 순서 이동 (저장 시 payload 순서가 서버 sort_order로 반영) */
+    moveSalaryCategory(cat, delta) {
+        const idx = this.salary.cats.findIndex(c => c.uid === cat.uid);
+        const next = idx + delta;
+        if (idx < 0 || next < 0 || next >= this.salary.cats.length) return;
+        const cats = this.salary.cats.slice();
+        cats.splice(idx, 1);
+        cats.splice(next, 0, cat);
+        this.salary.cats = cats;
+        this.markSalaryDirty();
+    },
+
     /** 저축률 목표(%) 변경 — 0~100 클램프 */
     setSalaryTarget(raw) {
         const n = this.parseSalaryNum(raw);
@@ -279,6 +298,7 @@ const SalaryComponent = {
             categories: this.salary.cats.map(c => ({
                 category: c.isNew ? null : c.key,
                 name: c.label,
+                savings: !!c.savings,
                 amount: c.items.length ? null : (Number(c.flat) || 0),
                 budget: Number(c.budget) || 0,
                 items: c.items.map(i => ({
@@ -497,7 +517,7 @@ const SalaryComponent = {
     },
 
     salarySavingNote() {
-        return '저축·투자 ' + this.salaryMan(this.salarySaved())
+        return '저축 ' + this.salaryMan(this.salarySaved())
             + ' / 월급 ' + this.salaryMan(Number(this.salary.income) || 0);
     },
 
@@ -840,7 +860,7 @@ const SalaryComponent = {
             out.push({
                 key: 'rate',
                 title: '저축률 ' + rate.toFixed(1) + '% — 목표 달성',
-                body: '저축·투자 ' + this.salaryMan(this.salarySaved()) + '으로 목표선 ' + target + '%를 넘겼습니다.',
+                body: '저축 합계 ' + this.salaryMan(this.salarySaved()) + '으로 목표선 ' + target + '%를 넘겼습니다.',
                 color: '#2e8b62', bg: '#f2f8f5'
             });
         } else {
@@ -848,7 +868,7 @@ const SalaryComponent = {
                 key: 'rate',
                 title: '저축률 목표까지 ' + (target - rate).toFixed(1) + '%p',
                 body: '약 ' + this.salaryMan((target - rate) / 100 * (Number(this.salary.income) || 0))
-                    + '을 저축·투자로 옮기면 목표선에 닿습니다.',
+                    + '을 저축 카테고리로 옮기면 목표선에 닿습니다.',
                 color: '#1f4f9e', bg: '#f4f7fc'
             });
         }

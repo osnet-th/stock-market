@@ -30,3 +30,7 @@ feat(salary): 월급 사용 비율 화면 목업 기반 재설계 — 카테고�
   구조 포함 일괄 저장, 프론트 동적 카테고리 UI) + 저축률 목표 설정화(user_salary_setting,
   savingTarget, 인라인 입력) + `salary_category_check_drop_2026_08_21.sql` + 문서 갱신
 - 커밋 메시지: feat(salary): #116 커스텀 카테고리·저축률 목표 사용자 설정화 — enum→사용자 정의 테이블 전환
+
+## 3차 커밋 (후속 확장 — 태형님 지시)
+- 커스텀 카테고리 저축 지정 + 카테고리 순서 변경(▲▼, payload 순서 authoritative)
+- 커밋 메시지: feat(salary): #116 커스텀 카테고리 저축 지정·카테고리 순서 변경

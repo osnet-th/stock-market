@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 사용자 정의 카테고리 구조 관리 — lazy 시드, 일괄 저장의 생성/재활성/이름변경/비활성 반영.
@@ -56,7 +57,7 @@ public class SalaryCategoryService {
     /**
      * 일괄 저장 payload의 카테고리 구조 반영.
      * code 없는 항목은 신규 생성(동명 inactive 재활성), payload에서 빠진 활성 카테고리는 비활성.
-     * 저축 카테고리는 비활성 불가.
+     * 표시 순서는 payload 순서가 authoritative. 기본 저축 카테고리(저축·투자)는 비활성 불가.
      *
      * @return payload 순서와 평행한 resolve된 code 목록 + 이번에 비활성 처리된 code 목록
      */
@@ -64,12 +65,26 @@ public class SalaryCategoryService {
     public StructureResult applyStructure(Long userId, List<SaveMonthlyCommand.CategoryCommand> payload) {
         Map<String, UserSpendingCategory> byCode = ensureSeeded(userId);
         SortCounter sort = new SortCounter(byCode.values());
-        List<String> resolved = new ArrayList<>();
+        List<UserSpendingCategory> resolved = new ArrayList<>();
         for (SaveMonthlyCommand.CategoryCommand command : payload) {
-            resolved.add(resolveOne(userId, command, byCode, sort).getCode());
+            resolved.add(resolveOne(userId, command, byCode, sort));
         }
-        List<String> deactivated = deactivateMissing(byCode, new HashSet<>(resolved));
-        return new StructureResult(resolved, deactivated);
+        reorderToPayload(resolved);
+        List<String> resolvedCodes = resolved.stream()
+                .map(UserSpendingCategory::getCode)
+                .collect(Collectors.toList());
+        List<String> deactivated = deactivateMissing(byCode, new HashSet<>(resolvedCodes));
+        return new StructureResult(resolvedCodes, deactivated);
+    }
+
+    /** payload 순서를 sort_order로 반영 (변경된 것만 저장) */
+    private void reorderToPayload(List<UserSpendingCategory> resolved) {
+        for (int i = 0; i < resolved.size(); i++) {
+            UserSpendingCategory cat = resolved.get(i);
+            if (cat.getSortOrder() == i) continue;
+            cat.updateSortOrder(i);
+            categoryRepository.save(cat);
+        }
     }
 
     /** 시드 보장 후 code → 카테고리 맵 (sort순 유지) */
@@ -102,6 +117,7 @@ public class SalaryCategoryService {
             categoryRepository.save(cat);
         }
         renameIfChanged(cat, command.getName());
+        applySavingsIfChanged(cat, command.getSavings());
         return cat;
     }
 
@@ -111,10 +127,11 @@ public class SalaryCategoryService {
         if (inactiveSameName != null) {
             inactiveSameName.reactivate(sort.next());
             categoryRepository.save(inactiveSameName);
+            applySavingsIfChanged(inactiveSameName, command.getSavings());
             return inactiveSameName;
         }
-        UserSpendingCategory created = categoryRepository.save(
-                UserSpendingCategory.createCustom(userId, command.getName(), sort.next(), sort.seq()));
+        UserSpendingCategory created = categoryRepository.save(UserSpendingCategory.createCustom(
+                userId, command.getName(), sort.next(), sort.seq(), Boolean.TRUE.equals(command.getSavings())));
         byCode.put(created.getCode(), created);
         return created;
     }
@@ -124,6 +141,15 @@ public class SalaryCategoryService {
             return;
         }
         cat.rename(name);
+        categoryRepository.save(cat);
+    }
+
+    /** 커스텀 카테고리의 저축률 산입 여부 반영 (null=미변경, system은 시드 값 고정) */
+    private void applySavingsIfChanged(UserSpendingCategory cat, Boolean savings) {
+        if (cat.isSystem() || savings == null || cat.isSavings() == savings) {
+            return;
+        }
+        cat.updateSavings(savings);
         categoryRepository.save(cat);
     }
 
@@ -140,7 +166,7 @@ public class SalaryCategoryService {
         List<String> deactivated = new ArrayList<>();
         for (UserSpendingCategory cat : byCode.values()) {
             if (!cat.isActive() || kept.contains(cat.getCode())) continue;
-            requireNotSavings(cat);
+            requireDeletable(cat);
             cat.deactivate();
             categoryRepository.save(cat);
             deactivated.add(cat.getCode());
@@ -148,9 +174,10 @@ public class SalaryCategoryService {
         return deactivated;
     }
 
-    private static void requireNotSavings(UserSpendingCategory cat) {
-        if (cat.isSavings()) {
-            throw new IllegalArgumentException("저축 카테고리는 삭제할 수 없습니다: " + cat.getName());
+    /** 기본 저축 카테고리(저축·투자)만 삭제 보호 — 커스텀 저축 카테고리는 삭제 가능 */
+    private static void requireDeletable(UserSpendingCategory cat) {
+        if (cat.isSystem() && cat.isSavings()) {
+            throw new IllegalArgumentException("기본 저축 카테고리는 삭제할 수 없습니다: " + cat.getName());
         }
     }
 

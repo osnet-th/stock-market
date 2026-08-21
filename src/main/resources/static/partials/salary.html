@@ -177,7 +177,17 @@
                                 <template x-for="c in salary.cats" :key="c.uid">
                                     <div class="flex flex-col border-b" style="border-color:rgba(0,0,0,.055)">
                                         <!-- 카테고리 행 -->
-                                        <div class="flex items-center gap-2.5 px-3 py-2.5" style="background:#f8f9fb">
+                                        <div class="group flex items-center gap-2.5 px-3 py-2.5" style="background:#f8f9fb">
+                                            <div class="flex flex-col flex-none -my-1 opacity-30 group-hover:opacity-100 transition-opacity">
+                                                <button @click.stop="moveSalaryCategory(c, -1)" title="위로"
+                                                        class="text-[8px] leading-[9px] px-0.5 hover:text-blue-800 disabled:opacity-20"
+                                                        style="color:#8b9299"
+                                                        :disabled="salary.cats.indexOf(c) === 0">▲</button>
+                                                <button @click.stop="moveSalaryCategory(c, 1)" title="아래로"
+                                                        class="text-[8px] leading-[9px] px-0.5 hover:text-blue-800 disabled:opacity-20"
+                                                        style="color:#8b9299"
+                                                        :disabled="salary.cats.indexOf(c) === salary.cats.length - 1">▼</button>
+                                            </div>
                                             <div class="flex-1 min-w-[180px] flex items-center gap-2 cursor-pointer"
                                                  @click="toggleSalaryCat(c)">
                                                 <span class="font-mono-num text-[10px] w-2.5 flex-none" style="color:#8b9299"
@@ -189,9 +199,15 @@
                                                        maxlength="40" placeholder="카테고리 이름"
                                                        class="text-[12.5px] font-semibold rounded-md border border-transparent px-1.5 py-0.5 outline-none bg-transparent focus:bg-blue-50/50 focus:border-blue-200 w-[120px]"
                                                        style="color:#14161a">
-                                                <span class="text-[9.5px] px-[7px] py-px rounded"
+                                                <span x-show="c.system" class="text-[9.5px] px-[7px] py-px rounded"
                                                       :style="'background:' + salaryCatKind(c).bg + ';color:' + salaryCatKind(c).color"
                                                       x-text="salaryCatKind(c).label"></span>
+                                                <button x-show="!c.system" @click.stop="toggleSalaryCatSavings(c)"
+                                                        title="클릭하면 저축률 계산 포함 여부가 바뀝니다 (저장 시 반영)"
+                                                        class="text-[9.5px] px-[7px] py-px rounded border border-dashed cursor-pointer"
+                                                        :style="'background:' + salaryCatKind(c).bg + ';color:' + salaryCatKind(c).color
+                                                            + ';border-color:' + (c.savings ? '#b9cbe8' : 'rgba(0,0,0,.12)')"
+                                                        x-text="salaryCatKind(c).label"></button>
                                                 <span class="text-[10.5px]" style="color:#8b9299" x-text="salaryCatCountLabel(c)"></span>
                                             </div>
                                             <div class="w-[150px] flex-none flex justify-end">

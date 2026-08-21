@@ -11,7 +11,7 @@
 ## Stage Decisions
 - start: approved (2026-08-21, 태형님 원격 세션 지시 — 목업 HTML 첨부)
 - brainstorm: 완료 (2026-08-21, 자율 세션 일괄 승인 근거)
-- issue: 문서 기록으로 대체 (GitHub MCP 인증 실패 — Bad credentials, Issue 미등록)
+- issue: 완료 — #116 (세션 후반 GitHub 인증 복구 후 소급 등록, 2026-08-21)
 - plan: 완료 (2026-08-21, 자율 세션 일괄 승인 근거)
 - work: 완료 (2026-08-21)
 - review: 완료 (2026-08-21, self review — docs/reviews)
@@ -27,9 +27,10 @@
     목업 시드 카테고리 8종이 기존 enum 과 정확히 일치함을 근거로 판단.
   - [자율 결정] 항목은 월 단위 스냅샷 세트 모델. 항목 보유 카테고리의 spending_config.amount 는
     항목 합계 파생 저장 → 기존 trend/홈 대시보드 계약 무수정 유지.
-- issue: docs/issues/2026-08-21-salary-usage-screen-redesign-issue.md
+- issue: docs/issues/2026-08-21-salary-usage-screen-redesign-issue.md (#116)
   - GitHub MCP `list_issues`/`create_issue` 인증 실패(Bad credentials) 2회 확인 → Issue 등록 불가.
     문서 기록으로 대체하고 태형님께 후속 등록 안내.
+  - 2026-08-21 (후속): 세션 후반 GitHub 인증 복구 확인 → Issue #116 소급 등록, issue/gate 문서 갱신.
 - plan: docs/plans/2026-08-21-001-feat-salary-usage-screen-redesign-plan.md
 - work: docs/works/2026-08-21-salary-usage-screen-redesign-work.md
 - review: docs/reviews/2026-08-21-salary-usage-screen-redesign-review.md

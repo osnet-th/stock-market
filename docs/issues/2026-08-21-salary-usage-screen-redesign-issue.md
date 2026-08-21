@@ -3,10 +3,10 @@
 gate: docs/gates/2026-08-21-salary-usage-screen-redesign-gates.md
 
 ## GitHub Issue
-- status: blocked — 원격 세션의 GitHub MCP 인증 실패(Bad credentials)로 Issue 등록 불가
-- fallback: 본 문서를 issue 기록 원본으로 사용. 태형님 확인 후 로컬 환경에서 Issue 등록 시
-  본 문서에 issue_number 를 추기한다.
-- 제안 title: [enhancement] 월급 사용 비율 화면 목업 기반 재설계 — 카테고리 하위 항목·예산·일괄 저장·SVG 추이 3모드
+- status: created (2026-08-21, 세션 후반 GitHub 인증 복구 후 등록 — 구현 완료 뒤 소급 등록)
+- issue_number: 116
+- issue_url: https://github.com/osnet-th/stock-market/issues/116
+- title: [enhancement] 월급 사용 비율 화면 목업 기반 재설계 — 카테고리 하위 항목·예산·일괄 저장·SVG 추이 3모드
 - label: enhancement
 
 ## 근거

@@ -79,8 +79,10 @@ harness(`check-documented-workflow.sh`) 형식 요건에 맞춰 마커만 표준
 ## 잔여 처리 항목
 - ~~GitHub Issue 수동 등록~~ → **완료**: 세션 GitHub 연결 복구 후 사후 등록
   (2026-08-21, https://github.com/osnet-th/stock-market/issues/117)
-- main 병합 여부 — 태형님 검토 후 결정 (본 세션은 지정 브랜치 푸시까지)
-- 병합 시 Issue #117 종료 처리 (#110/#114 는 병합 후에도 열린 상태였음 — 관례 확인 필요)
+- ~~main 병합 여부~~ → **완료**: 태형님 승인 (2026-08-21, "병합해") — `--no-ff` 병합 `1b372f1`,
+  main 재검증(전체 테스트) PASS 후 `origin/main` 푸시. 상세는 push 문서 참조
+- Issue #117 종료 여부 — 태형님 확인 대기 (#110/#114 는 병합 후에도 열린 상태였음)
+- 배포 후 실화면(폰트·미세 스타일) 1회 확인 권장 — 검증 하네스는 Tailwind 스텁 환경
 
 ## Notes
 - 목업 색 토큰: RED `#c02a22` · BLUE `#1f4f9e` · GREEN `#2e8b62` · AMBER `#b5854a` —

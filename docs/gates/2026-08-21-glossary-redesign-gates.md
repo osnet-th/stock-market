@@ -48,6 +48,8 @@ harness(`check-documented-workflow.sh`) 형식 요건에 맞춰 마커만 표준
 - issue: GitHub MCP `create_issue` 시도 → Bad credentials 실패 (뉴스 기록 세션과 동일 증상).
   docs/issues/2026-08-21-glossary-redesign-issue.md 에 bootstrap-exception 상태로 기록,
   사후 등록으로 이관 (#117 선례)
+  → **push 이후 사후 등록 완료: #118** (https://github.com/osnet-th/stock-market/issues/118).
+  issue 문서를 status: created 로 갱신
 - plan: 문서 작성 완료 (docs/plans/2026-08-21-001-feat-glossary-redesign-plan.md)
   - Phase 1 백엔드(구조화 필드 + 함께 볼 용어) → Phase 2 프론트 전면 리라이트 → Phase 3 검증
   - 확인 사실: list 응답이 전체 필드를 이미 포함 (GlossaryTermResponse.from) → 디테일 pane 추가 페치 불필요
@@ -73,3 +75,19 @@ harness(`check-documented-workflow.sh`) 형식 요건에 맞춰 마커만 표준
 - commit: 완료 (docs/commits/2026-08-21-glossary-redesign-commit.md) — feat 1건 + docs 1건
 - push: 완료 (docs/pushes/2026-08-21-glossary-redesign-push.md) —
   origin/claude/glossary-ui-backend-update-dnbbk2
+
+## Post-push 후속 (2026-08-21)
+
+태형님 지시로 push 이후 진행한 후속 작업.
+
+- 판단 대기 4건에 대한 권장안 회신: **전부 현행 유지** 권장
+  (한 줄 정의 소프트 필수 / `definition` rename 안 함 / 카테고리 관리 위치 유지 /
+  삭제 confirm 유지 — `confirm()` 이 저장소 전반 관행(7개 컴포넌트)이고 커스텀 다이얼로그는
+  '영향 건수 표시'가 필요한 예외라는 근거 확인)
+- 병합 방식: PR 없이 직접 병합 권장 — 선행 4건(#110·#114·salary·#117) 전부 직접 merge 이고,
+  CI(`harness-checks.yml`)는 PR/main push 양쪽에서 `check-documented-workflow.sh` 하나만
+  돌려 PR 의 추가 검증 실익이 없음
+- 선택적 보완 1건 적용: '채움 필요' 판정에 `oneLine` 포함 (`glNeedsFill` 추출).
+  4개 섹션을 다 채우고 한 줄 정의만 빈 용어가 헤더에서는 완성으로 잡히면서 목록 행에는
+  '한 줄 정의가 비어 있습니다'가 뜨던 모순 해소. 목록 배지 `N/4` 표기는 목업대로 유지
+- GitHub Issue #118 사후 등록 완료

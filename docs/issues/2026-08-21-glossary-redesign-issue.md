@@ -3,12 +3,14 @@
 gate: docs/gates/2026-08-21-glossary-redesign-gates.md
 
 ## GitHub Issue
-- status: bootstrap-exception
-- 경위: GitHub MCP `create_issue` 시도 → `Bad credentials` 실패 (2026-08-21 뉴스 기록
-  리디자인 세션 #117 과 동일 증상). 세션 GitHub 연결 복구 후 **사후 등록** 필요.
-  등록 시 본 문서의 status 를 created 로 바꾸고 issue_number / issue_url 을 채운다 (#117 선례).
-- 제안 제목: [enhancement] 용어 사전 마스터-디테일 리디자인 — 구조화 필드(풀이·기준·예시·투자 관점)·함께 볼 용어·초성 검색
+- status: created
+- issue_number: #118
+- issue_url: https://github.com/osnet-th/stock-market/issues/118
+- title: [enhancement] 용어 사전 마스터-디테일 리디자인 — 구조화 필드(풀이·기준·예시·투자 관점)·함께 볼 용어·초성 검색
 - label: enhancement
+- 경위: 최초 시도 시 GitHub MCP 자격 증명 오류(Bad credentials)로 실패해 구현이 선행됐다
+  (2026-08-21 뉴스 기록 리디자인 세션 #117 과 동일 증상). 세션 GitHub 연결 복구 후
+  **사후 등록** (2026-08-21, push 이후) — #117 과 동일한 처리.
 
 ## 근거
 - brainstorm: docs/brainstorms/2026-08-21-glossary-redesign-brainstorm.md (Status: Decided)

@@ -26,5 +26,12 @@ Status: Done (2026-08-21)
 
 ## 후속
 
-- GitHub Issue 사후 등록 (#117 선례) — 세션 GitHub 자격 복구 시
+- ~~GitHub Issue 사후 등록 (#117 선례) — 세션 GitHub 자격 복구 시~~
+  → **완료: #118** (https://github.com/osnet-th/stock-market/issues/118)
 - 운영 DB 는 백업 SQL 수동 적용 필요 (validation 문서 참조)
+
+## 2차 push (post-push 후속, 2026-08-21)
+
+- 대상/명령 동일 (`git push -u origin claude/glossary-ui-backend-update-dnbbk2`)
+- 내용: '채움 필요' 판정에 한 줄 정의 포함(`glNeedsFill`) + 후속 문서 갱신 + issue #118 반영
+- 승인: 태형님 "진행해봐" 지시 (권장안 회신 후 명시적 진행 승인)

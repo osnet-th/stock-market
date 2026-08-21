@@ -68,3 +68,27 @@ H 용어 삭제(빈 상태) / I 콘솔 오류 0건
 
 미검증 항목은 위 범위로 한정되며, 다음 진행(commit/push)은 게이트 로그의 포괄 승인 해석에 따름 —
 최종 수용은 태형님이 푸시된 브랜치에서 확인.
+
+## Post-push 후속 검증 (2026-08-21)
+
+'채움 필요' 판정에 `oneLine` 을 포함하는 보완(`glNeedsFill` 추출) 적용 후 재검증.
+
+| 검증 | 결과 |
+|---|---|
+| `node --check js/components/glossary.js` | PASS |
+| Playwright 목 하네스 | **60항목 PASS / 0 FAIL** (기존 57 + 신규 3) |
+| 신규 단언 A8 — 섹션 4/4 여도 한 줄 정의 공백이면 채움 필요 | PASS |
+| 신규 단언 A9 — 섹션 4/4 + 한 줄 정의 → 완성 | PASS |
+| 신규 단언 A10 — 섹션 하나라도 비면 채움 필요 (기존 동작) | PASS |
+| 기존 A5 '등록 7개 · 채움 필요 3개' | PASS (값 불변 — 회귀 없음) |
+| `scripts/check-documented-workflow.sh --through push` | PASS (issue 문서 status: created 반영 후) |
+
+신규 단언은 픽스처를 건드리지 않고 `glNeedsFill` 을 합성 용어로 직접 호출해 검증했다
+(픽스처에 케이스를 추가하면 다른 카운트 단언들이 연쇄로 바뀌어 회귀 판별이 어려워짐).
+
+Java 변경 없음 — gradle 재실행 불필요 (직전 전체 스위트 117 PASS 유효).
+
+### GitHub Issue
+
+- 미검증/후속으로 남겼던 사후 등록 완료: **#118**
+  (https://github.com/osnet-th/stock-market/issues/118). 중복 없음을 `search_issues` 로 확인 후 등록.

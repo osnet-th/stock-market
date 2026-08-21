@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,6 +17,30 @@ public interface GlossaryTermJpaRepository extends JpaRepository<GlossaryTermEnt
     @Modifying
     @Query("DELETE FROM GlossaryTermEntity t WHERE t.id = :id AND t.userId = :userId")
     int deleteByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
+
+    /**
+     * 함께 볼 용어 소유권 검증용 — 후보 id 중 해당 사용자 소유 용어 id 만 반환.
+     * 호출자는 빈 컬렉션 전달 금지 (Hibernate 빈 IN 렌더링 회피 — 어댑터에서 guard).
+     */
+    @Query("SELECT t.id FROM GlossaryTermEntity t WHERE t.userId = :userId AND t.id IN :ids")
+    List<Long> findOwnedIds(@Param("userId") Long userId, @Param("ids") Collection<Long> ids);
+
+    /**
+     * 용어 삭제 시 함께 볼 용어 관계 양방향 정리.
+     *
+     * <p>@ElementCollection 은 JPQL 대상이 아니고, {@link #deleteByIdAndUserId} 의 JPQL 벌크
+     * DELETE 는 컬렉션 행을 지우지 않으므로 native 로 직접 정리한다.
+     * 참조받는 쪽(related_term_id) 행도 같은 사용자 용어에서만 생길 수 있어
+     * (저장 시 소유권 검증) userId 조건 없이 안전하다. 단, 소유권이 확인된 삭제
+     * 성공 이후에만 호출한다 (어댑터 계약).
+     *
+     * <p>{@code clearAutomatically=true} — 같은 트랜잭션에서 관계 보유 용어를 재조회할 때
+     * L1 캐시의 stale 컬렉션 반환 방지.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "DELETE FROM glossary_term_related WHERE term_id = :termId OR related_term_id = :termId",
+            nativeQuery = true)
+    int deleteRelationsForTerm(@Param("termId") Long termId);
 
     long countByUserIdAndCategoryId(Long userId, Long categoryId);
 

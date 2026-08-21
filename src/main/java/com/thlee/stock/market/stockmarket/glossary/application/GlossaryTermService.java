@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * 용어 유스케이스 (CRUD + 검색/필터/정렬/페이지네이션).
@@ -58,7 +60,8 @@ public class GlossaryTermService {
     @Transactional
     public GlossaryTerm create(Long userId, CreateGlossaryTermCommand cmd) {
         Long resolvedCategoryId = resolveCategoryRef(userId, cmd.categoryId(), cmd.categoryName());
-        GlossaryTerm term = GlossaryTerm.create(userId, cmd.name(), cmd.definition(), resolvedCategoryId);
+        List<Long> relatedIds = resolveRelatedRefs(userId, null, cmd.relatedTermIds());
+        GlossaryTerm term = GlossaryTerm.create(userId, cmd.name(), cmd.content(), resolvedCategoryId, relatedIds);
         return termRepository.save(term);
     }
 
@@ -66,7 +69,8 @@ public class GlossaryTermService {
     public GlossaryTerm update(Long userId, Long termId, UpdateGlossaryTermCommand cmd) {
         GlossaryTerm term = loadOwned(userId, termId);
         Long resolvedCategoryId = resolveCategoryRef(userId, cmd.categoryId(), cmd.categoryName());
-        term.replace(cmd.name(), cmd.definition(), resolvedCategoryId);
+        List<Long> relatedIds = resolveRelatedRefs(userId, termId, cmd.relatedTermIds());
+        term.replace(cmd.name(), cmd.content(), resolvedCategoryId, relatedIds);
         return termRepository.save(term);
     }
 
@@ -91,6 +95,32 @@ public class GlossaryTermService {
             return resolved.getId();
         }
         return null;
+    }
+
+    /**
+     * 함께 볼 용어 참조 정규화 — null/자기 참조/중복 제거 후 본인 소유 & 실존 id 만 통과.
+     * 비소유/미존재 id 는 조용히 제거한다 (편집 중 다른 탭에서 삭제된 용어 허용 —
+     * 목업의 dangling 필터와 동일 방침). 타 사용자 id 도 동일하게 제거되므로 존재 여부가
+     * 새어 나가지 않는다. 입력 순서는 보존한다.
+     */
+    private List<Long> resolveRelatedRefs(Long userId, Long selfId, List<Long> candidateIds) {
+        List<Long> requested = sanitizeRelatedInput(selfId, candidateIds);
+        if (requested.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> owned = Set.copyOf(termRepository.findOwnedIds(userId, requested));
+        return requested.stream().filter(owned::contains).toList();
+    }
+
+    private List<Long> sanitizeRelatedInput(Long selfId, List<Long> candidateIds) {
+        if (candidateIds == null) {
+            return List.of();
+        }
+        return candidateIds.stream()
+                .filter(Objects::nonNull)
+                .filter(id -> !id.equals(selfId))
+                .distinct()
+                .toList();
     }
 
     private GlossaryTerm loadOwned(Long userId, Long termId) {

@@ -381,3 +381,76 @@ body.app-surface {
     position: absolute; transform: translateX(-50%); font-size: 11px;
     pointer-events: none; white-space: nowrap;
 }
+
+/* ===== 용어 사전 리디자인 (glossary) — 목업 실측 스타일 =====
+   목업은 인라인 스타일 기반이라 반복 패턴만 클래스로 추출했다 (.nj-* 패턴 준용).
+   앱 셸 안에서 목록/디테일 pane 이 각자 스크롤해야 하므로 화면 높이를 고정한다. */
+.gl-shell { height: calc(100dvh - 5.25rem); min-height: 480px; }
+@media (min-width: 640px) { .gl-shell { height: calc(100dvh - 5.75rem); } }
+@media (min-width: 1024px) { .gl-shell { height: calc(100dvh - 6.75rem); } }
+
+.gl-btn-primary {
+    border: none; background: var(--dc-blue); color: #fff; border-radius: 7px;
+    padding: 9px 16px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.gl-btn-primary:hover { background: #173d7a; }
+.gl-btn-ghost {
+    border: 1px solid rgba(0, 0, 0, .14); background: #fff; color: #4a5158;
+    border-radius: 7px; padding: 8px 14px; font-size: 11.5px; cursor: pointer; white-space: nowrap;
+}
+.gl-btn-ghost:hover { border-color: var(--dc-blue); color: var(--dc-blue); }
+
+/* 정렬 세그먼트 (가나다순 · 최신순) */
+.gl-seg { display: flex; align-items: center; gap: 3px; padding: 2px; background: #f2f4f7; border-radius: 7px; }
+.gl-seg-btn {
+    border: none; background: transparent; color: #7a828a; border-radius: 5px;
+    padding: 5px 10px; font-size: 10.5px; cursor: pointer; white-space: nowrap;
+}
+.gl-seg-btn.on { background: #fff; color: #14161a; font-weight: 600; }
+
+/* 카테고리 필터 칩 */
+.gl-chip {
+    border: 1px solid rgba(0, 0, 0, .13); background: #fff; color: #4a5158;
+    border-radius: 20px; padding: 5px 12px; font-size: 11px; cursor: pointer;
+    white-space: nowrap; flex: none;
+}
+.gl-chip.on { background: #14161a; color: #fff; border-color: #14161a; }
+
+/* 목록 행 + 그룹 헤더 (sticky)
+   선택 상태는 .on 클래스로 (inline background 는 :hover 를 영구히 덮는다 — #117 교훈).
+   .on 보다 :hover 를 뒤에 두어 선택 행에도 hover 가 먹는다 (목업 동일). */
+.gl-row { border-bottom: 1px solid rgba(0, 0, 0, .055); border-left: 3px solid transparent; cursor: pointer; }
+.gl-row.on { background: #fff; border-left-color: var(--dc-blue); }
+.gl-row:hover { background: #eef1f5; }
+.gl-group-head {
+    display: flex; align-items: center; gap: 9px; padding: 7px 14px; background: #eef1f5;
+    border-bottom: 1px solid rgba(0, 0, 0, .05); position: sticky; top: 0; z-index: 5;
+}
+
+/* 팝오버 (카테고리 관리) */
+.gl-pop {
+    position: absolute; z-index: 40; background: #fff; border: 1px solid rgba(0, 0, 0, .1);
+    border-radius: 9px; box-shadow: 0 12px 34px rgba(0, 0, 0, .16);
+    display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* 편집 폼 입력 */
+.gl-input {
+    border: 1px solid rgba(0, 0, 0, .16); border-radius: 8px; padding: 11px 13px;
+    font-size: 12.5px; outline: none; color: #14161a; background: #fff; font-family: inherit;
+}
+.gl-label { font-size: 10.5px; color: #7a828a; }
+
+/* 카테고리 선택 칩 (편집 폼) */
+.gl-cat-pick { border-radius: 20px; padding: 7px 14px; font-size: 11.5px; cursor: pointer; white-space: nowrap; }
+
+/* 함께 볼 용어 후보 칩 */
+.gl-add-chip {
+    border: 1px solid rgba(0, 0, 0, .13); background: #fff; color: #4a5158;
+    border-radius: 20px; padding: 4px 11px; font-size: 11px; cursor: pointer; white-space: nowrap;
+}
+.gl-add-chip:hover { border-color: var(--dc-blue); color: var(--dc-blue); }
+
+/* 함께 볼 용어 카드 (디테일) */
+.gl-rel-card { background: #f7f8fa; border: 1px solid rgba(0, 0, 0, .07); border-radius: 8px; cursor: pointer; }
+.gl-rel-card:hover { border-color: #b9cbe8; background: #f2f6fd; }

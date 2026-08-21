@@ -91,3 +91,10 @@ harness(`check-documented-workflow.sh`) 형식 요건에 맞춰 마커만 표준
   4개 섹션을 다 채우고 한 줄 정의만 빈 용어가 헤더에서는 완성으로 잡히면서 목록 행에는
   '한 줄 정의가 비어 있습니다'가 뜨던 모순 해소. 목록 배지 `N/4` 표기는 목업대로 유지
 - GitHub Issue #118 사후 등록 완료
+- main 병합: 태형님 "main 병합해" 지시 → `git merge --no-ff` 로 병합 후 main push (선례 방식)
+  - merge commit `6c2ea5c` — 충돌 없음, 26 files / +2102 −492
+  - 병합 트리가 브랜치 검증 트리와 **완전 동일**함을 확인 후 push (병합 부작용 없음)
+  - CI `Harness Checks` run #102 — **success**
+  - Issue #118 — merge commit 의 `Closes #118` 로 자동 클로즈 (state: closed / completed)
+  - 배포는 미발생: `deploy.yml` 이 `disabled_manually` 상태 (#116 기록과 동일) → 수동 배포 필요
+

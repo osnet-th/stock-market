@@ -35,3 +35,22 @@ Status: Done (2026-08-21)
 - 대상/명령 동일 (`git push -u origin claude/glossary-ui-backend-update-dnbbk2`)
 - 내용: '채움 필요' 판정에 한 줄 정의 포함(`glNeedsFill`) + 후속 문서 갱신 + issue #118 반영
 - 승인: 태형님 "진행해봐" 지시 (권장안 회신 후 명시적 진행 승인)
+
+## main 병합 (2026-08-21)
+
+- 승인: 태형님 "main 병합해" 지시
+- 방식: `git checkout main && git merge --no-ff claude/glossary-ui-backend-update-dnbbk2`
+  → `git push origin main` (선행 #110·#114·salary·#117 과 동일하게 PR 없이 직접 병합)
+- merge commit: `6c2ea5c` — 충돌 없음 (26 files, +2102 −492)
+- 사전 확인: 병합 트리 == 브랜치 검증 트리 (`git diff` 공백) → 브랜치 검증 결과 그대로 유효
+- CI: `Harness Checks` run #102 **success**
+- Issue: #118 자동 클로즈 (merge commit body `Closes #118`)
+
+### 배포 상태
+
+`deploy.yml` 은 `on: push: branches: [main]` 이지만 워크플로가 **`disabled_manually`** 상태라
+main push 로 배포가 트리거되지 않았다 (#116 push 기록의 정정 내용과 동일 상황).
+운영 반영이 필요하면 워크플로를 활성화하거나 서버에서 수동 배포해야 한다.
+DB 는 `ddl-auto: update` 환경이면 신규 컬럼/테이블이 자동 생성되고,
+수동 관리 DB 라면 `db/migration/glossary_term_detail_fields_2026_08_21.sql` 적용이 필요하다.
+

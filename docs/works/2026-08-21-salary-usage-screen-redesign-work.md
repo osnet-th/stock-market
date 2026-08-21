@@ -60,3 +60,36 @@
 - 홈 우측 패널(home-side)의 월급 스택 바는 응답 additive 확장으로 무수정 동작 확인.
 - 컨테이너 프록시가 브라우저의 CDN 접근을 차단 → 검증은 npm 동일 패키지를 로컬 라우팅해 수행
   (검증 문서 참조). 운영 환경과 무관한 검증 인프라 사정.
+
+---
+
+## 범위 확장 (태형님 지시): 커스텀 카테고리 + 저축률 목표 설정화
+
+- plan: docs/plans/2026-08-21-002-feat-salary-custom-categories-target-plan.md
+
+### 백엔드
+- `UserSpendingCategory` 도메인 + `user_spending_category` 테이블 — code(varchar20)·name·color·
+  savings·system·active(soft delete)·sort_order. 기본 8종은 enum 이름을 code로 lazy 시드
+  (`defaultSet`), 커스텀은 `createCustom`('U'+base36 code, 팔레트 순환 색).
+- `SalarySetting` + `user_salary_setting` — 저축률 목표(0~100, 기본 50), 사용자당 1행.
+- salary 도메인 category 타입 enum→String 전환 (SpendingConfig/SpendingItem/엔티티/리포지토리/
+  레거시 컨트롤러). 저장 형태가 동일해 데이터 이관 불필요.
+- `SalaryCategoryService` — 시드 보장, 일괄 저장 구조 반영(생성/동명 inactive 재활성/커스텀
+  이름 변경/누락 카테고리 비활성). 저축 카테고리 비활성 시 400.
+- `SalaryService` — 표시 규칙(활성 ∪ 그 월 금액·항목 보유 비활성, 잔존 code는 unknown 메타),
+  savings 플래그 기반 저축률(전월·추이 포함), 추이 `categories` 메타, savingTarget 응답/저장,
+  비활성 카테고리 zero-out 레코드.
+- `GET /monthly` 라인에 color/savings/system/active 메타 추가, `savingTarget` 추가.
+  `SaveMonthlyRequest` category nullable + name + savingTarget.
+- **수동 마이그레이션 신설**: `db/migration/salary_category_check_drop_2026_08_21.sql`
+  — Hibernate가 enum STRING 매핑으로 생성해 둔 `spending_config_category_check` /
+  `spending_item_category_check` CHECK 제약 제거. 커스텀 code가 이 제약에 걸려 INSERT 실패
+  (로컬 실측으로 발견). **ddl-auto는 CHECK 제약을 제거하지 않으므로 운영 배포 시 필수 실행.**
+
+### 프론트
+- 버퍼를 응답 메타 기반 동적 카테고리로 전환 (`SALARY_CATEGORIES` 상수 제거,
+  `salaryLinesToCats` 공용화 — 지난달 복사도 동일 경로).
+- `+ 카테고리`(사용처 헤더) / 카테고리 ×(저축 제외, 관리 열 82px 복원) / 커스텀 이름 인라인 입력.
+- 저축률 목표 인라인 입력(다크 카드) — 추이 목표선·인사이트·범례 즉시 반영, dirty 추적.
+- 구성 모드·범례를 추이 `categories` 메타 기반 동적 스택으로 전환 (값 있는 카테고리 전부).
+- 리본/지난달 대비 x-for key를 로컬 uid로 전환 (신규 카테고리 key null 충돌 방지).

@@ -1,6 +1,5 @@
 package com.thlee.stock.market.stockmarket.salary.domain.model;
 
-import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -16,7 +15,7 @@ public class SpendingConfig {
 
     private Long id;
     private Long userId;
-    private SpendingCategory category;
+    private String category;
     private YearMonth effectiveFromMonth;
     private BigDecimal amount;
     private String memo;
@@ -28,7 +27,7 @@ public class SpendingConfig {
     private LocalDateTime updatedAt;
 
     /** 재구성용 생성자 (Repository 조회 시) */
-    public SpendingConfig(Long id, Long userId, SpendingCategory category,
+    public SpendingConfig(Long id, Long userId, String category,
                           YearMonth effectiveFromMonth, BigDecimal amount, String memo,
                           BigDecimal budget, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
@@ -47,7 +46,7 @@ public class SpendingConfig {
      *
      * @param referenceMonth 현재 월 판정 기준 (테스트 가능성 목적으로 주입)
      */
-    public static SpendingConfig create(Long userId, SpendingCategory category,
+    public static SpendingConfig create(Long userId, String category,
                                         YearMonth effectiveFromMonth, YearMonth referenceMonth,
                                         BigDecimal amount, String memo, BigDecimal budget) {
         validateUserId(userId);
@@ -111,8 +110,8 @@ public class SpendingConfig {
         }
     }
 
-    private static void validateCategory(SpendingCategory category) {
-        if (category == null) {
+    private static void validateCategory(String category) {
+        if (category == null || category.isBlank()) {
             throw new IllegalArgumentException("카테고리는 필수입니다.");
         }
     }

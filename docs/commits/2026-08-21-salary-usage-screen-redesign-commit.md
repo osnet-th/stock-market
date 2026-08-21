@@ -22,3 +22,11 @@ feat(salary): 월급 사용 비율 화면 목업 기반 재설계 — 카테고�
 ## 검증 근거
 - docs/validations/2026-08-21-salary-usage-screen-redesign-validation.md
   (compileJava·test 117/117·API E2E·브라우저 E2E 통과)
+
+---
+
+## 2차 커밋 (범위 확장 — 태형님 지시)
+- 포함: 커스텀 카테고리(user_spending_category, category String 전환, SalaryCategoryService,
+  구조 포함 일괄 저장, 프론트 동적 카테고리 UI) + 저축률 목표 설정화(user_salary_setting,
+  savingTarget, 인라인 입력) + `salary_category_check_drop_2026_08_21.sql` + 문서 갱신
+- 커밋 메시지: feat(salary): #116 커스텀 카테고리·저축률 목표 사용자 설정화 — enum→사용자 정의 테이블 전환

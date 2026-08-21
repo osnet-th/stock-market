@@ -1,7 +1,6 @@
 package com.thlee.stock.market.stockmarket.salary.infrastructure.persistence;
 
 import com.thlee.stock.market.stockmarket.salary.domain.model.SpendingConfig;
-import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
 import com.thlee.stock.market.stockmarket.salary.domain.repository.SpendingConfigRepository;
 import com.thlee.stock.market.stockmarket.salary.infrastructure.persistence.mapper.SpendingConfigMapper;
 import com.thlee.stock.market.stockmarket.salary.infrastructure.persistence.mapper.YearMonthConverter;
@@ -27,7 +26,7 @@ public class SpendingConfigRepositoryImpl implements SpendingConfigRepository {
 
     @Override
     public Optional<SpendingConfig> findByUserIdAndCategoryAndEffectiveFromMonth(
-            Long userId, SpendingCategory category, YearMonth yearMonth) {
+            Long userId, String category, YearMonth yearMonth) {
         return jpaRepository
                 .findByUserIdAndCategoryAndEffectiveFromMonth(
                         userId, category, YearMonthConverter.toLocalDate(yearMonth))
@@ -59,7 +58,7 @@ public class SpendingConfigRepositoryImpl implements SpendingConfigRepository {
 
     @Override
     public void deleteByUserIdAndCategoryAndEffectiveFromMonth(
-            Long userId, SpendingCategory category, YearMonth yearMonth) {
+            Long userId, String category, YearMonth yearMonth) {
         jpaRepository.deleteByUserIdAndCategoryAndEffectiveFromMonth(
                 userId, category, YearMonthConverter.toLocalDate(yearMonth));
     }

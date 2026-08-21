@@ -31,9 +31,18 @@
   - GitHub MCP `list_issues`/`create_issue` 인증 실패(Bad credentials) 2회 확인 → Issue 등록 불가.
     문서 기록으로 대체하고 태형님께 후속 등록 안내.
   - 2026-08-21 (후속): 세션 후반 GitHub 인증 복구 확인 → Issue #116 소급 등록, issue/gate 문서 갱신.
+- 2026-08-21 범위 확장 (태형님 명시 지시): "2도 지금 작업으로 진행해" (커스텀 카테고리 추가/삭제),
+  "3도 사용자 설정으로 바꿔" (저축률 목표 설정화) — 범위 제외였던 두 항목을 본 브랜치 연속 작업으로 편입.
+  - plan: docs/plans/2026-08-21-002-feat-salary-custom-categories-target-plan.md
+  - 이 확장은 자율 결정이 아닌 태형님 승인 지시임을 명기.
 - plan: docs/plans/2026-08-21-001-feat-salary-usage-screen-redesign-plan.md
 - work: docs/works/2026-08-21-salary-usage-screen-redesign-work.md
 - review: docs/reviews/2026-08-21-salary-usage-screen-redesign-review.md
 - validation: docs/validations/2026-08-21-salary-usage-screen-redesign-validation.md
 - commit: docs/commits/2026-08-21-salary-usage-screen-redesign-commit.md
 - push: docs/pushes/2026-08-21-salary-usage-screen-redesign-push.md
+- 2026-08-21 범위 확장 work/review/validation 완료:
+  - 커스텀 카테고리(enum→테이블·soft delete·재활성)·저축률 목표 설정화 구현, test 117/117,
+    API/브라우저 E2E 통과 (문서 각 섹션 참조)
+  - [중요] Hibernate enum CHECK 제약 발견 → `db/migration/salary_category_check_drop_2026_08_21.sql`
+    신설. **운영 배포 시 필수 실행** — 태형님께 최종 응답으로 명시 보고.

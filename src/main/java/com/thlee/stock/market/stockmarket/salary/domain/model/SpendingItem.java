@@ -1,6 +1,5 @@
 package com.thlee.stock.market.stockmarket.salary.domain.model;
 
-import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -16,14 +15,14 @@ public class SpendingItem {
     public static final int NAME_MAX_LENGTH = 100;
 
     private final Long id;
-    private final SpendingCategory category;
+    private final String category;
     private final String name;
     private final BigDecimal amount;
     private final boolean fixed;
     private final int sortOrder;
 
     /** 재구성용 생성자 (Repository 조회 시) */
-    public SpendingItem(Long id, SpendingCategory category, String name,
+    public SpendingItem(Long id, String category, String name,
                         BigDecimal amount, boolean fixed, int sortOrder) {
         this.id = id;
         this.category = category;
@@ -34,7 +33,7 @@ public class SpendingItem {
     }
 
     /** 새 항목 생성 (세트 저장 시 통째로 재생성된다) */
-    public static SpendingItem create(SpendingCategory category, String name,
+    public static SpendingItem create(String category, String name,
                                       BigDecimal amount, boolean fixed, int sortOrder) {
         validateCategory(category);
         validateAmount(amount);
@@ -43,7 +42,7 @@ public class SpendingItem {
 
     /** 세트 NOOP 판정용 동등 비교 — 내용(카테고리·이름·금액·고정 여부)만 비교한다. */
     public boolean isSameAs(SpendingItem other) {
-        if (other == null || this.category != other.category || this.fixed != other.fixed) {
+        if (other == null || !this.category.equals(other.category) || this.fixed != other.fixed) {
             return false;
         }
         return this.name.equals(other.name) && this.amount.compareTo(other.amount) == 0;
@@ -57,8 +56,8 @@ public class SpendingItem {
         return normalized;
     }
 
-    private static void validateCategory(SpendingCategory category) {
-        if (category == null) {
+    private static void validateCategory(String category) {
+        if (category == null || category.isBlank()) {
             throw new IllegalArgumentException("항목 카테고리는 필수입니다.");
         }
     }

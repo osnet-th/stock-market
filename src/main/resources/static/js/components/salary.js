@@ -29,6 +29,8 @@ const SalaryComponent = {
         cats: [],                      // [{ key, label, color, flat, budget, items:[{uid,name,amount,fixed}], open }]
         dirty: false,
 
+        savingTarget: 50,              // 저축률 목표(%) — 서버 설정값 로드, 편집 가능
+
         showBudget: true,              // 예산 대비 열 표시
         trendMode: '비율',             // '비율' | '금액' | '구성'
 
@@ -36,23 +38,8 @@ const SalaryComponent = {
         newMonthInput: ''
     },
 
-    /** 8개 카테고리 메타 (표시 순서·라벨·색 — 목업 실측색) */
-    SALARY_CATEGORIES: [
-        { key: 'FOOD',               label: '식비',       color: '#c02a22' },
-        { key: 'HOUSING',            label: '주거',       color: '#d9564a' },
-        { key: 'TRANSPORT',          label: '교통',       color: '#e0a04a' },
-        { key: 'EVENTS',             label: '경조사',     color: '#2e8b62' },
-        { key: 'COMMUNICATION',      label: '통신',       color: '#3aa88b' },
-        { key: 'LEISURE',            label: '여가',       color: '#3f7ecb' },
-        { key: 'SAVINGS_INVESTMENT', label: '저축·투자', color: '#7a5cd6' },
-        { key: 'ETC',                label: '기타',       color: '#7a828a' }
-    ],
-
-    /** 목표 저축률(%) — 목업 기본값 */
-    SALARY_SAVING_TARGET: 50,
-
-    /** 추이 `구성` 모드 스택 순서 (목업과 동일) */
-    SALARY_COMPOSITION_KEYS: ['HOUSING', 'COMMUNICATION', 'TRANSPORT', 'FOOD', 'LEISURE', 'SAVINGS_INVESTMENT'],
+    /** 신규 커스텀 카테고리 색 팔레트 (서버 팔레트와 동일 — 저장 후 서버 색이 확정) */
+    SALARY_CUSTOM_COLORS: ['#5b8a72', '#a86bc9', '#c97b4a', '#4a90a4', '#8a6a34', '#6b737a'],
 
     initSalary() {
         // Alpine reactive tracking 제외 필드 (네트워크 취소용 컨트롤러, race counter)
@@ -139,14 +126,20 @@ const SalaryComponent = {
     // 편집 버퍼
     // =========================================================================
 
-    /** 서버 응답을 편집 버퍼로 복사. 접기/펼치기 상태는 유지한다. */
+    /** 서버 응답을 편집 버퍼로 복사. 접기/펼치기 상태는 유지한다. 카테고리는 응답 메타 기반 동적. */
     buildSalaryBuffer(view) {
         const openMap = {};
-        this.salary.cats.forEach(c => { openMap[c.key] = c.open; });
+        this.salary.cats.forEach(c => { if (c.key) openMap[c.key] = c.open; });
 
         this.salary.income = view && view.income != null ? Number(view.income) : 0;
-        this.salary.cats = this.SALARY_CATEGORIES.map(meta => {
-            const line = ((view && view.spendings) || []).find(s => s.category === meta.key) || {};
+        this.salary.savingTarget = view && view.savingTarget != null ? Number(view.savingTarget) : 50;
+        this.salary.cats = this.salaryLinesToCats(view, openMap);
+        this.salary.dirty = false;
+    },
+
+    /** 응답 spendings 라인 → 편집 버퍼 카테고리 배열 */
+    salaryLinesToCats(view, openMap) {
+        return (((view && view.spendings) || [])).map(line => {
             const items = (line.items || []).map(it => ({
                 uid: ++_salaryUid,
                 name: it.name || '',
@@ -154,20 +147,67 @@ const SalaryComponent = {
                 fixed: !!it.fixed
             }));
             return {
-                key: meta.key,
-                label: meta.label,
-                color: meta.color,
+                uid: ++_salaryUid,
+                key: line.category,
+                label: line.categoryLabel || line.category,
+                color: line.color || '#7a828a',
+                savings: !!line.savings,
+                system: !!line.system,
+                isNew: false,
                 flat: items.length ? 0 : (Number(line.amount) || 0),
                 budget: line.budget != null ? Number(line.budget) : 0,
                 items,
-                open: !!openMap[meta.key]
+                open: !!(openMap && openMap[line.category])
             };
         });
-        this.salary.dirty = false;
     },
 
     markSalaryDirty() {
         this.salary.dirty = true;
+    },
+
+    /** 새 커스텀 카테고리 추가 (저장 시 서버가 code·확정 색 발급) */
+    addSalaryCategory() {
+        this.salary.cats.push({
+            uid: ++_salaryUid,
+            key: null,
+            label: '새 카테고리',
+            color: this.SALARY_CUSTOM_COLORS[this.salary.cats.length % this.SALARY_CUSTOM_COLORS.length],
+            savings: false,
+            system: false,
+            isNew: true,
+            flat: 0,
+            budget: 0,
+            items: [],
+            open: true
+        });
+        this.markSalaryDirty();
+    },
+
+    /** 카테고리 제거 (저축 카테고리 불가 — 버튼 자체를 숨김). 저장 전까지는 되돌리기 가능 */
+    removeSalaryCategory(cat) {
+        if (cat.savings) return;
+        this.salary.cats = this.salary.cats.filter(c => c.uid !== cat.uid);
+        this.markSalaryDirty();
+    },
+
+    /** 커스텀 카테고리 이름 변경 (system 카테고리는 입력 자체가 없음) */
+    setSalaryCategoryName(cat, raw) {
+        if (cat.system) return;
+        cat.label = String(raw || '').trim().slice(0, 40) || '새 카테고리';
+        this.markSalaryDirty();
+    },
+
+    /** 저축률 목표(%) 변경 — 0~100 클램프 */
+    setSalaryTarget(raw) {
+        const n = this.parseSalaryNum(raw);
+        this.salary.savingTarget = Math.max(0, Math.min(100, n));
+        this.markSalaryDirty();
+    },
+
+    salaryTarget() {
+        const n = Number(this.salary.savingTarget);
+        return Number.isNaN(n) ? 50 : n;
     },
 
     setSalaryIncome(raw) {
@@ -235,8 +275,10 @@ const SalaryComponent = {
         if (this.salary.saving) return;
         const payload = {
             income: Number(this.salary.income) || 0,
+            savingTarget: this.salaryTarget(),
             categories: this.salary.cats.map(c => ({
-                category: c.key,
+                category: c.isNew ? null : c.key,
+                name: c.label,
                 amount: c.items.length ? null : (Number(c.flat) || 0),
                 budget: Number(c.budget) || 0,
                 items: c.items.map(i => ({
@@ -267,25 +309,14 @@ const SalaryComponent = {
         this.buildSalaryBuffer(this.salary.monthlyView);
     },
 
-    /** 이전 달 유효값을 편집 버퍼로 복사 (월급 제외, 저장 전까지 미반영) */
+    /** 이전 달 유효값을 편집 버퍼로 복사 (월급·목표 제외, 저장 전까지 미반영) */
     async copyPrevSalaryMonth() {
         try {
             const prev = this.addMonthsToString(this.salary.currentMonth, -1);
             const data = await API.getSalaryMonthly(this.getSalaryUserId(), prev);
-            this.salary.cats = this.SALARY_CATEGORIES.map(meta => {
-                const line = ((data && data.spendings) || []).find(s => s.category === meta.key) || {};
-                const items = (line.items || []).map(it => ({
-                    uid: ++_salaryUid, name: it.name || '', amount: Number(it.amount) || 0, fixed: !!it.fixed
-                }));
-                const existing = this.salary.cats.find(c => c.key === meta.key);
-                return {
-                    key: meta.key, label: meta.label, color: meta.color,
-                    flat: items.length ? 0 : (Number(line.amount) || 0),
-                    budget: line.budget != null ? Number(line.budget) : 0,
-                    items,
-                    open: existing ? existing.open : false
-                };
-            });
+            const openMap = {};
+            this.salary.cats.forEach(c => { if (c.key) openMap[c.key] = c.open; });
+            this.salary.cats = this.salaryLinesToCats(data, openMap);
             this.markSalaryDirty();
         } catch (e) {
             alert('지난달 불러오기 실패: ' + this.salaryErrorMessage(e));
@@ -374,8 +405,9 @@ const SalaryComponent = {
     },
 
     salarySaved() {
-        const cat = this.salary.cats.find(c => c.key === 'SAVINGS_INVESTMENT');
-        return cat ? this.salaryCatTotal(cat) : 0;
+        return this.salary.cats
+            .filter(c => c.savings)
+            .reduce((a, c) => a + this.salaryCatTotal(c), 0);
     },
 
     salaryRate() {
@@ -404,7 +436,7 @@ const SalaryComponent = {
             const total = this.salaryCatTotal(c);
             const p = income ? (total / income) * 100 : 0;
             return {
-                key: c.key, name: c.label, color: c.color,
+                key: 'c' + c.uid, name: c.label, color: c.color,
                 pct: p.toFixed(1) + '%',
                 w: Math.max(0, p).toFixed(2) + '%',
                 showLabel: p > 6,
@@ -466,8 +498,7 @@ const SalaryComponent = {
 
     salarySavingNote() {
         return '저축·투자 ' + this.salaryMan(this.salarySaved())
-            + ' / 월급 ' + this.salaryMan(Number(this.salary.income) || 0)
-            + ' · 목표 ' + this.SALARY_SAVING_TARGET + '%';
+            + ' / 월급 ' + this.salaryMan(Number(this.salary.income) || 0);
     },
 
     salaryInheritNote() {
@@ -486,7 +517,7 @@ const SalaryComponent = {
     // =========================================================================
 
     salaryCatKind(cat) {
-        if (cat.key === 'SAVINGS_INVESTMENT') {
+        if (cat.savings) {
             return { label: '저축', bg: '#eff3fa', color: '#1f4f9e' };
         }
         if (cat.items.length && cat.items.every(i => i.fixed)) {
@@ -553,13 +584,23 @@ const SalaryComponent = {
     // =========================================================================
 
     /** trend 포인트를 차트용으로 변환. 현재 월 포인트는 편집 버퍼 값으로 라이브 반영 */
+    /** 추이 응답의 categories 메타 (없으면 빈 배열) */
+    salaryTrendCatMeta() {
+        return (this.salary.trend && this.salary.trend.categories) || [];
+    },
+
     _salaryTrendData() {
         const t = this.salary.trend;
         const pts = (t && t.points) ? t.points : [];
+        const savingsCodes = new Set(this.salaryTrendCatMeta().filter(m => m.savings).map(m => m.code));
         const data = pts.map(p => {
             const cats = {};
-            (p.categoryTotals || []).forEach(ct => { cats[ct.category] = Number(ct.amount) || 0; });
-            const saved = cats.SAVINGS_INVESTMENT || 0;
+            let saved = 0;
+            (p.categoryTotals || []).forEach(ct => {
+                const v = Number(ct.amount) || 0;
+                cats[ct.category] = v;
+                if (savingsCodes.has(ct.category)) saved += v;
+            });
             return {
                 m: p.yearMonth,
                 salary: p.income != null ? Number(p.income) : null,
@@ -573,8 +614,13 @@ const SalaryComponent = {
         if (idx >= 0) {
             const income = Number(this.salary.income) || 0;
             const cats = {};
-            this.salary.cats.forEach(c => { cats[c.key] = this.salaryCatTotal(c); });
-            const saved = cats.SAVINGS_INVESTMENT || 0;
+            let saved = 0;
+            this.salary.cats.forEach(c => {
+                if (!c.key) return;                       // 저장 전 신규 카테고리는 제외
+                const v = this.salaryCatTotal(c);
+                cats[c.key] = v;
+                if (c.savings) saved += v;
+            });
             data[idx] = {
                 m: this.salary.currentMonth,
                 salary: income || null,
@@ -600,16 +646,21 @@ const SalaryComponent = {
         if (this.salary.trendMode === '비율') {
             return [
                 { name: '저축률', color: '#1f4f9e' },
-                { name: '목표 ' + this.SALARY_SAVING_TARGET + '%', color: '#2e8b62' }
+                { name: '목표 ' + this.salaryTarget() + '%', color: '#2e8b62' }
             ];
         }
         if (this.salary.trendMode === '금액') {
             return [{ name: '월급', color: '#b6bbc2' }, { name: '총 지출', color: '#c02a22' }];
         }
-        return this.SALARY_COMPOSITION_KEYS.map(k => {
-            const meta = this.SALARY_CATEGORIES.find(c => c.key === k);
-            return { name: meta.label, color: meta.color };
-        });
+        return this.salaryCompositionStack().map(m => ({ name: m.name, color: m.color }));
+    },
+
+    /** 구성 모드 스택 대상 — 추이에 값이 있는 카테고리 (메타 순서) */
+    salaryCompositionStack() {
+        const hist = this._salaryTrendData();
+        return this.salaryTrendCatMeta()
+            .filter(m => hist.some(h => (h.cats[m.code] || 0) > 0))
+            .map(m => ({ code: m.code, name: m.name, color: m.color }));
     },
 
     /** X축 라벨 — 최대 5개 균등 추출 ('YYYY.MM') */
@@ -649,7 +700,7 @@ const SalaryComponent = {
 
     /** 비율 모드 — 저축률 라인 + 목표 점선. 스케일은 데이터·목표를 감싸는 5% 단위 */
     _salaryRatioSvg(hist, px, W, H, PADT, PADB) {
-        const TARGET = this.SALARY_SAVING_TARGET;
+        const TARGET = this.salaryTarget();
         const rates = hist.filter(h => h.rate != null).map(h => h.rate);
         const lo = Math.max(0, Math.floor((Math.min(...rates, TARGET) - 5) / 5) * 5);
         const hi = Math.min(120, Math.ceil((Math.max(...rates, TARGET) + 5) / 5) * 5);
@@ -708,14 +759,14 @@ const SalaryComponent = {
         return out;
     },
 
-    /** 구성 모드 — 카테고리별 월급 대비 비중 스택 영역 */
+    /** 구성 모드 — 카테고리별 월급 대비 비중 스택 영역 (동적 카테고리) */
     _salaryCompositionSvg(hist, px, W, H, PADT, PADB) {
         const py = v => PADT + (1 - v / 100) * (H - PADT - PADB);
         let base = hist.map(() => 0);
         let out = '';
 
-        this.SALARY_COMPOSITION_KEYS.forEach(key => {
-            const meta = this.SALARY_CATEGORIES.find(c => c.key === key);
+        this.salaryCompositionStack().forEach(meta => {
+            const key = meta.code;
             const vals = hist.map(h => (h.salary ? ((h.cats[key] || 0) / h.salary) * 100 : 0));
             const top = vals.map((v, i) => base[i] + v);
             let up = '';
@@ -758,7 +809,7 @@ const SalaryComponent = {
             const clamp = Math.max(-40, Math.min(40, pct));
             const half = (Math.abs(clamp) / 40) * 50;
             return {
-                key: c.key, name: c.label, color: c.color, abs: Math.abs(d),
+                key: 'd' + c.uid, name: c.label, color: c.color, abs: Math.abs(d),
                 label: d === 0 ? '±0' : (d > 0 ? '+' : '−') + this.salaryMan(Math.abs(d)),
                 barColor: d > 0 ? '#c02a22' : (d < 0 ? '#2e8b62' : '#98a0a7'),
                 barL: (clamp >= 0 ? 50 : 50 - half).toFixed(1) + '%',
@@ -784,7 +835,7 @@ const SalaryComponent = {
         }
 
         const rate = this.salaryRate();
-        const target = this.SALARY_SAVING_TARGET;
+        const target = this.salaryTarget();
         if (rate >= target) {
             out.push({
                 key: 'rate',
@@ -852,7 +903,7 @@ const SalaryComponent = {
     },
 
     salaryCategoryLabel(category) {
-        const c = this.SALARY_CATEGORIES.find(x => x.key === category);
+        const c = this.salary.cats.find(x => x.key === category);
         return c ? c.label : category;
     },
 

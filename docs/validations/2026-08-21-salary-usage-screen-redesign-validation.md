@@ -54,3 +54,33 @@
   이관 불필요하지만, 운영 반영 후 첫 조회 확인 권장
 - 실사용자 계정으로 홈 우측 패널 스택 바 표시 (스키마 계약은 무파괴 확인, 실계정 검증은 미수행)
 - 모바일 소형 뷰포트 실기기 확인 (테이블은 min-width 840px + 가로 스크롤 처리)
+
+---
+
+## 범위 확장 검증 (커스텀 카테고리 + 목표 설정화)
+
+### 실행한 명령과 결과
+- `./gradlew compileJava` / `./gradlew test` — **117/117 통과** (로컬 PostgreSQL 기동 상태)
+- ddl-auto로 `user_spending_category`·`user_salary_setting` 생성 확인
+- **CHECK 제약 발견·해소**: 커스텀 code 저장 시
+  `spending_config_category_check` 위반으로 409 → `salary_category_check_drop_2026_08_21.sql`
+  적용 후 정상. pg_constraint 조회로 두 테이블 제약 실재 확인.
+- API E2E (userId=777, 기존 enum 데이터 보유 상태):
+  1. 시드 전 조회 — 기본 메타로 기존 데이터 표시(호환), savingTarget 기본 50
+  2. 일괄 저장(커스텀 '구독' 추가 + 목표 55) — code 'U…' 발급·색 부여·항목 합계 53,000 파생,
+     user_spending_category 시드 8종+커스텀 1종(savings/system/sort 정확)
+  3. 커스텀 이름 변경(구독→구독료) 반영
+  4. 저축 카테고리 누락 payload → 400
+  5. 커스텀 삭제(payload 제외) → 라인에서 제거(비활성+0 레코드)
+  6. 동명 재추가 → 기존 code 재활성(True) — 이력 연결
+  7. 추이 `categories` 메타에 커스텀 포함, catTotals 동적 code
+  8. 레거시 endpoint 알 수 없는 code → 400
+  9. 재조회 시 savingTarget 55 유지
+  10. 비활성+과거 월 금액 보유 카테고리 — 해당 월 조회 시 표시(active=false), 기록 없는 월은 미표시
+- 브라우저 E2E: 커스텀 카테고리 렌더(이름 입력·색·배지), + 카테고리 → 행 추가·dirty,
+  이름 '교육비' 입력·저장 후 유지, 목표 입력 55→60 변경 시 추이 목표선 '목표 60%' 즉시 반영,
+  카테고리 × → 저장 후 제거 확인, salary 관련 JS 오류 0건, 전체 스크린샷 목업 일치
+
+### 미검증 항목 (추가)
+- 운영 DB에서 `salary_category_check_drop_2026_08_21.sql` 실행 — **배포 시 필수, 미실행 시
+  커스텀 카테고리 저장이 409로 실패** (기본 8종만 쓰는 동안은 영향 없음)

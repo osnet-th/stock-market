@@ -2,12 +2,12 @@ package com.thlee.stock.market.stockmarket.salary.application.dto;
 
 import com.thlee.stock.market.stockmarket.salary.domain.model.MonthlyIncome;
 import com.thlee.stock.market.stockmarket.salary.domain.model.SpendingConfig;
-import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
 import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -34,13 +34,16 @@ public class PreviousMonthResponse {
         this.categoryTotals = categoryTotals;
     }
 
+    /**
+     * @param savingsCodes 저축률 산입 카테고리 code 집합 (savings 플래그)
+     */
     public static PreviousMonthResponse from(YearMonth yearMonth, MonthlyIncome income,
-                                             List<SpendingConfig> configs) {
+                                             List<SpendingConfig> configs, Set<String> savingsCodes) {
         List<CategoryAmountResponse> totals = toCategoryTotals(configs);
         BigDecimal totalSpending = sumAmounts(totals);
         BigDecimal savingsRatio = income == null
                 ? null
-                : income.calculateSavingsRatio(amountOf(totals, SpendingCategory.SAVINGS_INVESTMENT));
+                : income.calculateSavingsRatio(savingsAmount(totals, savingsCodes));
         return new PreviousMonthResponse(yearMonth, income == null ? null : income.getAmount(),
                 totalSpending, savingsRatio, totals);
     }
@@ -57,11 +60,10 @@ public class PreviousMonthResponse {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private static BigDecimal amountOf(List<CategoryAmountResponse> totals, SpendingCategory category) {
+    private static BigDecimal savingsAmount(List<CategoryAmountResponse> totals, Set<String> savingsCodes) {
         return totals.stream()
-                .filter(t -> t.getCategory() == category)
+                .filter(t -> savingsCodes.contains(t.getCategory()))
                 .map(CategoryAmountResponse::getAmount)
-                .findFirst()
-                .orElse(BigDecimal.ZERO);
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

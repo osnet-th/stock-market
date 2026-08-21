@@ -109,8 +109,15 @@
                                     <div class="h-full rounded-[3px]"
                                          :style="'width:' + Math.min(100, salaryRate()).toFixed(1) + '%;background:#5fa8e8'"></div>
                                 </div>
-                                <span class="text-[10.5px] leading-relaxed" style="color:#9aa3ab"
-                                      x-text="salarySavingNote()"></span>
+                                <span class="text-[10.5px] leading-relaxed flex items-center gap-1 flex-wrap" style="color:#9aa3ab">
+                                    <span x-text="salarySavingNote()"></span>
+                                    <span>· 목표</span>
+                                    <input :value="salaryTarget()"
+                                           @change="setSalaryTarget($event.target.value)"
+                                           class="w-9 font-mono-num text-[10.5px] text-right bg-transparent border-b outline-none text-white focus:border-blue-300"
+                                           style="border-color:rgba(255,255,255,.3)" title="저축률 목표(%) — 저장 시 반영">
+                                    <span>%</span>
+                                </span>
                             </div>
 
                             <!-- 고정비 / 변동비 카드 -->
@@ -147,6 +154,9 @@
                                     <button @click="collapseAllSalaryCats()"
                                             class="text-[10.5px] px-[11px] py-[5px] rounded-md border bg-white hover:text-blue-800"
                                             style="border-color:rgba(0,0,0,.14);color:#6b737a">모두 접기</button>
+                                    <button @click="addSalaryCategory()"
+                                            class="text-[10.5px] px-[11px] py-[5px] rounded-md border bg-white"
+                                            style="border-color:rgba(0,0,0,.14);color:#1f4f9e">+ 카테고리</button>
                                 </div>
                             </div>
 
@@ -159,12 +169,12 @@
                                 <span class="w-[190px] flex-none">월급 대비</span>
                                 <span class="flex-none text-right"
                                       :style="'width:' + (salary.showBudget ? '178px' : '0px') + ';display:' + (salary.showBudget ? 'block' : 'none')">예산 대비</span>
-                                <span class="w-[52px] flex-none text-right">관리</span>
+                                <span class="w-[82px] flex-none text-right">관리</span>
                             </div>
 
                             <!-- 카테고리 행들 -->
                             <div class="flex flex-col min-w-[840px]">
-                                <template x-for="c in salary.cats" :key="c.key">
+                                <template x-for="c in salary.cats" :key="c.uid">
                                     <div class="flex flex-col border-b" style="border-color:rgba(0,0,0,.055)">
                                         <!-- 카테고리 행 -->
                                         <div class="flex items-center gap-2.5 px-3 py-2.5" style="background:#f8f9fb">
@@ -173,7 +183,12 @@
                                                 <span class="font-mono-num text-[10px] w-2.5 flex-none" style="color:#8b9299"
                                                       x-text="c.open ? '▾' : '▸'"></span>
                                                 <span class="w-2 h-2 rounded-[2px] flex-none" :style="'background:' + c.color"></span>
-                                                <span class="text-[12.5px] font-semibold" style="color:#14161a" x-text="c.label"></span>
+                                                <span x-show="c.system" class="text-[12.5px] font-semibold" style="color:#14161a" x-text="c.label"></span>
+                                                <input x-show="!c.system" :value="c.label" @click.stop
+                                                       @change="setSalaryCategoryName(c, $event.target.value)"
+                                                       maxlength="40" placeholder="카테고리 이름"
+                                                       class="text-[12.5px] font-semibold rounded-md border border-transparent px-1.5 py-0.5 outline-none bg-transparent focus:bg-blue-50/50 focus:border-blue-200 w-[120px]"
+                                                       style="color:#14161a">
                                                 <span class="text-[9.5px] px-[7px] py-px rounded"
                                                       :style="'background:' + salaryCatKind(c).bg + ';color:' + salaryCatKind(c).color"
                                                       x-text="salaryCatKind(c).label"></span>
@@ -207,10 +222,13 @@
                                                       :style="'color:' + salaryBudgetDiffColor(c)"
                                                       x-text="salaryBudgetDiffLabel(c)"></span>
                                             </div>
-                                            <div class="w-[52px] flex-none flex justify-end">
+                                            <div class="w-[82px] flex-none flex justify-end gap-1">
                                                 <button @click="addSalaryItem(c)" title="하위 항목 추가"
                                                         class="text-[10.5px] px-2 py-1 rounded border bg-white"
                                                         style="border-color:rgba(0,0,0,.14);color:#1f4f9e">+ 항목</button>
+                                                <button x-show="!c.savings" @click="removeSalaryCategory(c)" title="카테고리 삭제"
+                                                        class="text-[10.5px] px-[7px] py-1 rounded border bg-white"
+                                                        style="border-color:rgba(0,0,0,.12);color:#c02a22">×</button>
                                             </div>
                                         </div>
 
@@ -253,7 +271,7 @@
                                                             <span class="font-mono-num text-[11px]" style="color:#98a0a7"
                                                                   x-text="salaryItemShareLabel(item)"></span>
                                                         </div>
-                                                        <div class="w-[52px] flex-none flex justify-end">
+                                                        <div class="w-[82px] flex-none flex justify-end">
                                                             <button @click="removeSalaryItem(c, item)"
                                                                     class="text-[10.5px] px-[7px] py-1 rounded border bg-white"
                                                                     style="border-color:rgba(0,0,0,.12);color:#c02a22">×</button>
@@ -291,7 +309,7 @@
                                     </div>
                                     <span class="flex-none"
                                           :style="'width:' + (salary.showBudget ? '178px' : '0px') + ';display:' + (salary.showBudget ? 'block' : 'none')"></span>
-                                    <span class="w-[52px] flex-none"></span>
+                                    <span class="w-[82px] flex-none"></span>
                                 </div>
                             </div>
 

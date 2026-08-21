@@ -1,10 +1,7 @@
 package com.thlee.stock.market.stockmarket.salary.infrastructure.persistence;
 
-import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -37,9 +34,9 @@ public class SpendingItemEntity {
     @Column(name = "set_id", nullable = false)
     private Long setId;
 
-    @Enumerated(EnumType.STRING)
+    /** 사용자 카테고리 code */
     @Column(name = "category", nullable = false, length = 20)
-    private SpendingCategory category;
+    private String category;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
@@ -60,7 +57,7 @@ public class SpendingItemEntity {
     protected SpendingItemEntity() {
     }
 
-    public SpendingItemEntity(Long id, Long setId, SpendingCategory category, String name,
+    public SpendingItemEntity(Long id, Long setId, String category, String name,
                               BigDecimal amount, boolean fixed, int sortOrder, LocalDateTime createdAt) {
         this.id = id;
         this.setId = setId;

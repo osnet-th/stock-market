@@ -1,6 +1,5 @@
 package com.thlee.stock.market.stockmarket.salary.domain.model;
 
-import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -69,9 +68,9 @@ public class SpendingItemSet {
     }
 
     /** 특정 카테고리의 항목 (세트 내 순서 유지) */
-    public List<SpendingItem> itemsOf(SpendingCategory category) {
+    public List<SpendingItem> itemsOf(String category) {
         return items.stream()
-                .filter(item -> item.getCategory() == category)
+                .filter(item -> item.getCategory().equals(category))
                 .collect(Collectors.toList());
     }
 

@@ -4,7 +4,6 @@ import com.thlee.stock.market.stockmarket.salary.application.SalaryService;
 import com.thlee.stock.market.stockmarket.salary.application.dto.MonthlySalaryResponse;
 import com.thlee.stock.market.stockmarket.salary.application.dto.SalaryTrendResponse;
 import com.thlee.stock.market.stockmarket.salary.application.dto.UpsertResultResponse;
-import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
 import com.thlee.stock.market.stockmarket.salary.presentation.dto.SaveMonthlyRequest;
 import com.thlee.stock.market.stockmarket.salary.presentation.dto.UpsertIncomeRequest;
 import com.thlee.stock.market.stockmarket.salary.presentation.dto.UpsertSpendingRequest;
@@ -81,12 +80,12 @@ public class SalaryController {
         return ResponseEntity.ok(salaryService.upsertIncome(userId, yearMonth, request.getAmount()));
     }
 
-    /** 해당 월·카테고리 기점 지출 upsert. 상속값과 동일하면 NOOP. */
+    /** 해당 월·카테고리 기점 지출 upsert. 상속값과 동일하면 NOOP. category는 사용자 카테고리 code. */
     @PutMapping("/spending/{yearMonth}/{category}")
     public ResponseEntity<UpsertResultResponse> upsertSpending(
             @RequestParam Long userId,
             @PathVariable YearMonth yearMonth,
-            @PathVariable SpendingCategory category,
+            @PathVariable String category,
             @Valid @RequestBody UpsertSpendingRequest request) {
         return ResponseEntity.ok(salaryService.upsertSpending(
                 userId, category, yearMonth, request.getAmount(), request.getMemo()));
@@ -101,12 +100,12 @@ public class SalaryController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 해당 월·카테고리의 지출 변경 레코드 제거 (이전 값으로 복귀). */
+    /** 해당 월·카테고리의 지출 변경 레코드 제거 (이전 값으로 복귀). category는 사용자 카테고리 code. */
     @DeleteMapping("/spending/{yearMonth}/{category}")
     public ResponseEntity<Void> deleteSpending(
             @RequestParam Long userId,
             @PathVariable YearMonth yearMonth,
-            @PathVariable SpendingCategory category) {
+            @PathVariable String category) {
         salaryService.deleteSpending(userId, category, yearMonth);
         return ResponseEntity.noContent().build();
     }

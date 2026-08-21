@@ -81,7 +81,8 @@ harness(`check-documented-workflow.sh`) 형식 요건에 맞춰 마커만 표준
   (2026-08-21, https://github.com/osnet-th/stock-market/issues/117)
 - ~~main 병합 여부~~ → **완료**: 태형님 승인 (2026-08-21, "병합해") — `--no-ff` 병합 `1b372f1`,
   main 재검증(전체 테스트) PASS 후 `origin/main` 푸시. 상세는 push 문서 참조
-- Issue #117 종료 여부 — 태형님 확인 대기 (#110/#114 는 병합 후에도 열린 상태였음)
+- ~~Issue #117 종료 여부~~ → **완료**: 태형님 승인 ("클로즈 진행") 후 completed 로 종료
+  (2026-08-21. 세션 GitHub 도구에 이슈 코멘트 기능이 없어 클로즈 코멘트는 생략)
 - 배포 후 실화면(폰트·미세 스타일) 1회 확인 권장 — 검증 하네스는 Tailwind 스텁 환경
 
 ## Notes

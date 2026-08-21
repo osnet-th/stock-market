@@ -235,9 +235,18 @@ const GlossaryComponent = {
         return cat ? cat.name : '미분류';
     },
 
+    /**
+     * '채움 필요' 판정 — 4개 섹션 중 빈 곳이 있거나 한 줄 정의가 비면 미완성.
+     * 한 줄 정의는 목록/관련 용어에서 유일하게 노출되는 문장이라 완성도에 포함한다
+     * (목록 행의 N/4 배지는 목업 표기대로 섹션만 센다).
+     */
+    glNeedsFill(t) {
+        return this.glFilledCount(t) < GL_FIELDS.length || !String(t?.oneLine || '').trim();
+    },
+
     glCountNote() {
         const total = this.glossary.terms.length;
-        const thin = this.glossary.terms.filter(t => this.glFilledCount(t) < GL_FIELDS.length).length;
+        const thin = this.glossary.terms.filter(t => this.glNeedsFill(t)).length;
         return '등록 ' + total + '개 · 채움 필요 ' + thin + '개';
     },
 

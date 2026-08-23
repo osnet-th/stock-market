@@ -7,7 +7,9 @@
 -- ddl-auto=update는 기존 CHECK 제약을 제거하지 않는다.
 --
 -- 참고: spending_item 테이블은 배포 시점에 처음 생성되는 환경(운영)에서는
--- String 매핑으로 생성되어 제약이 없을 수 있다 — IF EXISTS로 안전하게 처리.
+-- 앱 첫 기동 전엔 존재하지 않고, 생성될 때도 String 매핑이라 제약이 없다.
+-- 따라서 테이블 부재까지 방어하도록 ALTER TABLE IF EXISTS를 사용한다
+-- (DROP CONSTRAINT IF EXISTS만으로는 테이블이 없으면 에러).
 
-ALTER TABLE spending_config DROP CONSTRAINT IF EXISTS spending_config_category_check;
-ALTER TABLE spending_item DROP CONSTRAINT IF EXISTS spending_item_category_check;
+ALTER TABLE IF EXISTS spending_config DROP CONSTRAINT IF EXISTS spending_config_category_check;
+ALTER TABLE IF EXISTS spending_item DROP CONSTRAINT IF EXISTS spending_item_category_check;

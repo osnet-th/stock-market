@@ -2,7 +2,7 @@
 title: "chore: dataworks 에이전트 하네스 GitHub 기준 이식"
 type: chore
 issue: TBD
-status: active
+status: done
 date: 2026-08-26
 origin: dataworks docs/ai 하네스 (bigx 스킬·Jira·Bitbucket 종속 제거판)
 branch: chore/agent-harness-adoption
@@ -109,7 +109,7 @@ dataworks 대비 변경: review에 포함돼 있던 구현 이해 게이트를 `
 
 - [x] 4-1. 스크립트 단독 실행 검증 — stage 마커 임시 생성 후 harness-stage-reminder 출력 확인, checkpoint-guard·validate-plan 정상/오류 케이스 각 1회
 - [x] 4-2. 본 plan 체크리스트 갱신, status 전환
-- [ ] 4-3. branch 커밋 → push → `gh pr create` → 태형님 승인 후 병합 (새 하네스 pr·merge 절차의 첫 적용)
+- [x] 4-3. branch 커밋 → push → `gh pr create` → 태형님 승인 후 병합 (새 하네스 pr·merge 절차의 첫 적용)
 
 ## 주의사항
 

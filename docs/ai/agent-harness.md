@@ -11,8 +11,9 @@
 
 - 응답 시 항상 "태형님"이라고 호칭한다.
 - 요청받지 않은 리팩토링, API 변경, 구조 변경을 하지 않는다.
-- 코드 구현이나 수정은 승인된 `docs/plans/` plan 문서가 있을 때만 진행한다.
+- 코드 구현이나 수정은 승인된 `docs/plans/` plan 문서가 있을 때만 진행한다. 단, [Workflow Weight](#workflow-weight)의 lightweight 대상은 대화로 범위를 합의하고 태형님 승인을 받은 경우 plan 파일 없이 진행할 수 있다.
 - issue 기반 Plan 또는 Implementation은 `/ce:plan` 전에 Harness Brainstorm 문서를 작성한다.
+- brainstorm을 완료하면 plan 진입 전에 대응 GitHub 이슈가 있는지 확인한다. 비 이슈로 시작한 documented 작업에 대응 이슈가 없으면 brainstorm 내용을 바탕으로 이슈 등록을 태형님에게 제안하고, 등록되면 이슈 번호 기준 worktree로 전환해 issue 기반 흐름을 따른다([gates/github-issue-gate.md](gates/github-issue-gate.md)).
 - issue worktree 작업의 현재 단계는 `{worktree}/.claude/issues/{이슈번호}/stage` 마커 파일로 관리한다(값: `brainstorm`, `plan`, `plan-approval`, `implement`, `review`, `explain`, `verify`, `pr`, `merge`). 단계 전환 시 이 파일을 즉시 갱신한다. UserPromptSubmit hook(`scripts/harness-stage-reminder.sh`)이 이 파일과 plan 상태로 매 턴 단계별 의무사항을 주입하며, 주입된 단계가 실제와 다르면 마커부터 갱신한다.
 - issue 기반 Implementation은 GitHub 이슈 설명이 충분하더라도 반드시 `/ce:plan`을 거친다.
 - issue 기반 Implementation은 active root plan 이후에도 직접 구현하지 않고 반드시 `/ce:work`로 구현을 시작한다.
@@ -46,6 +47,45 @@
 - **Review**: 버그, 회귀 위험, 아키텍처 위반, 누락된 검증을 우선적으로 찾는다.
 
 분류가 불명확하면 더 위험한 분류를 선택한다. 예를 들어 코드 수정 가능성이 있으면 Plan 또는 Implementation으로 본다.
+
+---
+
+## Workflow Weight
+
+작업 분류와 별개로 절차의 무게를 documented / lightweight 중 하나로 정한다. 기본은 documented다.
+
+### documented workflow (기본)
+
+아래 경우에는 Mandatory Workflow 전체를 적용하고 산출물을 파일로 남긴다.
+
+- 비즈니스 로직 변경
+- API, Entity, 구조 변경
+- 요구사항 해석이 필요한 작업
+- 영향 범위가 크거나 리스크가 높은 작업
+
+### lightweight workflow
+
+아래 경우에는 같은 단계 순서를 따르되 brainstorm/plan 산출물을 파일로 남기지 않을 수 있다.
+
+- 오타 수정
+- 명백한 컴파일 에러 수정
+- 문서 수정
+- 로직 의미 변경이 없는 국소적 수정
+
+lightweight 규칙:
+
+- current plan은 현재 대화에서 명시된 작업 범위와 단계로 갈음하고, 진행 전 태형님 승인을 받는다.
+- 리뷰/검증/커밋/push 결과와 승인 여부는 대화에서 명시한다.
+- stage 마커와 Notion 동기화는 생략할 수 있다.
+
+### escalation
+
+lightweight로 시작했더라도 아래 조건이 생기면 즉시 중단하고 documented workflow로 승격한다.
+
+- 로직 의미 변경 필요
+- 영향 범위 확대
+- 요구사항 해석 필요
+- 구조, API, Entity 변경 필요
 
 ---
 

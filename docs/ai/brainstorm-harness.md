@@ -87,5 +87,6 @@ docs/brainstorms/{YYYY-MM-DD}-{issue-or-topic}-brainstorm.md
 1. Harness Brainstorm 문서를 작성한다.
 2. 문서 작성 완료 후 태형님 확인 요청 시점에 [notion-guide.md](notion-guide.md)에 따라 작업 페이지(개요 포함)와 Brainstorm 페이지를 동기화한다.
 3. 태형님 확인이 필요한 항목이 있으면 확인받고 문서를 갱신한다. 확인 반영으로 내용이 바뀌면 `/ce:plan` 진입 전에 같은 Notion 페이지를 업데이트한다.
-4. Harness Brainstorm 문서를 입력으로 `/ce:plan`을 수행한다.
-5. `/ce:plan` 결과를 root `docs/plans/` plan으로 사용하고, 검증과 태형님 승인 후 `active`로 전환한다.
+4. plan 진입 전에 대응 GitHub 이슈가 있는지 확인한다. 비 이슈로 시작한 documented 작업에 대응 이슈가 없으면 brainstorm 내용을 바탕으로 이슈 등록을 태형님에게 제안하고, 등록되면 [gates/github-issue-gate.md](gates/github-issue-gate.md)의 착수 절차로 이슈 번호 기준 worktree로 전환한다.
+5. Harness Brainstorm 문서를 입력으로 `/ce:plan`을 수행한다.
+6. `/ce:plan` 결과를 root `docs/plans/` plan으로 사용하고, 검증과 태형님 승인 후 `active`로 전환한다.

@@ -42,6 +42,7 @@ dataworks에서 운영 중인 단계 하네스(게이트 문서 + hook 스크립
 | 산출물 경로 | `docs/brainstorms`, `docs/plans` (기존 유지) | 이미 이 컨벤션으로 운영 중. `.claude/designs` 승인 프로세스는 하네스로 대체(기존 문서는 보존) |
 | 이슈 완료 코멘트 | 생략 | 변경 요약은 PR 본문에 작성, 이슈는 PR `Closes #N`으로 자동 close — 중복 제거 |
 | 이슈 착수 표시 | worktree 생성 + stage 마커 생성 + 이슈 본인 assign | GitHub 이슈에는 진행 상태가 없으므로 assign으로 갈음 |
+| 기존 main 하네스와의 경합 | 교체 + 기존 장점 흡수 | 태형님 결정(병합 시점). 원격 main에 운영 중이던 실행 계약(CLAUDE.md·AGENTS.md, docs/gates 등 산출물 12종)은 이번 재작성본으로 교체하고 기존 산출물·스크립트는 legacy 보존. 기존 계약의 lightweight/documented 구분(agent-harness Workflow Weight 절)과 brainstorm 후 이슈 등록 게이트(github-issue-gate 이슈 등록 Gate)를 새 하네스에 흡수 |
 
 ## 단계 구조
 

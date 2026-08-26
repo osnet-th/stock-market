@@ -46,8 +46,15 @@ issue 기반 작업 공간 준비는 `/Users/thlee/Documents/personal/stock-mark
 - 이슈 본문, 이슈 코멘트, PR 본문에는 plan 문서, brainstorm 문서, 분석 문서 같은 내부 작업용 md 파일 경로를 포함하지 않는다.
 - `docs/plans/**`, `docs/brainstorms/**`, `.claude/designs/**`, `.claude/analyzes/**` 경로를 쓰지 않는다.
 
+## 이슈 등록 Gate (brainstorm 이후)
+
+- 비 이슈로 시작한 documented 작업은 brainstorm 완료 후 plan 진입 전에 대응 GitHub 이슈가 있는지 확인한다.
+- 대응 이슈가 없으면 brainstorm 내용(문제 정의, 목표, 범위)을 바탕으로 이슈 등록을 태형님에게 제안한다.
+- 태형님이 등록을 승인하면 이슈를 생성하고, `scripts/start-issue-worktree.sh {이슈번호}`로 이슈 번호 기준 worktree로 전환해 이후 issue 기반 흐름을 따른다. 이때 plan frontmatter의 `issue`/`branch`/`worktree`도 이슈 기준으로 맞춘다.
+- 태형님이 등록을 생략하면 `issue: TBD`로 진행하고 그 사유를 plan에 남긴다.
+
 ## 이슈 생성
 
-- 신규 이슈 생성은 태형님 요청이 있을 때만 `gh issue create`로 수행한다.
+- 신규 이슈 생성은 태형님 요청 또는 이슈 등록 Gate 승인이 있을 때만 `gh issue create`로 수행한다.
 - 제목은 작업 내용을 요약한 명사구로, 본문은 작업 내용과 완료 조건 중심으로 작성한다.
 - 생성 전 제목과 본문 미리보기를 태형님에게 확인받는다.

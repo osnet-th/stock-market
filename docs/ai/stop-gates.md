@@ -89,3 +89,4 @@
 
 - 린터/포맷터 자동 수정처럼 로직 변경이 없는 경우.
 - 명백한 컴파일 오류 수정(오타, import 누락, 변수명 오류)처럼 plan 범위를 벗어나지 않는 경우.
+- [agent-harness.md](agent-harness.md) Workflow Weight의 lightweight 대상(오타 수정, 명백한 컴파일 에러 수정, 문서 수정, 로직 의미 변경이 없는 국소적 수정)으로서 대화로 범위를 합의하고 태형님 승인을 받은 경우. escalation 조건이 생기면 즉시 documented workflow로 승격한다.

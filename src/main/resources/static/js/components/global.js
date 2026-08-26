@@ -191,7 +191,7 @@ const GlobalComponent = {
         if (!data || !data.countries || data.countries.length === 0) return;
 
         data.countries.forEach((country, idx) => {
-            if (country.history.length < 2) return;
+            if (country.history.length < 1) return;
 
             const canvasId = 'global-chart-' + country.countryName.replace(/[^a-zA-Z0-9가-힣]/g, '_');
             const canvas = document.getElementById(canvasId);
@@ -209,7 +209,8 @@ const GlobalComponent = {
                         }),
                         borderColor: COUNTRY_COLORS[idx % COUNTRY_COLORS.length],
                         borderWidth: 1.5,
-                        pointRadius: 0,
+                        // 1포인트뿐이면 선을 그릴 수 없으므로 점을 보이게 (#51)
+                        pointRadius: country.history.length === 1 ? 3 : 0,
                         pointHoverRadius: 4,
                         tension: 0.3,
                         fill: false,

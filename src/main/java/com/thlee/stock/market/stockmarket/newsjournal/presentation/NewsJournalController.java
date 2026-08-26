@@ -26,6 +26,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -56,16 +57,23 @@ public class NewsJournalController {
         return ResponseEntity.ok(NewsEventDetailResponse.from(result));
     }
 
+    /**
+     * 필터 리스트. {@code q} 는 통합 검색어(제목/WHAT/WHY/HOW/키워드/분류명),
+     * {@code keywords} 는 반복 파라미터로 전달되는 키워드 AND 필터.
+     * blank/빈 값 정규화와 상한 검증은 {@link NewsEventListFilter} 가 담당한다.
+     */
     @GetMapping
     public ResponseEntity<NewsEventListResponse> findList(
             @RequestParam(required = false) EventImpact impact,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) List<String> keywords,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        NewsEventListFilter filter = new NewsEventListFilter(impact, categoryId, from, to, page, size);
+        NewsEventListFilter filter = new NewsEventListFilter(impact, categoryId, from, to, q, keywords, page, size);
         NewsEventListResult result = readService.findList(NewsJournalSecurityContext.currentUserId(), filter);
         return ResponseEntity.ok(NewsEventListResponse.from(result));
     }

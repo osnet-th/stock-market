@@ -6,7 +6,9 @@ import com.thlee.stock.market.stockmarket.newsjournal.application.dto.UpdateNews
 import com.thlee.stock.market.stockmarket.newsjournal.application.exception.NewsEventNotFoundException;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEvent;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventCategory;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventKeyword;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventLink;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventKeywordRepository;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventLinkRepository;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +22,8 @@ import java.util.List;
 /**
  * 사건 생성/수정/삭제 유스케이스.
  *
- * <p>트랜잭션 경계는 본 서비스가 소유한다 (ARCHITECTURE.md 규칙). 자식 링크는
- * {@link NewsEventLinkRepository#replaceAll} 정책으로 본체 갱신과 같은 트랜잭션에서 일괄 교체한다.
+ * <p>트랜잭션 경계는 본 서비스가 소유한다 (ARCHITECTURE.md 규칙). 자식 링크/키워드는
+ * {@code replaceAll} 정책으로 본체 갱신과 같은 트랜잭션에서 일괄 교체한다.
  * 카테고리는 {@link NewsEventCategoryService#resolve} 로 find-or-create 한 뒤 categoryId 를 주입한다.
  */
 @Service
@@ -30,6 +32,7 @@ public class NewsEventWriteService {
 
     private final NewsEventRepository eventRepository;
     private final NewsEventLinkRepository linkRepository;
+    private final NewsEventKeywordRepository keywordRepository;
     private final NewsEventCategoryService categoryService;
 
     @Transactional
@@ -44,6 +47,7 @@ public class NewsEventWriteService {
         Long eventId = saved.getId();
 
         linkRepository.replaceAll(eventId, toLinks(eventId, cmd.links()));
+        keywordRepository.replaceAll(eventId, toKeywords(eventId, cmd.keywords()));
         return eventId;
     }
 
@@ -58,6 +62,7 @@ public class NewsEventWriteService {
         eventRepository.save(event);
 
         linkRepository.replaceAll(cmd.id(), toLinks(cmd.id(), cmd.links()));
+        keywordRepository.replaceAll(cmd.id(), toKeywords(cmd.id(), cmd.keywords()));
     }
 
     @Transactional
@@ -65,6 +70,7 @@ public class NewsEventWriteService {
         eventRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new NewsEventNotFoundException(id));
         linkRepository.deleteByEventId(id);
+        keywordRepository.deleteByEventId(id);
         eventRepository.deleteByIdAndUserId(id, userId);
     }
 
@@ -76,6 +82,17 @@ public class NewsEventWriteService {
         for (int i = 0; i < source.size(); i++) {
             NewsEventLinkCommand l = source.get(i);
             result.add(NewsEventLink.create(eventId, l.title(), l.url(), i));
+        }
+        return result;
+    }
+
+    private static List<NewsEventKeyword> toKeywords(Long eventId, List<String> source) {
+        if (source == null || source.isEmpty()) {
+            return List.of();
+        }
+        List<NewsEventKeyword> result = new ArrayList<>(source.size());
+        for (int i = 0; i < source.size(); i++) {
+            result.add(NewsEventKeyword.create(eventId, source.get(i), i));
         }
         return result;
     }

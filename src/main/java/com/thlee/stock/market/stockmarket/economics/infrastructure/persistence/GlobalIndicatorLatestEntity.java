@@ -41,6 +41,10 @@ public class GlobalIndicatorLatestEntity {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // 마지막 수집 시각 — cycle 변경 없어도 수집 성공마다 갱신 (#51 catch-up 판단, 기존 행 호환 위해 nullable)
+    @Column(name = "last_collected_at")
+    private LocalDateTime lastCollectedAt;
+
     protected GlobalIndicatorLatestEntity() {
     }
 
@@ -50,7 +54,8 @@ public class GlobalIndicatorLatestEntity {
                                         String previousDataValue,
                                         String cycle,
                                         String unit,
-                                        LocalDateTime updatedAt) {
+                                        LocalDateTime updatedAt,
+                                        LocalDateTime lastCollectedAt) {
         this.countryName = countryName;
         this.indicatorType = indicatorType;
         this.dataValue = dataValue;
@@ -58,6 +63,7 @@ public class GlobalIndicatorLatestEntity {
         this.cycle = cycle;
         this.unit = unit;
         this.updatedAt = updatedAt;
+        this.lastCollectedAt = lastCollectedAt;
     }
 
     /**
@@ -67,7 +73,8 @@ public class GlobalIndicatorLatestEntity {
                        String newCycle,
                        String newUnit,
                        boolean cycleChanged,
-                       LocalDateTime updatedAt) {
+                       LocalDateTime updatedAt,
+                       LocalDateTime lastCollectedAt) {
         if (cycleChanged) {
             this.previousDataValue = this.dataValue;
         }
@@ -75,6 +82,7 @@ public class GlobalIndicatorLatestEntity {
         this.cycle = newCycle;
         this.unit = newUnit;
         this.updatedAt = updatedAt;
+        this.lastCollectedAt = lastCollectedAt;
     }
 
     /**

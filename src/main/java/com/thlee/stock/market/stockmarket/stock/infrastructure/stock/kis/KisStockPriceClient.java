@@ -1,9 +1,11 @@
 package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis;
 
+import com.thlee.stock.market.stockmarket.stock.domain.model.ChartPeriod;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDailyChartResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticMultiPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisDomesticPriceOutput;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOverseasDailyChartResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOverseasPriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.dto.KisOvertimePriceOutput;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.kis.exception.KisApiException;
@@ -33,6 +35,8 @@ public class KisStockPriceClient {
     private static final String OVERTIME_TR_ID = "FHPST02300000";
     private static final String OVERSEAS_TR_ID = "HHDFS00000300";
     private static final String DOMESTIC_DAILY_CHART_TR_ID = "FHKST03010100";
+    private static final String OVERSEAS_DAILY_CHART_PATH = "/uapi/overseas-price/v1/quotations/dailyprice";
+    private static final String OVERSEAS_DAILY_CHART_TR_ID = "HHDFS76240000";
     private static final DateTimeFormatter KIS_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final KisApiClient kisApiClient;
@@ -96,13 +100,15 @@ public class KisStockPriceClient {
     }
 
     /**
-     * 국내 주식 일봉(국내주식기간별시세) 조회. 한 번 호출로 최대 약 100 영업일치 반환.
+     * 국내 주식 기간별시세(일/주/월봉) 조회. 한 번 호출로 종료일 기준 최신 최대 100봉 반환.
      *
      * @param stockCode 종목코드 6자리
      * @param from      시작일 (포함)
      * @param to        종료일 (포함)
+     * @param period    봉 주기 (일/주/월)
      */
-    public KisDailyChartResponse getDomesticDailyChart(String stockCode, LocalDate from, LocalDate to) {
+    public KisDailyChartResponse getDomesticPeriodChart(String stockCode, LocalDate from, LocalDate to,
+                                                        ChartPeriod period) {
         KisDailyChartResponse response = kisApiClient.getRaw(
             DOMESTIC_DAILY_CHART_PATH,
             DOMESTIC_DAILY_CHART_TR_ID,
@@ -111,16 +117,55 @@ public class KisStockPriceClient {
                 .queryParam("FID_INPUT_ISCD", stockCode)
                 .queryParam("FID_INPUT_DATE_1", from.format(KIS_DATE_FORMAT))
                 .queryParam("FID_INPUT_DATE_2", to.format(KIS_DATE_FORMAT))
-                .queryParam("FID_PERIOD_DIV_CODE", "D")
+                .queryParam("FID_PERIOD_DIV_CODE", period.getCode())
                 .queryParam("FID_ORG_ADJ_PRC", "0")
                 .build(),
             new ParameterizedTypeReference<>() {},
-            "국내 일봉 조회 [" + stockCode + " " + from + "~" + to + "]"
+            "국내 기간별시세 조회 [" + stockCode + " " + period + " " + from + "~" + to + "]"
         );
         if (!response.isSuccess()) {
-            throw new KisApiException("국내 일봉 조회 실패 [" + stockCode + "]: " + response.getMessage());
+            throw new KisApiException("국내 기간별시세 조회 실패 [" + stockCode + "]: " + response.getMessage());
         }
         return response;
+    }
+
+    /**
+     * 해외 주식 기간별시세(일/주/월봉) 조회. 한 번 호출로 기준일(baseDate) 이전 최대 100봉 반환.
+     *
+     * @param stockCode    종목코드 (예: AAPL)
+     * @param exchangeCode 거래소코드
+     * @param period       봉 주기 (GUBN: 일 0 / 주 1 / 월 2)
+     * @param baseDate     기준일 (이 날짜 포함 이전 봉을 반환)
+     */
+    public KisOverseasDailyChartResponse getOverseasPeriodChart(String stockCode, ExchangeCode exchangeCode,
+                                                                ChartPeriod period, LocalDate baseDate) {
+        KisOverseasDailyChartResponse response = kisApiClient.getRaw(
+            OVERSEAS_DAILY_CHART_PATH,
+            OVERSEAS_DAILY_CHART_TR_ID,
+            uriBuilder -> uriBuilder
+                .queryParam("AUTH", "")
+                .queryParam("EXCD", exchangeCode.name())
+                .queryParam("SYMB", stockCode)
+                .queryParam("GUBN", overseasPeriodCode(period))
+                .queryParam("BYMD", baseDate.format(KIS_DATE_FORMAT))
+                .queryParam("MODP", "1")
+                .build(),
+            new ParameterizedTypeReference<>() {},
+            "해외 기간별시세 조회 [" + exchangeCode.name() + ":" + stockCode + " " + period + " ~" + baseDate + "]"
+        );
+        if (!response.isSuccess()) {
+            throw new KisApiException("해외 기간별시세 조회 실패 [" + stockCode + "]: " + response.getMessage());
+        }
+        return response;
+    }
+
+    /** HHDFS76240000 GUBN 코드 — 일 0 / 주 1 / 월 2 */
+    private String overseasPeriodCode(ChartPeriod period) {
+        return switch (period) {
+            case DAILY -> "0";
+            case WEEKLY -> "1";
+            case MONTHLY -> "2";
+        };
     }
 
     /**

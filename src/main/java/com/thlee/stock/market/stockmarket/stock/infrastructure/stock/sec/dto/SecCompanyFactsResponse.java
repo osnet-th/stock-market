@@ -31,6 +31,16 @@ public class SecCompanyFactsResponse {
         return facts.getOrDefault("us-gaap", Map.of());
     }
 
+    /**
+     * dei 네임스페이스의 태그 데이터를 반환 (발행주식수 등 공시 메타)
+     */
+    public Map<String, TagData> getDeiFacts() {
+        if (facts == null) {
+            return Map.of();
+        }
+        return facts.getOrDefault("dei", Map.of());
+    }
+
     @Getter
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -51,6 +61,16 @@ public class SecCompanyFactsResponse {
                 return List.of();
             }
             return units.getOrDefault("USD/shares", List.of());
+        }
+
+        /**
+         * 주식수 단위(shares) 엔트리 — 발행주식수·자기주식수 등
+         */
+        public List<FactEntry> getShareCountEntries() {
+            if (units == null) {
+                return List.of();
+            }
+            return units.getOrDefault("shares", List.of());
         }
     }
 

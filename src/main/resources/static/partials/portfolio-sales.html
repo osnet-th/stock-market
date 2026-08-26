@@ -1,0 +1,113 @@
+            <!-- ========== PORTFOLIO / 매도 이력 탭 (#110) ========== -->
+            <!-- 조회 범위는 전체 기간 (loadAllUserSales) -->
+            <div x-show="currentPage === 'portfolio' && portfolio.activeTab === 'sales'" x-cloak>
+                <!-- 로딩 -->
+                <div x-show="portfolio.userSalesLoading" class="flex justify-center py-12">
+                    <div class="spinner"></div>
+                </div>
+
+                <!-- 빈 상태 -->
+                <div x-show="!portfolio.userSalesLoading && portfolio.userSales.length === 0"
+                    class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                    <p class="text-gray-400 text-sm">아직 매도 이력이 없어요. 보유 자산 탭의 '매도' 버튼을 눌러보세요.</p>
+                </div>
+
+                <div x-show="!portfolio.userSalesLoading && portfolio.userSales.length > 0" class="space-y-4">
+                    <!-- 전체 합계 카드 -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div class="bg-white rounded-xl border border-gray-200 p-4">
+                            <p class="text-xs text-gray-500 mb-1.5">총 매도</p>
+                            <p class="text-xl font-bold text-gray-800 font-mono" x-text="getSalesSummary().count + '건'"></p>
+                            <p class="text-xs text-gray-400 mt-1">전체 기간</p>
+                        </div>
+                        <div class="bg-white rounded-xl border border-gray-200 p-4">
+                            <p class="text-xs text-gray-500 mb-1.5">실입금 합계</p>
+                            <p class="text-xl font-bold text-gray-800 font-mono"
+                                x-text="formatKrwCompact(getSalesSummary().totalProceeds)"></p>
+                            <p class="text-xs text-gray-400 mt-1">차감액 반영 후</p>
+                        </div>
+                        <div class="bg-white rounded-xl border border-gray-200 p-4">
+                            <p class="text-xs text-gray-500 mb-1.5">실현손익 합계</p>
+                            <p class="text-xl font-bold font-mono"
+                                :class="getSalesSummary().totalProfit > 0 ? 'text-red-600' : getSalesSummary().totalProfit < 0 ? 'text-blue-600' : 'text-gray-800'"
+                                x-text="(getSalesSummary().totalProfit >= 0 ? '+' : '−') + formatKrwCompact(Math.abs(getSalesSummary().totalProfit))"></p>
+                            <p class="text-xs text-gray-400 mt-1">세전 기준</p>
+                        </div>
+                        <div class="bg-white rounded-xl border border-gray-200 p-4">
+                            <p class="text-xs text-gray-500 mb-1.5">실현 수익률</p>
+                            <p class="text-xl font-bold font-mono"
+                                :class="getSalesSummary().profitRate > 0 ? 'text-red-600' : getSalesSummary().profitRate < 0 ? 'text-blue-600' : 'text-gray-800'"
+                                x-text="getSalesSummary().profitRate === null ? '—'
+                                    : (getSalesSummary().profitRate > 0 ? '+' : '') + getSalesSummary().profitRate.toFixed(2) + '%'"></p>
+                            <p class="text-xs text-gray-400 mt-1">매도원금 대비</p>
+                        </div>
+                    </div>
+
+                    <!-- 월별 그룹 리스트 -->
+                    <template x-for="group in groupSalesByMonth()" :key="group.month">
+                        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                            <div class="px-5 py-3 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                <h3 class="text-sm font-bold text-gray-700"
+                                    x-text="group.month + ' (' + group.items.length + '건)'"></h3>
+                                <div class="text-xs text-gray-600 space-x-3">
+                                    <span>실입금
+                                        <span class="font-medium text-gray-800"
+                                            x-text="Format.number(group.totalSaleAmount, 0) + '원'"></span></span>
+                                    <span>손익
+                                        <span class="font-medium"
+                                            :class="group.totalProfit > 0 ? 'text-red-600' : group.totalProfit < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                            x-text="(group.totalProfit > 0 ? '+' : '') + Format.number(group.totalProfit, 0) + '원'"></span></span>
+                                </div>
+                            </div>
+                            <div class="divide-y divide-gray-100">
+                                <template x-for="sale in group.items" :key="sale.id">
+                                    <div @click="openSaleDetailModal(sale)"
+                                        class="px-5 py-3 hover:bg-gray-50 cursor-pointer transition">
+                                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                            <div>
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <span class="text-sm font-medium text-gray-800" x-text="sale.stockName"></span>
+                                                    <span class="text-xs text-gray-400" x-text="sale.soldAt"></span>
+                                                    <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600"
+                                                        x-text="saleReasonLabel(sale.reason)"></span>
+                                                    <span x-show="sale.unrecordedDeposit"
+                                                        class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700">미입금</span>
+                                                </div>
+                                                <p class="text-xs text-gray-500 mt-0.5">
+                                                    <span x-text="Format.number(sale.quantity, 0) + '주'"></span>
+                                                    <span class="text-gray-400">&times;</span>
+                                                    <span x-text="Format.number(sale.salePrice, 2) + (sale.currency !== 'KRW' ? ' ' + sale.currency : '원')"></span>
+                                                    <span x-show="sale.salePriceKrw" class="text-gray-400"
+                                                        x-text="' = ' + Format.number(sale.salePriceKrw, 0) + '원'"></span>
+                                                    <span x-show="sale.deductionAmountKrw" class="text-gray-400"
+                                                        x-text="' / 차감 ' + Format.number(sale.deductionAmountKrw, 0) + '원'"></span>
+                                                </p>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-sm font-medium"
+                                                    :class="saleNetProfit(sale) > 0 ? 'text-red-600' : saleNetProfit(sale) < 0 ? 'text-blue-600' : 'text-gray-600'"
+                                                    x-text="(saleNetProfit(sale) > 0 ? '+' : '') + Format.number(saleNetProfit(sale), 0) + '원'"></div>
+                                                <div class="text-xs space-x-2">
+                                                    <span
+                                                        :class="(sale.netProfitRate ?? sale.profitRate) > 0 ? 'text-red-500' : (sale.netProfitRate ?? sale.profitRate) < 0 ? 'text-blue-500' : 'text-gray-500'"
+                                                        x-text="((sale.netProfitRate ?? sale.profitRate) > 0 ? '+' : '') + Format.number((sale.netProfitRate ?? sale.profitRate), 2) + '%'"></span>
+                                                    <span class="text-gray-400">|</span>
+                                                    <span class="text-gray-500" title="자산 기여율"
+                                                        x-text="'기여 ' + ((sale.netContributionRate ?? sale.contributionRate) > 0 ? '+' : '') + Format.number((sale.netContributionRate ?? sale.contributionRate), 2) + '%'"></span>
+                                                </div>
+                                                <div class="text-xs text-gray-400" x-text="'실입금 ' + Format.number(saleNetProceeds(sale), 0) + '원'"></div>
+                                                <div class="mt-2 flex justify-end gap-2">
+                                                    <button @click.stop="openSaleEditModal(sale)"
+                                                        class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">수정</button>
+                                                    <button @click.stop="openSaleDetailModal(sale)"
+                                                        class="text-xs text-gray-500 hover:text-gray-700 font-medium transition">상세</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>

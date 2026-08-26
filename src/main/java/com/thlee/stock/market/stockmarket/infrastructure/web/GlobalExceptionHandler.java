@@ -23,10 +23,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -51,6 +54,35 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
         publishError(e);
         return buildResponse(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage());
+    }
+
+    /**
+     * 요청 본문 파싱 실패 (malformed JSON, 잘못된 enum 문자열 등) — 500 대신 400 보장.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleMessageNotReadable(HttpMessageNotReadableException e) {
+        publishError(e);
+        return buildResponse(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST_BODY",
+                "요청 본문을 해석할 수 없습니다. 형식을 확인해주세요.");
+    }
+
+    /**
+     * @Valid 위반 (Bean Validation) — 신규/기존 컨트롤러에서 일관된 400 응답 보장.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException e) {
+        publishError(e);
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        for (FieldError fieldError : e.getBindingResult().getFieldErrors()) {
+            fieldErrors.put(fieldError.getField(),
+                fieldError.getDefaultMessage() != null ? fieldError.getDefaultMessage() : "invalid");
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "VALIDATION_FAILED");
+        body.put("message", "요청 본문 검증에 실패했습니다.");
+        body.put("fieldErrors", fieldErrors);
+        body.put("timestamp", LocalDateTime.now().toString());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     /**

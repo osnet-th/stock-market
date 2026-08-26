@@ -17,6 +17,8 @@ public class GlobalIndicatorLatest {
     private final String cycle;
     private final String unit;
     private final LocalDateTime updatedAt;
+    // 마지막 수집 시각 — cycle 변경 여부와 무관하게 수집 성공마다 갱신 (#51 catch-up 판단 기준)
+    private final LocalDateTime lastCollectedAt;
 
     public GlobalIndicatorLatest(String countryName,
                                   GlobalEconomicIndicatorType indicatorType,
@@ -24,7 +26,8 @@ public class GlobalIndicatorLatest {
                                   String previousDataValue,
                                   String cycle,
                                   String unit,
-                                  LocalDateTime updatedAt) {
+                                  LocalDateTime updatedAt,
+                                  LocalDateTime lastCollectedAt) {
         this.countryName = countryName;
         this.indicatorType = indicatorType;
         this.dataValue = dataValue;
@@ -32,6 +35,7 @@ public class GlobalIndicatorLatest {
         this.cycle = cycle;
         this.unit = unit;
         this.updatedAt = updatedAt;
+        this.lastCollectedAt = lastCollectedAt;
     }
 
     /**
@@ -39,6 +43,7 @@ public class GlobalIndicatorLatest {
      */
     public static GlobalIndicatorLatest fromSnapshot(CountryIndicatorSnapshot snapshot) {
         IndicatorValue lastValue = snapshot.getLastValue();
+        LocalDateTime now = LocalDateTime.now();
         return new GlobalIndicatorLatest(
             snapshot.getCountryName(),
             snapshot.getIndicatorType(),
@@ -46,7 +51,8 @@ public class GlobalIndicatorLatest {
             null,
             snapshot.getReferenceText(),
             lastValue != null ? lastValue.getUnit() : null,
-            LocalDateTime.now()
+            now,
+            now
         );
     }
 

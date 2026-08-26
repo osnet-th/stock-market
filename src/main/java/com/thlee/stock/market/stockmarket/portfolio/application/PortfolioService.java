@@ -19,6 +19,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.CashSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PensionSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PriceCurrency;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstateSubType;
@@ -116,9 +117,10 @@ public class PortfolioService {
 
         PortfolioItem saved = portfolioItemRepository.save(item);
 
-        // 최초 매수이력 생성
+        // 최초 매수이력 생성 (해외 주식은 매수 시점 환율을 함께 기록 — 환차손익 산출용 #110)
         StockPurchaseHistory history = StockPurchaseHistory.create(
-                saved.getId(), quantity, purchasePrice, LocalDate.now(), null);
+                saved.getId(), quantity, purchasePrice, LocalDate.now(), null,
+                resolvePurchaseFxRate(detail.getPriceCurrency(), quantity, purchasePrice, investedAmountKrw));
         purchaseHistoryRepository.save(history);
 
         // CASH 연결 저장
@@ -203,6 +205,33 @@ public class PortfolioService {
     }
 
     /**
+     * 연금 항목 등록 (IRP / 연금저축 / DC / DB)
+     * investedAmount 는 납입 원금, evaluatedAmount 는 사용자가 직접 갱신하는 평가액이다.
+     */
+    @Transactional
+    public PortfolioItemResponse addPensionItem(Long userId, String itemName, BigDecimal investedAmount,
+                                                 String region, String memo,
+                                                 String subType, String provider, BigDecimal evaluatedAmount,
+                                                 BigDecimal monthlyDepositAmount, Integer depositDay) {
+        PensionDetail detail = new PensionDetail(
+                subType != null ? PensionSubType.valueOf(subType) : null,
+                provider,
+                evaluatedAmount,
+                monthlyDepositAmount,
+                depositDay
+        );
+        PortfolioItem item = PortfolioItem.createWithPension(
+                userId, itemName, investedAmount, Region.valueOf(region), detail);
+        if (memo != null) {
+            item.updateMemo(memo);
+        }
+        validateDuplicate(userId, item);
+        PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
+        return PortfolioItemResponse.from(saved);
+    }
+
+    /**
      * 현금성 자산 항목 등록 (예금/적금/CMA)
      */
     @Transactional
@@ -267,22 +296,34 @@ public class PortfolioService {
     /**
      * 일반 자산 항목 등록 (CRYPTO, GOLD, COMMODITY, OTHER)
      * CASH는 전용 API(addCashItem)를 사용해야 합니다.
+     * quantityGrams는 GOLD 전용 선택 입력 (시세 평가용 보유 중량)
      */
     @Transactional
     public PortfolioItemResponse addGeneralItem(Long userId, String assetType, String itemName,
-                                                 BigDecimal investedAmount, String region, String memo) {
+                                                 BigDecimal investedAmount, String region, String memo,
+                                                 BigDecimal quantityGrams) {
         AssetType type = AssetType.valueOf(assetType);
         if (type == AssetType.CASH) {
             throw new IllegalArgumentException("현금성 자산은 전용 API(/items/cash)를 사용해 주세요.");
         }
+        validateQuantityGramsUsage(type, quantityGrams);
         PortfolioItem item = PortfolioItem.create(userId, itemName, type, investedAmount, Region.valueOf(region));
         if (memo != null) {
             item.updateMemo(memo);
+        }
+        if (type == AssetType.GOLD && quantityGrams != null) {
+            item.updateGoldDetail(new GoldDetail(quantityGrams));
         }
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
         publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
         return PortfolioItemResponse.from(saved);
+    }
+
+    private void validateQuantityGramsUsage(AssetType type, BigDecimal quantityGrams) {
+        if (quantityGrams != null && type != AssetType.GOLD) {
+            throw new IllegalArgumentException("보유 중량(g)은 금 항목에서만 입력할 수 있습니다.");
+        }
     }
 
     /**
@@ -305,9 +346,11 @@ public class PortfolioService {
 
         Map<Long, Long> finalLinkMap = linkMap;
 
-        // CASH/FUND 항목의 미납 여부 + 만기 예상 금액 배치 계산 (단일 쿼리)
+        // CASH/FUND/PENSION 항목의 미납 여부 + 만기 예상 금액 배치 계산 (단일 쿼리)
         List<Long> depositTargetIds = items.stream()
-                .filter(i -> i.getAssetType() == AssetType.CASH || i.getAssetType() == AssetType.FUND)
+                .filter(i -> i.getAssetType() == AssetType.CASH
+                        || i.getAssetType() == AssetType.FUND
+                        || i.getAssetType() == AssetType.PENSION)
                 .map(PortfolioItem::getId)
                 .collect(Collectors.toList());
 
@@ -323,18 +366,21 @@ public class PortfolioService {
         return items.stream()
                 .map(item -> {
                     Long linkedId = finalLinkMap.get(item.getId());
-                    List<DepositHistory> deposits = finalDepositMap.get(item.getId());
                     Boolean overdue = null;
+                    Boolean dueToday = null;
                     BigDecimal maturityAmount = null;
 
-                    if (deposits != null) {
+                    // 이력 0건 항목도 판정 대상 — 빈 리스트로 폴백 (#111)
+                    if (item.getAssetType() == AssetType.CASH || item.getAssetType() == AssetType.FUND) {
+                        List<DepositHistory> deposits = finalDepositMap.getOrDefault(item.getId(), List.of());
                         overdue = isDepositOverdue(item, deposits, today);
+                        dueToday = isDepositDueToday(item, deposits, today);
                         if (item.getAssetType() == AssetType.CASH && item.getCashDetail() != null) {
                             maturityAmount = calculateMaturityAmount(item);
                         }
                     }
 
-                    return PortfolioItemResponse.from(item, linkedId, overdue, maturityAmount);
+                    return PortfolioItemResponse.from(item, linkedId, overdue, dueToday, maturityAmount);
                 })
                 .collect(Collectors.toList());
     }
@@ -406,9 +452,10 @@ public class PortfolioService {
         // 기존 매수이력이 없으면 현재 보유분으로 초기 이력 자동 생성
         List<StockPurchaseHistory> existingHistories = purchaseHistoryRepository.findByPortfolioItemId(itemId);
         if (existingHistories.isEmpty() && item.getStockDetail() != null) {
+            // 기존 보유분은 매수 시점 환율을 알 수 없어 null (환차손익 산출에서 제외)
             StockPurchaseHistory initialHistory = StockPurchaseHistory.create(
                     itemId, item.getStockDetail().getQuantity(),
-                    item.getStockDetail().getAvgBuyPrice(), LocalDate.now(), "기존 보유분");
+                    item.getStockDetail().getAvgBuyPrice(), LocalDate.now(), "기존 보유분", null);
             purchaseHistoryRepository.save(initialHistory);
         }
 
@@ -417,7 +464,10 @@ public class PortfolioService {
 
         // 매수이력 저장
         StockPurchaseHistory history = StockPurchaseHistory.create(
-                itemId, quantity, purchasePrice, LocalDate.now(), null);
+                itemId, quantity, purchasePrice, LocalDate.now(), null,
+                resolvePurchaseFxRate(
+                        item.getStockDetail() != null ? item.getStockDetail().getPriceCurrency() : null,
+                        quantity, purchasePrice, investedAmountKrw));
         purchaseHistoryRepository.save(history);
 
         // 전체 이력 기반 재계산
@@ -498,15 +548,45 @@ public class PortfolioService {
     }
 
     /**
-     * 일반 자산 항목 수정
+     * 연금 항목 수정
      */
     @Transactional
-    public PortfolioItemResponse updateGeneralItem(Long userId, Long itemId,
-                                                    String itemName, BigDecimal investedAmount, String memo) {
+    public PortfolioItemResponse updatePensionItem(Long userId, Long itemId,
+                                                    String itemName, BigDecimal investedAmount, String memo,
+                                                    String subType, String provider, BigDecimal evaluatedAmount,
+                                                    BigDecimal monthlyDepositAmount, Integer depositDay) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
         item.updateMemo(memo);
+        PensionDetail detail = new PensionDetail(
+                subType != null ? PensionSubType.valueOf(subType) : null,
+                provider,
+                evaluatedAmount,
+                monthlyDepositAmount,
+                depositDay
+        );
+        item.updatePensionDetail(detail);
+        PortfolioItem saved = portfolioItemRepository.save(item);
+        publishItemEvent("PORTFOLIO_ITEM_UPDATED", userId, saved);
+        return PortfolioItemResponse.from(saved);
+    }
+
+    /**
+     * 일반 자산 항목 수정
+     */
+    @Transactional
+    public PortfolioItemResponse updateGeneralItem(Long userId, Long itemId,
+                                                    String itemName, BigDecimal investedAmount, String memo,
+                                                    BigDecimal quantityGrams) {
+        PortfolioItem item = findUserItem(userId, itemId);
+        validateQuantityGramsUsage(item.getAssetType(), quantityGrams);
+        item.updateItemName(itemName);
+        item.updateAmount(investedAmount);
+        item.updateMemo(memo);
+        if (item.getAssetType() == AssetType.GOLD) {
+            item.updateGoldDetail(quantityGrams != null ? new GoldDetail(quantityGrams) : null);
+        }
         PortfolioItem saved = portfolioItemRepository.save(item);
         publishItemEvent("PORTFOLIO_ITEM_UPDATED", userId, saved);
         return PortfolioItemResponse.from(saved);
@@ -552,7 +632,8 @@ public class PortfolioService {
     @Transactional
     public PortfolioItemResponse updatePurchaseHistory(Long userId, Long itemId, Long historyId,
                                                         Integer quantity, BigDecimal purchasePrice,
-                                                        LocalDate purchasedAt, String memo) {
+                                                        LocalDate purchasedAt, String memo,
+                                                        BigDecimal fxRate) {
         PortfolioItem item = findUserItem(userId, itemId);
 
         StockPurchaseHistory history = purchaseHistoryRepository.findById(historyId)
@@ -564,7 +645,7 @@ public class PortfolioService {
         // 재계산 전 금액 스냅샷
         BigDecimal oldAmount = item.getInvestedAmount();
 
-        history.update(quantity, purchasePrice, purchasedAt, memo);
+        history.update(quantity, purchasePrice, purchasedAt, memo, fxRate);
         purchaseHistoryRepository.save(history);
 
         // 전체 이력 기반 재계산
@@ -676,8 +757,9 @@ public class PortfolioService {
 
         StockDetail detail = stockItem.getStockDetail();
         BigDecimal salePriceKrw = computeSalePriceKrw(param.salePrice(), param.quantity(), snapshot.fxRate());
+        BigDecimal settlementAmountKrw = resolveSettlementAmount(salePriceKrw, param.deductionAmountKrw(), param.netProceedsKrw());
 
-        DepositResolution deposit = resolveDepositTarget(userId, stockItemId, param.depositCashItemId(), salePriceKrw);
+        DepositResolution deposit = resolveDepositTarget(userId, stockItemId, param.depositCashItemId(), settlementAmountKrw);
 
         StockSaleHistory history = StockSaleHistory.create(
                 stockItemId,
@@ -687,6 +769,8 @@ public class PortfolioService {
                 snapshot.currency(),
                 snapshot.fxRate(),
                 snapshot.totalAssetAtSale(),
+                param.deductionAmountKrw(),
+                param.netProceedsKrw(),
                 param.reason(),
                 param.memo(),
                 detail.getStockCode(),
@@ -696,8 +780,9 @@ public class PortfolioService {
                 today
         );
 
-        if (deposit.cashItem() != null && salePriceKrw != null) {
-            deposit.cashItem().restoreAmount(salePriceKrw);
+        BigDecimal cashDepositAmount = history.settlementAmountKrw();
+        if (deposit.cashItem() != null && cashDepositAmount != null) {
+            deposit.cashItem().restoreAmount(cashDepositAmount);
             portfolioItemRepository.save(deposit.cashItem());
         }
 
@@ -711,7 +796,7 @@ public class PortfolioService {
         portfolioItemRepository.save(stockItem);
 
         publishSaleEvent("PORTFOLIO_STOCK_SALE_ADDED", userId, stockItemId,
-                savedHistory.getId(), param.quantity(), param.salePrice(), savedHistory.getProfit());
+                savedHistory.getId(), param.quantity(), param.salePrice(), savedHistory.getNetProfitKrw());
 
         return StockSaleHistoryResponse.from(savedHistory);
     }
@@ -814,23 +899,24 @@ public class PortfolioService {
         }
 
         BigDecimal fxRate = history.getFxRate();
-        BigDecimal oldSalePriceKrw = history.getSalePriceKrw();
-        BigDecimal newSalePriceKrw = computeSalePriceKrw(param.salePrice(), newQuantity, fxRate);
+        BigDecimal oldSettlementAmountKrw = history.settlementAmountKrw();
+
+        history.update(newQuantity, param.salePrice(), param.deductionAmountKrw(), param.netProceedsKrw(),
+                param.reason(), param.memo());
+        history.recomputeProfit(history.getTotalAssetAtSale(), fxRate);
+        BigDecimal newSettlementAmountKrw = history.settlementAmountKrw();
 
         if (!history.isUnrecordedDeposit()
-                && oldSalePriceKrw != null
-                && newSalePriceKrw != null) {
-            applyCashDelta(stockItemId, oldSalePriceKrw, newSalePriceKrw);
+                && oldSettlementAmountKrw != null
+                && newSettlementAmountKrw != null) {
+            applyCashDelta(stockItemId, oldSettlementAmountKrw, newSettlementAmountKrw);
         }
-
-        history.update(newQuantity, param.salePrice(), param.reason(), param.memo());
-        history.recomputeProfit(history.getTotalAssetAtSale(), fxRate);
         StockSaleHistory savedHistory = stockSaleHistoryRepository.save(history);
 
         portfolioItemRepository.save(stockItem);
 
         publishSaleEvent("PORTFOLIO_STOCK_SALE_UPDATED", userId, stockItemId,
-                historyId, newQuantity, param.salePrice(), savedHistory.getProfit());
+                historyId, newQuantity, param.salePrice(), savedHistory.getNetProfitKrw());
 
         return StockSaleHistoryResponse.from(savedHistory);
     }
@@ -854,7 +940,7 @@ public class PortfolioService {
         }
 
         int restoreQuantity = history.getQuantity();
-        BigDecimal restoreSalePriceKrw = history.getSalePriceKrw();
+        BigDecimal restoreSalePriceKrw = history.settlementAmountKrw();
         boolean wasUnrecorded = history.isUnrecordedDeposit();
 
         stockItem.restoreStockQuantity(restoreQuantity);
@@ -920,6 +1006,38 @@ public class PortfolioService {
         return salePrice.multiply(fxRate)
                 .multiply(BigDecimal.valueOf(quantity))
                 .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal resolveSettlementAmount(BigDecimal salePriceKrw,
+                                               BigDecimal deductionAmountKrw,
+                                               BigDecimal netProceedsKrw) {
+        if (netProceedsKrw != null) {
+            validateNetProceeds(salePriceKrw, netProceedsKrw);
+            return netProceedsKrw.setScale(2, RoundingMode.HALF_UP);
+        }
+        if (deductionAmountKrw != null) {
+            validateDeduction(salePriceKrw, deductionAmountKrw);
+            return salePriceKrw == null ? null : salePriceKrw.subtract(deductionAmountKrw).setScale(2, RoundingMode.HALF_UP);
+        }
+        return salePriceKrw;
+    }
+
+    private void validateNetProceeds(BigDecimal salePriceKrw, BigDecimal netProceedsKrw) {
+        if (netProceedsKrw.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("실입금액은 0 이상이어야 합니다.");
+        }
+        if (salePriceKrw != null && netProceedsKrw.compareTo(salePriceKrw) > 0) {
+            throw new IllegalArgumentException("실입금액은 총 체결금액보다 클 수 없습니다.");
+        }
+    }
+
+    private void validateDeduction(BigDecimal salePriceKrw, BigDecimal deductionAmountKrw) {
+        if (deductionAmountKrw.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("차감액은 0 이상이어야 합니다.");
+        }
+        if (salePriceKrw != null && deductionAmountKrw.compareTo(salePriceKrw) > 0) {
+            throw new IllegalArgumentException("차감액은 총 체결금액보다 클 수 없습니다.");
+        }
     }
 
     /**
@@ -1067,33 +1185,60 @@ public class PortfolioService {
 
     /**
      * 미납 여부 판정
-     * 자동납입 설정이 있고, 당월 납입일이 지났는데 당월 납입 기록이 없으면 미납
-     */
-    /**
-     * 미납 여부 판정
      * 자동납입 설정이 있고, 기준일 기준 당월 납입일이 지났는데 당월 납입 기록이 없으면 미납
      */
     public boolean isDepositOverdue(PortfolioItem item, List<DepositHistory> histories, LocalDate referenceDate) {
-        Integer depositDay = null;
-        if (item.getAssetType() == AssetType.CASH && item.getCashDetail() != null) {
-            depositDay = item.getCashDetail().getDepositDay();
-        } else if (item.getAssetType() == AssetType.FUND && item.getFundDetail() != null) {
-            depositDay = item.getFundDetail().getDepositDay();
-        }
-
+        Integer depositDay = resolveDepositDay(item);
         if (depositDay == null) {
             return false;
         }
 
-        int lastDayOfMonth = referenceDate.lengthOfMonth();
-        int effectiveDay = Math.min(depositDay, lastDayOfMonth);
-        LocalDate depositDueDate = referenceDate.withDayOfMonth(effectiveDay);
+        LocalDate depositDueDate = referenceDate.withDayOfMonth(effectiveDepositDay(depositDay, referenceDate));
 
         // 납입일 다음날부터 미납 처리
         if (!referenceDate.isAfter(depositDueDate)) {
             return false;
         }
 
+        return hasNoDepositThisMonth(histories, referenceDate);
+    }
+
+    /**
+     * 납입일 당일 여부 판정 (#111)
+     * 자동납입 설정이 있고, 기준일이 당월 납입일 당일인데 당월 납입 기록이 없으면 true — 리마인더 팝업 당일 안내용
+     */
+    public boolean isDepositDueToday(PortfolioItem item, List<DepositHistory> histories, LocalDate referenceDate) {
+        Integer depositDay = resolveDepositDay(item);
+        if (depositDay == null) {
+            return false;
+        }
+
+        if (referenceDate.getDayOfMonth() != effectiveDepositDay(depositDay, referenceDate)) {
+            return false;
+        }
+
+        return hasNoDepositThisMonth(histories, referenceDate);
+    }
+
+    private Integer resolveDepositDay(PortfolioItem item) {
+        if (item.getAssetType() == AssetType.CASH && item.getCashDetail() != null) {
+            return item.getCashDetail().getDepositDay();
+        }
+        if (item.getAssetType() == AssetType.FUND && item.getFundDetail() != null) {
+            return item.getFundDetail().getDepositDay();
+        }
+        if (item.getAssetType() == AssetType.PENSION && item.getPensionDetail() != null) {
+            return item.getPensionDetail().getDepositDay();
+        }
+        return null;
+    }
+
+    // 말일 보정: 설정 납입일이 해당 월 일수보다 크면 말일로 당김
+    private int effectiveDepositDay(int depositDay, LocalDate referenceDate) {
+        return Math.min(depositDay, referenceDate.lengthOfMonth());
+    }
+
+    private boolean hasNoDepositThisMonth(List<DepositHistory> histories, LocalDate referenceDate) {
         LocalDate monthStart = referenceDate.withDayOfMonth(1);
         return histories.stream()
                 .noneMatch(h -> !h.getDepositDate().isBefore(monthStart)
@@ -1101,8 +1246,10 @@ public class PortfolioService {
     }
 
     private void validateDepositTarget(PortfolioItem item) {
-        if (item.getAssetType() != AssetType.CASH && item.getAssetType() != AssetType.FUND) {
-            throw new IllegalArgumentException("납입 이력은 현금성 자산(예금/적금/CMA) 또는 펀드만 등록��� 수 있습니다.");
+        AssetType type = item.getAssetType();
+        if (type != AssetType.CASH && type != AssetType.FUND && type != AssetType.PENSION) {
+            throw new IllegalArgumentException(
+                    "납입 이력은 현금성 자산(예금/적금/CMA), 펀드, 연금만 등록할 수 있습니다.");
         }
     }
 
@@ -1169,6 +1316,26 @@ public class PortfolioService {
             return investedAmountKrw;
         }
         return purchasePrice.multiply(BigDecimal.valueOf(quantity));
+    }
+
+    /**
+     * 매수 시점 적용 환율 산출 (#110)
+     *
+     * 프런트가 환율을 따로 보내지 않고 원화 환산 금액(investedAmountKrw)만 보내므로
+     * `원화환산금액 / (수량 × 매수단가)` 로 역산한다. 원화 주식이거나 역산 불가면 null.
+     */
+    private BigDecimal resolvePurchaseFxRate(PriceCurrency currency, Integer quantity,
+                                              BigDecimal purchasePrice, BigDecimal investedAmountKrw) {
+        if (currency == null || currency == PriceCurrency.KRW) {
+            return null;
+        }
+        if (investedAmountKrw == null || investedAmountKrw.compareTo(BigDecimal.ZERO) <= 0
+                || quantity == null || quantity <= 0
+                || purchasePrice == null || purchasePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+        BigDecimal foreignCost = purchasePrice.multiply(BigDecimal.valueOf(quantity));
+        return investedAmountKrw.divide(foreignCost, 4, RoundingMode.HALF_UP);
     }
 
     /**

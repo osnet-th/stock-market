@@ -9,31 +9,57 @@ const API = {
         };
     },
 
-    async request(method, url, body = null, { signal } = {}) {
+    /** 기본 요청 타임아웃(ms). 호출자가 signal 을 명시한 경우에는 적용하지 않음. */
+    DEFAULT_TIMEOUT_MS: 15000,
+
+    async request(method, url, body = null, { signal, timeoutMs } = {}) {
         const options = {
             method,
             headers: this.getHeaders(),
         };
         if (body) options.body = JSON.stringify(body);
-        if (signal) options.signal = signal;
 
-        const response = await fetch(`${this.baseUrl}${url}`, options);
-
-        if (response.status === 401) {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('userId');
-            window.location.href = '/login.html';
-            return;
+        // 호출자 signal 우선. 없으면 default timeout 으로 AbortController 합성.
+        let timeoutId = null;
+        let effectiveTimeoutMs = null;
+        if (signal) {
+            options.signal = signal;
+        } else {
+            const ctrl = new AbortController();
+            const ms = typeof timeoutMs === 'number' ? timeoutMs : this.DEFAULT_TIMEOUT_MS;
+            effectiveTimeoutMs = ms;
+            timeoutId = setTimeout(() => ctrl.abort(), ms);
+            options.signal = ctrl.signal;
         }
 
-        if (response.status === 204) return null;
+        try {
+            const response = await fetch(`${this.baseUrl}${url}`, options);
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`API Error ${response.status}: ${errorText}`);
+            if (response.status === 401) {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('userId');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            if (response.status === 204) return null;
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API Error ${response.status}: ${errorText}`);
+            }
+
+            return response.json();
+        } catch (err) {
+            if (err && err.name === 'AbortError') {
+                throw new Error(`API Timeout after ${effectiveTimeoutMs ?? this.DEFAULT_TIMEOUT_MS}ms: ${method} ${url}`);
+            }
+            throw err;
+        } finally {
+            if (timeoutId !== null) {
+                clearTimeout(timeoutId);
+            }
         }
-
-        return response.json();
     },
 
     // Users
@@ -86,7 +112,44 @@ const API = {
         return this.request('GET', `/api/economics/indicators/history?category=${category}`);
     },
 
+    // Derived Indicators (사용자 커스텀 파생지표) — 토큰 기반, userId 미부착
+    getDerivedIndicators() {
+        return this.request('GET', '/api/economics/derived-indicators');
+    },
+
+    createDerivedIndicator(body) {
+        return this.request('POST', '/api/economics/derived-indicators', body);
+    },
+
+    updateDerivedIndicator(id, body) {
+        return this.request('PUT', `/api/economics/derived-indicators/${id}`, body);
+    },
+
+    deleteDerivedIndicator(id) {
+        return this.request('DELETE', `/api/economics/derived-indicators/${id}`);
+    },
+
+    getDerivedAvailableIndicators(category) {
+        const q = category ? `?category=${encodeURIComponent(category)}` : '';
+        return this.request('GET', '/api/economics/derived-indicators/available-indicators' + q);
+    },
+
+    getDerivedPresets() {
+        return this.request('GET', '/api/economics/derived-indicators/presets');
+    },
+
+    copyDerivedPreset(key) {
+        return this.request('POST', `/api/economics/derived-indicators/presets/${encodeURIComponent(key)}/copy`);
+    },
+
     // News
+    /**
+     * 사용자 활성 키워드 전체를 합친 최신 뉴스 피드 (#114 홈 대시보드).
+     */
+    getKeywordNewsFeed(userId, size = 5) {
+        return this.request('GET', `/api/news/feed?userId=${userId}&size=${size}`);
+    },
+
     getNewsByKeyword(keywordId, page, size) {
         page = page || 0;
         size = size || 20;
@@ -145,6 +208,13 @@ const API = {
         return this.request('POST', `/api/favorites/global/refresh/${indicatorType}`);
     },
 
+    /**
+     * 컨테이너 (sourceType) 단위 일괄 순서 갱신. 표시 모드 폐지(#114).
+     */
+    reorderFavorites(sourceType, indicatorCodes) {
+        return this.request('PUT', '/api/favorites/order', { sourceType, indicatorCodes });
+    },
+
     getRecentUpdates() {
         return this.request('GET', '/api/economics/indicators/recent-updates');
     },
@@ -161,6 +231,18 @@ const API = {
 
     getPortfolioAllocation(userId) {
         return this.request('GET', `/api/portfolio/allocation?userId=${userId}`);
+    },
+
+    getAllocationStatus(userId) {
+        return this.request('GET', `/api/portfolio/allocation/status?userId=${userId}`);
+    },
+
+    getAllocationTarget(userId) {
+        return this.request('GET', `/api/portfolio/allocation/target?userId=${userId}`);
+    },
+
+    saveAllocationTarget(userId, body) {
+        return this.request('PUT', `/api/portfolio/allocation/target?userId=${userId}`, body);
     },
 
     // 등록 (타입별)
@@ -182,6 +264,22 @@ const API = {
 
     addCashItem(userId, body) {
         return this.request('POST', `/api/portfolio/items/cash?userId=${userId}`, body);
+    },
+
+    getPortfolioSummary(userId) {
+        return this.request('GET', `/api/portfolio/summary?userId=${userId}`);
+    },
+
+    savePortfolioSnapshot(userId) {
+        return this.request('POST', `/api/portfolio/snapshots?userId=${userId}`);
+    },
+
+    getPortfolioSnapshots(userId, months = 12) {
+        return this.request('GET', `/api/portfolio/snapshots?userId=${userId}&months=${months}`);
+    },
+
+    addPensionItem(userId, body) {
+        return this.request('POST', `/api/portfolio/items/pension?userId=${userId}`, body);
     },
 
     addGeneralItem(userId, body) {
@@ -278,6 +376,10 @@ const API = {
         return this.request('PUT', `/api/portfolio/items/cash/${itemId}?userId=${userId}`, body);
     },
 
+    updatePensionItem(userId, itemId, body) {
+        return this.request('PUT', `/api/portfolio/items/pension/${itemId}?userId=${userId}`, body);
+    },
+
     updateGeneralItem(userId, itemId, body) {
         return this.request('PUT', `/api/portfolio/items/general/${itemId}?userId=${userId}`, body);
     },
@@ -299,6 +401,13 @@ const API = {
     // ==================== Stock Prices ====================
     getStockPrices(stocks) {
         return this.request('POST', '/api/stocks/prices', { stocks });
+    },
+
+    // 기간별(일/주/월봉) 가격 히스토리. 전구간 월봉은 KIS 페이징(~5회)으로 다소 걸릴 수 있음
+    getStockPriceHistory(stockCode, period = 'M') {
+        return this.request('GET',
+            `/api/stocks/${stockCode}/price-history?period=${encodeURIComponent(period)}`,
+            null, { timeoutMs: 30000 });
     },
 
     // ==================== Stock Financial ====================
@@ -332,6 +441,18 @@ const API = {
             `/api/stocks/${stockCode}/financial/full-statements?year=${year}&reportCode=${reportCode}&fsDiv=${fsDiv}`);
     },
 
+    getFinancialTimeline(stockCode, years, fsDiv, items) {
+        const itemsParam = items && items.length > 0 ? `&items=${items.join(',')}` : '';
+        return this.request('GET',
+            `/api/stocks/${stockCode}/financial/timeline?years=${years}&fsDiv=${fsDiv}${itemsParam}`);
+    },
+
+    getDisclosures(stockCode, fromDate, toDate, types) {
+        const typesParam = types && types.length > 0 ? `&types=${types.join(',')}` : '';
+        return this.request('GET',
+            `/api/stocks/${stockCode}/disclosures?fromDate=${fromDate}&toDate=${toDate}${typesParam}`);
+    },
+
     getLawsuits(stockCode, startDate, endDate) {
         return this.request('GET',
             `/api/stocks/${stockCode}/financial/lawsuits?startDate=${startDate}&endDate=${endDate}`);
@@ -345,6 +466,43 @@ const API = {
     getPublicFundUsages(stockCode, year, reportCode) {
         return this.request('GET',
             `/api/stocks/${stockCode}/financial/public-fund-usages?year=${year}&reportCode=${reportCode}`);
+    },
+
+    // ==================== Stock Evaluation (종목 평가, KIS 국내주식 종목정보) ====================
+    getStockBasicInfo(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/basic-info`);
+    },
+
+    getStockSummary(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/summary`);
+    },
+
+    getIndustryIndex(indexCode, fromDate) {
+        let url = `/api/stock-evaluation/industry-index/${indexCode}`;
+        if (fromDate) url += `?fromDate=${fromDate}`;
+        return this.request('GET', url);
+    },
+
+    getStockFinance(stockCode, type, divCls) {
+        return this.request('GET',
+            `/api/stock-evaluation/${stockCode}/finance/${type}?divCls=${divCls}`);
+    },
+
+    getStockEstimatePerform(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/estimate-perform`);
+    },
+
+    getStockCreditEligibility(stockCode) {
+        return this.request('GET', `/api/stock-evaluation/${stockCode}/credit-eligibility`);
+    },
+
+    getStockSchedule(stockCode, type, fromDate, toDate) {
+        let url = `/api/stock-evaluation/${stockCode}/schedules/${type}`;
+        const params = [];
+        if (fromDate) params.push(`fromDate=${fromDate}`);
+        if (toDate) params.push(`toDate=${toDate}`);
+        if (params.length) url += '?' + params.join('&');
+        return this.request('GET', url);
     },
 
     // ==================== SEC Financial (해외주식) ====================
@@ -364,7 +522,15 @@ const API = {
         return this.request('GET', `/api/stocks/${ticker}/sec/cik`);
     },
 
+    // 최근 SEC 제출 서식 목록 (US 리포트 공시 패널)
+    getSecFilings(ticker, limit = 40) {
+        return this.request('GET', `/api/stocks/${ticker}/sec/filings?limit=${limit}`);
+    },
+
     // ==================== Overseas News (해외뉴스) ====================
+    // #110 에서 포트폴리오의 해외속보/해외뉴스종합 패널을 걷어내며 현재 호출부가 없다.
+    // 백엔드 `/api/overseas-news/**` 는 그대로 살아 있고 키워드 메뉴 편입 가능성이 열려 있어
+    // 태형님 결정(2026-08-10)으로 래퍼를 남긴다 — 미사용이라고 지우지 말 것.
     getOverseasBreakingNews(stockCode, exchangeCode) {
         return this.request('GET',
             `/api/overseas-news/breaking?stockCode=${stockCode}&exchangeCode=${exchangeCode}`);
@@ -376,12 +542,12 @@ const API = {
     },
 
     // ==================== Chat ====================
-    async streamChat(userId, message, chatMode, stockCode, indicatorCategory, analysisTask, messages, onChunk, onDone, onError, signal) {
+    async streamChat(userId, message, chatMode, stockCode, portfolioItemId, indicatorCategory, analysisTask, messages, onChunk, onDone, onError, signal) {
         try {
             const response = await fetch(`${this.baseUrl}/api/chat?userId=${userId}`, {
                 method: 'POST',
                 headers: this.getHeaders(),
-                body: JSON.stringify({ message, chatMode, stockCode, indicatorCategory, analysisTask, messages }),
+                body: JSON.stringify({ message, chatMode, stockCode, portfolioItemId, indicatorCategory, analysisTask, messages }),
                 signal: signal
             });
 
@@ -446,6 +612,11 @@ const API = {
 
     getSalaryAvailableMonths(userId, options = {}) {
         return this.request('GET', `/api/salary/months?userId=${userId}`, null, options);
+    },
+
+    /** 해당 월 일괄 저장 (월급 + 카테고리 금액·예산 + 하위 항목 세트) */
+    saveSalaryMonthly(userId, yearMonth, payload) {
+        return this.request('PUT', `/api/salary/monthly/${yearMonth}?userId=${userId}`, payload);
     },
 
     upsertSalaryIncome(userId, yearMonth, amount) {
@@ -521,43 +692,15 @@ const API = {
         return '?' + parts.join('&');
     },
 
-    // ==================== Stock Note ====================
-    createStockNote(body) {
-        return this.request('POST', '/api/stock-notes', body);
+    // ==================== Dashboard Summary ====================
+    /** 메인 대시보드 뉴스 기록 카드용 — 최근 등록 3건 + 카테고리별 카운트. */
+    getNewsJournalDashboardSummary() {
+        return this.request('GET', '/api/news-journal/dashboard/summary');
     },
-    getStockNoteList(filters = {}) {
-        return this.request('GET', '/api/stock-notes' + this._buildLogQuery(filters));
-    },
-    getStockNoteDetail(id) {
-        return this.request('GET', `/api/stock-notes/${id}`);
-    },
-    updateStockNote(id, body) {
-        return this.request('PUT', `/api/stock-notes/${id}`, body);
-    },
-    deleteStockNote(id) {
-        return this.request('DELETE', `/api/stock-notes/${id}`);
-    },
-    upsertStockNoteVerification(id, body) {
-        return this.request('PUT', `/api/stock-notes/${id}/verification`, body);
-    },
-    deleteStockNoteVerification(id) {
-        return this.request('DELETE', `/api/stock-notes/${id}/verification`);
-    },
-    getStockNoteDashboard() {
-        return this.request('GET', '/api/stock-notes/dashboard');
-    },
-    getStockNoteSimilarPatterns(id, directionFilter = null) {
-        const qs = directionFilter ? `?directionFilter=${directionFilter}` : '';
-        return this.request('GET', `/api/stock-notes/${id}/similar-patterns${qs}`);
-    },
-    getStockNoteChart(stockCode, period = 90) {
-        return this.request('GET', `/api/stock-notes/by-stock/${stockCode}/chart?period=${period}`);
-    },
-    getStockNoteCustomTags(prefix = '', limit = 10) {
-        return this.request('GET', `/api/stock-notes/custom-tags?prefix=${encodeURIComponent(prefix)}&limit=${limit}`);
-    },
-    retryStockNoteSnapshot(id, type) {
-        return this.request('POST', `/api/stock-notes/${id}/snapshots/${type}/retry`);
+
+    /** 메인 대시보드 운영자 카드용 — 오늘 ERROR 도메인 카운트(KST). admin only. */
+    getTodayIncidentCount() {
+        return this.request('GET', '/api/admin/dashboard/incidents/today');
     },
 
     // News Journal (뉴스 기록)
@@ -578,5 +721,107 @@ const API = {
     },
     getNewsEventCategories() {
         return this.request('GET', '/api/news-journal/categories');
+    },
+    /** 화면 통계 — 임팩트/분류별 건수 + 사건별 키워드 목록 (칩·추천 패널·관계도 원자료). */
+    getNewsJournalStats() {
+        return this.request('GET', '/api/news-journal/stats');
+    },
+
+    // ========== Real Estate Market (부동산 시장 데이터) ==========
+    getRealEstateRegions() {
+        return this.request('GET', '/api/realestate/regions');
+    },
+    getRealEstateEmds(regionCode) {
+        return this.request('GET', `/api/realestate/regions/${regionCode}/emds`);
+    },
+    getRealEstateSummary(regionCode) {
+        return this.request('GET', `/api/realestate/market/summary?regionCode=${encodeURIComponent(regionCode)}`);
+    },
+    getRealEstateTab(regionCode, category, period = 'ONE_MONTH') {
+        const q = `regionCode=${encodeURIComponent(regionCode)}&period=${encodeURIComponent(period)}`;
+        return this.request('GET', `/api/realestate/market/tabs/${encodeURIComponent(category)}?${q}`);
+    },
+    getRealEstateComparison(regionCodes, category, period = 'ONE_MONTH') {
+        const list = regionCodes.map(c => `regionCodes=${encodeURIComponent(c)}`).join('&');
+        return this.request('GET', `/api/realestate/market/comparison?${list}&category=${encodeURIComponent(category)}&period=${encodeURIComponent(period)}`);
+    },
+    getRealEstateSources() {
+        return this.request('GET', '/api/realestate/market/sources');
+    },
+    getRealEstateSourcesAvailability() {
+        return this.request('GET', '/api/realestate/sources/availability');
+    },
+    getRealEstateFavoriteRegions() {
+        return this.request('GET', '/api/realestate/favorites/regions');
+    },
+    addRealEstateFavoriteRegion(regionCode, emdCode = null) {
+        return this.request('POST', '/api/realestate/favorites/regions', { regionCode, emdCode });
+    },
+    removeRealEstateFavoriteRegion(regionCode, emdCode = null) {
+        const params = new URLSearchParams({ regionCode });
+        if (emdCode) params.set('emdCode', emdCode);
+        return this.request('DELETE', `/api/realestate/favorites/regions?${params.toString()}`);
+    },
+    // 관리자 전용: 부동산 일배치 수동 트리거 (202 triggered / 409 rejected)
+    triggerRealEstateBatch() {
+        return this.request('POST', '/api/admin/realestate/batch/run');
+    },
+
+    // Glossary (개인 용어 사전)
+    getGlossaryCategories() {
+        return this.request('GET', '/api/glossary/categories');
+    },
+    createGlossaryCategory(body) {
+        return this.request('POST', '/api/glossary/categories', body);
+    },
+    updateGlossaryCategory(id, body) {
+        return this.request('PUT', `/api/glossary/categories/${id}`, body);
+    },
+    deleteGlossaryCategory(id) {
+        return this.request('DELETE', `/api/glossary/categories/${id}`);
+    },
+    previewGlossaryCategoryDelete(id) {
+        return this.request('GET', `/api/glossary/categories/${id}/delete-impact`);
+    },
+    getGlossaryTerms(filters = {}) {
+        return this.request('GET', '/api/glossary/terms' + this._buildLogQuery(filters));
+    },
+    getGlossaryTerm(id) {
+        return this.request('GET', `/api/glossary/terms/${id}`);
+    },
+    createGlossaryTerm(body) {
+        return this.request('POST', '/api/glossary/terms', body);
+    },
+    updateGlossaryTerm(id, body) {
+        return this.request('PUT', `/api/glossary/terms/${id}`, body);
+    },
+    deleteGlossaryTerm(id) {
+        return this.request('DELETE', `/api/glossary/terms/${id}`);
+    },
+
+    // Company Report (기업분석리포트)
+    // preview/create/refresh 는 DART 10개년 조회를 포함해 오래 걸릴 수 있어 타임아웃을 넉넉히 준다
+    previewCompanyReport(stockCode) {
+        return this.request('GET', `/api/company-reports/preview?stockCode=${encodeURIComponent(stockCode)}`, null, { timeoutMs: 60000 });
+    },
+    createCompanyReport(body) {
+        return this.request('POST', '/api/company-reports', body, { timeoutMs: 60000 });
+    },
+    getCompanyReports({ stockName, page = 0, size = 20 } = {}) {
+        const params = new URLSearchParams({ page, size });
+        if (stockName) params.set('stockName', stockName);
+        return this.request('GET', `/api/company-reports?${params.toString()}`);
+    },
+    getCompanyReport(id) {
+        return this.request('GET', `/api/company-reports/${id}`);
+    },
+    updateCompanyReport(id, body) {
+        return this.request('PUT', `/api/company-reports/${id}`, body);
+    },
+    refreshCompanyReport(id) {
+        return this.request('POST', `/api/company-reports/${id}/refresh`, null, { timeoutMs: 60000 });
+    },
+    deleteCompanyReport(id) {
+        return this.request('DELETE', `/api/company-reports/${id}`);
     }
 };

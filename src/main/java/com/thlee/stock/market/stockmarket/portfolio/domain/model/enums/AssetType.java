@@ -9,6 +9,7 @@ public enum AssetType {
     GOLD("금"),
     COMMODITY("원자재"),
     CASH("현금성 자산"),
+    PENSION("연금"),
     OTHER("기타");
 
     private final String description;

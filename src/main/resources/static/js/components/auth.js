@@ -10,7 +10,9 @@ const AuthComponent = {
         userId: localStorage.getItem('userId'),
         role: localStorage.getItem('role'),
         displayName: localStorage.getItem('displayName'),
-        isAdmin: false
+        isAdmin: false,
+        // loadMyProfile 실패 시 true — UI 측에서 운영자 카드 silent 미노출 대신 안내 표시 가능.
+        profileLoadFailed: false
     },
 
     checkLoggedIn() {
@@ -41,9 +43,13 @@ const AuthComponent = {
             this.auth.role = profile.role;
             this.auth.notificationEnabled = profile.notificationEnabled || false;
             this.auth.isAdmin = profile.admin === true;
+            this.auth.profileLoadFailed = false;
             localStorage.setItem('displayName', profile.displayName);
             localStorage.setItem('role', profile.role);
         } catch (e) {
+            // 실패 시 auth.isAdmin 은 false 로 유지되며 profileLoadFailed=true 로 UI 가 안내를 표시할 수 있게 함.
+            this.auth.profileLoadFailed = true;
+            console.warn('dashboard:auth:profile-load-failed (admin 분기 미초기화 가능)');
             console.error('프로필 로드 실패:', e);
         }
     },

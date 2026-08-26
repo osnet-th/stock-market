@@ -33,7 +33,9 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_news_event_user_impact",
                         columnList = "user_id, impact, occurred_date DESC"),
                 @Index(name = "idx_news_event_user_category_date",
-                        columnList = "user_id, category_id, occurred_date DESC, id DESC")
+                        columnList = "user_id, category_id, occurred_date DESC, id DESC"),
+                @Index(name = "idx_news_event_user_created",
+                        columnList = "user_id, created_at DESC, id DESC")
         }
 )
 @Getter

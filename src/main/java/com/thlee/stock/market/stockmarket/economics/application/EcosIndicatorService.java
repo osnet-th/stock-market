@@ -63,6 +63,14 @@ public class EcosIndicatorService {
     }
 
     /**
+     * 단일 지표 시계열 조회: (className, keystatName) 기준 최근 limit개 snapshotDate 오름차순
+     */
+    @Transactional(readOnly = true)
+    public List<EcosIndicator> findHistory(String className, String keystatName, int limit) {
+        return ecosIndicatorRepository.findHistory(className, keystatName, limit);
+    }
+
+    /**
      * 전체 최신값 조회 (관심 지표 enrichment용)
      */
     @Transactional(readOnly = true)

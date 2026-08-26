@@ -47,6 +47,12 @@ public class DartSinglAcntAllItem {
     @JsonProperty("frmtrm_amount")
     private String frmtrmAmount;
 
+    @JsonProperty("bfefrmtrm_nm")
+    private String bfefrmtrmNm;
+
+    @JsonProperty("bfefrmtrm_amount")
+    private String bfefrmtrmAmount;
+
     @JsonProperty("ord")
     private String ord;
 

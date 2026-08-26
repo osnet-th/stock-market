@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
  *
  * <p>입력 SoT(quantity, avgBuyPrice, salePrice, currency, fxRate, totalAssetAtSale, ...)와
  * 매도 시점 파생값(profit, profitRate, contributionRate, salePriceKrw, profitKrw)을 함께 보존한다.
+ * 실입금 기준 금액(netProceedsKrw, netProfitKrw)은 사용자가 실제 증권사 입금액에 맞추는 정산 SoT다.
  * 파생값은 {@link #recomputeProfit(BigDecimal, BigDecimal)}으로 재계산한다.</p>
  */
 @Getter
@@ -38,6 +39,11 @@ public class StockSaleHistory {
     private BigDecimal fxRate;
     private BigDecimal salePriceKrw;
     private BigDecimal profitKrw;
+    private BigDecimal deductionAmountKrw;
+    private BigDecimal netProceedsKrw;
+    private BigDecimal netProfitKrw;
+    private BigDecimal netProfitRate;
+    private BigDecimal netContributionRate;
     private SaleReason reason;
     private String memo;
     private String stockCode;
@@ -60,6 +66,8 @@ public class StockSaleHistory {
                                           String currency,
                                           BigDecimal fxRate,
                                           BigDecimal totalAssetAtSale,
+                                          BigDecimal deductionAmountKrw,
+                                          BigDecimal netProceedsKrw,
                                           SaleReason reason,
                                           String memo,
                                           String stockCode,
@@ -72,6 +80,7 @@ public class StockSaleHistory {
                 null, portfolioItemId, quantity, avgBuyPrice, salePrice,
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                 totalAssetAtSale, currency, fxRate, null, null,
+                deductionAmountKrw, netProceedsKrw, null, null, null,
                 reason, memo, stockCode, stockName, unrecordedDeposit, soldAt,
                 LocalDateTime.now(), LocalDateTime.now()
         );
@@ -79,11 +88,34 @@ public class StockSaleHistory {
         return history;
     }
 
+    public static StockSaleHistory create(Long portfolioItemId,
+                                          int quantity,
+                                          BigDecimal avgBuyPrice,
+                                          BigDecimal salePrice,
+                                          String currency,
+                                          BigDecimal fxRate,
+                                          BigDecimal totalAssetAtSale,
+                                          SaleReason reason,
+                                          String memo,
+                                          String stockCode,
+                                          String stockName,
+                                          boolean unrecordedDeposit,
+                                          LocalDate soldAt,
+                                          LocalDate today) {
+        return create(portfolioItemId, quantity, avgBuyPrice, salePrice, currency, fxRate, totalAssetAtSale,
+                null, null, reason, memo, stockCode, stockName, unrecordedDeposit, soldAt, today);
+    }
+
     /**
      * 사후 수정 — quantity, salePrice, reason, memo만 변경 가능.
      * 변경 후 {@link #recomputeProfit(BigDecimal, BigDecimal)}로 파생값 재계산.
      */
-    public void update(int quantity, BigDecimal salePrice, SaleReason reason, String memo) {
+    public void update(int quantity,
+                       BigDecimal salePrice,
+                       BigDecimal deductionAmountKrw,
+                       BigDecimal netProceedsKrw,
+                       SaleReason reason,
+                       String memo) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("매도 수량은 0보다 커야 합니다.");
         }
@@ -95,8 +127,14 @@ public class StockSaleHistory {
         }
         this.quantity = quantity;
         this.salePrice = salePrice;
+        this.deductionAmountKrw = deductionAmountKrw;
+        this.netProceedsKrw = netProceedsKrw;
         this.reason = reason;
         this.memo = memo;
+    }
+
+    public void update(int quantity, BigDecimal salePrice, SaleReason reason, String memo) {
+        update(quantity, salePrice, null, null, reason, memo);
     }
 
     /**
@@ -125,6 +163,8 @@ public class StockSaleHistory {
             this.profitKrw = null;
         }
 
+        recomputeNetAmounts(qty);
+
         if (totalAssetAtSale == null || totalAssetAtSale.compareTo(BigDecimal.ZERO) == 0) {
             this.contributionRate = BigDecimal.ZERO.setScale(FINAL_SCALE, RoundingMode.HALF_UP);
         } else {
@@ -134,6 +174,37 @@ public class StockSaleHistory {
         }
 
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public BigDecimal settlementAmountKrw() {
+        return netProceedsKrw != null ? netProceedsKrw : salePriceKrw;
+    }
+
+    private void recomputeNetAmounts(BigDecimal qty) {
+        SettlementAmounts settlement = SettlementAmounts.resolve(salePriceKrw, deductionAmountKrw, netProceedsKrw);
+        this.deductionAmountKrw = settlement.deductionAmountKrw();
+        this.netProceedsKrw = settlement.netProceedsKrw();
+
+        if (netProceedsKrw == null || fxRate == null) {
+            this.netProfitKrw = null;
+            this.netProfitRate = null;
+            this.netContributionRate = BigDecimal.ZERO.setScale(FINAL_SCALE, RoundingMode.HALF_UP);
+            return;
+        }
+
+        BigDecimal costKrw = avgBuyPrice.multiply(fxRate).multiply(qty).setScale(FINAL_SCALE, RoundingMode.HALF_UP);
+        this.netProfitKrw = netProceedsKrw.subtract(costKrw).setScale(FINAL_SCALE, RoundingMode.HALF_UP);
+        this.netProfitRate = netProfitKrw.divide(costKrw, RATE_DIVIDE_SCALE, RoundingMode.HALF_UP)
+                .multiply(HUNDRED).setScale(FINAL_SCALE, RoundingMode.HALF_UP);
+        this.netContributionRate = computeNetContributionRate();
+    }
+
+    private BigDecimal computeNetContributionRate() {
+        if (totalAssetAtSale == null || totalAssetAtSale.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO.setScale(FINAL_SCALE, RoundingMode.HALF_UP);
+        }
+        return netProfitKrw.divide(totalAssetAtSale, RATE_DIVIDE_SCALE, RoundingMode.HALF_UP)
+                .multiply(HUNDRED).setScale(FINAL_SCALE, RoundingMode.HALF_UP);
     }
 
     private static void validateInputs(int quantity,
@@ -163,6 +234,56 @@ public class StockSaleHistory {
         }
         if (today != null && soldAt.isAfter(today)) {
             throw new IllegalArgumentException("매도일은 미래일 수 없습니다.");
+        }
+    }
+
+    private record SettlementAmounts(BigDecimal deductionAmountKrw, BigDecimal netProceedsKrw) {
+
+        private static SettlementAmounts resolve(BigDecimal grossProceedsKrw,
+                                                 BigDecimal requestedDeduction,
+                                                 BigDecimal requestedNetProceeds) {
+            BigDecimal deduction = normalize(requestedDeduction);
+            BigDecimal netProceeds = normalize(requestedNetProceeds);
+            validateNonNegative(deduction, "차감액은 0 이상이어야 합니다.");
+            validateNonNegative(netProceeds, "실입금액은 0 이상이어야 합니다.");
+
+            if (netProceeds != null) {
+                return fromNetProceeds(grossProceedsKrw, netProceeds);
+            }
+            if (deduction != null) {
+                return fromDeduction(grossProceedsKrw, deduction);
+            }
+            return new SettlementAmounts(BigDecimal.ZERO.setScale(FINAL_SCALE, RoundingMode.HALF_UP), grossProceedsKrw);
+        }
+
+        private static SettlementAmounts fromNetProceeds(BigDecimal grossProceedsKrw, BigDecimal netProceeds) {
+            if (grossProceedsKrw == null) {
+                return new SettlementAmounts(null, netProceeds);
+            }
+            if (netProceeds.compareTo(grossProceedsKrw) > 0) {
+                throw new IllegalArgumentException("실입금액은 총 체결금액보다 클 수 없습니다.");
+            }
+            return new SettlementAmounts(grossProceedsKrw.subtract(netProceeds).setScale(FINAL_SCALE, RoundingMode.HALF_UP), netProceeds);
+        }
+
+        private static SettlementAmounts fromDeduction(BigDecimal grossProceedsKrw, BigDecimal deduction) {
+            if (grossProceedsKrw == null) {
+                return new SettlementAmounts(deduction, null);
+            }
+            if (deduction.compareTo(grossProceedsKrw) > 0) {
+                throw new IllegalArgumentException("차감액은 총 체결금액보다 클 수 없습니다.");
+            }
+            return new SettlementAmounts(deduction, grossProceedsKrw.subtract(deduction).setScale(FINAL_SCALE, RoundingMode.HALF_UP));
+        }
+
+        private static BigDecimal normalize(BigDecimal value) {
+            return value == null ? null : value.setScale(FINAL_SCALE, RoundingMode.HALF_UP);
+        }
+
+        private static void validateNonNegative(BigDecimal value, String message) {
+            if (value != null && value.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException(message);
+            }
         }
     }
 }

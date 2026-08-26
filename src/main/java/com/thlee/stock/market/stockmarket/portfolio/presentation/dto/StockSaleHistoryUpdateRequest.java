@@ -4,6 +4,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.SaleReaso
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
@@ -19,6 +20,12 @@ public class StockSaleHistoryUpdateRequest {
     @NotNull
     @DecimalMin("0.01")
     private BigDecimal salePrice;
+
+    @PositiveOrZero
+    private BigDecimal deductionAmountKrw;
+
+    @PositiveOrZero
+    private BigDecimal netProceedsKrw;
 
     @NotNull
     private SaleReason reason;

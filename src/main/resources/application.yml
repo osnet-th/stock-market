@@ -38,10 +38,11 @@ spring:
     socket-timeout: 5s
 
   # Scheduler Configuration
+  # pool 5 → 10: @Scheduled 작업 10개 대비 여유 확보 (#96 — 잠식 방지 본체는 LogBatchBuffer 격리)
   task:
     scheduling:
       pool:
-        size: 5
+        size: 10
 
   # Mail Configuration (Gmail SMTP)
   mail:
@@ -125,6 +126,15 @@ stock:
       service-key: ${DATAGOKR_SERVICE_KEY}
       num-of-rows: 100
 
+# 금 시세 API (공공데이터포털 - 금융위원회_일반상품시세정보, KRX 금시장 1g당 종가)
+gold:
+  api:
+    base-url: https://apis.data.go.kr/1160100/service/GetGeneralProductInfoService/getGoldPriceInfo
+    service-key: ${DATAGOKR_SERVICE_KEY}
+    cache-ttl-minutes: 60
+    failure-backoff-minutes: 5
+    lookback-days: 14
+
 # 한국수출입은행 환율 API
 koreaexim:
   api:
@@ -174,6 +184,75 @@ app:
       # 관리자 userId 화이트리스트. 빈 값 = 전면 차단 (fail-close).
       # .env: ADMIN_USER_IDS=1,2,3 형식 (쉼표 구분 Long)
       user-ids: ${ADMIN_USER_IDS:}
+
+# Real Estate Market API (8개 공공 출처)
+# 인증키 미설정 출처는 부팅 정상, fetch 시점에 어댑터가 IllegalStateException으로 skip 처리.
+realestate:
+  molit:
+    base-url: https://apis.data.go.kr/1613000
+    api-key: ${MOLIT_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  reb:
+    base-url: https://www.reb.or.kr/r-one/openapi
+    api-key: ${REB_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+    # R-ONE STATBL 11개 매핑 — RebStatblProperties로 strong-typed 바인딩.
+    # 각 entry: (statbl-id, dtacycle-cd, [indicator-code]).
+    # Q1=A 정책: indicator-code가 있는 STATBL만 적재 (4종 묶음 중 대표 1종 = 주택종합).
+    # 미매핑 entry는 fetch 단계에서 skip — 추후 metadata yml 확장 시 indicator-code 추가만으로 활성화 가능.
+    statbl:
+      sale-price-total:        { statbl-id: A_2024_00017, dtacycle-cd: MM, indicator-code: SALE_PRICE_INDEX }    # 매매가격지수 주택종합 (대표)
+      sale-price-apt:          { statbl-id: A_2024_00048, dtacycle-cd: MM }                                       # 매매가격지수 아파트
+      sale-price-rowhouse:     { statbl-id: A_2024_00083, dtacycle-cd: MM }                                       # 매매가격지수 연립/다세대
+      sale-price-singlehouse:  { statbl-id: A_2024_00117, dtacycle-cd: MM }                                       # 매매가격지수 단독주택
+      rent-price-total:        { statbl-id: A_2024_00020, dtacycle-cd: MM, indicator-code: JEONSE_PRICE_INDEX }   # 전세가격지수 주택종합 (대표)
+      rent-price-apt:          { statbl-id: A_2024_00053, dtacycle-cd: MM }                                       # 전세가격지수 아파트
+      rent-price-rowhouse:     { statbl-id: A_2024_00088, dtacycle-cd: MM }                                       # 전세가격지수 연립/다세대
+      rent-price-singlehouse:  { statbl-id: A_2024_00122, dtacycle-cd: MM }                                       # 전세가격지수 단독주택
+      trade-volume-total:      { statbl-id: A_2024_00604, dtacycle-cd: MM }                                       # 거래량 주택종합
+      trade-volume-apt:        { statbl-id: A_2024_00612, dtacycle-cd: MM, indicator-code: APT_TRANSACTION_COUNT }# 아파트 매매거래호수 (대표)
+      land-price-change:       { statbl-id: A_2024_00903, dtacycle-cd: MM, indicator-code: LAND_PRICE_CHANGE_RATE }# 지가변동률
+  hub:
+    base-url: https://apis.data.go.kr/1613000
+    api-key: ${HUB_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  kosis:
+    base-url: https://kosis.kr/openapi
+    api-key: ${KOSIS_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  subscription-home:
+    base-url: https://api.odcloud.kr/api
+    api-key: ${SUBSCRIPTION_HOME_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  # HUG 분양보증사고 — 현재 비활성화 (2026-05-10 결정)
+  # · data.go.kr는 링크데이터셋만 등록 (Open API 미제공) — 아래 base-url은 실제 작동 안 함
+  # · HUG 자체 OPEN API(www.khug.or.kr)는 존재하나 응답 envelope/파라미터 schema가
+  #   data.go.kr 표준과 달라 어댑터 전면 재작성 필요
+  # · HUG_API_KEY 빈값 유지 시 BatchScheduler가 자동 skip
+  # · 후속 sprint에서 폐기 vs 재작성 vs KOSIS 우회 결정. 자세한 내용은 HugAdapter javadoc 참조
+  hug:
+    base-url: https://apis.data.go.kr/B551408
+    api-key: ${HUG_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  # 서울 OpenData는 https 미지원 확정 (TLS protocol version 에러) — http 유지
+  # 보안 한계: 인증키가 URL path-segment(/{KEY}/json/...)로 노출되며 http 평문 전송
+  # 후속: SecretMasker 정규식을 path-segment 형식까지 커버하도록 보강 권장
+  seoul-open-data:
+    base-url: http://openapi.seoul.go.kr:8088
+    api-key: ${SEOUL_OPEN_DATA_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+  gg-data-dream:
+    base-url: https://openapi.gg.go.kr
+    api-key: ${GG_DATA_DREAM_API_KEY:}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
 
 # Economics API
 economics:

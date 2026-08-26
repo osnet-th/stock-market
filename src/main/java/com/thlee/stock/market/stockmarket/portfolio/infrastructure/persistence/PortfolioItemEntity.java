@@ -10,12 +10,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "portfolio_item",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_portfolio_item",
-                        columnNames = {"user_id", "item_name", "asset_type"}
-                )
-        },
+        // (user_id, item_name, asset_type) 유일성은 status='ACTIVE' partial unique index로만 관리한다 (issue #66).
+        // Hibernate @UniqueConstraint는 WHERE 절(partial)을 표현하지 못하므로 여기 두지 않는다.
+        // 어노테이션으로 두면 ddl-auto=update가 full unique 제약을 silent 재생성해 CLOSED 재등록 409가 재발한다.
+        // -> src/main/resources/db/migration/portfolio_item_active_partial_unique.sql
         indexes = {
                 @Index(name = "idx_portfolio_item_user_id", columnList = "user_id")
         }

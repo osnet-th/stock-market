@@ -10,7 +10,7 @@ import java.time.Duration;
 
 /**
  * KIS API 전용 RestClient 설정.
- * connect/read timeout 을 명시해 응답 지연이 stocknoteSnapshotExecutor 워커 또는 Tomcat 워커로
+ * connect/read timeout 을 명시해 응답 지연이 호출 워커(Tomcat / 비동기 Executor)로
  * 무한 전파되지 않도록 한다 (DART/SEC 어댑터와 동일 패턴).
  */
 @Configuration

@@ -40,4 +40,11 @@ public class GlobalIndicatorRepositoryImpl implements GlobalIndicatorRepository 
                 .map(mapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<GlobalIndicator> findHistory(String countryName, GlobalEconomicIndicatorType indicatorType, int limit) {
+        return jpaRepository.findHistory(countryName, indicatorType.name(), limit).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 public class FinancialAnalysisPromptTemplate {
 
     private static final String COMMON_HEADER = """
-            당신은 한국 주식 종목 분석 전문가입니다.
+            당신은 주식 종목 분석 전문가입니다.
             아래 '제공된 팩트' 만을 1순위 근거로 사용하세요.
             업종 평균이 필요하면 일반지식으로 추정하되, 추정치임을 반드시 명시하세요.
 

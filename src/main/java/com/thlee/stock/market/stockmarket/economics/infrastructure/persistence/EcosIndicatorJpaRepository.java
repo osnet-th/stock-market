@@ -26,4 +26,22 @@ public interface EcosIndicatorJpaRepository extends JpaRepository<EcosIndicatorE
             ORDER BY t.class_name, t.keystat_name, t.cycle
             """, nativeQuery = true)
     List<EcosIndicatorEntity> findLatestHistoryByClassNames(@Param("classNames") Set<String> classNames);
+
+    @Query(value = """
+            SELECT t.id, t.class_name, t.keystat_name, t.data_value, t.cycle, t.unit_name, t.snapshot_date, t.created_at
+            FROM (
+                SELECT e.*,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY e.class_name, e.keystat_name
+                           ORDER BY e.snapshot_date DESC
+                       ) AS rn
+                FROM ecos_indicator e
+                WHERE e.class_name = :className AND e.keystat_name = :keystatName
+            ) t
+            WHERE t.rn <= :limit
+            ORDER BY t.snapshot_date ASC
+            """, nativeQuery = true)
+    List<EcosIndicatorEntity> findHistory(@Param("className") String className,
+                                          @Param("keystatName") String keystatName,
+                                          @Param("limit") int limit);
 }

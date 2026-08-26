@@ -60,6 +60,8 @@ public class StockSaleHistoryRepositoryImpl implements StockSaleHistoryRepositor
                 h.getProfit(), h.getProfitRate(), h.getContributionRate(),
                 h.getTotalAssetAtSale(), h.getCurrency(), h.getFxRate(),
                 h.getSalePriceKrw(), h.getProfitKrw(),
+                h.getDeductionAmountKrw(), h.getNetProceedsKrw(),
+                h.getNetProfitKrw(), h.getNetProfitRate(), h.getNetContributionRate(),
                 h.getReason(), h.getMemo(), h.getStockCode(), h.getStockName(),
                 h.isUnrecordedDeposit(), h.getSoldAt(),
                 h.getCreatedAt(), h.getUpdatedAt()
@@ -73,6 +75,8 @@ public class StockSaleHistoryRepositoryImpl implements StockSaleHistoryRepositor
                 e.getProfit(), e.getProfitRate(), e.getContributionRate(),
                 e.getTotalAssetAtSale(), e.getCurrency(), e.getFxRate(),
                 e.getSalePriceKrw(), e.getProfitKrw(),
+                e.getDeductionAmountKrw(), e.getNetProceedsKrw(),
+                e.getNetProfitKrw(), e.getNetProfitRate(), e.getNetContributionRate(),
                 e.getReason(), e.getMemo(), e.getStockCode(), e.getStockName(),
                 e.isUnrecordedDeposit(), e.getSoldAt(),
                 e.getCreatedAt(), e.getUpdatedAt()

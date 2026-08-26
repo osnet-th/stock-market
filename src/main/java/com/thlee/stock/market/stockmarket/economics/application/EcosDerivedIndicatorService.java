@@ -49,11 +49,7 @@ public class EcosDerivedIndicatorService {
     }
 
     private Double parseDouble(String value) {
-        try {
-            return Double.parseDouble(value.replace(",", ""));
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return com.thlee.stock.market.stockmarket.economics.domain.model.IndicatorValueParser.parse(value);
     }
 
     private Double find(Map<String, Double> map, String name) {

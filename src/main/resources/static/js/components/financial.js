@@ -277,6 +277,7 @@ const FinancialComponent = {
         GOLD:        { label: '금',       color: 'amber',  barColor: 'bg-amber-500',  chartColor: '#F59E0B' },
         COMMODITY:   { label: '원자재',   color: 'red',    barColor: 'bg-red-500',    chartColor: '#EF4444' },
         CASH:        { label: '현금',     color: 'gray',   barColor: 'bg-gray-500',   chartColor: '#6B7280' },
+        PENSION:     { label: '연금',     color: 'sky',    barColor: 'bg-sky-500',    chartColor: '#0EA5E9' },
         OTHER:       { label: '기타',     color: 'slate',  barColor: 'bg-slate-500',  chartColor: '#64748B' }
     },
 
@@ -309,6 +310,7 @@ const FinancialComponent = {
         this.portfolio.selectedStockItem = item;
         this.portfolio.selectedFinancialMenu = null;
         this.portfolio.financialResult = null;
+        this.portfolio.financialError = null;
         this.portfolio.secFinancialData = null;
         this.portfolio.secQuarterlyData = null;
         this.portfolio.secQuarterlyPeriod = 'annual';
@@ -319,6 +321,8 @@ const FinancialComponent = {
             this.portfolio._secChartInstance.destroy();
             this.portfolio._secChartInstance = null;
         }
+        this.resetTimelineState();
+        this.resetDisclosureState();
 
         if (country === 'US') {
             // 해외주식: SEC 4개 탭 메뉴
@@ -341,6 +345,8 @@ const FinancialComponent = {
             this.portfolio._secChartInstance.destroy();
             this.portfolio._secChartInstance = null;
         }
+        this.resetTimelineState();
+        this.resetDisclosureState();
         this.portfolio.selectedStockItem = null;
         this.portfolio.selectedFinancialMenu = null;
         this.portfolio.financialResult = null;
@@ -351,6 +357,54 @@ const FinancialComponent = {
         this.portfolio.secFinancialError = null;
         this.portfolio.secEdgarUrl = null;
         this.portfolio.financialMenus = this.portfolio._krFinancialMenus;
+    },
+
+    // === 재무상세 패널 가로 리사이즈 (데스크톱 lg+) ===
+
+    _PANEL_MIN_WIDTH: 480,
+
+    // 조절값이 있으면 인라인 width로 lg:w-[65%] 오버라이드. 모바일(<1024)은 기본(w-full) 유지
+    financialPanelBodyStyle() {
+        const w = this.portfolio.financialPanelWidth;
+        if (!w || window.innerWidth < 1024) return '';
+        return `width: ${Math.min(w, window.innerWidth)}px; max-width: 100vw;`;
+    },
+
+    // 핸들은 패널 왼쪽 가장자리(오른쪽 기준 패널 너비만큼)에 위치
+    financialPanelHandleStyle() {
+        const w = this.portfolio.financialPanelWidth;
+        if (w && window.innerWidth >= 1024) return `right: ${Math.min(w, window.innerWidth)}px;`;
+        return 'right: 65%;';
+    },
+
+    startFinancialPanelResize(event) {
+        event.preventDefault();
+        const onMove = (e) => this._applyPanelWidth(window.innerWidth - e.clientX);
+        const onUp = () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            document.body.style.userSelect = '';
+            this._savePanelWidth();
+        };
+        document.body.style.userSelect = 'none';
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+    },
+
+    _applyPanelWidth(width) {
+        this.portfolio.financialPanelWidth = Math.max(this._PANEL_MIN_WIDTH, Math.min(window.innerWidth, width));
+    },
+
+    _savePanelWidth() {
+        if (this.portfolio.financialPanelWidth) {
+            localStorage.setItem('financialPanelWidth', String(this.portfolio.financialPanelWidth));
+        }
+    },
+
+    // 핸들 더블클릭 → 기본 너비로 복원
+    resetFinancialPanelWidth() {
+        this.portfolio.financialPanelWidth = null;
+        localStorage.removeItem('financialPanelWidth');
     },
 
     getFinancialColumns() {
@@ -453,6 +507,7 @@ const FinancialComponent = {
     async selectFinancialMenu(menuKey) {
         this.portfolio.selectedFinancialMenu = menuKey;
         this.portfolio.financialResult = null;
+        this.portfolio.financialError = null;
         this.portfolio.financialAccountFsFilter = '';
         this.portfolio.financialStatementFilter = '';
 
@@ -461,17 +516,57 @@ const FinancialComponent = {
             this.portfolio._secChartInstance.destroy();
             this.portfolio._secChartInstance = null;
         }
+        if (this.portfolio.financialChartInstance) {
+            this.portfolio.financialChartInstance.destroy();
+            this.portfolio.financialChartInstance = null;
+        }
+        this.resetTimelineState();
+        this.resetDisclosureState();
 
+        // SEC만 탭 클릭 시 자동 조회. KR은 [조회] 버튼으로만 조회(R1/R2).
         if (menuKey.startsWith('sec-')) {
             await this.loadSecFinancial(menuKey);
-        } else {
-            await this.loadSelectedFinancial();
         }
     },
 
-    async onFinancialFilterChange() {
-        if (!this.portfolio.selectedFinancialMenu) return;
+    async runFinancialQuery() {
+        const menu = this.portfolio.selectedFinancialMenu;
+        if (!menu) return;
+
+        if (menu === 'timeline') {
+            await this.runTimelineQuery();
+            return;
+        }
+
+        if (menu === 'disclosures') {
+            await this.runDisclosureQuery();
+            return;
+        }
+
+        // 진입 즉시 generation 증가 + 로딩 표시 → 버튼 disabled, 옵션 로드 중 전환 시 stale 무시(R3)
+        const thisGeneration = ++this.portfolio._financialRequestGeneration;
+        this.portfolio.financialLoading = true;
+        this.portfolio.financialError = null;
+
+        // 옵션 로드 실패 종목 복구: null이면 1회 재시도(lawsuits는 옵션 불필요)
+        if (!this.portfolio.financialOptions && menu !== 'lawsuits') {
+            await this.loadFinancialOptions();
+            if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
+            // 재시도 후에도 null이면 네트워크/서버 실패 → "0건" 오인 방지를 위해 에러로 분기
+            if (!this.portfolio.financialOptions) {
+                this.portfolio.financialLoading = false;
+                this.portfolio.financialResult = null;
+                this.portfolio.financialError = '재무 옵션을 불러오지 못했습니다. 잠시 후 다시 조회해 주세요.';
+                return;
+            }
+        }
         await this.loadSelectedFinancial();
+    },
+
+    hasFinancialOptions() {
+        const menu = this.portfolio.selectedFinancialMenu;
+        if (menu === 'lawsuits' || menu === 'timeline' || menu === 'disclosures') return true;
+        return !!this.portfolio.financialOptions;
     },
 
     async loadSelectedFinancial() {
@@ -484,48 +579,563 @@ const FinancialComponent = {
 
         const thisGeneration = ++this.portfolio._financialRequestGeneration;
         this.portfolio.financialLoading = true;
+        this.portfolio.financialError = null;
         try {
-            let result;
-            switch (menu) {
-                case 'accounts':
-                    result = await API.getFinancialAccounts(stockCode, year, reportCode);
-                    break;
-                case 'indices':
-                    result = await API.getFinancialIndices(stockCode, year, reportCode, this.portfolio.financialIndexClass);
-                    break;
-                case 'full-statements':
-                    result = await API.getFullFinancialStatements(stockCode, year, reportCode, this.portfolio.financialFsDiv);
-                    break;
-                case 'stock-quantities':
-                    result = await API.getFinancialStockQuantities(stockCode, year, reportCode);
-                    break;
-                case 'dividends':
-                    result = await API.getFinancialDividends(stockCode, year, reportCode);
-                    break;
-                case 'lawsuits':
-                    result = await API.getLawsuits(stockCode, year + '0101', year + '1231');
-                    break;
-                case 'private-fund':
-                    result = await API.getPrivateFundUsages(stockCode, year, reportCode);
-                    break;
-                case 'public-fund':
-                    result = await API.getPublicFundUsages(stockCode, year, reportCode);
-                    break;
-            }
+            const result = await this.fetchSelectedFinancial(menu, stockCode, year, reportCode);
             if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
             this.portfolio.financialResult = result || [];
+            this.portfolio.financialError = null;
         } catch (e) {
             if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
             console.error('재무정보 조회 실패:', e);
-            this.portfolio.financialResult = [];
+            // 에러 시 미조회(null)로 두어 0건 빈 상태와 상호배타 (센티넬 보존)
+            this.portfolio.financialResult = null;
+            this.portfolio.financialError = '재무정보 조회에 실패했습니다. 잠시 후 다시 조회해 주세요.';
         } finally {
             if (thisGeneration === this.portfolio._financialRequestGeneration) {
                 this.portfolio.financialLoading = false;
                 if (menu === 'accounts' && this.portfolio.financialResult && this.portfolio.financialResult.length > 0) {
                     this.$nextTick(() => {
+                        // 콜백 시점에 메뉴 전환으로 차트가 destroy됐을 수 있음 → stale 렌더 방지
+                        if (thisGeneration !== this.portfolio._financialRequestGeneration) return;
                         this.renderFinancialBarChart();
                     });
                 }
+            }
+        }
+    },
+
+    async fetchSelectedFinancial(menu, stockCode, year, reportCode) {
+        switch (menu) {
+            case 'accounts':
+                return API.getFinancialAccounts(stockCode, year, reportCode);
+            case 'indices':
+                return API.getFinancialIndices(stockCode, year, reportCode, this.portfolio.financialIndexClass);
+            case 'full-statements':
+                return API.getFullFinancialStatements(stockCode, year, reportCode, this.portfolio.financialFsDiv);
+            case 'stock-quantities':
+                return API.getFinancialStockQuantities(stockCode, year, reportCode);
+            case 'dividends':
+                return API.getFinancialDividends(stockCode, year, reportCode);
+            case 'lawsuits':
+                return API.getLawsuits(stockCode, year + '0101', year + '1231');
+            case 'private-fund':
+                return API.getPrivateFundUsages(stockCode, year, reportCode);
+            case 'public-fund':
+                return API.getPublicFundUsages(stockCode, year, reportCode);
+            default:
+                return [];
+        }
+    },
+
+
+    // === 연도별 추세 (타임라인) ===
+
+    _timelineSummaryAccountMatches: ['매출액', '영업이익', '당기순이익', '자산총계', '부채총계', '자본총계'],
+
+    // 영업이익률은 DART 지표 API에 없어(파생형만 존재) 요약 계정에서 직접 계산 (실측 확인)
+    _timelineCoreRatios: [
+        { label: '영업이익률', derived: 'operatingMargin' },
+        { label: 'ROE', matches: ['ROE', '자기자본순이익률', '자기자본이익률'] },
+        { label: '부채비율', matches: ['부채비율'] }
+    ],
+
+    isTimelineMenu() {
+        return this.portfolio.selectedFinancialMenu === 'timeline';
+    },
+
+    // === DART 재무상세 컨텍스트(ctx) ===
+    // 타임라인/공시 로직은 포트폴리오·종목평가가 공유한다. ctx는 상태 bag(기본: this.portfolio).
+    // 포트폴리오는 인자 생략 → ctx=portfolio(기존 동작·필드명·레이스가드 불변).
+    // 종목평가는 동일 필드명을 가진 stockEval.dart를 넘긴다. canvasPrefix로 canvas id를 유일화.
+    _ctxStockCode(ctx) {
+        return ctx.stockCode || ctx.selectedStockItem?.stockDetail?.stockCode || null;
+    },
+
+    _canvasId(ctx, base) {
+        return (ctx.canvasPrefix || '') + base;
+    },
+
+    resetTimelineState(ctx = this.portfolio) {
+        this.destroyTimelineCharts(ctx);
+        ctx.timelineData = null;
+        ctx.timelineError = null;
+        ctx.timelineLoading = false;
+    },
+
+    destroyTimelineCharts(ctx = this.portfolio) {
+        (ctx._timelineCharts || []).forEach(chart => chart.destroy());
+        ctx._timelineCharts = [];
+    },
+
+    async runTimelineQuery(ctx = this.portfolio) {
+        const stockCode = this._ctxStockCode(ctx);
+        if (!stockCode) return;
+
+        const thisGeneration = ++ctx._financialRequestGeneration;
+        this.destroyTimelineCharts(ctx);
+        ctx.timelineLoading = true;
+        ctx.timelineError = null;
+        try {
+            const data = await API.getFinancialTimeline(
+                stockCode, ctx.timelineYears, ctx.timelineFsDiv,
+                ['ACCOUNTS', 'INDICES', 'SHARES', 'FCF', 'DETAILS']);
+            if (thisGeneration !== ctx._financialRequestGeneration) return;
+            ctx.timelineData = data;
+        } catch (e) {
+            if (thisGeneration !== ctx._financialRequestGeneration) return;
+            console.error('연도별 추세 조회 실패:', e);
+            ctx.timelineData = null;
+            ctx.timelineError = '연도별 추세 조회에 실패했습니다. 잠시 후 다시 조회해 주세요.';
+        } finally {
+            this.finishTimelineQuery(thisGeneration, ctx);
+        }
+    },
+
+    finishTimelineQuery(generation, ctx = this.portfolio) {
+        if (generation !== ctx._financialRequestGeneration) return;
+        ctx.timelineLoading = false;
+        // 로딩 상태 전환으로 Alpine이 canvas를 재생성하므로, 최종 DOM 안정 후 렌더
+        if (ctx.timelineData) {
+            this.$nextTick(() => this.renderTimelineChartsWhenReady(generation, 0, ctx));
+        }
+    },
+
+    // canvas가 레이아웃될 때까지 프레임 대기 후 렌더 (orphan 차트 방지)
+    renderTimelineChartsWhenReady(generation, attempt, ctx = this.portfolio) {
+        if (generation !== ctx._financialRequestGeneration) return;
+        const canvas = document.getElementById(this._canvasId(ctx, 'timelineAmountChart'));
+        if (canvas && canvas.clientWidth > 0) {
+            this.renderTimelineCharts(ctx);
+            return;
+        }
+        if (attempt < 10) {
+            requestAnimationFrame(() => this.renderTimelineChartsWhenReady(generation, attempt + 1, ctx));
+        }
+    },
+
+    getTimelineColumns(ctx = this.portfolio) {
+        return ctx.timelineData?.columns || [];
+    },
+
+    /**
+     * 요약 표 행: 주요 재무계정 + FCF + 핵심 비율
+     */
+    getTimelineSummaryRows(ctx = this.portfolio) {
+        const data = ctx.timelineData;
+        if (!data) return [];
+        const rows = [];
+        for (const match of this._timelineSummaryAccountMatches) {
+            const row = this.findTimelineAccountRow(match, ctx);
+            if (row) rows.push({ name: match, values: row.values, type: 'amount' });
+        }
+        if (data.fcf) rows.push({ name: '잉여현금흐름(FCF)', values: data.fcf.values, type: 'amount' });
+        for (const ratio of this._timelineCoreRatios) {
+            const row = this.getTimelineRatioRow(ratio, ctx);
+            if (row) rows.push({ name: ratio.label, values: row.values, type: 'number' });
+        }
+        return rows;
+    },
+
+    getTimelineRatioRow(ratio, ctx = this.portfolio) {
+        if (ratio.derived === 'operatingMargin') return this.buildOperatingMarginRow(ctx);
+        return this.findTimelineIndexRow(ratio.matches, ctx);
+    },
+
+    /**
+     * 영업이익률 = 영업이익 ÷ 매출액 × 100 (분자·분모가 같은 기간이라 진행중 연도도 유효)
+     */
+    buildOperatingMarginRow(ctx = this.portfolio) {
+        const revenue = this.findTimelineAccountRow('매출액', ctx);
+        const operating = this.findTimelineAccountRow('영업이익', ctx);
+        if (!revenue || !operating) return null;
+        const values = {};
+        for (const col of this.getTimelineColumns(ctx)) {
+            values[col.year] = this._calcMarginPercent(operating.values[col.year], revenue.values[col.year]);
+        }
+        return { values: values };
+    },
+
+    _calcMarginPercent(numerator, denominator) {
+        const num = parseFloat(String(numerator ?? '').replace(/,/g, ''));
+        const den = parseFloat(String(denominator ?? '').replace(/,/g, ''));
+        if (isNaN(num) || isNaN(den) || den === 0) return null;
+        return (num / den * 100).toFixed(2);
+    },
+
+    findTimelineAccountRow(match, ctx = this.portfolio) {
+        const matched = (ctx.timelineData?.summaryAccounts || [])
+            .filter(row => row.name && row.name.indexOf(match) !== -1);
+        if (matched.length <= 1) return matched[0] || null;
+        // 계정명 변형(예: '당기순이익' ↔ '당기순이익(손실)')으로 연도가 여러 행에 흩어진 경우 병합
+        return { name: matched[0].name, values: this._mergeYearValues(matched) };
+    },
+
+    _mergeYearValues(rows) {
+        const values = {};
+        for (const row of rows) {
+            for (const year in (row.values || {})) {
+                if (values[year] == null) values[year] = row.values[year];
+            }
+        }
+        return values;
+    },
+
+    findTimelineIndexRow(matches, ctx = this.portfolio) {
+        const groups = ctx.timelineData?.indices || [];
+        const allRows = groups.flatMap(group => group.items || []);
+        for (const match of matches) {
+            const exact = allRows.find(row => row.name === match);
+            if (exact) return exact;
+        }
+        for (const match of matches) {
+            const partial = allRows.find(row => row.name && row.name.indexOf(match) !== -1);
+            if (partial) return partial;
+        }
+        return null;
+    },
+
+    timelineCell(row, col) {
+        const value = row.values ? row.values[col.year] : null;
+        return this.formatFinancialCell(value, row.type);
+    },
+
+    // === 타임라인 세부 (Phase 3): 전체 재무제표 계정 + 재무지표 4분류 ===
+
+    GROWTH_INDEX_CLASS: 'M230000',
+
+    getTimelineDetailGroups(ctx = this.portfolio) {
+        return ctx.timelineData?.details || [];
+    },
+
+    getTimelineIndexGroups(ctx = this.portfolio) {
+        return ctx.timelineData?.indices || [];
+    },
+
+    isTimelineDetailExpanded(statementDiv, ctx = this.portfolio) {
+        return !!ctx.timelineExpandedStatements[statementDiv];
+    },
+
+    toggleTimelineDetail(statementDiv, ctx = this.portfolio) {
+        const map = ctx.timelineExpandedStatements;
+        map[statementDiv] = !map[statementDiv];
+    },
+
+    isTimelineIndexExpanded(classCode, ctx = this.portfolio) {
+        return !!ctx.timelineExpandedIndexClasses[classCode];
+    },
+
+    toggleTimelineIndexClass(classCode, ctx = this.portfolio) {
+        const map = ctx.timelineExpandedIndexClasses;
+        map[classCode] = !map[classCode];
+    },
+
+    timelineDetailCell(row, col) {
+        return this.formatFinancialCell(row.values ? row.values[col.year] : null, 'amount');
+    },
+
+    // 재무제표 종류 헤더의 "N개 계정" — 노드/자식을 합산한 실제 DART 계정 수 (미분류 합성 헤더 제외)
+    detailGroupAccountCount(group) {
+        return (group.nodes || []).reduce((sum, node) => {
+            const self = node.row.id === '__misc__' ? 0 : 1;
+            return sum + self + (node.children ? node.children.length : 0);
+        }, 0);
+    },
+
+    // 노드 트리를 "한 줄 = 한 행"으로 평탄화 (카테고리 펼침 시에만 자식 포함) → Alpine 단일 <tr> 렌더
+    getDetailRenderRows(group, ctx = this.portfolio) {
+        const rows = [];
+        for (const node of (group.nodes || [])) {
+            rows.push({ kind: node.role, row: node.row, node: node, sd: group.statementDiv });
+            if (node.role === 'CATEGORY' && this.isDetailCategoryExpanded(group.statementDiv, node, ctx)) {
+                for (const child of (node.children || [])) {
+                    rows.push({ kind: 'CHILD', row: child, node: null, sd: group.statementDiv });
+                }
+            }
+        }
+        return rows;
+    },
+
+    detailRowLabelClass(rr) {
+        if (rr.kind === 'TOTAL') return 'font-semibold text-gray-800';
+        if (rr.kind === 'CATEGORY') return 'font-medium text-gray-700';
+        if (rr.kind === 'CHILD') return 'pl-5 text-gray-500';
+        return 'text-gray-600';
+    },
+
+    detailRowValueClass(rr) {
+        return (rr.kind === 'TOTAL' || rr.kind === 'CATEGORY') ? 'font-semibold text-gray-800' : 'text-gray-700';
+    },
+
+    detailRowClass(rr) {
+        return (rr.kind === 'TOTAL') ? 'bg-gray-50' : '';
+    },
+
+    // 카테고리(부모) 접이식 상태: statementDiv + account_id 로 유일 키
+    detailCategoryKey(statementDiv, node) {
+        return statementDiv + '::' + node.row.id;
+    },
+
+    isDetailCategoryExpanded(statementDiv, node, ctx = this.portfolio) {
+        return !!ctx.timelineExpandedDetailCategories[this.detailCategoryKey(statementDiv, node)];
+    },
+
+    toggleDetailCategory(statementDiv, node, ctx = this.portfolio) {
+        const map = ctx.timelineExpandedDetailCategories;
+        const key = this.detailCategoryKey(statementDiv, node);
+        map[key] = !map[key];
+    },
+
+    _parseNum(v) {
+        if (v == null || v === '') return null;
+        const n = parseFloat(String(v).replace(/,/g, ''));
+        return isNaN(n) ? null : n;
+    },
+
+    /**
+     * 전년(직전 컬럼) 대비 증감률(%). 진행중(partial) 연도·직전값 없음·0이면 null.
+     */
+    timelineDetailDelta(row, colIndex, ctx = this.portfolio) {
+        const cols = this.getTimelineColumns(ctx);
+        const col = cols[colIndex];
+        const prev = cols[colIndex - 1];
+        if (!col || !prev || col.partial || !row.values) return null;
+        const cur = this._parseNum(row.values[col.year]);
+        const base = this._parseNum(row.values[prev.year]);
+        if (cur === null || base === null || base === 0) return null;
+        return (cur - base) / Math.abs(base) * 100;
+    },
+
+    timelineDetailDeltaText(row, colIndex, ctx = this.portfolio) {
+        const d = this.timelineDetailDelta(row, colIndex, ctx);
+        if (d === null || d === 0) return '';
+        return (d > 0 ? '▲' : '▼') + Math.abs(d).toFixed(1) + '%';
+    },
+
+    // 증가=빨강, 감소=파랑 (한국 관례)
+    timelineDetailDeltaClass(row, colIndex, ctx = this.portfolio) {
+        const d = this.timelineDetailDelta(row, colIndex, ctx);
+        if (d === null || d === 0) return '';
+        return d > 0 ? 'text-red-500' : 'text-blue-500';
+    },
+
+    /**
+     * 성장성(증가율) 지표는 진행중 연도의 기간이 불완전 → '-' 처리
+     */
+    timelineIndexCell(group, row, col) {
+        if (col.partial && group.classCode === this.GROWTH_INDEX_CLASS) return '-';
+        return this.formatFinancialCell(row.values ? row.values[col.year] : null, 'number');
+    },
+
+    hasGrowthIndexPartial(group, ctx = this.portfolio) {
+        return group.classCode === this.GROWTH_INDEX_CLASS
+            && this.getTimelineColumns(ctx).some(col => col.partial);
+    },
+
+    // === 타임라인 차트 ===
+
+    renderTimelineCharts(ctx = this.portfolio) {
+        this.destroyTimelineCharts(ctx);
+        const data = ctx.timelineData;
+        if (!data || !data.columns || data.columns.length === 0) return;
+        this.renderTimelineAmountChart(data, ctx);
+        this.renderTimelineRatioChart(data, ctx);
+        this.renderTimelineShareChart(data, ctx);
+    },
+
+    _timelineChartLabels(data) {
+        return data.columns.map(col => col.partial ? `${col.year} (진행중)` : col.year);
+    },
+
+    /**
+     * 진행중(partial) 컬럼으로 이어지는 구간은 점선으로 표시
+     */
+    _timelineDashSegment(data) {
+        return {
+            borderDash: ctx => data.columns[ctx.p1DataIndex]?.partial ? [6, 5] : undefined
+        };
+    },
+
+    _timelineSeries(data, row) {
+        return data.columns.map(col => {
+            const value = row?.values ? row.values[col.year] : null;
+            if (value == null || value === '') return null;
+            const num = parseFloat(String(value).replace(/,/g, ''));
+            return isNaN(num) ? null : num;
+        });
+    },
+
+    _timelineLineDataset(data, label, row, color) {
+        return {
+            label: label,
+            data: this._timelineSeries(data, row),
+            borderColor: color,
+            backgroundColor: color,
+            tension: 0.25,
+            pointRadius: 3,
+            spanGaps: true,
+            segment: this._timelineDashSegment(data)
+        };
+    },
+
+    _createTimelineChart(canvasId, config, ctx = this.portfolio) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        ctx._timelineCharts.push(new Chart(canvas, config));
+    },
+
+    _timelineLineOptions(valueFormatter) {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'rect', font: { size: 11 } } },
+                tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + valueFormatter(ctx.parsed.y) } }
+            },
+            scales: {
+                y: { ticks: { callback: value => valueFormatter(value), font: { size: 11 } }, grid: { color: '#F3F4F6' } },
+                x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+            }
+        };
+    },
+
+    renderTimelineAmountChart(data, ctx = this.portfolio) {
+        const series = [
+            { label: '매출액', row: this.findTimelineAccountRow('매출액', ctx), color: '#3B82F6' },
+            { label: '영업이익', row: this.findTimelineAccountRow('영업이익', ctx), color: '#22C55E' },
+            { label: '잉여현금흐름', row: data.fcf, color: '#F59E0B' }
+        ].filter(s => s.row);
+        if (series.length === 0) return;
+
+        this._createTimelineChart(this._canvasId(ctx, 'timelineAmountChart'), {
+            type: 'line',
+            data: {
+                labels: this._timelineChartLabels(data),
+                datasets: series.map(s => this._timelineLineDataset(data, s.label, s.row, s.color))
+            },
+            options: this._timelineLineOptions(value => Format.compactNumber(value))
+        }, ctx);
+    },
+
+    renderTimelineRatioChart(data, ctx = this.portfolio) {
+        const colors = { '영업이익률': '#3B82F6', 'ROE': '#22C55E', '부채비율': '#F97316' };
+        const series = this._timelineCoreRatios
+            .map(ratio => ({ label: ratio.label, row: this.getTimelineRatioRow(ratio, ctx), color: colors[ratio.label] }))
+            .filter(s => s.row);
+        if (series.length === 0) return;
+
+        this._createTimelineChart(this._canvasId(ctx, 'timelineRatioChart'), {
+            type: 'line',
+            data: {
+                labels: this._timelineChartLabels(data),
+                datasets: series.map(s => this._timelineLineDataset(data, s.label, s.row, s.color))
+            },
+            options: this._timelineLineOptions(value => Format.number(value) + '%')
+        }, ctx);
+    },
+
+    renderTimelineShareChart(data, ctx = this.portfolio) {
+        const colors = ['#8B5CF6', '#EC4899', '#6B7280'];
+        const shareRows = (data.shares || []).filter(row => row.name && row.name.indexOf('합계') === -1);
+        const series = shareRows
+            .map((row, idx) => ({ label: row.name, row: row, color: colors[idx % colors.length] }))
+            .filter(s => this._timelineSeries(data, s.row).some(v => v !== null));
+        if (series.length === 0) return;
+
+        this._createTimelineChart(this._canvasId(ctx, 'timelineShareChart'), {
+            type: 'line',
+            data: {
+                labels: this._timelineChartLabels(data),
+                datasets: series.map(s => this._timelineLineDataset(data, s.label, s.row, s.color))
+            },
+            options: this._timelineLineOptions(value => Format.compactNumber(value) + '주')
+        }, ctx);
+    },
+
+    // === 공시 목록 (DART 공시검색) ===
+
+    _disclosureTypes: [
+        { code: 'A', label: '정기공시' },
+        { code: 'B', label: '주요사항' },
+        { code: 'C', label: '발행공시' },
+        { code: 'D', label: '지분공시' },
+        { code: 'E', label: '기타공시' },
+        { code: 'F', label: '외부감사' },
+        { code: 'G', label: '펀드공시' },
+        { code: 'H', label: '자산유동화' },
+        { code: 'I', label: '거래소공시' },
+        { code: 'J', label: '공정위공시' }
+    ],
+
+    isDisclosureMenu() {
+        return this.portfolio.selectedFinancialMenu === 'disclosures';
+    },
+
+    resetDisclosureState(ctx = this.portfolio) {
+        ctx.disclosureData = null;
+        ctx.disclosureError = null;
+        ctx.disclosureLoading = false;
+    },
+
+    isDisclosureTypeSelected(code, ctx = this.portfolio) {
+        return ctx.disclosureSelectedTypes.indexOf(code) !== -1;
+    },
+
+    toggleDisclosureType(code, ctx = this.portfolio) {
+        const types = ctx.disclosureSelectedTypes;
+        const idx = types.indexOf(code);
+        if (idx === -1) types.push(code);
+        else types.splice(idx, 1);
+    },
+
+    getDisclosureRows(ctx = this.portfolio) {
+        return ctx.disclosureData || [];
+    },
+
+    formatDisclosureDate(ymd) {
+        if (!ymd || ymd.length !== 8) return ymd || '-';
+        return `${ymd.slice(0, 4)}.${ymd.slice(4, 6)}.${ymd.slice(6, 8)}`;
+    },
+
+    isCorrectionDisclosure(remark) {
+        return !!remark && remark.indexOf('정') !== -1;
+    },
+
+    _disclosureFromDate(ctx = this.portfolio) {
+        if (ctx.disclosurePeriod === '0') return '20000101';
+        const d = new Date();
+        d.setFullYear(d.getFullYear() - parseInt(ctx.disclosurePeriod, 10));
+        return this._formatYmd(d);
+    },
+
+    _formatYmd(d) {
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${d.getFullYear()}${m}${day}`;
+    },
+
+    async runDisclosureQuery(ctx = this.portfolio) {
+        const stockCode = this._ctxStockCode(ctx);
+        if (!stockCode) return;
+
+        const thisGeneration = ++ctx._financialRequestGeneration;
+        ctx.disclosureLoading = true;
+        ctx.disclosureError = null;
+        try {
+            const data = await API.getDisclosures(
+                stockCode, this._disclosureFromDate(ctx), this._formatYmd(new Date()),
+                ctx.disclosureSelectedTypes);
+            if (thisGeneration !== ctx._financialRequestGeneration) return;
+            ctx.disclosureData = data || [];
+        } catch (e) {
+            if (thisGeneration !== ctx._financialRequestGeneration) return;
+            console.error('공시 목록 조회 실패:', e);
+            ctx.disclosureData = null;
+            ctx.disclosureError = '공시 목록 조회에 실패했습니다. 잠시 후 다시 조회해 주세요.';
+        } finally {
+            if (thisGeneration === ctx._financialRequestGeneration) {
+                ctx.disclosureLoading = false;
             }
         }
     },

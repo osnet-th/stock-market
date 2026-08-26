@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.stock.application;
 
+import com.thlee.stock.market.stockmarket.stock.application.dto.SecFilingResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.SecFinancialStatementResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.SecInvestmentMetricResponse;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
@@ -37,6 +38,15 @@ public class SecFinancialService {
 
     public Long getCik(String ticker) {
         return secFinancialPort.getCik(ticker);
+    }
+
+    /**
+     * 최근 제출 서식 목록 (US 리포트 공시 패널용)
+     */
+    public List<SecFilingResponse> getRecentFilings(String ticker, int limit) {
+        return secFinancialPort.getRecentFilings(ticker, limit).stream()
+                .map(SecFilingResponse::from)
+                .toList();
     }
 
     public List<SecInvestmentMetricResponse> getInvestmentMetrics(String ticker) {

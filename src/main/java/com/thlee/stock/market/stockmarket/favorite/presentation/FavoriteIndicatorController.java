@@ -8,6 +8,7 @@ import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicato
 import com.thlee.stock.market.stockmarket.favorite.domain.model.FavoriteIndicatorSourceType;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.EnrichedFavoriteResponse;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteIndicatorResponse;
+import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteOrderRequest;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.FavoriteToggleRequest;
 import com.thlee.stock.market.stockmarket.favorite.presentation.dto.GlobalRefreshResponse;
 import jakarta.validation.Valid;
@@ -84,6 +85,16 @@ public class FavoriteIndicatorController {
         GlobalEconomicIndicatorType type = GlobalEconomicIndicatorType.valueOf(indicatorType);
         List<EnrichedGlobalFavorite> refreshed = favoriteIndicatorService.refreshGlobalIndicator(userId, type);
         return ResponseEntity.ok(GlobalRefreshResponse.of(type, refreshed));
+    }
+
+    /**
+     * (sourceType) 단위 일괄 순서 갱신. 표시 모드 폐지(#114)로 컨테이너가 하나가 됐다.
+     */
+    @PutMapping("/order")
+    public ResponseEntity<Void> reorder(@Valid @RequestBody FavoriteOrderRequest request) {
+        Long userId = getCurrentUserId();
+        favoriteIndicatorService.reorder(userId, request.sourceType(), request.indicatorCodes());
+        return ResponseEntity.noContent().build();
     }
 
     private Long getCurrentUserId() {

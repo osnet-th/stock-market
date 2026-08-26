@@ -4,7 +4,7 @@
 
 ## 의도
 
-KIS 전용 RestClient 빈을 신설해 connect/read timeout 명시. KisApiClient/KisTokenManager 가 `@Qualifier("kisRestClient")` 로 주입. KIS 응답 지연이 stocknoteSnapshotExecutor / Tomcat 워커로 전파되지 않도록 차단.
+KIS 전용 RestClient 빈을 신설해 connect/read timeout 명시. KisApiClient/KisTokenManager 가 `@Qualifier("kisRestClient")` 로 주입. KIS 응답 지연이 호출 워커(Tomcat / 비동기 Executor) 로 전파되지 않도록 차단.
 
 ## 변경 사항
 

@@ -1,0 +1,41 @@
+            <!-- ========== PORTFOLIO / 분석 탭 (#110) ========== -->
+            <!-- 재무상세 본체는 portfolio-deposit-financial.html 의 슬라이드 패널을 그대로 재사용한다.
+                 (필터·차트·폭 저장 상태가 portfolio 객체에 있으므로 마크업을 옮기지 않는다) -->
+            <div x-show="currentPage === 'portfolio' && portfolio.activeTab === 'analysis'" x-cloak>
+                <div class="bg-white rounded-xl border border-gray-200 p-5">
+                    <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+                        <h3 class="text-sm font-bold text-gray-700">분석 대상 종목</h3>
+                        <span class="text-xs text-gray-400">종목을 선택하면 우측에 재무상세 패널이 열립니다</span>
+                    </div>
+
+                    <template x-if="getAnalysisTargets().length === 0">
+                        <div class="py-10 text-center text-xs text-gray-400 bg-gray-50 rounded-lg">
+                            분석 가능한 종목이 없습니다. 국내·미국 개별 주식(ETF 제외)만 재무상세를 지원합니다.
+                        </div>
+                    </template>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                        <template x-for="item in getAnalysisTargets()" :key="'analysis-' + item.id">
+                            <div @click="openStockDetail(item)"
+                                class="flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition"
+                                :class="portfolio.selectedStockItem?.id === item.id
+                                    ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-400'">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-800 truncate" x-text="item.itemName"></p>
+                                    <p class="text-[11px] text-gray-400 font-mono truncate"
+                                        x-text="item.stockDetail.market + ':' + item.stockDetail.stockCode"></p>
+                                </div>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full shrink-0"
+                                    :class="item.stockDetail.country === 'US' ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'"
+                                    x-text="item.stockDetail.country === 'US' ? 'SEC' : 'DART'"></span>
+                                <span class="text-xs font-mono shrink-0"
+                                    :class="getRowProfitRate(item) > 0 ? 'text-red-500' : getRowProfitRate(item) < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                    x-text="getRowProfitRate(item) === null ? '—'
+                                        : (getRowProfitRate(item) >= 0 ? '+' : '') + getRowProfitRate(item).toFixed(1) + '%'"></span>
+                                <button @click.stop="openChatForPortfolioStockAnalysis(item)"
+                                    class="text-[11px] text-violet-600 hover:text-violet-800 font-medium transition shrink-0">AI분석</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>

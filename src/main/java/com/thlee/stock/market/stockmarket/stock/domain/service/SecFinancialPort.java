@@ -2,6 +2,9 @@ package com.thlee.stock.market.stockmarket.stock.domain.service;
 
 import com.thlee.stock.market.stockmarket.stock.domain.model.SecFinancialStatement;
 import com.thlee.stock.market.stockmarket.stock.domain.model.SecInvestmentMetric;
+import com.thlee.stock.market.stockmarket.stock.domain.model.UsCompanyFacts;
+import com.thlee.stock.market.stockmarket.stock.domain.model.UsCompanyProfile;
+import com.thlee.stock.market.stockmarket.stock.domain.model.UsFiling;
 
 import java.util.List;
 
@@ -29,4 +32,19 @@ public interface SecFinancialPort {
      * 티커에 해당하는 SEC CIK(Central Index Key) 조회
      */
     Long getCik(String ticker);
+
+    /**
+     * 리포트 조달용 연간 재무 팩트 (최근 years년, 개념별 시리즈)
+     */
+    UsCompanyFacts getAnnualReportFacts(String ticker, int years);
+
+    /**
+     * submissions 기반 기업 프로필
+     */
+    UsCompanyProfile getCompanyProfile(String ticker);
+
+    /**
+     * 최근 제출 서식 목록 (최신순, 최대 limit건)
+     */
+    List<UsFiling> getRecentFilings(String ticker, int limit);
 }

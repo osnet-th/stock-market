@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec;
 
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.config.SecProperties;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.dto.SecCompanyFactsResponse;
+import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.dto.SecSubmissionsResponse;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecApiException;
 import com.thlee.stock.market.stockmarket.stock.infrastructure.stock.sec.exception.SecErrorType;
 import lombok.extern.slf4j.Slf4j;
@@ -28,10 +29,22 @@ public class SecApiClient {
      * @param cik10 10자리 패딩된 CIK (예: "CIK0000320193")
      */
     public SecCompanyFactsResponse fetchCompanyFacts(String cik10) {
-        String uri = secProperties.getBaseUrl() + "/api/xbrl/companyfacts/" + cik10 + ".json";
+        return fetchJson(secProperties.getBaseUrl() + "/api/xbrl/companyfacts/" + cik10 + ".json",
+                SecCompanyFactsResponse.class, cik10);
+    }
 
+    /**
+     * SEC EDGAR Submissions API 호출 (기업 프로필 + 최근 제출 서식 목록)
+     * @param cik10 10자리 패딩된 CIK (예: "CIK0000320193")
+     */
+    public SecSubmissionsResponse fetchSubmissions(String cik10) {
+        return fetchJson(secProperties.getBaseUrl() + "/submissions/" + cik10 + ".json",
+                SecSubmissionsResponse.class, cik10);
+    }
+
+    private <T> T fetchJson(String uri, Class<T> type, String cik10) {
         try {
-            SecCompanyFactsResponse response = restClient.get()
+            T response = restClient.get()
                     .uri(uri)
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError, (request, clientResponse) -> {
@@ -51,7 +64,7 @@ public class SecApiClient {
                         throw new SecApiException(SecErrorType.API_ERROR,
                                 "SEC API 서버 오류: " + clientResponse.getStatusCode().value());
                     })
-                    .body(SecCompanyFactsResponse.class);
+                    .body(type);
 
             if (response == null) {
                 throw new SecApiException(SecErrorType.API_ERROR, "SEC API 응답이 null입니다");

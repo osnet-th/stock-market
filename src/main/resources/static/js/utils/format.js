@@ -36,7 +36,8 @@ const Format = {
         });
     },
 
-    compactNumber(value) {
+    // trunc=true면 조 단위를 소수점 2자리에서 버림(반올림 X). 기본(false)은 기존 1자리 반올림 — 차트 축 등 호환.
+    compactNumber(value, trunc) {
         if (!value) return '-';
         var num = typeof value === 'string' ? parseInt(value.replace(/,/g, '')) : value;
         if (isNaN(num)) return value;
@@ -45,7 +46,11 @@ const Format = {
         var sign = num < 0 ? '-' : '';
 
         if (absNum >= 1_0000_0000_0000) {
-            return sign + (absNum / 1_0000_0000_0000).toFixed(1) + '조';
+            var jo = absNum / 1_0000_0000_0000;
+            var joText = trunc
+                ? Format.truncTo2(jo).toLocaleString('ko-KR', { maximumFractionDigits: 2 })
+                : jo.toFixed(1);
+            return sign + joText + '조';
         }
         if (absNum >= 1_0000_0000) {
             return sign + (absNum / 1_0000_0000).toFixed(1) + '억';
@@ -54,6 +59,14 @@ const Format = {
             return sign + (absNum / 1_0000).toFixed(0) + '만';
         }
         return sign + Format.number(absNum);
+    },
+
+    /** 소수점 2자리 버림(반올림 X) — 문자열 절단으로 부동소수 오차 방지 */
+    truncTo2(value) {
+        var n = typeof value === 'number' ? value : parseFloat(value);
+        if (isNaN(n)) return NaN;
+        var s = n.toFixed(6);
+        return parseFloat(s.slice(0, s.indexOf('.') + 3));
     },
 
     /**

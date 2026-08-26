@@ -2,11 +2,14 @@ package com.thlee.stock.market.stockmarket.favorite.presentation.dto;
 
 import com.thlee.stock.market.stockmarket.economics.domain.model.CountryIndicatorSnapshot;
 import com.thlee.stock.market.stockmarket.economics.domain.model.EcosIndicatorLatest;
+import com.thlee.stock.market.stockmarket.economics.domain.model.GlobalEconomicIndicatorType;
 import com.thlee.stock.market.stockmarket.economics.domain.model.IndicatorValue;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedEcosFavorite;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedFavorites;
 import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.EnrichedGlobalFavorite;
+import com.thlee.stock.market.stockmarket.favorite.application.FavoriteIndicatorService.HistoryPoint;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public record EnrichedFavoriteResponse(
@@ -33,9 +36,12 @@ public record EnrichedFavoriteResponse(
         String dataValue,
         String previousDataValue,
         String cycle,
-        boolean hasData
+        boolean hasData,
+        List<EnrichedHistoryPoint> history
     ) {
         public static EcosItem from(EnrichedEcosFavorite enriched) {
+            List<EnrichedHistoryPoint> history = toHistoryPoints(enriched.history());
+
             EcosIndicatorLatest latest = enriched.latest();
             if (latest == null) {
                 String[] parts = enriched.favorite().getIndicatorCode().split("::", 2);
@@ -43,7 +49,8 @@ public record EnrichedFavoriteResponse(
                     enriched.favorite().getIndicatorCode(),
                     parts.length > 0 ? parts[0] : "",
                     parts.length > 1 ? parts[1] : "",
-                    null, null, null, false
+                    null, null, null, false,
+                    history
                 );
             }
             return new EcosItem(
@@ -53,7 +60,8 @@ public record EnrichedFavoriteResponse(
                 latest.getDataValue(),
                 latest.getPreviousDataValue(),
                 latest.getCycle(),
-                true
+                true,
+                history
             );
         }
     }
@@ -62,6 +70,7 @@ public record EnrichedFavoriteResponse(
         String indicatorCode,
         String countryName,
         String indicatorType,
+        String indicatorTypeDisplayName,
         String dataValue,
         String previousDataValue,
         String cycle,
@@ -69,19 +78,23 @@ public record EnrichedFavoriteResponse(
         boolean hasData,
         boolean failed,
         String failureReason,
-        boolean refreshable
+        boolean refreshable,
+        List<EnrichedHistoryPoint> history
     ) {
         public static GlobalItem from(EnrichedGlobalFavorite enriched) {
             String[] parts = enriched.favorite().getIndicatorCode().split("::", 2);
             String parsedCountry = parts.length > 0 ? parts[0] : "";
             String parsedType = parts.length > 1 ? parts[1] : "";
+            String parsedDisplayName = resolveDisplayName(parsedType);
+            List<EnrichedHistoryPoint> history = toHistoryPoints(enriched.history());
 
             if (enriched.isFailed()) {
                 return new GlobalItem(
                     enriched.favorite().getIndicatorCode(),
-                    parsedCountry, parsedType,
+                    parsedCountry, parsedType, parsedDisplayName,
                     null, null, null, null,
-                    false, true, enriched.failureReason(), enriched.refreshable()
+                    false, true, enriched.failureReason(), enriched.refreshable(),
+                    history
                 );
             }
 
@@ -89,9 +102,10 @@ public record EnrichedFavoriteResponse(
             if (snap == null) {
                 return new GlobalItem(
                     enriched.favorite().getIndicatorCode(),
-                    parsedCountry, parsedType,
+                    parsedCountry, parsedType, parsedDisplayName,
                     null, null, null, null,
-                    false, false, null, true
+                    false, false, null, true,
+                    history
                 );
             }
 
@@ -101,13 +115,34 @@ public record EnrichedFavoriteResponse(
                 enriched.favorite().getIndicatorCode(),
                 snap.getCountryName(),
                 snap.getIndicatorType().name(),
+                snap.getIndicatorType().getDisplayName(),
                 last != null ? last.getRawText() : null,
                 prev != null ? prev.getRawText() : null,
                 snap.getReferenceText(),
                 last != null ? last.getUnit() : null,
                 last != null,
-                false, null, true
+                false, null, true,
+                history
             );
         }
+
+        private static String resolveDisplayName(String parsedType) {
+            try {
+                return GlobalEconomicIndicatorType.valueOf(parsedType).getDisplayName();
+            } catch (IllegalArgumentException e) {
+                return parsedType;
+            }
+        }
+    }
+
+    public record EnrichedHistoryPoint(LocalDate snapshotDate, String dataValue) {}
+
+    private static List<EnrichedHistoryPoint> toHistoryPoints(List<HistoryPoint> points) {
+        if (points == null || points.isEmpty()) {
+            return List.of();
+        }
+        return points.stream()
+            .map(p -> new EnrichedHistoryPoint(p.snapshotDate(), p.dataValue()))
+            .toList();
     }
 }

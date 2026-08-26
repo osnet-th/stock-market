@@ -7,6 +7,7 @@ public record ChatRequest(
         String message,
         ChatMode chatMode,
         String stockCode,
+        Long portfolioItemId,
         String indicatorCategory,
         AnalysisTask analysisTask,
         List<ChatMessage> messages

@@ -21,6 +21,7 @@ stock-market 프로젝트의 패키지 구조, 계층 규칙, 의존성 방향 �
 | **Economics** | 한국은행 ECOS API 연동, 100대 경제 지표 조회/저장, 배치+캐시 Warmup |
 | **Notification** | 이메일 알림 (인터페이스 + 구현체) |
 | **Chatbot** | Gemini API 기반 LLM 챗봇 (포트폴리오/뉴스/경제지표 컨텍스트 주입, SSE 스트리밍) |
+| **RealEstate** | 부동산 시장 데이터 (수치형 대시보드). 8개 공공 출처(국토부/R-ONE/HUB/KOSIS/청약홈/HUG/서울/경기) 일배치, 카테고리×출처×지표 메타, 시군구+읍면동 region 메타, 단일 history + latest + metadata 3-table. |
 
 ---
 

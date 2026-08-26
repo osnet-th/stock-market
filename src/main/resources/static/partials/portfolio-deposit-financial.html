@@ -1,0 +1,942 @@
+            <div x-show="portfolio.showDepositModal" x-cloak
+                class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
+                    @click.outside="portfolio.showDepositModal = false">
+
+                    <h3 class="text-lg font-bold text-gray-900 mb-1">납입 이력</h3>
+                    <p class="text-sm text-gray-500 mb-4" x-text="portfolio.depositItem ? portfolio.depositItem.itemName : ''"></p>
+
+                    <!-- 현재 납입 정보 -->
+                    <template x-if="portfolio.depositItem">
+                        <div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-600 space-y-1">
+                            <div class="flex justify-between">
+                                <span>총 납입 금액</span>
+                                <span class="font-medium text-gray-800" x-text="Format.number(portfolio.depositItem.investedAmount, 0) + '원'"></span>
+                            </div>
+                            <template x-if="portfolio.depositItem.depositOverdue">
+                                <div class="flex items-center gap-1 text-amber-600">
+                                    <span>⚠</span>
+                                    <span class="font-medium">이번 달 납입이 필요합니다</span>
+                                </div>
+                            </template>
+                            <template x-if="portfolio.depositItem.expectedMaturityAmount">
+                                <div class="flex justify-between">
+                                    <span>만기 예상 금액</span>
+                                    <span class="font-medium text-emerald-700" x-text="Format.number(portfolio.depositItem.expectedMaturityAmount, 0) + '원'"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- 납입 추가 입력 -->
+                    <div class="space-y-3">
+                        <div class="flex gap-2">
+                            <div class="w-1/2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">납입일</label>
+                                <input type="date" x-model="portfolio.depositForm.depositDate"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            </div>
+                            <div class="w-1/2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">납입 금액</label>
+                                <input type="number" x-model="portfolio.depositForm.amount"
+                                    placeholder="금액" min="1"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            </div>
+                        </div>
+                        <template x-if="portfolio.depositItem && portfolio.depositItem.assetType === 'FUND'">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">취득 좌수 (선택)</label>
+                                <input type="number" x-model="portfolio.depositForm.units"
+                                    placeholder="좌수" min="0" step="0.000001"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            </div>
+                        </template>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">메모 (선택)</label>
+                            <input type="text" x-model="portfolio.depositForm.memo"
+                                placeholder="메모" maxlength="200"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                        </div>
+                    </div>
+
+                    <!-- 납입 이력 목록 -->
+                    <template x-if="portfolio.depositHistories.length > 0">
+                        <div class="mt-4">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-2">
+                                납입 이력
+                                <span class="text-gray-400 font-normal" x-text="'(' + portfolio.depositHistories.length + '건, 합계 ' + Format.number(getDepositTotal(), 0) + '원)'"></span>
+                            </h4>
+                            <div class="space-y-2 max-h-48 overflow-y-auto">
+                                <template x-for="h in portfolio.depositHistories" :key="h.id">
+                                    <div class="bg-gray-50 rounded-lg p-3 text-sm">
+                                        <!-- 보기 모드 -->
+                                        <template x-if="portfolio.editingDeposit !== h.id">
+                                            <div>
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <span class="font-medium text-gray-800"
+                                                            x-text="Format.number(h.amount, 0) + '원'"></span>
+                                                        <template x-if="h.units">
+                                                            <span class="text-gray-500 ml-1"
+                                                                x-text="'(' + h.units + '좌)'"></span>
+                                                        </template>
+                                                    </div>
+                                                    <div class="flex gap-2">
+                                                        <button @click.stop="startEditDeposit(h)"
+                                                            class="text-xs text-blue-600 hover:text-blue-800">수정</button>
+                                                        <button @click.stop="deleteDeposit(h.id)"
+                                                            class="text-xs text-red-500 hover:text-red-700">삭제</button>
+                                                    </div>
+                                                </div>
+                                                <div class="flex gap-3 mt-1 text-xs text-gray-400">
+                                                    <span x-show="h.depositDate" x-text="h.depositDate"></span>
+                                                    <span x-show="h.memo" x-text="h.memo"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <!-- 수정 모드 -->
+                                        <template x-if="portfolio.editingDeposit === h.id">
+                                            <div class="space-y-2">
+                                                <div class="flex gap-2">
+                                                    <input type="date" x-model="portfolio.editDepositForm.depositDate"
+                                                        class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                    <input type="number" x-model="portfolio.editDepositForm.amount"
+                                                        placeholder="금액" min="1"
+                                                        class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    <template x-if="portfolio.depositItem && portfolio.depositItem.assetType === 'FUND'">
+                                                        <input type="number" x-model="portfolio.editDepositForm.units"
+                                                            placeholder="좌수" step="0.000001"
+                                                            class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                    </template>
+                                                    <input type="text" x-model="portfolio.editDepositForm.memo"
+                                                        placeholder="메모" maxlength="200"
+                                                        class="border border-gray-300 rounded px-2 py-1 text-sm"
+                                                        :class="portfolio.depositItem && portfolio.depositItem.assetType === 'FUND' ? 'w-1/2' : 'w-full'">
+                                                </div>
+                                                <div class="flex justify-end gap-2">
+                                                    <button @click.stop="cancelEditDeposit()"
+                                                        class="text-xs text-gray-500 hover:text-gray-700">취소</button>
+                                                    <button @click.stop="submitEditDeposit(h.id)"
+                                                        class="text-xs text-blue-600 hover:text-blue-800 font-medium">저장</button>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- 버튼 -->
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button @click="portfolio.showDepositModal = false"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">닫기</button>
+                        <button @click="submitDeposit()"
+                            class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition">납입 추가</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 납입 확인 리마인더 (#100, #111) — 로그인 시 당일·미납 항목 안내, 납입 모달(z-50)보다 아래 -->
+            <div x-show="portfolio.depositReminder.show" x-cloak
+                class="fixed inset-0 bg-black/50 flex items-center justify-center z-40">
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
+                    @click.outside="closeDepositReminder()">
+
+                    <div class="flex items-start justify-between mb-1">
+                        <h3 class="text-lg font-bold text-gray-900">납입 확인 안내</h3>
+                        <button @click="closeDepositReminder()"
+                            class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-4">오늘이 납입일이거나 이번 달 납입이 처리되지 않은 항목이 있습니다.</p>
+
+                    <div class="space-y-2 max-h-72 overflow-y-auto">
+                        <template x-for="item in portfolio.depositReminder.items" :key="item.id">
+                            <div class="flex items-center justify-between gap-3 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2.5">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-medium text-gray-900 truncate" x-text="item.itemName"></span>
+                                        <span class="text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0"
+                                            x-text="getAssetTypeLabel(item.assetType)"></span>
+                                        <span class="text-[11px] px-1.5 py-0.5 rounded shrink-0"
+                                            :class="item.depositOverdue === true ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'"
+                                            x-text="item.depositOverdue === true ? '미납' : '오늘 납입일'"></span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-0.5" x-text="depositReminderMeta(item)"></div>
+                                </div>
+                                <button @click="openDepositFromReminder(item)"
+                                    class="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
+                                    납입
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="flex items-center justify-between mt-4">
+                        <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                            <input type="checkbox" x-model="portfolio.depositReminder.snoozeChecked"
+                                class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                            오늘 하루 보지 않기
+                        </label>
+                        <button @click="closeDepositReminder()"
+                            class="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
+                            닫기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payload 모달 -->
+            <div x-show="adminLogs.modal.open" x-cloak
+                 class="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4"
+                 @click.self="closeAdminLogModal()">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+                    <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-800">Log Payload</h3>
+                        <button @click="closeAdminLogModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+                    </div>
+                    <div class="p-4 overflow-y-auto flex-1">
+                        <div class="mb-2 text-xs text-gray-500" x-show="adminLogs.modal.item">
+                            <span x-text="'id: ' + (adminLogs.modal.item?.id ?? '')"></span>
+                            <span class="mx-2">·</span>
+                            <span x-text="'domain: ' + (adminLogs.modal.item?.domain ?? '')"></span>
+                        </div>
+                        <pre class="bg-gray-50 text-xs p-3 rounded overflow-x-auto font-mono"
+                             x-text="adminLogs.modal.preview"></pre>
+                        <p class="mt-2 text-xs text-amber-600" x-show="adminLogs.modal.truncatedNotice">
+                            2KB 초과 — 전체 내용은 다운로드를 이용하세요.
+                        </p>
+                    </div>
+                    <div class="p-4 border-t border-gray-200 flex justify-end gap-2">
+                        <button @click="downloadAdminLogModalPayload()"
+                                class="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">
+                            원문 다운로드 (JSON)
+                        </button>
+                        <button @click="closeAdminLogModal()"
+                                class="px-4 py-2 border border-gray-200 text-sm rounded hover:bg-gray-50">닫기</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ==================== 재무 상세 슬라이드 패널 ==================== -->
+    <!-- 오버레이 -->
+    <div x-show="portfolio.selectedStockItem"
+         x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-black bg-opacity-30 z-40"
+         @click="closeStockDetail()">
+    </div>
+
+    <!-- 재무상세 패널 리사이즈 핸들 (데스크톱 전용): 드래그로 너비 조절, 더블클릭 시 기본값 -->
+    <div x-show="portfolio.selectedStockItem"
+         x-cloak
+         @pointerdown="startFinancialPanelResize($event)"
+         @dblclick="resetFinancialPanelWidth()"
+         :style="financialPanelHandleStyle()"
+         title="드래그하여 너비 조절 · 더블클릭 시 기본값"
+         class="hidden lg:block fixed top-0 h-full w-1.5 z-[60] cursor-ew-resize hover:bg-blue-400/50 transition-colors"></div>
+
+    <!-- 슬라이드 패널 본체 -->
+    <div x-show="portfolio.selectedStockItem"
+         x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="translate-x-full"
+         x-transition:enter-end="translate-x-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="translate-x-0"
+         x-transition:leave-end="translate-x-full"
+         @keydown.escape.window="closeStockDetail()"
+         :style="financialPanelBodyStyle()"
+         class="fixed top-0 right-0 h-full w-full lg:w-[65%] bg-white shadow-2xl z-50 overflow-y-auto"
+         @click.stop>
+
+        <!-- 패널 헤더 (sticky) -->
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-800">
+                    <span x-text="portfolio.selectedStockItem?.itemName"></span>
+                    <span class="text-sm text-gray-500 ml-1"
+                          x-text="'(' + (portfolio.selectedStockItem?.stockDetail?.stockCode || '') + ')'"></span>
+                </h3>
+                <button @click="closeStockDetail()"
+                        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <!-- 보유 정보 (국내) -->
+            <div class="flex gap-4 text-sm text-gray-600 mt-2"
+                 x-show="portfolio.selectedStockItem?.stockDetail?.country === 'KR'">
+                <span>수량: <span class="font-semibold" x-text="Format.number(portfolio.selectedStockItem?.stockDetail?.quantity)"></span>주</span>
+                <span>평단가: <span class="font-semibold" x-text="'&#8361;' + Format.number(portfolio.selectedStockItem?.stockDetail?.avgBuyPrice)"></span></span>
+                <span>투자금: <span class="font-semibold" x-text="'&#8361;' + Format.number(portfolio.selectedStockItem?.investedAmount)"></span></span>
+            </div>
+            <!-- 보유 정보 (해외) -->
+            <div class="flex gap-4 text-sm text-gray-600 mt-2"
+                 x-show="portfolio.selectedStockItem?.stockDetail?.country === 'US'">
+                <span>수량: <span class="font-semibold" x-text="Format.number(portfolio.selectedStockItem?.stockDetail?.quantity)"></span> shares</span>
+                <span>평단가: <span class="font-semibold" x-text="'$' + Format.number(portfolio.selectedStockItem?.stockDetail?.avgBuyPrice)"></span></span>
+                <span>투자금: <span class="font-semibold" x-text="'$' + Format.number(portfolio.selectedStockItem?.investedAmount)"></span></span>
+            </div>
+        </div>
+
+        <!-- 패널 콘텐츠 -->
+        <div class="px-6 py-4">
+            <!-- 메뉴 버튼 목록 -->
+            <div class="flex flex-wrap gap-2 mb-4">
+                <template x-for="menu in portfolio.financialMenus" :key="menu.key">
+                    <button @click="selectFinancialMenu(menu.key)"
+                            class="text-xs px-3 py-1.5 rounded-full border transition"
+                            :class="portfolio.selectedFinancialMenu === menu.key
+                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'"
+                            x-text="menu.label">
+                    </button>
+                </template>
+            </div>
+
+            <!-- 메뉴 선택 시: 파라미터 + 결과 -->
+            <template x-if="portfolio.selectedFinancialMenu">
+                <div>
+                    <!-- SEC 에러 메시지 -->
+                    <template x-if="isSecMenu() && portfolio.secFinancialError">
+                        <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+                            <span x-text="portfolio.secFinancialError"></span>
+                        </div>
+                    </template>
+
+                    <!-- KR 조회 에러 메시지 -->
+                    <template x-if="!isSecMenu() && portfolio.financialError">
+                        <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+                            <span x-text="portfolio.financialError"></span>
+                            <br><span class="text-xs">[조회] 버튼을 눌러 다시 시도해 주세요.</span>
+                        </div>
+                    </template>
+
+                    <!-- SEC 연간/분기 토글 + EDGAR 링크 -->
+                    <div x-show="isSecMenu()"
+                         class="flex items-center justify-between mb-3">
+                        <div x-show="portfolio.selectedFinancialMenu !== 'sec-metrics'" class="flex gap-1">
+                            <button @click="toggleSecPeriod('annual')"
+                                    :class="portfolio.secQuarterlyPeriod === 'annual'
+                                        ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
+                                    class="px-3 py-1 text-xs rounded-l font-medium transition">연간</button>
+                            <button @click="toggleSecPeriod('quarterly')"
+                                    :class="portfolio.secQuarterlyPeriod === 'quarterly'
+                                        ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
+                                    class="px-3 py-1 text-xs rounded-r font-medium transition">분기</button>
+                        </div>
+                        <a :href="portfolio.secEdgarUrl" x-show="portfolio.secEdgarUrl"
+                           target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                            </svg>
+                            SEC 원본 확인
+                        </a>
+                    </div>
+
+                    <!-- SEC 투자지표 카드 -->
+                    <template x-if="isSecMenu() && portfolio.selectedFinancialMenu === 'sec-metrics' && getSecMetricCards().length > 0">
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                            <template x-for="card in getSecMetricCards()" :key="card.name">
+                                <div class="bg-white rounded-lg border border-gray-200 p-3">
+                                    <p class="text-xs text-gray-500 mb-1" x-text="card.name"></p>
+                                    <p class="text-sm font-bold text-gray-800" x-text="card.value"></p>
+                                    <p class="text-xs text-gray-400 mt-0.5 truncate" x-text="card.description"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- SEC 요약 카드 (재무제표 탭) -->
+                    <template x-if="isSecMenu() && portfolio.selectedFinancialMenu !== 'sec-metrics' && portfolio.financialResult && portfolio.financialResult.length > 0 && getSecSummaryCards().length > 0">
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                            <template x-for="card in getSecSummaryCards()" :key="card.label">
+                                <div class="bg-white rounded-lg border border-gray-200 p-3">
+                                    <p class="text-xs text-gray-500 mb-1" x-text="card.label"></p>
+                                    <p class="text-sm font-bold text-gray-800" x-text="card.value"></p>
+                                    <template x-if="card.changeRate !== null">
+                                        <p class="text-xs mt-0.5"
+                                           :class="card.changeRate > 0 ? 'text-red-500' : card.changeRate < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                           x-text="(card.changeRate >= 0 ? '▲ +' : '▼ ') + card.changeRate.toFixed(1) + '%'"></p>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- SEC 바 차트 (재무제표 탭) -->
+                    <div x-show="isSecMenu() && portfolio.selectedFinancialMenu !== 'sec-metrics' && portfolio.financialResult && portfolio.financialResult.length > 0"
+                         class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                        <h4 class="text-xs font-semibold text-gray-500 mb-3"
+                            x-text="portfolio.secQuarterlyPeriod === 'quarterly' ? '주요 재무 추세 (분기별)' : '주요 재무 추세 (연도별)'"></h4>
+                        <div style="height: 250px;">
+                            <canvas id="secBarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 파라미터 드롭다운 (국내주식 전용 — SEC·공시 메뉴에서는 숨김) -->
+                    <div class="flex flex-wrap gap-3 mb-4" x-show="!isSecMenu() && !isDisclosureMenu()">
+                        <!-- 연도 (타임라인 제외) -->
+                        <div class="flex items-center gap-2" x-show="!isTimelineMenu()">
+                            <label class="text-xs text-gray-500">연도</label>
+                            <select x-model="portfolio.financialYear"
+                                    x-init="$nextTick(() => { $el.value = portfolio.financialYear })"
+                                    class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <template x-for="year in getYearOptions()" :key="year">
+                                    <option :value="year" x-text="year + '년'"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <!-- 보고서 (소송·타임라인 제외) -->
+                        <div class="flex items-center gap-2"
+                             x-show="portfolio.selectedFinancialMenu !== 'lawsuits' && !isTimelineMenu() && portfolio.financialOptions">
+                            <label class="text-xs text-gray-500">보고서</label>
+                            <select x-model="portfolio.financialReportCode"
+                                    class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <template x-for="opt in portfolio.financialOptions?.reportCodes" :key="opt.code">
+                                    <option :value="opt.code" x-text="opt.label"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <!-- 지표분류 (재무지표만) -->
+                        <div class="flex items-center gap-2"
+                             x-show="portfolio.selectedFinancialMenu === 'indices' && portfolio.financialOptions">
+                            <label class="text-xs text-gray-500">지표분류</label>
+                            <select x-model="portfolio.financialIndexClass"
+                                    class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <template x-for="opt in portfolio.financialOptions?.indexClassCodes" :key="opt.code">
+                                    <option :value="opt.code" x-text="opt.label"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <!-- 재무제표구분 (전체재무제표만) -->
+                        <div class="flex items-center gap-2"
+                             x-show="portfolio.selectedFinancialMenu === 'full-statements'">
+                            <label class="text-xs text-gray-500">구분</label>
+                            <select x-model="portfolio.financialFsDiv"
+                                    class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <option value="CFS">연결</option>
+                                <option value="OFS">개별</option>
+                            </select>
+                        </div>
+                        <!-- 기간 (타임라인만) -->
+                        <div class="flex items-center gap-2" x-show="isTimelineMenu()">
+                            <label class="text-xs text-gray-500">기간</label>
+                            <select x-model="portfolio.timelineYears"
+                                    class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <option value="3">최근 3년</option>
+                                <option value="5">최근 5년</option>
+                                <option value="10">최근 10년</option>
+                            </select>
+                        </div>
+                        <!-- 연결/개별 (타임라인만) -->
+                        <div class="flex items-center gap-2" x-show="isTimelineMenu()">
+                            <label class="text-xs text-gray-500">구분</label>
+                            <select x-model="portfolio.timelineFsDiv"
+                                    class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <option value="CFS">연결</option>
+                                <option value="OFS">개별</option>
+                            </select>
+                        </div>
+                        <!-- 조회 버튼 -->
+                        <div class="flex items-center">
+                            <button type="button"
+                                    @click="runFinancialQuery()"
+                                    :disabled="portfolio.financialLoading || portfolio.timelineLoading || !hasFinancialOptions()"
+                                    class="text-sm px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                조회
+                            </button>
+                        </div>
+                        <!-- 로딩 스피너 -->
+                        <div x-show="portfolio.financialLoading || portfolio.timelineLoading"
+                             class="flex items-center text-xs text-gray-400">
+                            <svg class="animate-spin h-4 w-4 mr-1" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                            조회 중...
+                        </div>
+                    </div>
+
+                    <!-- SEC 로딩 스피너 (파라미터 영역 밖) -->
+                    <div x-show="isSecMenu() && portfolio.financialLoading"
+                         class="flex items-center justify-center py-6 text-sm text-gray-400">
+                        <svg class="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        SEC 데이터 조회 중...
+                    </div>
+
+                    <!-- 미조회 안내 (KR, 조회 전) -->
+                    <template x-if="!isSecMenu() && !isTimelineMenu() && !isDisclosureMenu() && portfolio.selectedFinancialMenu && portfolio.financialResult === null && !portfolio.financialLoading && !portfolio.financialError">
+                        <div class="text-center py-6 text-gray-400 text-sm">
+                            조회 버튼을 눌러 데이터를 조회하세요
+                        </div>
+                    </template>
+
+                    <!-- 공시 목록 (DART 공시검색) -->
+                    <template x-if="isDisclosureMenu()">
+                        <div>
+                            <!-- 필터 바 -->
+                            <div class="flex flex-wrap items-center gap-3 mb-3">
+                                <div class="flex items-center gap-2">
+                                    <label class="text-xs text-gray-500">기간</label>
+                                    <select x-model="portfolio.disclosurePeriod" class="text-sm border border-gray-300 rounded px-2 py-1">
+                                        <option value="1">최근 1년</option>
+                                        <option value="3">최근 3년</option>
+                                        <option value="5">최근 5년</option>
+                                        <option value="0">전체</option>
+                                    </select>
+                                </div>
+                                <button type="button" @click="runDisclosureQuery()"
+                                        :disabled="portfolio.disclosureLoading"
+                                        class="text-sm px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">조회</button>
+                                <div x-show="portfolio.disclosureLoading" class="flex items-center text-xs text-gray-400">
+                                    <svg class="animate-spin h-4 w-4 mr-1" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>조회 중...
+                                </div>
+                            </div>
+                            <!-- 유형 다중선택 (미선택=전체) -->
+                            <div class="flex flex-wrap gap-1.5 mb-4">
+                                <button type="button" @click="portfolio.disclosureSelectedTypes = []"
+                                        class="text-xs px-2.5 py-1 rounded-full border transition"
+                                        :class="portfolio.disclosureSelectedTypes.length === 0 ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'">전체</button>
+                                <template x-for="t in _disclosureTypes" :key="t.code">
+                                    <button type="button" @click="toggleDisclosureType(t.code)"
+                                            class="text-xs px-2.5 py-1 rounded-full border transition"
+                                            :class="isDisclosureTypeSelected(t.code) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'"
+                                            x-text="t.label"></button>
+                                </template>
+                            </div>
+
+                            <!-- 에러 -->
+                            <template x-if="portfolio.disclosureError">
+                                <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+                                    <span x-text="portfolio.disclosureError"></span>
+                                </div>
+                            </template>
+                            <!-- 미조회 안내 -->
+                            <template x-if="portfolio.disclosureData === null && !portfolio.disclosureLoading && !portfolio.disclosureError">
+                                <div class="text-center py-6 text-gray-400 text-sm">유형·기간을 고르고 조회 버튼을 눌러 공시를 검색하세요</div>
+                            </template>
+                            <!-- 결과 -->
+                            <template x-if="portfolio.disclosureData !== null && !portfolio.disclosureLoading">
+                                <div>
+                                    <template x-if="getDisclosureRows().length === 0">
+                                        <div class="text-center py-6 text-gray-400 text-sm">해당 조건의 공시가 없습니다.</div>
+                                    </template>
+                                    <template x-if="getDisclosureRows().length > 0">
+                                        <div>
+                                            <p class="text-xs text-gray-400 mb-2" x-text="getDisclosureRows().length + '건 (접수일 최신순)'"></p>
+                                            <div class="overflow-x-auto overflow-y-auto" style="max-height: calc(100dvh - 420px);">
+                                                <table class="w-full text-sm">
+                                                    <thead class="sticky top-0 bg-white z-10">
+                                                        <tr class="border-b border-gray-200">
+                                                            <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium whitespace-nowrap">접수일</th>
+                                                            <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium">보고서명</th>
+                                                            <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium whitespace-nowrap">제출인</th>
+                                                            <th class="text-right py-2 px-2 text-xs text-gray-500 font-medium whitespace-nowrap">원문</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <template x-for="row in getDisclosureRows()" :key="row.viewerUrl">
+                                                            <tr class="border-b border-gray-50 hover:bg-gray-50">
+                                                                <td class="py-2 px-2 text-gray-500 whitespace-nowrap text-xs" x-text="formatDisclosureDate(row.receiptDate)"></td>
+                                                                <td class="py-2 px-2 text-gray-700">
+                                                                    <span x-text="row.reportName"></span>
+                                                                    <template x-if="isCorrectionDisclosure(row.remark)">
+                                                                        <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-600">정정</span>
+                                                                    </template>
+                                                                </td>
+                                                                <td class="py-2 px-2 text-gray-500 whitespace-nowrap text-xs" x-text="row.submitterName"></td>
+                                                                <td class="py-2 px-2 text-right whitespace-nowrap">
+                                                                    <a :href="row.viewerUrl" target="_blank" rel="noopener noreferrer"
+                                                                       class="text-xs text-indigo-600 hover:text-indigo-800">원문 ▸</a>
+                                                                </td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- 연도별 추세 (타임라인) -->
+                    <template x-if="isTimelineMenu()">
+                        <div>
+                            <!-- 조회 에러 -->
+                            <template x-if="portfolio.timelineError">
+                                <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+                                    <span x-text="portfolio.timelineError"></span>
+                                    <br><span class="text-xs">[조회] 버튼을 눌러 다시 시도해 주세요.</span>
+                                </div>
+                            </template>
+
+                            <!-- 미조회 안내 -->
+                            <template x-if="portfolio.timelineData === null && !portfolio.timelineLoading && !portfolio.timelineError">
+                                <div class="text-center py-6 text-gray-400 text-sm">
+                                    조회 버튼을 눌러 연도별 추세를 조회하세요
+                                </div>
+                            </template>
+
+                            <!-- 결과 -->
+                            <template x-if="portfolio.timelineData !== null && !portfolio.timelineLoading">
+                                <div>
+                                    <template x-if="getTimelineColumns().length === 0">
+                                        <div class="text-center py-6 text-gray-400 text-sm">
+                                            조회 기간에 정기보고서가 없습니다.
+                                        </div>
+                                    </template>
+                                    <template x-if="getTimelineColumns().length > 0">
+                                        <div>
+                                            <!-- 진행중 연도 안내 -->
+                                            <div x-show="getTimelineColumns().some(c => c.partial)"
+                                                 class="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700">
+                                                진행중 연도는 그 해 최신 보고서의 누적 기준이라 연간 확정치와 직접 비교할 수 없습니다. (차트에서 점선 구간)
+                                            </div>
+
+                                            <!-- 요약 표 (항목 × 연도) -->
+                                            <div class="overflow-x-auto mb-4">
+                                                <table class="w-full text-sm">
+                                                    <thead>
+                                                        <tr class="border-b border-gray-200">
+                                                            <th class="py-2 px-2 text-xs text-gray-500 font-medium text-left whitespace-nowrap">항목</th>
+                                                            <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                <th class="py-2 px-2 text-xs font-medium text-right whitespace-nowrap"
+                                                                    :class="col.partial ? 'border-l border-dashed border-amber-300 bg-amber-50/60 text-amber-700' : 'text-gray-500'">
+                                                                    <span x-text="col.year"></span>
+                                                                    <span class="block text-[10px] font-normal"
+                                                                          :class="col.partial ? 'text-amber-600' : 'text-gray-400'"
+                                                                          x-text="col.partial ? col.reportLabel + '·진행중' : col.reportLabel"></span>
+                                                                </th>
+                                                            </template>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <template x-for="row in getTimelineSummaryRows()" :key="row.name">
+                                                            <tr class="border-b border-gray-50 hover:bg-gray-50">
+                                                                <td class="py-2 px-2 text-gray-700 whitespace-nowrap" x-text="row.name"></td>
+                                                                <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                    <td class="py-2 px-2 text-right text-gray-800 whitespace-nowrap"
+                                                                        :class="col.partial ? 'border-l border-dashed border-amber-300 bg-amber-50/60' : ''"
+                                                                        x-text="timelineCell(row, col)"></td>
+                                                                </template>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <!-- 금액 추세 차트 -->
+                                            <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                                                <h4 class="text-xs font-semibold text-gray-500 mb-3">금액 추세 (매출액 · 영업이익 · 잉여현금흐름)</h4>
+                                                <div style="height: 250px;">
+                                                    <canvas id="timelineAmountChart"></canvas>
+                                                </div>
+                                            </div>
+
+                                            <!-- 핵심 비율 차트 -->
+                                            <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                                                <h4 class="text-xs font-semibold text-gray-500 mb-3">핵심 비율 추세 (영업이익률 · ROE · 부채비율)</h4>
+                                                <div style="height: 220px;">
+                                                    <canvas id="timelineRatioChart"></canvas>
+                                                </div>
+                                            </div>
+
+                                            <!-- 발행 주식수 차트 -->
+                                            <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                                                <h4 class="text-xs font-semibold text-gray-500 mb-3">발행 주식수 (보통주 · 우선주)</h4>
+                                                <div style="height: 220px;">
+                                                    <canvas id="timelineShareChart"></canvas>
+                                                </div>
+                                            </div>
+
+                                            <!-- 전체 재무제표 세부 계정 (접이식) -->
+                                            <template x-if="getTimelineDetailGroups().length > 0">
+                                                <div class="mt-6">
+                                                    <h4 class="text-xs font-semibold text-gray-500 mb-2">전체 재무제표 세부 계정</h4>
+                                                    <template x-for="group in getTimelineDetailGroups()" :key="group.statementDiv">
+                                                        <div class="border border-gray-200 rounded-lg mb-2 overflow-hidden">
+                                                            <button type="button" @click="toggleTimelineDetail(group.statementDiv)"
+                                                                    class="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                                                <span><span x-text="group.statementName"></span>
+                                                                    <span class="text-xs text-gray-400 ml-1" x-text="detailGroupAccountCount(group) + '개 계정'"></span></span>
+                                                                <span class="text-xs text-gray-400" x-text="isTimelineDetailExpanded(group.statementDiv) ? '−' : '+'"></span>
+                                                            </button>
+                                                            <template x-if="isTimelineDetailExpanded(group.statementDiv)">
+                                                                <div class="overflow-x-auto border-t border-gray-100">
+                                                                    <table class="w-full text-xs">
+                                                                        <thead class="bg-gray-50">
+                                                                            <tr class="border-b border-gray-100">
+                                                                                <th class="text-left py-2 px-3 text-gray-500 font-medium whitespace-nowrap">계정</th>
+                                                                                <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                                    <th class="py-2 px-2 text-right font-medium whitespace-nowrap"
+                                                                                        :class="col.partial ? 'text-amber-700 bg-amber-50' : 'text-gray-500'"
+                                                                                        x-text="col.year"></th>
+                                                                                </template>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            <template x-for="(rr, rrIndex) in getDetailRenderRows(group)" :key="rrIndex">
+                                                                                <tr class="border-b border-gray-50 hover:bg-gray-50" :class="detailRowClass(rr)">
+                                                                                    <td class="py-1.5 px-3 whitespace-nowrap" :class="detailRowLabelClass(rr)">
+                                                                                        <template x-if="rr.kind === 'CATEGORY'">
+                                                                                            <button type="button" @click="toggleDetailCategory(rr.sd, rr.node)"
+                                                                                                    class="flex items-center gap-1 hover:text-gray-900">
+                                                                                                <span class="text-gray-400" x-text="isDetailCategoryExpanded(rr.sd, rr.node) ? '▾' : '▸'"></span>
+                                                                                                <span x-text="rr.row.name"></span>
+                                                                                                <span class="text-gray-400 font-normal" x-text="'(' + rr.node.children.length + ')'"></span>
+                                                                                            </button>
+                                                                                        </template>
+                                                                                        <template x-if="rr.kind !== 'CATEGORY'">
+                                                                                            <span x-text="rr.row.name"></span>
+                                                                                        </template>
+                                                                                    </td>
+                                                                                    <template x-for="(col, colIndex) in getTimelineColumns()" :key="col.year">
+                                                                                        <td class="py-1.5 px-2 text-right whitespace-nowrap"
+                                                                                            :class="[detailRowValueClass(rr), col.partial ? 'bg-amber-50' : '']">
+                                                                                            <span x-text="timelineDetailCell(rr.row, col)"></span>
+                                                                                            <span class="ml-1 text-[10px]" :class="timelineDetailDeltaClass(rr.row, colIndex)"
+                                                                                                  x-text="timelineDetailDeltaText(rr.row, colIndex)"></span>
+                                                                                        </td>
+                                                                                    </template>
+                                                                                </tr>
+                                                                            </template>
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+
+                                            <!-- 재무지표 4분류 전체 (접이식) -->
+                                            <template x-if="getTimelineIndexGroups().length > 0">
+                                                <div class="mt-6">
+                                                    <h4 class="text-xs font-semibold text-gray-500 mb-2">재무지표 (수익성 · 안정성 · 성장성 · 활동성)</h4>
+                                                    <template x-for="group in getTimelineIndexGroups()" :key="group.classCode">
+                                                        <div class="border border-gray-200 rounded-lg mb-2 overflow-hidden">
+                                                            <button type="button" @click="toggleTimelineIndexClass(group.classCode)"
+                                                                    class="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                                                <span><span x-text="group.className"></span>
+                                                                    <span class="text-xs text-gray-400 ml-1" x-text="group.items.length + '개'"></span></span>
+                                                                <span class="text-xs text-gray-400" x-text="isTimelineIndexExpanded(group.classCode) ? '−' : '+'"></span>
+                                                            </button>
+                                                            <template x-if="isTimelineIndexExpanded(group.classCode)">
+                                                                <div class="border-t border-gray-100">
+                                                                    <template x-if="hasGrowthIndexPartial(group)">
+                                                                        <p class="px-3 py-1.5 text-[11px] text-gray-400">※ 진행중 연도는 증가율 산정 기간이 불완전해 생략(-)합니다.</p>
+                                                                    </template>
+                                                                    <div class="overflow-x-auto">
+                                                                        <table class="w-full text-xs">
+                                                                            <thead class="bg-gray-50">
+                                                                                <tr class="border-b border-gray-100">
+                                                                                    <th class="text-left py-2 px-3 text-gray-500 font-medium whitespace-nowrap">지표</th>
+                                                                                    <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                                        <th class="py-2 px-2 text-right font-medium whitespace-nowrap"
+                                                                                            :class="col.partial ? 'text-amber-700 bg-amber-50' : 'text-gray-500'"
+                                                                                            x-text="col.year"></th>
+                                                                                    </template>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <template x-for="row in group.items" :key="row.id">
+                                                                                    <tr class="border-b border-gray-50 hover:bg-gray-50">
+                                                                                        <td class="py-1.5 px-3 text-gray-600 whitespace-nowrap" x-text="row.name"></td>
+                                                                                        <template x-for="col in getTimelineColumns()" :key="col.year">
+                                                                                            <td class="py-1.5 px-2 text-right text-gray-700 whitespace-nowrap"
+                                                                                                :class="col.partial ? 'bg-amber-50' : ''"
+                                                                                                x-text="timelineIndexCell(group, row, col)"></td>
+                                                                                        </template>
+                                                                                    </tr>
+                                                                                </template>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- 결과 영역 -->
+                    <template x-if="portfolio.financialResult !== null && !portfolio.financialLoading">
+                        <div>
+                            <!-- 빈 결과 -->
+                            <template x-if="portfolio.financialResult.length === 0">
+                                <div class="text-center py-6 text-gray-400 text-sm">
+                                    해당 연도/보고서의 데이터가 아직 등록되지 않았습니다.
+                                    <br><span class="text-xs">다른 연도나 보고서를 선택해 주세요.</span>
+                                </div>
+                            </template>
+
+                            <!-- 재무제표 필터 (재무계정 탭) -->
+                            <template x-if="portfolio.financialResult.length > 0 && portfolio.selectedFinancialMenu === 'accounts' && getFilterOptions('fsName').length > 0">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <span class="text-xs text-gray-500">제표구분</span>
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="radio" name="accountFsFilter" value=""
+                                               x-model="portfolio.financialAccountFsFilter"
+                                               @change="$nextTick(() => renderFinancialBarChart())"
+                                               class="w-3 h-3 text-indigo-600">
+                                        <span class="text-xs text-gray-600">전체</span>
+                                    </label>
+                                    <template x-for="opt in getFilterOptions('fsName')" :key="opt">
+                                        <label class="flex items-center gap-1 cursor-pointer">
+                                            <input type="radio" name="accountFsFilter" :value="opt"
+                                                   x-model="portfolio.financialAccountFsFilter"
+                                                   @change="$nextTick(() => renderFinancialBarChart())"
+                                                   class="w-3 h-3 text-indigo-600">
+                                            <span class="text-xs text-gray-600" x-text="opt"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- 제표종류 필터 (전체재무제표 탭) -->
+                            <template x-if="portfolio.financialResult.length > 0 && portfolio.selectedFinancialMenu === 'full-statements' && getFilterOptions('statementName').length > 0">
+                                <div class="flex items-center gap-3 mb-4 flex-wrap">
+                                    <span class="text-xs text-gray-500">제표종류</span>
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="radio" name="statementFilter" value=""
+                                               x-model="portfolio.financialStatementFilter"
+                                               class="w-3 h-3 text-indigo-600">
+                                        <span class="text-xs text-gray-600">전체</span>
+                                    </label>
+                                    <template x-for="opt in getFilterOptions('statementName')" :key="opt">
+                                        <label class="flex items-center gap-1 cursor-pointer">
+                                            <input type="radio" name="statementFilter" :value="opt"
+                                                   x-model="portfolio.financialStatementFilter"
+                                                   class="w-3 h-3 text-indigo-600">
+                                            <span class="text-xs text-gray-600" x-text="opt"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- 바 차트 (재무계정 탭) -->
+                            <template x-if="portfolio.financialResult.length > 0 && portfolio.selectedFinancialMenu === 'accounts'">
+                                <div class="mb-4 bg-white rounded-lg border border-gray-200 p-4">
+                                    <h4 class="text-xs font-semibold text-gray-500 mb-3">주요 재무 추세 (당기 / 전기 / 전전기)</h4>
+                                    <div style="height: 250px;">
+                                        <canvas id="financialBarChart"></canvas>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- 요약 카드 -->
+                            <template x-if="portfolio.financialResult.length > 0 && getFinancialSummaryCards().length > 0">
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                                    <template x-for="card in getFinancialSummaryCards()" :key="card.label">
+                                        <div class="bg-white rounded-lg border border-gray-200 p-3">
+                                            <p class="text-xs text-gray-500 mb-1" x-text="card.label"></p>
+                                            <p class="text-sm font-bold text-gray-800" x-text="card.value"></p>
+                                            <template x-if="card.changeRate !== null">
+                                                <p class="text-xs mt-0.5"
+                                                   :class="card.changeRate > 0 ? 'text-red-500' : card.changeRate < 0 ? 'text-blue-500' : 'text-gray-400'"
+                                                   x-text="(card.changeRate >= 0 ? '▲ +' : '▼ ') + card.changeRate.toFixed(1) + '%'"></p>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- 지표 설명 (클릭 시 표시) -->
+                            <template x-if="portfolio._tooltipText">
+                                <div class="mb-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 flex items-start gap-2">
+                                    <svg class="w-4 h-4 text-slate-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <p class="text-xs text-slate-600 leading-relaxed flex-1" x-text="portfolio._tooltipText"></p>
+                                    <button @click="portfolio._tooltipText = ''"
+                                            class="text-slate-400 hover:text-slate-600 text-sm shrink-0">&times;</button>
+                                </div>
+                            </template>
+
+                            <!-- 결과 테이블 -->
+                            <template x-if="portfolio.financialResult.length > 0">
+                                <div class="overflow-x-auto overflow-y-auto" style="max-height: calc(100dvh - 450px);">
+                                    <table class="w-full text-sm">
+                                        <thead class="sticky top-0 bg-white z-10">
+                                            <tr class="border-b border-gray-200">
+                                                <template x-if="getFinancialColumns()">
+                                                    <template x-for="col in getFinancialColumns()" :key="col.key">
+                                                        <th class="py-2 px-2 text-xs text-gray-500 font-medium whitespace-nowrap"
+                                                            :class="isAmountColumn(col.type) ? 'text-right' : 'text-left'"
+                                                            x-text="col.label"></th>
+                                                    </template>
+                                                </template>
+                                                <template x-if="!getFinancialColumns()">
+                                                    <template x-for="key in Object.keys(portfolio.financialResult[0])" :key="key">
+                                                        <th class="text-left py-2 px-2 text-xs text-gray-500 font-medium" x-text="key"></th>
+                                                    </template>
+                                                </template>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="(row, idx) in getFilteredFinancialResult()" :key="idx">
+                                                <tr class="border-b border-gray-50 hover:bg-gray-50 transition">
+                                                    <template x-if="getFinancialColumns()">
+                                                        <template x-for="col in getFinancialColumns()" :key="col.key">
+                                                            <td class="py-2 px-2"
+                                                                :class="isAmountColumn(col.type) ? 'text-right font-mono text-gray-700' : 'text-gray-700'">
+                                                                <template x-if="!col.tooltip">
+                                                                    <span x-text="formatFinancialCell(row[col.key], col.type)"></span>
+                                                                </template>
+                                                                <template x-if="col.tooltip">
+                                                                    <span class="inline-flex items-center gap-1">
+                                                                        <span x-text="formatFinancialCell(row[col.key], col.type)"></span>
+                                                                        <template x-if="getFinancialDescription(portfolio.selectedFinancialMenu, row[col.key])">
+                                                                            <button type="button"
+                                                                                    @click="portfolio._tooltipText = getFinancialDescription(portfolio.selectedFinancialMenu, row[col.key])"
+                                                                                    class="text-gray-300 hover:text-gray-500 cursor-pointer text-xs">&#9432;</button>
+                                                                        </template>
+                                                                    </span>
+                                                                </template>
+                                                            </td>
+                                                        </template>
+                                                    </template>
+                                                    <template x-if="!getFinancialColumns()">
+                                                        <template x-for="key in Object.keys(row)" :key="key">
+                                                            <td class="py-2 px-2 text-gray-700" x-text="row[key]"></td>
+                                                        </template>
+                                                    </template>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- 메뉴 미선택 시 안내 -->
+            <template x-if="!portfolio.selectedFinancialMenu">
+                <div class="text-center py-6 text-gray-400 text-sm">
+                    위 메뉴를 선택하여 재무정보를 조회하세요
+                </div>
+            </template>

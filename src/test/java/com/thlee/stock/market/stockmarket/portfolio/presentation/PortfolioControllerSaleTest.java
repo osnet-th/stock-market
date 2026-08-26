@@ -87,6 +87,8 @@ class PortfolioControllerSaleTest {
         ReflectionTestUtils.setField(req, "reason", SaleReason.REBALANCING);
         ReflectionTestUtils.setField(req, "memo", "리밸런싱");
         ReflectionTestUtils.setField(req, "fxRate", BigDecimal.valueOf(1_400));
+        ReflectionTestUtils.setField(req, "deductionAmountKrw", BigDecimal.valueOf(500));
+        ReflectionTestUtils.setField(req, "netProceedsKrw", BigDecimal.valueOf(239_480));
         ReflectionTestUtils.setField(req, "depositCashItemId", 200L);
 
         ArgumentCaptor<AddStockSaleParam> captor = ArgumentCaptor.forClass(AddStockSaleParam.class);
@@ -101,6 +103,8 @@ class PortfolioControllerSaleTest {
         assertThat(captured.reason()).isEqualTo(SaleReason.REBALANCING);
         assertThat(captured.memo()).isEqualTo("리밸런싱");
         assertThat(captured.fxRate()).isEqualByComparingTo(BigDecimal.valueOf(1_400));
+        assertThat(captured.deductionAmountKrw()).isEqualByComparingTo(BigDecimal.valueOf(500));
+        assertThat(captured.netProceedsKrw()).isEqualByComparingTo(BigDecimal.valueOf(239_480));
         assertThat(captured.depositCashItemId()).isEqualTo(200L);
     }
 
@@ -137,6 +141,8 @@ class PortfolioControllerSaleTest {
         StockSaleHistoryUpdateRequest req = new StockSaleHistoryUpdateRequest();
         ReflectionTestUtils.setField(req, "quantity", 2);
         ReflectionTestUtils.setField(req, "salePrice", BigDecimal.valueOf(85_000));
+        ReflectionTestUtils.setField(req, "deductionAmountKrw", BigDecimal.valueOf(300));
+        ReflectionTestUtils.setField(req, "netProceedsKrw", BigDecimal.valueOf(169_700));
         ReflectionTestUtils.setField(req, "reason", SaleReason.STOP_LOSS);
         ReflectionTestUtils.setField(req, "memo", "수정");
 
@@ -151,6 +157,8 @@ class PortfolioControllerSaleTest {
         UpdateSaleParam captured = captor.getValue();
         assertThat(captured.quantity()).isEqualTo(2);
         assertThat(captured.salePrice()).isEqualByComparingTo(BigDecimal.valueOf(85_000));
+        assertThat(captured.deductionAmountKrw()).isEqualByComparingTo(BigDecimal.valueOf(300));
+        assertThat(captured.netProceedsKrw()).isEqualByComparingTo(BigDecimal.valueOf(169_700));
         assertThat(captured.reason()).isEqualTo(SaleReason.STOP_LOSS);
         assertThat(captured.memo()).isEqualTo("수정");
     }

@@ -24,4 +24,9 @@ public interface GlobalIndicatorRepository {
      * 지표타입별 히스토리 조회 (cycle별 최신 snapshot만 반환)
      */
     List<GlobalIndicator> findLatestHistoryByIndicatorType(GlobalEconomicIndicatorType indicatorType);
+
+    /**
+     * 단일 지표 시계열 조회: (countryName, indicatorType) 기준 최근 limit개 snapshotDate 오름차순 반환
+     */
+    List<GlobalIndicator> findHistory(String countryName, GlobalEconomicIndicatorType indicatorType, int limit);
 }

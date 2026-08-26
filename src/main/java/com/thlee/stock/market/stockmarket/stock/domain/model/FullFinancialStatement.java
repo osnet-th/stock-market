@@ -13,5 +13,7 @@ public record FullFinancialStatement(
         String currentTermAmount,
         String previousTermName,
         String previousTermAmount,
+        String beforePreviousTermName,
+        String beforePreviousTermAmount,
         String currency
 ) {}

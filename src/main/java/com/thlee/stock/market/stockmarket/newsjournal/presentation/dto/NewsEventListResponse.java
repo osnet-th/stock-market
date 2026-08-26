@@ -4,13 +4,14 @@ import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsEventL
 import com.thlee.stock.market.stockmarket.newsjournal.application.dto.NewsEventListResult;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.EventImpact;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEvent;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventKeyword;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 사건 리스트 Response (타임라인 화면용). 각 항목은 본체 + 카테고리 + 링크 평탄화.
+ * 사건 리스트 Response (타임라인 화면용). 각 항목은 본체 + 카테고리 + 링크 + 키워드 평탄화.
  */
 public record NewsEventListResponse(
         List<ItemDto> items,
@@ -36,6 +37,7 @@ public record NewsEventListResponse(
             String why,
             String how,
             List<NewsEventLinkDto> links,
+            List<String> keywords,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
@@ -46,6 +48,7 @@ public record NewsEventListResponse(
                     i.category() == null ? null : CategoryDto.from(i.category()),
                     e.getWhat(), e.getWhy(), e.getHow(),
                     i.links().stream().map(NewsEventLinkDto::from).toList(),
+                    i.keywords().stream().map(NewsEventKeyword::getKeyword).toList(),
                     e.getCreatedAt(), e.getUpdatedAt()
             );
         }

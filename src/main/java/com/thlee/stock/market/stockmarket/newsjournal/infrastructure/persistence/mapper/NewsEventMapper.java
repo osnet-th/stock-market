@@ -2,14 +2,17 @@ package com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistenc
 
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEvent;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventCategory;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventKeyword;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventLink;
 import com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistence.NewsEventCategoryEntity;
 import com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistence.NewsEventEntity;
+import com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistence.NewsEventKeywordEntity;
 import com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistence.NewsEventLinkEntity;
 
 /**
  * newsjournal 도메인의 Entity ↔ Domain 변환 모음.
- * 본체({@link NewsEvent}) + 자식({@link NewsEventLink}) + 카테고리({@link NewsEventCategory}) × 2 방향.
+ * 본체({@link NewsEvent}) + 자식({@link NewsEventLink}, {@link NewsEventKeyword})
+ * + 카테고리({@link NewsEventCategory}) × 2 방향.
  */
 public final class NewsEventMapper {
 
@@ -43,6 +46,19 @@ public final class NewsEventMapper {
     public static NewsEventLink toDomain(NewsEventLinkEntity e) {
         return new NewsEventLink(
                 e.getId(), e.getEventId(), e.getTitle(), e.getUrl(), e.getDisplayOrder()
+        );
+    }
+
+    // -------- NewsEventKeyword --------
+    public static NewsEventKeywordEntity toEntity(NewsEventKeyword d) {
+        return new NewsEventKeywordEntity(
+                d.getId(), d.getEventId(), d.getKeyword(), d.getDisplayOrder()
+        );
+    }
+
+    public static NewsEventKeyword toDomain(NewsEventKeywordEntity e) {
+        return new NewsEventKeyword(
+                e.getId(), e.getEventId(), e.getKeyword(), e.getDisplayOrder()
         );
     }
 

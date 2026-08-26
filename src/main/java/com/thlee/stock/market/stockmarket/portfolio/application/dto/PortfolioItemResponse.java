@@ -25,8 +25,11 @@ public class PortfolioItemResponse {
     private final RealEstateDetailResponse realEstateDetail;
     private final FundDetailResponse fundDetail;
     private final CashDetailResponse cashDetail;
+    private final GoldDetailResponse goldDetail;
+    private final PensionDetailResponse pensionDetail;
     private final Long linkedCashItemId;
     private final Boolean depositOverdue;
+    private final Boolean depositDueToday;
     private final BigDecimal expectedMaturityAmount;
 
     private PortfolioItemResponse(Long id, String assetType, String itemName,
@@ -38,8 +41,11 @@ public class PortfolioItemResponse {
                                   RealEstateDetailResponse realEstateDetail,
                                   FundDetailResponse fundDetail,
                                   CashDetailResponse cashDetail,
+                                  GoldDetailResponse goldDetail,
+                                  PensionDetailResponse pensionDetail,
                                   Long linkedCashItemId,
                                   Boolean depositOverdue,
+                                  Boolean depositDueToday,
                                   BigDecimal expectedMaturityAmount) {
         this.id = id;
         this.assetType = assetType;
@@ -56,21 +62,25 @@ public class PortfolioItemResponse {
         this.realEstateDetail = realEstateDetail;
         this.fundDetail = fundDetail;
         this.cashDetail = cashDetail;
+        this.goldDetail = goldDetail;
+        this.pensionDetail = pensionDetail;
         this.linkedCashItemId = linkedCashItemId;
         this.depositOverdue = depositOverdue;
+        this.depositDueToday = depositDueToday;
         this.expectedMaturityAmount = expectedMaturityAmount;
     }
 
     public static PortfolioItemResponse from(PortfolioItem item) {
-        return from(item, null, null, null);
+        return from(item, null, null, null, null);
     }
 
     public static PortfolioItemResponse from(PortfolioItem item, Long linkedCashItemId) {
-        return from(item, linkedCashItemId, null, null);
+        return from(item, linkedCashItemId, null, null, null);
     }
 
     public static PortfolioItemResponse from(PortfolioItem item, Long linkedCashItemId,
-                                              Boolean depositOverdue, BigDecimal expectedMaturityAmount) {
+                                              Boolean depositOverdue, Boolean depositDueToday,
+                                              BigDecimal expectedMaturityAmount) {
         return new PortfolioItemResponse(
                 item.getId(),
                 item.getAssetType().name(),
@@ -87,8 +97,11 @@ public class PortfolioItemResponse {
                 item.getRealEstateDetail() != null ? RealEstateDetailResponse.from(item.getRealEstateDetail()) : null,
                 item.getFundDetail() != null ? FundDetailResponse.from(item.getFundDetail()) : null,
                 item.getCashDetail() != null ? CashDetailResponse.from(item.getCashDetail()) : null,
+                item.getGoldDetail() != null ? GoldDetailResponse.from(item.getGoldDetail()) : null,
+                item.getPensionDetail() != null ? PensionDetailResponse.from(item.getPensionDetail()) : null,
                 linkedCashItemId,
                 depositOverdue,
+                depositDueToday,
                 expectedMaturityAmount
         );
     }

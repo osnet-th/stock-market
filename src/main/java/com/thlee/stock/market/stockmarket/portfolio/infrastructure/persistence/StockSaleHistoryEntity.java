@@ -59,6 +59,21 @@ public class StockSaleHistoryEntity {
     @Column(name = "profit_krw", precision = 18, scale = 2)
     private BigDecimal profitKrw;
 
+    @Column(name = "deduction_amount_krw", precision = 18, scale = 2)
+    private BigDecimal deductionAmountKrw;
+
+    @Column(name = "net_proceeds_krw", precision = 18, scale = 2)
+    private BigDecimal netProceedsKrw;
+
+    @Column(name = "net_profit_krw", precision = 18, scale = 2)
+    private BigDecimal netProfitKrw;
+
+    @Column(name = "net_profit_rate", precision = 10, scale = 2)
+    private BigDecimal netProfitRate;
+
+    @Column(name = "net_contribution_rate", precision = 10, scale = 2)
+    private BigDecimal netContributionRate;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "reason", nullable = false, length = 40)
     private SaleReason reason;
@@ -100,6 +115,11 @@ public class StockSaleHistoryEntity {
                                   BigDecimal fxRate,
                                   BigDecimal salePriceKrw,
                                   BigDecimal profitKrw,
+                                  BigDecimal deductionAmountKrw,
+                                  BigDecimal netProceedsKrw,
+                                  BigDecimal netProfitKrw,
+                                  BigDecimal netProfitRate,
+                                  BigDecimal netContributionRate,
                                   SaleReason reason,
                                   String memo,
                                   String stockCode,
@@ -121,6 +141,11 @@ public class StockSaleHistoryEntity {
         this.fxRate = fxRate;
         this.salePriceKrw = salePriceKrw;
         this.profitKrw = profitKrw;
+        this.deductionAmountKrw = deductionAmountKrw;
+        this.netProceedsKrw = netProceedsKrw;
+        this.netProfitKrw = netProfitKrw;
+        this.netProfitRate = netProfitRate;
+        this.netContributionRate = netContributionRate;
         this.reason = reason;
         this.memo = memo;
         this.stockCode = stockCode;

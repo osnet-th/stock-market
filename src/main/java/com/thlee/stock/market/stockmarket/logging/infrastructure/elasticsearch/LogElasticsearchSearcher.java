@@ -103,6 +103,31 @@ public class LogElasticsearchSearcher {
         return new LogSearchResponse(items, total, nextSearchAfter);
     }
 
+    /**
+     * 단일 도메인 + 시간 범위의 문서 수 카운트.
+     *
+     * <p>대시보드 운영자 카드용 — {@code size=0} 으로 hits 만 받고 totalHits 를 반환.
+     * ES 장애는 호출자(Service) 가 처리하도록 원본 예외 전파(다른 메서드와 동일).
+     */
+    public long countDocs(LogDomain domain, Instant from, Instant to) throws Exception {
+        String indexPattern = indexPattern(domain);
+        Query rangeOnly = Query.of(q -> q.range(r -> r.date(d -> d
+                .field("timestamp")
+                .gte(from.toString())
+                .lte(to.toString())
+        )));
+        SearchResponse<Void> resp = elasticsearchClient.search(s -> s
+                .index(indexPattern)
+                .query(rangeOnly)
+                .size(0)
+                .timeout(ES_TIMEOUT_SEC + "s")
+                .allowNoIndices(true)
+                .ignoreUnavailable(true)
+                .trackTotalHits(t -> t.enabled(true))
+        , Void.class);
+        return resp.hits().total() != null ? resp.hits().total().value() : 0L;
+    }
+
     public LogDailyCountResponse aggregateByDate(LogDomain domain, Instant from, Instant to) throws Exception {
         String indexPattern = indexPattern(domain);
         long days = Duration.between(from, to).toDays();

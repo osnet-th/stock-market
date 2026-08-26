@@ -36,6 +36,17 @@ public class StockPurchaseHistoryRepositoryImpl implements StockPurchaseHistoryR
     }
 
     @Override
+    public List<StockPurchaseHistory> findByPortfolioItemIdIn(List<Long> portfolioItemIds) {
+        if (portfolioItemIds.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByPortfolioItemIdIn(portfolioItemIds)
+                .stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public void delete(StockPurchaseHistory history) {
         jpaRepository.deleteById(history.getId());
     }
@@ -48,14 +59,14 @@ public class StockPurchaseHistoryRepositoryImpl implements StockPurchaseHistoryR
     private StockPurchaseHistoryEntity toEntity(StockPurchaseHistory h) {
         return new StockPurchaseHistoryEntity(
                 h.getId(), h.getPortfolioItemId(), h.getQuantity(),
-                h.getPurchasePrice(), h.getPurchasedAt(), h.getMemo(), h.getCreatedAt()
+                h.getPurchasePrice(), h.getPurchasedAt(), h.getMemo(), h.getFxRate(), h.getCreatedAt()
         );
     }
 
     private StockPurchaseHistory toDomain(StockPurchaseHistoryEntity e) {
         return new StockPurchaseHistory(
                 e.getId(), e.getPortfolioItemId(), e.getQuantity(),
-                e.getPurchasePrice(), e.getPurchasedAt(), e.getMemo(), e.getCreatedAt()
+                e.getPurchasePrice(), e.getPurchasedAt(), e.getMemo(), e.getFxRate(), e.getCreatedAt()
         );
     }
 }

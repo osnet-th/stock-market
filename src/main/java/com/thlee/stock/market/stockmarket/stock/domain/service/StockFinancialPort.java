@@ -27,6 +27,12 @@ public interface StockFinancialPort {
 
     List<FundUsage> getPublicFundUsages(String stockCode, String year, String reportCode);
 
+    /**
+     * 공시 목록 조회 (접수일 최신순, 최대 100건)
+     * @param publicationType 공시유형 (A:정기공시 ~ J:공정위공시, null이면 전체)
+     */
+    List<Disclosure> getDisclosures(String stockCode, String startDate, String endDate, String publicationType);
+
     // === 다중회사 ===
 
     List<FinancialAccount> getMultiFinancialAccounts(List<String> stockCodes, String year, String reportCode);

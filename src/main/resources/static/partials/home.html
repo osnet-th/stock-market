@@ -1,0 +1,74 @@
+            <!-- ========== HOME (셸: 헤더 + 브리핑 + 포트폴리오 요약) ========== -->
+            <!-- 지표 본문은 home-indicators, 우측 패널은 home-side partial 로 분리 (#114) -->
+            <div x-show="currentPage === 'home'" x-cloak>
+
+                <!-- 제목 행 — 기간·정규화 모드는 목업대로 맨 우측 최상단 -->
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 min-w-0">
+                        <h2 class="dc-h1">오늘의 시장</h2>
+                        <span class="dc-meta font-mono-num" x-text="getHomeAsOfLabel()"></span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 shrink-0">
+                        <div class="flex gap-1">
+                            <template x-for="r in homeDashboard.ranges" :key="'range-' + r.key">
+                                <button @click="setHomeRange(r.key)"
+                                    class="text-xs px-3 py-1.5 rounded-lg border transition"
+                                    :class="homeDashboard.range === r.key
+                                        ? 'text-white font-semibold' : 'bg-white text-gray-600 hover:border-gray-400'"
+                                    :style="homeDashboard.range === r.key
+                                        ? 'background-color:var(--dc-blue);border-color:var(--dc-blue)'
+                                        : 'border-color:var(--dc-border)'"
+                                    x-text="r.label"></button>
+                            </template>
+                        </div>
+                        <button @click="toggleHomeMode()"
+                            class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-gray-400 transition"
+                            :title="getHomeModeNote()"
+                            x-text="getHomeModeLabel()"></button>
+                    </div>
+                </div>
+
+                <!-- 브리핑 카드 + 포트폴리오 다크 카드 (목업: 같은 행) -->
+                <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto] gap-4 mb-4 items-stretch">
+                    <div class="dc-card px-5 py-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+                        <span class="dc-meta shrink-0">오늘 브리핑</span>
+                        <template x-if="getHomeBriefing().length === 0">
+                            <span class="text-xs text-gray-300">관심 지표를 추가하면 여기에 오늘 변화가 요약됩니다</span>
+                        </template>
+                        <template x-for="b in getHomeBriefing()" :key="'brief-' + b.key">
+                            <span class="flex items-baseline gap-2">
+                                <span class="text-sm text-gray-700" x-text="b.name"></span>
+                                <span class="text-sm font-semibold font-mono-num"
+                                    :style="'color:' + (b.direction === 'up' ? 'var(--dc-red)'
+                                        : b.direction === 'down' ? 'var(--dc-blue)' : 'var(--dc-muted)')"
+                                    x-text="b.delta"></span>
+                            </span>
+                        </template>
+                    </div>
+
+                    <template x-if="hasHomePortfolioSummary()">
+                        <div @click="navigateTo('portfolio')"
+                            class="bg-gray-900 rounded-xl px-5 py-4 cursor-pointer hover:bg-gray-800 transition
+                                   flex flex-wrap items-center gap-x-5 gap-y-2 xl:min-w-[420px]">
+                            <div class="shrink-0">
+                                <p class="text-[11px] text-gray-400 mb-0.5">내 포트폴리오</p>
+                                <p class="text-lg font-bold text-white font-mono-num"
+                                    x-text="formatKrwCompact(homeSummary.allocationStatus.totalEvaluated)"></p>
+                            </div>
+                            <div class="h-8 w-px bg-white/15 hidden sm:block"></div>
+                            <div class="shrink-0">
+                                <p class="text-[11px] text-gray-400 mb-0.5">안전 / 투자</p>
+                                <p class="text-sm font-mono-num text-gray-100">
+                                    <span :class="getHomeAllocationBucket('SAFE')?.bandExceeded ? 'text-red-300' : ''"
+                                        x-text="Number(getHomeAllocationBucket('SAFE')?.currentRatio || 0).toFixed(0) + '%'"></span>
+                                    <span class="text-gray-500 mx-1">/</span>
+                                    <span :class="getHomeAllocationBucket('INVEST')?.bandExceeded ? 'text-red-300' : ''"
+                                        x-text="Number(getHomeAllocationBucket('INVEST')?.currentRatio || 0).toFixed(0) + '%'"></span>
+                                </p>
+                            </div>
+                            <span x-show="hasHomeAllocationWarning()"
+                                class="text-[11px] px-2.5 py-1 rounded-md text-white font-medium shrink-0" style="background-color:var(--dc-red)">배분 밴드 초과</span>
+                        </div>
+                    </template>
+                </div>
+            </div>

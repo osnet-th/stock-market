@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.logging.infrastructure.filter;
 
 import com.thlee.stock.market.stockmarket.logging.application.DomainEventLogger;
+import com.thlee.stock.market.stockmarket.logging.application.annotation.SkipAdminAudit;
 import com.thlee.stock.market.stockmarket.logging.infrastructure.config.AdminProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,6 +12,7 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.LinkedHashMap;
@@ -27,6 +29,9 @@ import java.util.Map;
  *   <li>화이트리스트 빈 리스트 → 전면 차단 (fail-close)</li>
  *   <li>인가 통과된 요청은 {@code afterCompletion} 에서 meta-audit 1건 기록
  *       ({@code ADMIN_LOG_ACCESS} business event, SOC2 CC6.1 / ISO 27001 A.12.4.3 패턴)</li>
+ *   <li>면제: 핸들러 메서드(또는 클래스) 에 {@link SkipAdminAudit} 가 부착되어 있고
+ *       응답 {@code status < 400} 인 경우에만 audit 발행을 건너뛴다.
+ *       4xx/5xx 응답은 어노테이션이 있어도 audit 발행 유지(시그널 손실 방지).</li>
  * </ul>
  */
 @Slf4j
@@ -55,18 +60,29 @@ public class AdminGuardInterceptor implements HandlerInterceptor {
     /**
      * {@code preHandle} 이 {@code true} 를 반환했을 때만 Spring 이 호출한다 —
      * 즉 인가 통과된 관리자 접근만 meta-audit 기록 (실패 접근은 AUDIT 도메인의 AOP 가 이미 수집).
+     *
+     * <p>{@link SkipAdminAudit} 가 부착되었고 응답 {@code status < 400} 인 경우에만 발행 스킵.
+     * 5xx/4xx 는 어노테이션이 있어도 발행 유지 — admin endpoint 실패 시그널을 잃지 않기 위함.
      */
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                                 Object handler, Exception ex) {
         try {
+            int status = response.getStatus();
+            // status committed 후 예외가 발생한 경우(downstream 필터/advice 등)에는
+            // 응답 status 는 200 으로 고정되어 있어도 실제 흐름은 실패 — audit 발행을 강제.
+            // SOC2/ISO 27001 시그널 보존 목적.
+            boolean failureAfterStatus = ex != null;
+            if (status < 400 && !failureAfterStatus && isAuditSkipped(handler)) {
+                return;
+            }
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             Long userId = (auth != null && auth.getPrincipal() instanceof Long id) ? id : null;
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("adminAction", true);
             payload.put("method", request.getMethod());
             payload.put("uri", request.getRequestURI());
-            payload.put("status", response.getStatus());
+            payload.put("status", status);
             if (ex != null) {
                 payload.put("errorClass", ex.getClass().getSimpleName());
             }
@@ -75,5 +91,13 @@ public class AdminGuardInterceptor implements HandlerInterceptor {
             // 감사 실패가 응답 반환을 막아서는 안 됨
             log.warn("ADMIN_LOG_ACCESS meta-audit 발행 실패: {}", publishFailure.getMessage());
         }
+    }
+
+    private boolean isAuditSkipped(Object handler) {
+        if (!(handler instanceof HandlerMethod hm)) {
+            return false;
+        }
+        return hm.hasMethodAnnotation(SkipAdminAudit.class)
+                || hm.getBeanType().isAnnotationPresent(SkipAdminAudit.class);
     }
 }

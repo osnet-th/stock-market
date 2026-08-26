@@ -1,12 +1,15 @@
 package com.thlee.stock.market.stockmarket.stock.application;
 
 import com.thlee.stock.market.stockmarket.stock.application.dto.BulkStockPriceResponse;
+import com.thlee.stock.market.stockmarket.stock.application.dto.PriceHistoryResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockPriceResponse;
 import com.thlee.stock.market.stockmarket.stock.domain.model.CachedStockPrice;
+import com.thlee.stock.market.stockmarket.stock.domain.model.ChartPeriod;
 import com.thlee.stock.market.stockmarket.stock.domain.model.DailyPrice;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ExchangeCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.MarketType;
 import com.thlee.stock.market.stockmarket.stock.domain.service.ExchangeRatePort;
+import com.thlee.stock.market.stockmarket.stock.domain.service.StockPort;
 import com.thlee.stock.market.stockmarket.stock.domain.service.StockPricePort;
 import com.thlee.stock.market.stockmarket.stock.presentation.dto.BulkStockPriceRequest;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,7 @@ public class StockPriceService {
 
     private final StockPricePort stockPricePort;
     private final ExchangeRatePort exchangeRatePort;
+    private final StockPort stockPort;
 
     public StockPriceResponse getPrice(String stockCode, MarketType marketType, ExchangeCode exchangeCode) {
         CachedStockPrice cached = stockPricePort.getPriceWithCacheInfo(stockCode, marketType, exchangeCode);
@@ -83,12 +87,39 @@ public class StockPriceService {
         return new BulkStockPriceResponse(prices);
     }
 
+    /** 상장일 조회 없이 전구간을 커버하기 위한 기본 시작일 — KIS는 실데이터 존재 구간만 반환한다. */
+    private static final LocalDate PRICE_HISTORY_DEFAULT_FROM = LocalDate.of(1960, 1, 1);
+
     /**
-     * 일봉 히스토리. stocknote 종목 차트(line + scatter overlay) 에서 사용.
-     * 현재 포트 기본 구현은 빈 리스트 반환 — 실제 KIS inquire-daily-itemchartprice 연동은 후속.
+     * 기간별(일/주/월봉) 가격 히스토리 조회. 국내 6자리 코드와 미국 영문 티커를 지원한다.
+     *
+     * @param period 봉 주기
+     * @param from   시작일 (null이면 1960-01-01 — 상장 이후 전구간)
+     * @param to     종료일 (null이면 오늘)
      */
-    public List<DailyPrice> getDailyHistory(String stockCode, MarketType marketType, ExchangeCode exchangeCode,
-                                            LocalDate from, LocalDate to) {
-        return stockPricePort.getDailyHistory(stockCode, marketType, exchangeCode, from, to);
+    public PriceHistoryResponse getPriceHistory(String stockCode, ChartPeriod period,
+                                                LocalDate from, LocalDate to) {
+        LocalDate effectiveFrom = from != null ? from : PRICE_HISTORY_DEFAULT_FROM;
+        LocalDate effectiveTo = to != null ? to : LocalDate.now();
+        Listing listing = resolveListing(stockCode);
+        List<DailyPrice> prices = stockPricePort.getPriceHistory(
+            stockCode, listing.marketType(), listing.exchangeCode(), period, effectiveFrom, effectiveTo);
+        return PriceHistoryResponse.from(stockCode, period, prices);
     }
+
+    /**
+     * 종목코드 형태로 시장 해석 — 6자리 숫자는 국내(기간별시세 API는 시장구분 "J" 공통이라 KOSPI/KRX로 충분),
+     * 티커는 종목 마스터에서 거래소를 찾고 미존재 시 나스닥 가정 (오판 시 KIS 조회 실패 → 빈 리스트 degrade).
+     */
+    private Listing resolveListing(String stockCode) {
+        if (stockCode.matches("\\d{6}")) {
+            return new Listing(MarketType.KOSPI, ExchangeCode.KRX);
+        }
+        return stockPort.findByCode(stockCode.toUpperCase())
+            .filter(stock -> stock.marketType() != null && !stock.marketType().isDomestic())
+            .map(stock -> new Listing(stock.marketType(), stock.exchangeCode()))
+            .orElse(new Listing(MarketType.NASDAQ, ExchangeCode.NAS));
+    }
+
+    private record Listing(MarketType marketType, ExchangeCode exchangeCode) {}
 }

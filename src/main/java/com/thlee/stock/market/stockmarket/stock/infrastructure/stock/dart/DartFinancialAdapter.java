@@ -74,6 +74,14 @@ public class DartFinancialAdapter implements StockFinancialPort {
     }
 
     @Override
+    public List<Disclosure> getDisclosures(String stockCode, String startDate, String endDate, String publicationType) {
+        String corpCode = corpCodeCache.getCorpCode(stockCode);
+        DartDisclosureListResponse response =
+                dartApiClient.fetchDisclosureList(corpCode, startDate, endDate, publicationType, 1, 100);
+        return response.getList().stream().map(this::toDisclosure).toList();
+    }
+
+    @Override
     public List<FinancialAccount> getMultiFinancialAccounts(List<String> stockCodes, String year, String reportCode) {
         String corpCodes = corpCodeCache.getCorpCodes(stockCodes);
         DartApiResponse<DartMultiAcntItem> response = dartApiClient.fetchMultiAccount(corpCodes, year, reportCode);
@@ -165,7 +173,19 @@ public class DartFinancialAdapter implements StockFinancialPort {
                 item.getThstrmAmount(),
                 item.getFrmtrmNm(),
                 item.getFrmtrmAmount(),
+                item.getBfefrmtrmNm(),
+                item.getBfefrmtrmAmount(),
                 item.getCurrency()
+        );
+    }
+
+    private Disclosure toDisclosure(DartDisclosureItem item) {
+        return new Disclosure(
+                item.getRceptNo(),
+                item.getReportNm(),
+                item.getFlrNm(),
+                item.getRceptDt(),
+                item.getRm()
         );
     }
 

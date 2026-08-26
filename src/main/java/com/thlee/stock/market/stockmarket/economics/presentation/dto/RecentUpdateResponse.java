@@ -31,6 +31,7 @@ public record RecentUpdateResponse(
     public record GlobalUpdate(
         String countryName,
         String indicatorType,
+        String indicatorTypeDisplayName,
         String dataValue,
         String previousDataValue,
         String cycle,
@@ -40,6 +41,7 @@ public record RecentUpdateResponse(
             return new GlobalUpdate(
                 latest.getCountryName(),
                 latest.getIndicatorType().name(),
+                latest.getIndicatorType().getDisplayName(),
                 latest.getDataValue(),
                 latest.getPreviousDataValue(),
                 latest.getCycle(),

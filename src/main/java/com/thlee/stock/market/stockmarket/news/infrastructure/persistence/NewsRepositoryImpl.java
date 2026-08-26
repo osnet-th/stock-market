@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -70,6 +71,26 @@ public class NewsRepositoryImpl implements NewsRepository {
                 .collect(Collectors.toList());
 
         return new PageResult<>(newsList, page, size, entityPage.getTotalElements());
+    }
+
+    @Override
+    public List<News> findLatestByKeywordIds(List<Long> keywordIds, int size) {
+        if (keywordIds == null || keywordIds.isEmpty()) {
+            return List.of();
+        }
+        return newsJpaRepository
+                .findByKeywordIdInOrderByPublishedAtDesc(keywordIds, PageRequest.of(0, size))
+                .stream()
+                .map(NewsMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public long countByKeywordIdsSince(List<Long> keywordIds, LocalDateTime since) {
+        if (keywordIds == null || keywordIds.isEmpty()) {
+            return 0L;
+        }
+        return newsJpaRepository.countByKeywordIdInAndCreatedAtGreaterThanEqual(keywordIds, since);
     }
 
     @Override

@@ -1,0 +1,134 @@
+            <!-- ========== HOME / 우측 패널 (#114) ========== -->
+            <div x-show="currentPage === 'home'" x-cloak class="space-y-4">
+
+                <!-- ① 확인이 필요한 것 -->
+                <div class="dc-card p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="dc-title">확인이 필요한 것</h3>
+                        <span x-show="getHomeAlerts().length > 0"
+                            class="text-[10px] px-1.5 py-0.5 rounded-full text-white font-medium" style="background-color:var(--dc-red)"
+                            x-text="getHomeAlerts().length"></span>
+                    </div>
+
+                    <template x-if="getHomeAlerts().length === 0">
+                        <p class="text-xs text-gray-400 py-4 text-center bg-gray-50 rounded-lg">
+                            확인이 필요한 항목이 없습니다.
+                        </p>
+                    </template>
+
+                    <div class="space-y-2">
+                        <template x-for="alert in getHomeAlerts()" :key="'alert-' + alert.key">
+                            <div class="rounded-lg overflow-hidden flex"
+                                :style="'background-color:' + getHomeAlertTone(alert.tone).bg">
+                                <div class="w-[3px] shrink-0"
+                                    :style="'background-color:' + getHomeAlertTone(alert.tone).accent"></div>
+                                <div class="px-3 py-2.5 min-w-0">
+                                    <p class="text-xs font-semibold"
+                                        :style="'color:' + getHomeAlertTone(alert.tone).accent" x-text="alert.title"></p>
+                                    <p class="text-[11px] text-gray-600 mt-1 leading-relaxed" x-text="alert.body"></p>
+                                    <button @click="alert.go()" class="text-[11px] font-medium mt-1.5 hover:underline"
+                                        :style="'color:' + getHomeAlertTone(alert.tone).accent" x-text="alert.cta"></button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ② 내 키워드 뉴스 -->
+                <div class="dc-card p-5">
+                    <div class="flex items-baseline justify-between mb-3">
+                        <h3 class="dc-title">내 키워드 뉴스</h3>
+                        <span class="text-[11px] text-gray-400"
+                            x-text="homeSummary.newsFeed
+                                ? homeSummary.newsFeed.keywordCount + '개 키워드 · 오늘 ' + homeSummary.newsFeed.todayCount + '건'
+                                : ''"></span>
+                    </div>
+
+                    <!-- 조회 실패(null)와 키워드 0개를 구분한다. 둘 다 "키워드가 없습니다"로 보이면
+                         403/네트워크 실패를 사용자가 자기 상태 문제로 오해한다 (#114 review L6) -->
+                    <template x-if="!homeSummary.newsFeed">
+                        <p class="text-xs text-gray-400 py-4 text-center bg-gray-50 rounded-lg">
+                            뉴스를 불러오지 못했습니다.
+                        </p>
+                    </template>
+
+                    <template x-if="homeSummary.newsFeed && homeSummary.newsFeed.keywordCount === 0">
+                        <div class="py-4 text-center bg-gray-50 rounded-lg">
+                            <p class="text-xs text-gray-400 mb-2">등록한 키워드가 없습니다.</p>
+                            <button @click="navigateTo('keywords')"
+                                class="text-xs text-blue-600 hover:text-blue-800 font-medium">키워드 등록하기 &rarr;</button>
+                        </div>
+                    </template>
+
+                    <template x-if="homeSummary.newsFeed && homeSummary.newsFeed.keywordCount > 0
+                        && homeSummary.newsFeed.items.length === 0">
+                        <p class="text-xs text-gray-400 py-4 text-center bg-gray-50 rounded-lg">
+                            아직 수집된 기사가 없습니다.
+                        </p>
+                    </template>
+
+                    <div class="space-y-2.5">
+                        <template x-for="news in (homeSummary.newsFeed ? homeSummary.newsFeed.items : [])"
+                            :key="'feed-' + news.id">
+                            <a :href="news.originalUrl" target="_blank" rel="noopener" class="block group">
+                                <div class="flex items-center gap-1.5 mb-0.5">
+                                    <span x-show="news.keyword"
+                                        class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0"
+                                        x-text="news.keyword"></span>
+                                    <span class="text-[10px] text-gray-400 font-mono-num"
+                                        x-text="formatHomeNewsTime(news.publishedAt)"></span>
+                                </div>
+                                <p class="text-xs text-gray-700 leading-snug group-hover:text-blue-700 transition"
+                                    x-text="news.title"></p>
+                            </a>
+                        </template>
+                    </div>
+
+                    <button x-show="homeSummary.newsFeed && homeSummary.newsFeed.items.length > 0"
+                        @click="navigateTo('keywords')"
+                        class="w-full mt-3 text-[11px] text-gray-500 hover:text-gray-700 transition">
+                        키워드 메뉴에서 전체 보기 &rarr;
+                    </button>
+                </div>
+
+                <!-- ③ 월급 사용 비율 -->
+                <div class="dc-card p-5">
+                    <div class="flex items-baseline justify-between mb-3">
+                        <h3 class="dc-title">월급 사용 비율</h3>
+                        <span x-show="dashboardSummary.salary && dashboardSummary.salary.incomeInheritedFromMonth"
+                            class="text-[10px] text-gray-400">이전 월 상속</span>
+                    </div>
+
+                    <template x-if="getHomeSalaryBreakdown().length === 0">
+                        <div class="py-4 text-center bg-gray-50 rounded-lg">
+                            <p class="text-xs text-gray-400 mb-2">이번 달 지출 정보가 없습니다.</p>
+                            <button @click="navigateTo('salary')"
+                                class="text-xs text-blue-600 hover:text-blue-800 font-medium">지출 입력하기 &rarr;</button>
+                        </div>
+                    </template>
+
+                    <template x-if="getHomeSalaryBreakdown().length > 0">
+                        <div>
+                            <!-- 스택 바 -->
+                            <div class="flex h-2.5 rounded-full overflow-hidden mb-3">
+                                <template x-for="seg in getHomeSalaryBreakdown()" :key="'bar-' + seg.key">
+                                    <div :style="'width:' + seg.pct + '%;background-color:' + seg.color"
+                                        :title="seg.name + ' ' + seg.pctLabel"></div>
+                                </template>
+                            </div>
+                            <div class="space-y-1.5">
+                                <template x-for="seg in getHomeSalaryBreakdown()" :key="'row-' + seg.key">
+                                    <div class="flex items-center gap-2 text-[11px]">
+                                        <span class="inline-block w-2 h-2 rounded-sm shrink-0"
+                                            :style="'background-color:' + seg.color"></span>
+                                        <span class="text-gray-600 flex-1 truncate" x-text="seg.name"></span>
+                                        <span class="text-gray-700 font-mono-num" x-text="seg.pctLabel"></span>
+                                        <span class="text-gray-400 font-mono-num w-14 text-right"
+                                            x-text="seg.amountLabel"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>

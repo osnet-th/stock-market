@@ -19,6 +19,7 @@ public class SpendingConfigMapper {
                 YearMonthConverter.toLocalDate(domain.getEffectiveFromMonth()),
                 domain.getAmount(),
                 domain.getMemo(),
+                domain.getBudget(),
                 domain.getCreatedAt(),
                 domain.getUpdatedAt()
         );
@@ -32,6 +33,7 @@ public class SpendingConfigMapper {
                 YearMonthConverter.toYearMonth(entity.getEffectiveFromMonth()),
                 entity.getAmount(),
                 entity.getMemo(),
+                entity.getBudget(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

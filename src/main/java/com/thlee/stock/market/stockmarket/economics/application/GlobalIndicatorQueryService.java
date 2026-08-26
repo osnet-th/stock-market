@@ -61,6 +61,14 @@ public class GlobalIndicatorQueryService {
     }
 
     /**
+     * 단일 지표 시계열 조회: (countryName, indicatorType) 기준 최근 limit개 snapshotDate 오름차순
+     */
+    @Transactional(readOnly = true)
+    public List<GlobalIndicator> findHistory(String countryName, GlobalEconomicIndicatorType indicatorType, int limit) {
+        return globalIndicatorRepository.findHistory(countryName, indicatorType, limit);
+    }
+
+    /**
      * 전체 최신값 조회 (관심 지표 enrichment용)
      */
     @Transactional(readOnly = true)

@@ -1,14 +1,19 @@
 package com.thlee.stock.market.stockmarket.stock.presentation;
 
+import com.thlee.stock.market.stockmarket.stock.application.DisclosureQueryService;
+import com.thlee.stock.market.stockmarket.stock.application.FinancialTimelineService;
 import com.thlee.stock.market.stockmarket.stock.application.StockFinancialService;
 import com.thlee.stock.market.stockmarket.stock.application.dto.*;
 import com.thlee.stock.market.stockmarket.stock.domain.model.IndexClassCode;
+import com.thlee.stock.market.stockmarket.stock.domain.model.PublicationType;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ReportCode;
+import com.thlee.stock.market.stockmarket.stock.domain.model.TimelineItem;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/stocks")
@@ -16,6 +21,8 @@ import java.util.List;
 public class StockFinancialController {
 
     private final StockFinancialService stockFinancialService;
+    private final FinancialTimelineService financialTimelineService;
+    private final DisclosureQueryService disclosureQueryService;
 
     // === 단일회사 API ===
 
@@ -91,6 +98,29 @@ public class StockFinancialController {
             @RequestParam ReportCode reportCode) {
         return ResponseEntity.ok(
                 stockFinancialService.getPublicFundUsages(stockCode, year, reportCode.getCode()));
+    }
+
+    // === 타임라인 API ===
+
+    @GetMapping("/{stockCode}/financial/timeline")
+    public ResponseEntity<FinancialTimelineResponse> getFinancialTimeline(
+            @PathVariable String stockCode,
+            @RequestParam(defaultValue = "5") int years,
+            @RequestParam(defaultValue = "CFS") String fsDiv,
+            @RequestParam(required = false) Set<TimelineItem> items) {
+        return ResponseEntity.ok(financialTimelineService.getTimeline(stockCode, years, fsDiv, items));
+    }
+
+    // === 공시 목록 API ===
+
+    @GetMapping("/{stockCode}/disclosures")
+    public ResponseEntity<List<DisclosureResponse>> getDisclosures(
+            @PathVariable String stockCode,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(required = false) List<PublicationType> types) {
+        return ResponseEntity.ok(
+                disclosureQueryService.getDisclosures(stockCode, fromDate, toDate, types));
     }
 
     // === 옵션 API ===

@@ -4,6 +4,26 @@
 
 ---
 
+# 🚧 Section 0: 필수 하네스
+
+- 모든 작업 제어 규칙은 [docs/ai/agent-harness.md](docs/ai/agent-harness.md)를 따른다.
+- 작업 시작 전 반드시 [docs/ai/agent-harness.md](docs/ai/agent-harness.md)를 읽고 적용한다.
+- 이 문서와 공통 하네스 문서가 충돌하면 더 보수적인 규칙을 따른다.
+- `AGENTS.md`와 `CLAUDE.md`는 동일한 참조 구조를 유지한다.
+- 공통 정책 변경은 [docs/ai/agent-harness.md](docs/ai/agent-harness.md)에 반영한다.
+- 래퍼 문서 변경이 필요하면 `AGENTS.md`와 `CLAUDE.md`에 동일하게 반영한다. 의도적으로 차이를 둘 경우 plan에 차이, 사유, 승인 여부를 명시한다.
+
+## 빠른 확인
+
+- 응답 시 항상 "태형님"이라고 호칭한다.
+- 코드 구현이나 수정은 승인된 `docs/plans/` plan 문서가 있을 때만 진행한다.
+- 작업 흐름은 착수 → brainstorm → plan/plan-approval → implement → review → explain(구현 이해 게이트) → verify → pr → merge 단계를 따르고, 단계는 `{worktree}/.claude/issues/{이슈번호}/stage` 마커로 관리한다.
+- issue 착수는 `scripts/start-issue-worktree.sh {이슈번호}`, PR/병합은 `gh` CLI를 사용한다. 병합은 태형님 승인 후에만 수행한다.
+- 커밋 메시지와 PR 본문에는 AI/도구 작성자 정보(`Co-Authored-By` 등)를 포함하지 않는다.
+- brainstorm/plan/리뷰 결과/구현 설명 4종은 [docs/ai/notion-guide.md](docs/ai/notion-guide.md)에 따라 Notion(프로젝트 플래너 > stock-market)에 동기화한다.
+
+---
+
 # 📋 Section 1: 프로젝트 개요
 
 ## 프로젝트 정보
@@ -86,7 +106,7 @@
 3. **행위 중심 모델링**: Anemic Model 지양, 도메인 메서드로 규칙 표현
 4. **요청받지 않은 리팩토링/API 변경 금지**
 5. **구조 변경 시 허락 필수**
-6. **작업 계획 필수**: 코드 작성 전 `.claude/plans`에 md 파일로 작성 → 승인 후 구현
+6. **작업 계획 필수**: 코드 작성 전 `docs/plans/`에 plan 문서 작성 → 승인 후 구현 ([docs/ai/gates/planning-gate.md](docs/ai/gates/planning-gate.md))
 7. **Entity 작성 시 사전 승인 필수**
 8. **테스트 가능성** : 코드는 테스트 가능성을 고려하여 테스트 작성이 가능한 코드로 구현합니다.
 9. **커뮤니케이션**: 응답 시 항상 "태형님" 호칭 사용
@@ -95,54 +115,23 @@
 
 ## 설계 및 구현 프로세스
 
-**CRITICAL: 코드 구현이나 수정은 최소한 하나의 설계 문서 또는 계획서가 없는 경우 절대 진행하지 않습니다.**
+**CRITICAL: 코드 구현이나 수정은 승인된 `docs/plans/` plan 문서가 없는 경우 절대 진행하지 않습니다.**
 
-1. **설계 문서 작성**: `.claude/designs/모듈명/` 하위에 설계 문서 작성
-2. **설계 승인 대기**: 사용자 승인 후 구현 시작
-3. **설계 준수 구현**: 승인된 설계 문서의 내용을 **반드시 준수**하여 구현
-4. **설계 이탈 금지**: 설계와 다른 구현 절대 금지, 변경 필요 시 재승인 필요
+계획·승인·구현·리뷰·검증·PR·병합 절차는 [docs/ai/agent-harness.md](docs/ai/agent-harness.md)의 Mandatory Workflow와 단계별 gate 문서를 따릅니다.
+
+- 산출물 경로: 브레인스토밍은 `docs/brainstorms/`, plan은 `docs/plans/` ([docs/ai/gates/planning-gate.md](docs/ai/gates/planning-gate.md))
+- 기존 `.claude/designs/`, `.claude/analyzes/` 문서는 legacy reference로만 읽고 신규 문서는 작성하지 않습니다.
+- plan 이탈 금지: plan과 다른 구현 절대 금지, 변경 필요 시 plan 갱신 후 재승인 필요
 
 ## 버그 및 문제 발견 시 프로세스
 
-### 문제 발견 시 원칙
-
-**CRITICAL: 문제 발견 시 즉시 수정 절대 금지**. 아래 프로세스를 반드시 따름:
-
-1. **문제 분석 및 문서화**
-   - `.claude/analyzes/{모듈명}/{문제명}/{문제명}.md` 작성
-   - 현재 상태, 문제점, 근본 원인, 영향 범위 분석
-   - 코드 위치 명시 (파일:라인)
-
-2. **해결 방안 설계**
-   - `.claude/designs/{모듈명}/{해결방안명}/{해결방안명}.md` 작성
-   - 또는 기존 설계 문서 업데이트 (변경 사항 명시)
-   - 해결 방안, 구현 계획, 테스트 계획 포함
-
-3. **승인 대기**
-   - 사용자 승인 후에만 수정 진행
-   - 승인 없이 코드 수정 절대 금지
-
-### 구현 중 문제 발견 시
-
-- **즉시 구현 중단**
-- **설계 단계로 복귀**
-- 설계 문서 업데이트 (발견된 문제 및 해결 방안 추가)
-- 재승인 후 구현 재개
-
-### 예외 사항
-
-**다음 경우에만** 즉시 수정 가능:
-- 린터/포맷터 자동 수정 (코드 로직 변경 없음)
-- 명백한 컴파일 에러 (오타, import 누락, 변수명 오류 등)
-- **단, 로직 변경이 필요한 버그는 반드시 위 프로세스 준수**
-
-### 원칙 요약
+**CRITICAL: 문제 발견 시 즉시 수정 절대 금지**. 분석 내용을 plan 문서의 "배경 / 현재 상태 / 문제점" 섹션에 통합하고 승인 후 수정합니다.
 
 ```
-문제 발견 → 분석 문서 작성 → 설계 문서 작성/업데이트 → 승인 대기 → 수정
+문제 발견 → docs/brainstorms/ Harness Brainstorm → docs/plans/ plan 작성/업데이트 → 승인 대기 → 수정
 ```
 
-**즉시 수정 시도는 규칙 위반**입니다.
+구현 중 문제를 발견하면 즉시 중단하고 plan 갱신·재승인 후 재개합니다. 즉시 수정 가능한 예외는 [docs/ai/stop-gates.md](docs/ai/stop-gates.md)의 Exceptions(린터/포맷터 자동 수정, 명백한 컴파일 에러)만 인정합니다.
 
 ## 작업 리스트 작성 규칙
 
@@ -156,7 +145,7 @@ TaskCreate 사용 시 다음 규칙을 준수:
 - **한 번에 하나의 작업만 진행**: 작업 리스트의 작업은 순서대로 한 단계씩만 수행
 - **완료 후 대기**: 현재 작업이 완료되면 즉시 다음 작업으로 넘어가지 않고, 사용자에게 다음 작업 진행 여부를 반드시 확인
 - **동시 진행 금지**: 여러 작업을 동시에 진행하지 않음
-- **작업 완료 시 체크 표시**: 설계 문서의 작업 리스트에서 작업을 완료하면 `- [ ]`를 `- [x]`로 변경하여 완료 처리
+- **작업 완료 시 체크 표시**: plan 문서의 작업 리스트에서 작업을 완료하면 `- [ ]`를 `- [x]`로 변경하여 완료 처리
 
 ## 아키텍처 및 계층 규칙
 
@@ -221,9 +210,9 @@ TaskCreate 사용 시 다음 규칙을 준수:
 
 # ⚠️ Section 5: CRITICAL
 
-## 설계 및 분석 문서 작성
+## plan 및 브레인스토밍 문서 작성
 
-**분석 문서** 및 **설계 문서** 작성 규칙은 [MD_WRITE_GUIDE.md](MD_WRITE_GUIDE.md)를 참고하세요.
+문서 작성 규칙은 [MD_WRITE_GUIDE.md](MD_WRITE_GUIDE.md)를 참고하세요.
 
 **핵심 원칙**:
 - 실용적 균형: 구현에 필요한 핵심 정보만 간결하게
@@ -231,14 +220,14 @@ TaskCreate 사용 시 다음 규칙을 준수:
 - 선택: 배경, 핵심 결정, 주의사항 (필요시에만)
 - 금지: 과도한 형식, 불필요한 섹션, 중복 내용
 
-**디렉토리 구조**:
-- 분석 문서: `.claude/analyzes/{모듈명}/{기능명}/{기능명}.md`
-- 분석 코드 예시: `.claude/analyzes/{모듈명}/{기능명}/examples/{컴포넌트명}-example.md`
-- 설계 문서: `.claude/designs/{모듈명}/{기능명}/{기능명}.md`
-- 설계 코드 예시: `.claude/designs/{모듈명}/{기능명}/examples/{컴포넌트명}-example.md`
+**디렉토리 구조** ([docs/ai/gates/planning-gate.md](docs/ai/gates/planning-gate.md)):
+- 브레인스토밍: `docs/brainstorms/{YYYY-MM-DD}-{topic}-brainstorm.md`
+- plan: `docs/plans/{YYYY-MM-DD}-{NNN}-{type}-{descriptive-name}-plan.md`
+- plan 예시 코드: `docs/plans/examples/{component}-example.md`
+- 기존 `.claude/analyzes/`, `.claude/designs/` 문서는 legacy reference 전용(신규 작성 금지)
 
 ## 구현 규칙
 
-- **승인된 설계 문서 필수 준수**
-- 설계와 다른 구현 발견 시 **즉시 중단 후 재승인 요청**
-- 구현 중 설계 변경 필요 시 **설계 문서 수정 후 재승인**
+- **승인된 `docs/plans/` plan 문서 필수 준수**
+- plan과 다른 구현 발견 시 **즉시 중단 후 재승인 요청**
+- 구현 중 plan 변경 필요 시 **plan 문서 수정 후 재승인**

@@ -74,6 +74,11 @@ public class PortfolioItemRepositoryImpl implements PortfolioItemRepository {
     }
 
     @Override
+    public List<Long> findUserIdsWithActiveItems() {
+        return portfolioItemJpaRepository.findDistinctUserIdsByStatus(PortfolioItemStatus.ACTIVE);
+    }
+
+    @Override
     public void delete(PortfolioItem item) {
         PortfolioItemEntity entity = PortfolioItemMapper.toEntity(item);
         portfolioItemJpaRepository.delete(entity);

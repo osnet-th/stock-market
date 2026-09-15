@@ -2,6 +2,8 @@ package com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence;
 
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -25,4 +27,7 @@ public interface PortfolioItemJpaRepository extends JpaRepository<PortfolioItemE
                                                                             PortfolioItemStatus status);
 
     List<PortfolioItemEntity> findByUserIdInAndStatus(List<Long> userIds, PortfolioItemStatus status);
+
+    @Query("select distinct i.userId from PortfolioItemEntity i where i.status = :status")
+    List<Long> findDistinctUserIdsByStatus(@Param("status") PortfolioItemStatus status);
 }

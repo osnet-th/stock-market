@@ -1,6 +1,7 @@
 /** Company Report - 기업분석리포트 (등록/조회). 7단계 위저드 작성 + 임시저장(draft), 정량 스냅샷 자동 산출 */
 const CompanyReportComponent = {
     companyReport: {
+        srim: { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false },
         view: 'list',            // list | form(위저드) | detail
 
         // ==== 목록 ====
@@ -104,6 +105,198 @@ const CompanyReportComponent = {
             { key: 'inventorySurge', label: '재고자산 급증' },
             { key: 'recentCapitalIncrease', label: '최근 5년 유상증자 이력' }
         ]
+    },
+
+    // S-RIM: 금액은 기본 통화 단위 decimal 문자열로 전송해 큰 정수 정밀도를 보존한다.
+    _crSrimEmpty() {
+        return { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
+            referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false };
+    },
+
+    crSrimChangeUnit() {
+        const s = this.companyReport.srim;
+        this.crSrimChanged();
+        const shift = Number(s.appliedScale) - Number(s.amountScale);
+        try {
+            const equity = this._crSrimDecimal(s.equity, '지배주주지분', shift);
+            const years = s.years.map(row => this._crSrimScaleYear(row, shift));
+            s.equity = equity ?? '';
+            s.years = years;
+            s.appliedScale = s.amountScale;
+        } catch (e) {
+            s.amountScale = s.appliedScale;
+            s.error = e.message;
+        }
+    },
+
+    _crSrimScaleYear(row, shift) {
+        const copy = { ...row };
+        ['previousEquity', 'expectedEquity', 'expectedIncome'].forEach(key => {
+            copy[key] = this._crSrimDecimal(row[key], 'ROE 근거값', shift) ?? '';
+        });
+        return copy;
+    },
+
+    // 서버의 StockMarketCode와 같은 규칙. 종목이 확정되기 전에는 통화를 단정하지 않는다.
+    crSrimCurrency() {
+        const code = this.companyReport.selected?.stockCode || this.companyReport.detail?.stockCode || '';
+        if (!code) return '';
+        return /^\d{6}$/.test(code) ? 'KRW' : 'USD';
+    },
+
+    crSrimCurrencyLabel() {
+        const currency = this.crSrimCurrency();
+        if (!currency) return '종목 선택 후 확정';
+        return currency === 'USD' ? '달러(USD)' : '원(KRW)';
+    },
+
+    crSrimChanged() {
+        this._crSrimGeneration = (this._crSrimGeneration || 0) + 1;
+        const s = this.companyReport.srim;
+        s.result = null;
+        s.error = '';
+        s.loading = false;
+    },
+
+    crSrimAddYear() {
+        const s = this.companyReport.srim;
+        if (s.years.length >= 30) return;
+        const next = this._crSrimNextYear(s.years);
+        s.years.push({ year: next, mode: 'DIRECT', directRoe: '', previousEquity: '', expectedEquity: '', expectedIncome: '' });
+        if (!next) s.error = '연도가 상한(2200)에 도달해 기준 연도를 직접 입력해야 합니다.';
+        this.crSrimChanged();
+    },
+
+    // 첫 행은 당해 연도, 이후 행은 마지막 연도의 다음 해로 채운다.
+    _crSrimNextYear(years) {
+        const filled = years.map(r => Number(r.year)).filter(y => Number.isInteger(y) && y > 0);
+        const next = filled.length ? Math.max(...filled) + 1 : new Date().getFullYear();
+        return next >= 1900 && next <= 2200 ? String(next) : '';
+    },
+
+    crSrimRemoveYear(index) {
+        this.companyReport.srim.years.splice(index, 1);
+        this.crSrimChanged();
+    },
+
+    crSrimUseReference() {
+        const p = this.companyReport.preview?.snapshot?.priceMetrics;
+        if (p?.referencePrice == null || !p.referencePriceDate) return;
+        this.companyReport.srim.referencePrice = String(p.referencePrice);
+        this.companyReport.srim.referencePriceDate = p.referencePriceDate;
+        this.crSrimChanged();
+    },
+
+    _crSrimDecimal(value, label, shift = 0) {
+        const text = String(value ?? '').trim();
+        if (!text) return null;
+        if (text.length > 64 || !/^[+-]?\d+(\.\d+)?$/.test(text)) throw new Error(label + ': 숫자를 정확히 입력하세요.');
+        return this._crSrimShift(text, shift);
+    },
+
+    _crSrimShift(text, shift) {
+        const negative = text.startsWith('-');
+        const [whole, fraction = ''] = text.replace(/^[+-]/, '').split('.');
+        const digits = whole + fraction;
+        const point = whole.length + shift;
+        const expanded = point <= 0 ? '0.' + '0'.repeat(-point) + digits
+            : point >= digits.length ? digits + '0'.repeat(point - digits.length)
+            : digits.slice(0, point) + '.' + digits.slice(point);
+        const clean = expanded.replace(/^0+(?=\d)/, '').replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+        return (negative && Number(clean) !== 0 ? '-' : '') + clean;
+    },
+
+    _crSrimInput() {
+        const s = this.companyReport.srim;
+        const decimal = (v, label) => this._crSrimDecimal(v, label);
+        const currency = this.crSrimCurrency();
+        if (!currency) throw new Error('종목을 먼저 선택하세요.');
+        return { equity: this._crSrimDecimal(s.equity, '지배주주지분', Number(s.amountScale)), equityDate: s.equityDate || null,
+            shares: decimal(s.shares, '총 주식수'), sharesDate: s.sharesDate || null,
+            requiredReturn: this._crSrimDecimal(s.requiredReturn, '요구수익률', -2), currency: currency,
+            referencePrice: decimal(s.referencePrice, '비교 주가'), referencePriceDate: s.referencePriceDate || null,
+            years: s.years.map(row => this._crSrimYearInput(row)) };
+    },
+
+    _crSrimYearInput(row) {
+        const text = String(row.year ?? '').trim();
+        if (text && !/^\d{4}$/.test(text)) throw new Error('연도를 네 자리 정수로 입력하세요.');
+        return { year: text ? Number(text) : null, mode: row.mode,
+            directRoe: this._crSrimDecimal(row.directRoe, '예상 ROE', -2),
+            previousEquity: this._crSrimDecimal(row.previousEquity, '전기말 지분', Number(this.companyReport.srim.amountScale)),
+            expectedEquity: this._crSrimDecimal(row.expectedEquity, '당기말 지분', Number(this.companyReport.srim.amountScale)),
+            expectedIncome: this._crSrimDecimal(row.expectedIncome, '예상 순이익', Number(this.companyReport.srim.amountScale)) };
+    },
+
+    async crSrimCalculate() {
+        this.crSrimChanged();
+        const s = this.companyReport.srim;
+        const generation = this._crSrimGeneration;
+        s.loading = true;
+        try {
+            const result = await API.calculateCompanyReportSrim(this._crSrimInput());
+            if (generation === this._crSrimGeneration) s.result = result;
+        } catch (e) {
+            if (generation === this._crSrimGeneration) s.error = e?.message || 'S-RIM 계산에 실패했습니다.';
+        } finally {
+            if (generation === this._crSrimGeneration) s.loading = false;
+        }
+    },
+
+    _crSrimPopulate(saved) {
+        const s = this.companyReport.srim;
+        if (!saved?.input) return;
+        s.enabled = true;
+        const i = saved.input;
+        ['equity', 'equityDate', 'shares', 'sharesDate', 'referencePrice', 'referencePriceDate']
+            .forEach(key => { s[key] = i[key] == null ? '' : String(i[key]); });
+        s.requiredReturn = i.requiredReturn == null ? '' : this._crSrimShift(String(i.requiredReturn), 2);
+        s.years = (i.years || []).map(row => this._crSrimPopulateYear(row));
+        s.result = saved;
+    },
+
+    _crSrimPopulateYear(row) {
+        const result = { ...row };
+        ['year', 'previousEquity', 'expectedEquity', 'expectedIncome']
+            .forEach(key => { result[key] = row[key] == null ? '' : String(row[key]); });
+        result.directRoe = row.directRoe == null ? '' : this._crSrimShift(String(row.directRoe), 2);
+        return result;
+    },
+
+    // 서버가 보낸 plain decimal 문자열을 Number로 바꾸지 않고 반올림·자리구분한다 (2^53 초과 금액 보존).
+    crSrimNumber(value, digits = 2) {
+        const text = value == null ? '' : String(value).trim();
+        if (!/^[+-]?\d+(\.\d+)?$/.test(text)) return '—';
+        return this._crSrimFormat(text.replace(/^[+-]/, ''), digits, text.startsWith('-'));
+    },
+
+    _crSrimFormat(text, digits, negative) {
+        const [whole, fraction = ''] = text.split('.');
+        const [intPart, fracPart] = this._crSrimRoundHalfUp(whole, fraction, digits);
+        const sign = negative && /[1-9]/.test(intPart + fracPart) ? '-' : '';
+        return sign + BigInt(intPart).toLocaleString('ko-KR') + (fracPart ? '.' + fracPart : '');
+    },
+
+    _crSrimRoundHalfUp(whole, fraction, digits) {
+        const kept = fraction.slice(0, digits);
+        if (fraction.length <= digits || Number(fraction[digits]) < 5) return [whole, kept.replace(/0+$/, '')];
+        const carried = (BigInt(whole + kept) + 1n).toString().padStart(whole.length + digits, '0');
+        const cut = carried.length - digits;
+        return [carried.slice(0, cut) || '0', digits ? carried.slice(cut).replace(/0+$/, '') : ''];
+    },
+
+    // 소수 비율을 %로 표시한다. Number 곱셈 대신 문자열 자리이동을 써 지수 표기를 피한다.
+    crSrimPercent(value) {
+        return value == null ? '—' : this.crSrimNumber(this._crSrimShift(String(value), 2)) + '%';
+    },
+
+    crSrimPrice(scenario, currency) {
+        return scenario == null ? '—' : this.crSrimNumber(scenario.price, currency === 'USD' ? 2 : 0) + (currency === 'USD' ? ' 달러' : ' 원');
+    },
+
+    crSrimDifference(scenario) {
+        const value = scenario?.differencePercent;
+        return value == null ? '' : (Number(value) > 0 ? '+' : '') + this.crSrimNumber(value) + '%';
     },
 
     // ==================== 목록 ====================
@@ -632,6 +825,8 @@ const CompanyReportComponent = {
 
     // ==================== 폼 내부 헬퍼 ====================
     _crResetForm() {
+        this._crSrimGeneration = (this._crSrimGeneration || 0) + 1;
+        this.companyReport.srim = this._crSrimEmpty();
         this.companyReport.form = {
             manual: {
                 history: [], philosophyNote: '',
@@ -660,6 +855,7 @@ const CompanyReportComponent = {
 
     _crPopulateForm(detail) {
         this._crResetForm();
+        this._crSrimPopulate(detail.srim);
         const f = this.companyReport.form;
         const m = detail.manual || {};
         ['history', 'customers', 'suppliers', 'competitors', 'financialChanges', 'shareholderEvents', 'revenueForecasts']
@@ -714,6 +910,8 @@ const CompanyReportComponent = {
                     otherCurrent: pct(f.params.ratios.otherCurrent)
                 }
             },
+            srim: this.companyReport.srim.enabled ? this._crSrimInput() : null,
+            clearSrim: !this.companyReport.srim.enabled,
             draft: draft,
             draftStep: draftStep
         };

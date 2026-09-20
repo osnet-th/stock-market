@@ -15,8 +15,8 @@
   1차 결론 "명시적 findings 없음"은 2차에서 철회했다. 2차 findings 7건; docs/reviews/2026-09-19-company-report-srim-review.md 참조.
 - work(리뷰 반영) : 승인 및 완료 — 태형님 "전체 수정해줘". 2차 findings 7건 전부 수정. docs/works/2026-09-19-company-report-srim-work.md 참조.
 - validation: 승인 및 완료 — 태형님 "검증 진행해". 기존 테스트 117/117 통과, 실제 PostgreSQL에서 F3/F4 해소. 브라우저 E2E·HTTP 인증 응답은 환경 제약으로 미검증. docs/validations/2026-09-19-company-report-srim-validation.md 참조.
-- commit: 미진행.
-- push: 미진행.
+- commit: 승인 및 완료 — 태형님 "됐어 커밋하고 main 에 병합해줘". 커밋 4c075c7 (38파일). docs/commits/2026-09-19-company-report-srim-commit.md 참조.
+- push: 승인 및 완료 — 브랜치 푸시 후 main 병합(6c682b0) 및 origin/main 푸시 완료. 병합 후 테스트 134/134 통과. docs/pushes/2026-09-19-company-report-srim-push.md 참조.
 
 ## 작업공간
 - 기존 .gitignore 수정 및 untracked 파일은 사용자 작업으로 보존한다.
@@ -45,5 +45,5 @@
 - review: approved (2차 완료, findings 7건)
 - work(리뷰 반영): approved (7건 수정 완료)
 - validation: approved (완료, 일부 미검증 있음)
-- commit: pending
-- push: pending
+- commit: approved (완료)
+- push: approved (완료, main 병합·푸시까지)

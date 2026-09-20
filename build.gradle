@@ -62,7 +62,10 @@ dependencies {
     implementation 'org.jsoup:jsoup:1.18.3'
 
     // Apache HttpClient 5 — realestate 도메인 RestClient (interrupt-safe socket close)
-    implementation 'org.apache.httpcomponents.client5:httpclient5:5.4.1'
+    // 버전은 Spring Boot BOM에 위임한다. 5.4.1로 핀하면 dependency-management 플러그인이 이 버전을
+    // 전체에 강제해 elasticsearch-rest5-client가 요구하는 5.4.4까지 끌어내리는 반면 httpcore5-h2는
+    // BOM대로 5.3.6이 올라와, ClientH2UpgradeHandler 생성자 시그니처가 어긋나 ES 연결이 죽었다.
+    implementation 'org.apache.httpcomponents.client5:httpclient5'
 
     // Validation
     implementation 'org.springframework.boot:spring-boot-starter-validation'

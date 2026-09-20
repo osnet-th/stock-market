@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.companyreport.presentation.dto;
 
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.CompanyReportCommands;
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.SrimInputData;
 import com.thlee.stock.market.stockmarket.companyreport.domain.model.InvestmentGrades;
 import com.thlee.stock.market.stockmarket.companyreport.domain.model.ReportGrade;
 import com.thlee.stock.market.stockmarket.companyreport.domain.model.ReportManual;
@@ -25,13 +26,15 @@ public record CreateCompanyReportRequest(
         String gradeShareholderPolicy,
         ValuationParamsRequest valuationParams,
         Boolean draft,
-        Integer draftStep
+        Integer draftStep,
+        SrimInputData srim,
+        Boolean clearSrim
 ) {
 
     public CompanyReportCommands.Create toCommand(Long userId) {
         return new CompanyReportCommands.Create(
                 userId, stockCode, manual, toGrades(), ValuationParamsRequest.toParams(valuationParams),
-                Boolean.TRUE.equals(draft), draftStep);
+                Boolean.TRUE.equals(draft), draftStep, srim, Boolean.TRUE.equals(clearSrim));
     }
 
     private InvestmentGrades toGrades() {

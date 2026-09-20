@@ -26,18 +26,22 @@ public class CompanyReportWriteService {
     private final CompanyAnalysisReportRepository repository;
     private final CompanyReportSnapshotService snapshotService;
     private final ReportSnapshotJsonMapper snapshotJsonMapper;
+    private final SrimService srimService;
+    private final CompanyReportSnapshotPersistenceService snapshotPersistenceService;
 
     /**
      * 생성. 스냅샷 조립 실패 시에도 리포트는 저장하고(수동 입력 보존) 이후 새로고침으로 보완한다.
      */
     public Long create(CompanyReportCommands.Create command) {
         validateParams(command.params());
+        var srim = srimService.resolve(null, command.srim(), command.clearSrim(), command.draft(), command.stockCode());
         ReportSnapshot snapshot = assembleSafely(command.stockCode());
         CompanyAnalysisReport report = CompanyAnalysisReport.create(
                 command.userId(), command.stockCode(), stockNameOf(snapshot, command.stockCode()),
                 command.manual(), command.grades(), command.params(),
                 command.draft(), command.draftStep(),
                 toJsonOrNull(snapshot), snapshot != null ? LocalDateTime.now() : null);
+        report.updateSrim(srim);
         return repository.save(report).getId();
     }
 
@@ -46,6 +50,7 @@ public class CompanyReportWriteService {
         validateParams(command.params());
         CompanyAnalysisReport report = repository.findByIdAndUserId(command.id(), command.userId())
                 .orElseThrow(() -> new CompanyReportNotFoundException(command.id()));
+        report.updateSrim(srimService.resolve(report.getSrim(), command.srim(), command.clearSrim(), command.draft(), report.getStockCode()));
         report.updateManual(command.manual(), command.grades(), command.params(),
                 command.draft(), command.draftStep());
         repository.save(report);
@@ -58,8 +63,8 @@ public class CompanyReportWriteService {
         CompanyAnalysisReport report = repository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new CompanyReportNotFoundException(id));
         ReportSnapshot snapshot = snapshotService.assemble(report.getStockCode());
-        report.refreshSnapshot(snapshotJsonMapper.toJson(snapshot), LocalDateTime.now(), snapshot.stockName());
-        repository.save(report);
+        String stockName = report.resolveRefreshedStockName(snapshot.stockName());
+        snapshotPersistenceService.replace(id, userId, snapshotJsonMapper.toJson(snapshot), stockName);
     }
 
     @Transactional

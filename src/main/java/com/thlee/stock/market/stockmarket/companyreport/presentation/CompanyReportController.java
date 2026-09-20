@@ -1,6 +1,9 @@
 package com.thlee.stock.market.stockmarket.companyreport.presentation;
 
 import com.thlee.stock.market.stockmarket.companyreport.application.CompanyReportReadService;
+import com.thlee.stock.market.stockmarket.companyreport.application.SrimService;
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.SrimData;
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.SrimInputData;
 import com.thlee.stock.market.stockmarket.companyreport.application.CompanyReportWriteService;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.CompanyReportResults;
 import com.thlee.stock.market.stockmarket.companyreport.presentation.dto.CreateCompanyReportRequest;
@@ -29,6 +32,14 @@ public class CompanyReportController {
 
     private final CompanyReportWriteService writeService;
     private final CompanyReportReadService readService;
+    private final SrimService srimService;
+
+    @PostMapping("/srim/calculate")
+    public ResponseEntity<SrimData> calculateSrim(
+            @RequestBody SrimInputData input) {
+        CompanyReportSecurityContext.currentUserId();
+        return ResponseEntity.ok(srimService.preview(input));
+    }
 
     /**
      * 저장 전 자동 산출 미리보기 (스냅샷 조립, 저장 안 함)

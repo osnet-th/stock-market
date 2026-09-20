@@ -16,6 +16,7 @@ public class CompanyAnalysisReportMapper {
 
     private final ValuationParamsJsonConverter paramsConverter;
     private final ReportManualJsonConverter manualConverter;
+    private final SrimJsonConverter srimConverter;
 
     public CompanyAnalysisReportEntity toEntity(CompanyAnalysisReport d) {
         InvestmentGrades grades = d.getGrades();
@@ -26,7 +27,7 @@ public class CompanyAnalysisReportMapper {
                 grades.profitability(), grades.growth(), grades.businessCompetence(), grades.shareholderPolicy(),
                 d.isDraft(), d.getDraftStep(),
                 paramsConverter.toJson(d.getValuationParams()), d.getSnapshotJson(), d.getSnapshotAt(),
-                d.getCreatedAt(), d.getUpdatedAt()
+                d.getCreatedAt(), d.getUpdatedAt(), srimConverter.toJson(d.getSrim())
         );
     }
 
@@ -37,7 +38,7 @@ public class CompanyAnalysisReportMapper {
                 paramsConverter.fromJson(e.getValuationParamsJson()),
                 e.isDraft(), e.getDraftStep(),
                 e.getSnapshotJson(), e.getSnapshotAt(),
-                e.getCreatedAt(), e.getUpdatedAt()
+                e.getCreatedAt(), e.getUpdatedAt(), srimConverter.fromJson(e.getSrimJson())
         );
     }
 

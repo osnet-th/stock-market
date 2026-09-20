@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.companyreport.application;
 
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot;
+import com.thlee.stock.market.stockmarket.companyreport.domain.model.StockMarketCode;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.BulkHoldingRow;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.CompanyProfileData;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.ColumnMeta;
@@ -81,7 +82,7 @@ public class KrReportSnapshotAssembler implements ReportSnapshotAssembler {
 
     @Override
     public boolean supports(String stockCode) {
-        return stockCode != null && stockCode.matches("\\d{6}");
+        return StockMarketCode.isDomestic(stockCode);
     }
 
     @Override

@@ -84,6 +84,10 @@ public class CompanyAnalysisReportEntity {
     @Column(name = "snapshot", columnDefinition = "jsonb")
     private String snapshotJson;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "srim", columnDefinition = "jsonb")
+    private String srimJson;
+
     @Column(name = "snapshot_at")
     private LocalDateTime snapshotAt;
 
@@ -104,8 +108,9 @@ public class CompanyAnalysisReportEntity {
                                        ReportGrade gradeShareholderPolicy,
                                        boolean draft, Integer draftStep,
                                        String valuationParamsJson, String snapshotJson, LocalDateTime snapshotAt,
-                                       LocalDateTime createdAt, LocalDateTime updatedAt) {
+                                       LocalDateTime createdAt, LocalDateTime updatedAt, String srimJson) {
         this.id = id;
+        this.srimJson = srimJson;
         this.userId = userId;
         this.stockCode = stockCode;
         this.stockName = stockName;

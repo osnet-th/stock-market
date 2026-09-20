@@ -30,6 +30,7 @@ public class CompanyAnalysisReport {
     private ValuationParams valuationParams;
     private boolean draft;
     private Integer draftStep;
+    private SrimValuation srim;
     private String snapshotJson;
     private LocalDateTime snapshotAt;
     private final LocalDateTime createdAt;
@@ -40,8 +41,9 @@ public class CompanyAnalysisReport {
                                  ReportManual manual, InvestmentGrades grades, ValuationParams valuationParams,
                                  boolean draft, Integer draftStep,
                                  String snapshotJson, LocalDateTime snapshotAt,
-                                 LocalDateTime createdAt, LocalDateTime updatedAt) {
+                                 LocalDateTime createdAt, LocalDateTime updatedAt, SrimValuation srim) {
         this.id = id;
+        this.srim = srim;
         this.userId = userId;
         this.stockCode = stockCode;
         this.stockName = stockName;
@@ -68,7 +70,7 @@ public class CompanyAnalysisReport {
         LocalDateTime now = LocalDateTime.now();
         return new CompanyAnalysisReport(null, userId, normalizedStockCode, stockName, validManual,
                 orEmptyGrades(grades), requireParams(valuationParams),
-                draft, normalizeDraftStep(draft, draftStep), snapshotJson, snapshotAt, now, now);
+                draft, normalizeDraftStep(draft, draftStep), snapshotJson, snapshotAt, now, now, null);
     }
 
     /**
@@ -86,19 +88,19 @@ public class CompanyAnalysisReport {
     }
 
     /**
-     * 스냅샷 새로고침 (자동 산출 데이터만 교체)
+     * 스냅샷 새로고침 시 적용할 종목명. 새로 조회된 이름이 비어 있으면 기존 이름을 유지한다.
+     * 재무 컬럼 갱신은 S-RIM 등 사용자 입력을 덮지 않도록 저장소의 부분 갱신으로 수행한다.
      */
-    public void refreshSnapshot(String snapshotJson, LocalDateTime snapshotAt, String stockName) {
-        this.snapshotJson = snapshotJson;
-        this.snapshotAt = snapshotAt;
-        if (stockName != null && !stockName.isBlank()) {
-            this.stockName = stockName;
-        }
-        this.updatedAt = LocalDateTime.now();
+    public String resolveRefreshedStockName(String candidate) {
+        return candidate == null || candidate.isBlank() ? this.stockName : candidate;
     }
 
     public void assignId(Long id) {
         this.id = id;
+    }
+
+    public void updateSrim(SrimValuation srim) {
+        this.srim = srim;
     }
 
     // === 검증 ===

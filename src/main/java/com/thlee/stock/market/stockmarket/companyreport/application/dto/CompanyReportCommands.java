@@ -19,7 +19,9 @@ public final class CompanyReportCommands {
             InvestmentGrades grades,
             ValuationParams params,
             boolean draft,
-            Integer draftStep
+            Integer draftStep,
+            SrimInputData srim,
+            boolean clearSrim
     ) {}
 
     public record Update(
@@ -29,6 +31,8 @@ public final class CompanyReportCommands {
             InvestmentGrades grades,
             ValuationParams params,
             boolean draft,
-            Integer draftStep
+            Integer draftStep,
+            SrimInputData srim,
+            boolean clearSrim
     ) {}
 }

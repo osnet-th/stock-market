@@ -801,6 +801,9 @@ const API = {
 
     // Company Report (기업분석리포트)
     // preview/create/refresh 는 DART 10개년 조회를 포함해 오래 걸릴 수 있어 타임아웃을 넉넉히 준다
+    calculateCompanyReportSrim(input) {
+        return this.request('POST', '/api/company-reports/srim/calculate', input);
+    },
     previewCompanyReport(stockCode) {
         return this.request('GET', `/api/company-reports/preview?stockCode=${encodeURIComponent(stockCode)}`, null, { timeoutMs: 60000 });
     },

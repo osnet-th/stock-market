@@ -99,6 +99,30 @@ const API = {
         return this.request('DELETE', '/api/keywords/' + id + '?userId=' + userId);
     },
 
+    /**
+     * 키워드 레일 통계 (#115) — 총 건수·오늘 수집·마지막 성공·7일 스파크라인.
+     */
+    getKeywordStats(userId) {
+        return this.request('GET', '/api/keywords/stats?userId=' + userId);
+    },
+
+    /**
+     * 키워드 수정 (#115). 서버는 공유 리소스 제약 때문에 재구독으로 처리하므로
+     * 이름·지역이 바뀌면 응답의 id 가 요청한 id 와 다르다 — 응답 id 로 선택 상태를 갱신해야 한다.
+     */
+    updateKeyword(id, userId, keyword, region, active) {
+        return this.request('PUT', '/api/keywords/' + id + '?userId=' + userId,
+            { keyword, region, active });
+    },
+
+    bulkDeactivateKeywords(userId, keywordIds) {
+        return this.request('PATCH', '/api/keywords/bulk/deactivate?userId=' + userId, { keywordIds });
+    },
+
+    bulkDeleteKeywords(userId, keywordIds) {
+        return this.request('POST', '/api/keywords/bulk/delete?userId=' + userId, { keywordIds });
+    },
+
     // ECOS Indicators
     getEcosCategories() {
         return this.request('GET', '/api/economics/indicators/categories');
@@ -160,14 +184,47 @@ const API = {
         return this.request('POST', '/api/news/collect', { keywordId: keywordId, keyword: keyword, region: region });
     },
 
-    searchNews(query, startDate, endDate, region, page, size) {
-        let url = '/api/news/search?query=' + encodeURIComponent(query);
-        url += '&page=' + (page || 0);
-        url += '&size=' + (size || 20);
-        if (startDate) url += '&startDate=' + startDate;
-        if (endDate) url += '&endDate=' + endDate;
-        if (region) url += '&region=' + region;
+    /**
+     * 통합 뉴스 조회 (#115).
+     *
+     * 검색어가 없으면 "저장된 전체 뉴스"(내 키워드 전체)를 최신순으로 돌려준다 —
+     * 서버가 검색어 유무로 DB/ES 경로를 나눈다.
+     *
+     * @param {Object} opts query·keywordIds·startDate·endDate·region·field·sort·unreadOnly·page·size
+     */
+    searchNews(userId, opts) {
+        const o = opts || {};
+        let url = '/api/news/search?userId=' + userId;
+        url += '&page=' + (o.page || 0);
+        url += '&size=' + (o.size || 20);
+        if (o.query) url += '&query=' + encodeURIComponent(o.query);
+        if (o.startDate) url += '&startDate=' + o.startDate;
+        if (o.endDate) url += '&endDate=' + o.endDate;
+        if (o.region) url += '&region=' + o.region;
+        if (o.field) url += '&field=' + o.field;
+        if (o.sort) url += '&sort=' + o.sort;
+        if (o.unreadOnly) url += '&unreadOnly=true';
+        (o.keywordIds || []).forEach(id => { url += '&keywordIds=' + id; });
         return this.request('GET', url);
+    },
+
+    /**
+     * 수집 스케줄 상태 (#115) — 마지막/다음 실행, 연속 실패 키워드 수.
+     */
+    getCollectorSchedule(userId) {
+        return this.request('GET', '/api/news/collector/schedule?userId=' + userId);
+    },
+
+    markNewsRead(newsId, userId) {
+        return this.request('PATCH', '/api/news/' + newsId + '/read?userId=' + userId);
+    },
+
+    toggleNewsSaved(newsId, userId) {
+        return this.request('PATCH', '/api/news/' + newsId + '/save?userId=' + userId);
+    },
+
+    markAllNewsRead(userId, newsIds) {
+        return this.request('PATCH', '/api/news/read-all?userId=' + userId, { newsIds });
     },
 
     // Global Indicators

@@ -1,0 +1,587 @@
+            <!-- ========== 키워드 뉴스 워크스페이스 (#115) ==========
+                 키워드(레일) + 뉴스 검색(스트림)을 한 화면으로 통합.
+                 목업: 키워드 뉴스 워크스페이스 (단일파일).html -->
+            <div x-show="currentPage === 'keyword-news'" x-cloak @click="closeKwnMenus()">
+
+                <!-- 로그인 필요 안내 -->
+                <template x-if="!checkLoggedIn()">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-700">
+                        키워드 뉴스를 사용하려면 로그인이 필요합니다.
+                        <a href="/login.html" class="underline font-medium">로그인하기</a>
+                    </div>
+                </template>
+
+                <template x-if="checkLoggedIn()">
+                <div>
+                    <!-- ===== 헤더 ===== -->
+                    <div class="dc-card mb-4">
+                        <div class="p-4 flex flex-col gap-3.5">
+                            <!-- 제목 + 스케줄 + 액션 -->
+                            <div class="flex items-end justify-between gap-5 flex-wrap">
+                                <div class="flex items-baseline gap-3 flex-wrap">
+                                    <h2 class="dc-h1">키워드 뉴스</h2>
+                                    <span class="dc-meta"
+                                        x-text="'등록 ' + kwn.keywords.length + '개 · 활성 '
+                                            + kwn.keywords.filter(k => k.active).length + '개 · 오늘 수집 '
+                                            + kwn.todayTotal + '건'"></span>
+                                </div>
+
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <!-- 수집 스케줄 상태 -->
+                                    <div x-show="kwn.schedule"
+                                        class="flex items-center gap-3 px-3 py-1.5 rounded-lg border"
+                                        style="background:var(--dc-fill);border-color:var(--dc-border)">
+                                        <span class="flex items-center gap-1.5">
+                                            <span class="w-1.5 h-1.5 rounded-full"
+                                                :style="'background-color:' + kwnScheduleDotColor()"></span>
+                                            <span class="text-[11px]" style="color:#4a5158"
+                                                x-text="kwnScheduleLabel()"></span>
+                                        </span>
+                                        <span class="font-mono-num text-[10.5px]" style="color:var(--dc-muted)"
+                                            x-text="'마지막 ' + kwnRelativeTime(kwn.schedule && kwn.schedule.lastRunAt)"></span>
+                                        <span class="font-mono-num text-[10.5px]" style="color:var(--dc-blue)"
+                                            x-text="'다음 ' + kwnRelativeTime(kwn.schedule && kwn.schedule.nextRunAt)"></span>
+                                    </div>
+
+                                    <!-- 연속 실패 뱃지 -->
+                                    <span x-show="kwnFailedCount() > 0"
+                                        class="flex items-center gap-2 px-3 py-1 rounded-full text-[11px]"
+                                        style="background:var(--dc-red-soft);color:var(--dc-red)"
+                                        x-text="'연속 실패 ' + kwnFailedCount() + '개 · 재시도'"></span>
+
+                                    <button @click="collectKwnAll()" :disabled="kwn.collectingId !== null"
+                                        class="border rounded-[7px] px-3.5 py-2 text-xs transition disabled:opacity-50"
+                                        style="border-color:rgba(0,0,0,.14);background:#fff;color:var(--dc-sub)"
+                                        x-text="kwn.collectingId === -1 ? '수집 중...' : '지금 수집'"></button>
+
+                                    <button @click="openKwnAdd()"
+                                        class="border-none rounded-[7px] px-4 py-2 text-xs font-semibold text-white transition"
+                                        style="background:var(--dc-blue)">+ 키워드 등록</button>
+                                </div>
+                            </div>
+
+                            <!-- 필터 바 -->
+                            <div class="flex items-center gap-2.5 flex-wrap">
+                                <!-- 통합 검색 -->
+                                <div class="flex items-center gap-2.5 px-3.5 rounded-[9px] border"
+                                    style="flex:1 1 380px;min-width:280px;height:44px;background:var(--dc-fill)"
+                                    :style="'flex:1 1 380px;min-width:280px;height:44px;background:var(--dc-fill);border-color:'
+                                        + (kwn.query.trim() ? 'var(--dc-blue)' : 'rgba(0,0,0,.12)')">
+                                    <span class="text-sm" style="color:var(--dc-muted)">&#8981;</span>
+                                    <input x-model="kwn.query" @keydown.enter="loadKwnNews(0)"
+                                        :placeholder="kwnSearchPlaceholder()"
+                                        class="flex-1 min-w-0 border-none bg-transparent outline-none text-[13px]"
+                                        style="color:var(--dc-text)">
+                                    <button x-show="kwn.query.trim()" @click="kwn.query = ''; loadKwnNews(0)"
+                                        class="border-none bg-transparent text-sm cursor-pointer px-0.5"
+                                        style="color:var(--dc-muted)">&times;</button>
+                                </div>
+
+                                <!-- 검색 필드 -->
+                                <div class="kwn-seg">
+                                    <template x-for="f in [{v:'TITLE_CONTENT',n:'제목+본문'},{v:'TITLE',n:'제목만'}]" :key="f.v">
+                                        <button @click="kwn.field = f.v; loadKwnNews(0)"
+                                            :class="kwn.field === f.v ? 'is-on' : ''" x-text="f.n"></button>
+                                    </template>
+                                </div>
+
+                                <!-- 기간 -->
+                                <div class="kwn-seg">
+                                    <template x-for="p in [{v:1,n:'1D'},{v:7,n:'7D'},{v:30,n:'1M'},{v:999,n:'ALL'},{v:0,n:'직접 지정'}]" :key="p.v">
+                                        <button @click="setKwnPeriod(p.v)"
+                                            :class="(kwn.period === p.v ? 'is-on ' : '') + (p.v === 0 ? '' : 'font-mono-num')"
+                                            x-text="p.n"></button>
+                                    </template>
+                                </div>
+
+                                <!-- 직접 지정 날짜 -->
+                                <div x-show="kwn.period === 0" class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border"
+                                    style="border-color:var(--dc-blue-line);background:var(--dc-blue-soft)">
+                                    <input type="date" x-model="kwn.from" @change="loadKwnNews(0)"
+                                        class="border rounded-md px-2 py-1 font-mono-num text-[11px] bg-white outline-none"
+                                        style="border-color:rgba(0,0,0,.14)">
+                                    <span class="text-[11px]" style="color:#7d90ad">~</span>
+                                    <input type="date" x-model="kwn.to" @change="loadKwnNews(0)"
+                                        class="border rounded-md px-2 py-1 font-mono-num text-[11px] bg-white outline-none"
+                                        style="border-color:rgba(0,0,0,.14)">
+                                </div>
+
+                                <!-- 지역 -->
+                                <div class="kwn-seg">
+                                    <template x-for="r in ['전체','국내','해외']" :key="r">
+                                        <button @click="kwn.region = r; loadKwnNews(0)"
+                                            :class="kwn.region === r ? 'is-on' : ''" x-text="r"></button>
+                                    </template>
+                                </div>
+
+                                <!-- 안 읽은 것만 -->
+                                <button @click="kwn.unreadOnly = !kwn.unreadOnly; loadKwnNews(0)"
+                                    class="flex items-center gap-2 border rounded-lg px-3 py-2 text-[11.5px] whitespace-nowrap transition"
+                                    :style="kwn.unreadOnly
+                                        ? 'border-color:var(--dc-red);background:var(--dc-red-soft);color:var(--dc-red)'
+                                        : 'border-color:rgba(0,0,0,.14);background:#fff;color:#4a5158'">
+                                    <span class="w-[15px] h-[15px] rounded border flex items-center justify-center text-[10px] text-white"
+                                        :style="kwn.unreadOnly
+                                            ? 'border-color:var(--dc-red);background:var(--dc-red)'
+                                            : 'border-color:rgba(0,0,0,.14);background:#fff'"
+                                        x-text="kwn.unreadOnly ? '✓' : ''"></span>
+                                    안 읽은 것만
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== 본문 2단 (목업: vw<1120 이면 레일이 스트림 아래로) ===== -->
+                    <div class="flex flex-col min-[1120px]:flex-row gap-4 items-stretch min-[1120px]:items-start">
+
+                        <!-- ===== 좌: 키워드 레일 ===== -->
+                        <aside class="dc-card overflow-hidden flex flex-col order-2 min-[1120px]:order-1
+                                      w-full min-[1120px]:w-[296px] min-[1120px]:shrink-0
+                                      min-[1120px]:sticky min-[1120px]:top-4">
+                            <div class="px-4 pt-3.5 pb-3 flex flex-col gap-2.5 border-b"
+                                style="border-color:rgba(0,0,0,.07)">
+                                <div class="flex items-center justify-between gap-2.5">
+                                    <span class="dc-title">내 키워드</span>
+                                    <button @click="toggleKwnKwSort()"
+                                        class="border-none bg-transparent text-[11px] cursor-pointer p-0"
+                                        style="color:var(--dc-blue)" x-text="kwn.kwSort + ' ⇅'"></button>
+                                </div>
+
+                                <div class="flex items-center gap-2 px-2.5 rounded-[7px] border"
+                                    style="height:34px;border-color:rgba(0,0,0,.12);background:var(--dc-fill)">
+                                    <span class="text-xs" style="color:#98a0a7">&#8981;</span>
+                                    <input x-model="kwn.kwFilter" placeholder="키워드 찾기"
+                                        class="flex-1 min-w-0 border-none bg-transparent outline-none text-[11.5px]"
+                                        style="color:var(--dc-text)">
+                                </div>
+
+                                <div class="flex gap-1 flex-wrap">
+                                    <template x-for="f in ['전체','활성','비활성']" :key="f">
+                                        <button @click="kwn.kwState = f"
+                                            class="border rounded-full px-2.5 py-1 text-[10.5px] cursor-pointer transition"
+                                            :style="kwn.kwState === f
+                                                ? 'background:var(--dc-text);color:#fff;border-color:var(--dc-text)'
+                                                : 'background:#fff;color:#4a5158;border-color:rgba(0,0,0,.13)'"
+                                            x-text="f"></button>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- 선택 시 벌크 액션 -->
+                            <div x-show="kwn.selected.length > 0"
+                                class="flex items-center gap-2 px-4 py-2.5 border-b"
+                                style="background:var(--dc-blue-soft);border-color:#dbe4f2">
+                                <span class="flex-1 min-w-0 text-[11px]" style="color:var(--dc-blue)"
+                                    x-text="kwn.selected.length + '개 선택'"></span>
+                                <button @click="collectKwnAll()" :disabled="kwn.collectingId !== null"
+                                    class="border rounded-md px-2 py-1 text-[10.5px] bg-white disabled:opacity-50"
+                                    style="border-color:var(--dc-blue-line);color:var(--dc-blue)">수집</button>
+                                <button @click="bulkKwnDeactivate()"
+                                    class="border rounded-md px-2 py-1 text-[10.5px] bg-white"
+                                    style="border-color:var(--dc-blue-line);color:#4a5158">중단</button>
+                                <button @click="askKwnDelete(getKwnSelectedKeywords())"
+                                    class="border rounded-md px-2 py-1 text-[10.5px] bg-white"
+                                    style="border-color:var(--dc-red-line);color:var(--dc-red)">삭제</button>
+                                <button @click="clearKwnSelection()"
+                                    class="border-none bg-transparent text-[10.5px] p-0.5"
+                                    style="color:#6b737a">해제</button>
+                            </div>
+
+                            <!-- 키워드 목록 -->
+                            <div class="flex-1 min-h-0 overflow-y-auto flex flex-col
+                                        max-h-[300px] min-[1120px]:max-h-[620px]">
+                                <template x-if="kwn.kwLoading">
+                                    <div class="flex justify-center py-10"><div class="spinner"></div></div>
+                                </template>
+
+                                <template x-for="kw in getKwnRailKeywords()" :key="kw.id">
+                                    <div @click="toggleKwnSelect(kw)"
+                                        class="kwn-row flex items-center gap-2.5 px-4 py-2.5 border-b cursor-pointer"
+                                        style="border-color:rgba(0,0,0,.05)"
+                                        :style="'border-color:rgba(0,0,0,.05);border-left:3px solid '
+                                            + (kwn.selected.includes(kw.id) ? 'var(--dc-blue)' : 'transparent')
+                                            + ';background:' + (kwn.selected.includes(kw.id) ? 'var(--dc-blue-soft)' : '#fff')">
+
+                                        <div class="flex-1 min-w-0 flex flex-col gap-1">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                <span class="text-[12.5px]"
+                                                    :style="'font-weight:' + (kwn.selected.includes(kw.id) ? '600' : '500')
+                                                        + ';color:' + (kw.active ? 'var(--dc-text)' : '#98a0a7')"
+                                                    x-text="kw.keyword"></span>
+                                                <span class="text-[9px] px-1.5 py-px rounded"
+                                                    :style="kw.region === 'DOMESTIC'
+                                                        ? 'background:var(--dc-blue-soft);color:var(--dc-blue)'
+                                                        : 'background:var(--dc-sepia);color:var(--dc-sepia-text)'"
+                                                    x-text="kwnRegionLabel(kw.region)"></span>
+                                                <span x-show="kwnStat(kw.id).todayCount > 0"
+                                                    class="text-[9px] px-1.5 py-px rounded"
+                                                    style="background:var(--dc-red-soft);color:var(--dc-red)"
+                                                    x-text="'+' + kwnStat(kw.id).todayCount"></span>
+                                            </div>
+                                            <span class="font-mono-num text-[9.5px] whitespace-nowrap overflow-hidden text-ellipsis"
+                                                :style="'color:' + kwnRailMetaColor(kw)"
+                                                :title="kwnRailMetaTitle(kw)"
+                                                x-text="kwnRailMeta(kw)"></span>
+                                        </div>
+
+                                        <div class="w-[52px] h-[22px] flex-none" x-html="kwnSparkline(kw)"></div>
+                                        <span class="font-mono-num text-[11px] w-[34px] text-right flex-none"
+                                            style="color:#6b737a"
+                                            x-text="kwnStat(kw.id).totalCount.toLocaleString('ko-KR')"></span>
+
+                                        <!-- 케밥 메뉴 -->
+                                        <div class="relative flex-none">
+                                            <button @click="toggleKwnMenu(kw, $event)" title="키워드 관리"
+                                                class="kwn-kebab w-[26px] h-[26px] border-none rounded-md bg-transparent
+                                                       text-sm leading-none cursor-pointer"
+                                                style="color:#98a0a7">&ctdot;</button>
+
+                                            <div x-show="kwn.menuId === kw.id" @click.stop x-cloak
+                                                class="absolute right-0 top-[30px] z-30 w-[196px] bg-white rounded-[9px]
+                                                       overflow-hidden flex flex-col border"
+                                                style="border-color:rgba(0,0,0,.1);box-shadow:0 10px 30px rgba(0,0,0,.16)">
+                                                <button @click="collectKwnKeyword(kw, $event)"
+                                                    class="kwn-menu-item text-left border-none bg-white text-[11.5px] px-3 py-2.5"
+                                                    style="color:var(--dc-sub)">지금 수집</button>
+                                                <button @click="openKwnEdit(kw, $event)"
+                                                    class="kwn-menu-item text-left border-t bg-white text-[11.5px] px-3 py-2.5"
+                                                    style="color:var(--dc-sub);border-color:rgba(0,0,0,.06)">이름 · 수집 범위 수정</button>
+                                                <button @click="toggleKwnActive(kw, $event)"
+                                                    class="kwn-menu-item text-left border-t bg-white text-[11.5px] px-3 py-2.5"
+                                                    style="color:var(--dc-sub);border-color:rgba(0,0,0,.06)"
+                                                    x-text="kw.active ? '수집 중단 (비활성화)' : '수집 재개 (활성화)'"></button>
+                                                <button @click="askKwnDelete(kw, $event)"
+                                                    class="kwn-menu-item is-danger text-left border-t bg-white text-[11.5px] px-3 py-2.5"
+                                                    style="color:var(--dc-red);border-color:rgba(0,0,0,.06)">삭제</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <div x-show="!kwn.kwLoading && kwn.keywords.length === 0"
+                                    class="px-4 py-7 text-center">
+                                    <p class="text-[11.5px] mb-2" style="color:var(--dc-muted)">등록된 키워드가 없습니다.</p>
+                                    <button @click="openKwnAdd()" class="text-xs font-medium"
+                                        style="color:var(--dc-blue)">키워드 등록하기 &rarr;</button>
+                                </div>
+                                <div x-show="!kwn.kwLoading && kwn.keywords.length > 0 && getKwnRailKeywords().length === 0"
+                                    class="px-4 py-7 text-center text-[11.5px]" style="color:var(--dc-muted)">
+                                    조건에 맞는 키워드가 없습니다
+                                </div>
+                            </div>
+
+                            <button @click="openKwnAdd()"
+                                class="p-3 border-none border-t text-[11.5px] cursor-pointer"
+                                style="border-top:1px solid rgba(0,0,0,.07);background:var(--dc-fill);color:var(--dc-blue)">
+                                + 키워드 등록
+                            </button>
+                        </aside>
+
+                        <!-- ===== 우: 뉴스 스트림 ===== -->
+                        <section class="flex-1 min-w-0 order-1 min-[1120px]:order-2 flex flex-col gap-3">
+
+                            <!-- 결과 헤더 -->
+                            <div class="dc-card flex items-center justify-between gap-3.5 px-4 py-3 flex-wrap">
+                                <div class="flex items-center gap-2.5 flex-wrap min-w-0">
+                                    <span class="text-[13px] font-semibold" style="color:var(--dc-text)"
+                                        x-text="kwnResultTitle()"></span>
+                                    <span class="font-mono-num text-xs font-semibold" style="color:var(--dc-red)"
+                                        x-text="kwn.totalElements.toLocaleString('ko-KR') + '건'"></span>
+                                    <span class="text-[11px]" style="color:var(--dc-muted)" x-text="kwnResultNote()"></span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <template x-for="s in [{v:'LATEST',n:'최신'},{v:'RELEVANCE',n:'관련도'}]" :key="s.v">
+                                        <button @click="kwn.sort = s.v; loadKwnNews(0)"
+                                            :disabled="!kwn.query.trim() && s.v === 'RELEVANCE'"
+                                            class="border rounded-full px-3 py-1 text-[11px] transition disabled:opacity-40"
+                                            :style="kwn.sort === s.v
+                                                ? 'background:var(--dc-blue-soft);color:var(--dc-blue);border-color:var(--dc-blue-line)'
+                                                : 'background:#fff;color:#4a5158;border-color:rgba(0,0,0,.13)'"
+                                            x-text="s.n"></button>
+                                    </template>
+                                    <button @click="markAllKwnRead()"
+                                        class="border-none bg-transparent text-[11px] p-1"
+                                        style="color:var(--dc-blue)">모두 읽음</button>
+                                </div>
+                            </div>
+
+                            <!-- 선택 키워드 칩 -->
+                            <div x-show="kwn.selected.length > 0"
+                                class="dc-card flex items-center gap-2 flex-wrap px-3.5 py-2.5">
+                                <span class="text-[11px] flex-none" style="color:var(--dc-muted)">필터</span>
+                                <template x-for="kw in getKwnSelectedKeywords()" :key="kw.id">
+                                    <span class="flex items-center gap-2 pl-3 pr-2 py-1 border rounded-full text-[11.5px]"
+                                        style="border-color:var(--dc-blue-line);background:var(--dc-blue-soft);color:var(--dc-blue)">
+                                        <span x-text="kw.keyword"></span>
+                                        <button @click="toggleKwnSelect(kw)"
+                                            class="border-none bg-transparent text-xs px-0.5"
+                                            style="color:#7d90ad">&times;</button>
+                                    </span>
+                                </template>
+                                <button @click="clearKwnSelection()"
+                                    class="border-none bg-transparent text-[11px] ml-0.5"
+                                    style="color:#6b737a">전체 뉴스로 돌아가기</button>
+                            </div>
+
+                            <!-- 로딩 -->
+                            <div x-show="kwn.loading && kwn.list.length === 0" class="flex justify-center py-12">
+                                <div class="spinner"></div>
+                            </div>
+
+                            <!-- 날짜별 기사 -->
+                            <div class="flex flex-col gap-3.5">
+                                <template x-for="day in getKwnDayGroups()" :key="day.key">
+                                    <div class="flex flex-col gap-2">
+                                        <div class="flex items-center gap-2.5">
+                                            <span class="font-mono-num text-[11px] font-semibold" style="color:#4a5158"
+                                                x-text="day.label"></span>
+                                            <span class="text-[10.5px]" style="color:#98a0a7"
+                                                x-text="day.rows.length + '건'"></span>
+                                            <span class="flex-1 h-px" style="background:rgba(0,0,0,.08)"></span>
+                                        </div>
+
+                                        <template x-for="item in day.rows" :key="item.id || item.originalUrl">
+                                            <div @click="openKwnArticle(item)"
+                                                class="kwn-card flex gap-3 px-4 py-3.5 bg-white border rounded-[10px] cursor-pointer transition"
+                                                :style="'border-color:' + (item.read ? 'rgba(0,0,0,.06)' : 'rgba(0,0,0,.08)')
+                                                    + ';border-left:3px solid ' + (item.read ? 'transparent' : 'var(--dc-red)')">
+
+                                                <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                        <span x-show="kwnArticleKeyword(item)"
+                                                            class="text-[9.5px] px-2 py-0.5 rounded"
+                                                            :style="kwn.selected.includes(item.keywordId)
+                                                                ? 'background:var(--dc-blue-soft);color:var(--dc-blue)'
+                                                                : 'background:var(--dc-fill-2);color:#4a5158'"
+                                                            x-text="kwnArticleKeyword(item)"></span>
+                                                        <span class="text-[10.5px]" style="color:var(--dc-muted)"
+                                                            x-text="kwnArticleSource(item)"></span>
+                                                        <span class="font-mono-num text-[10px]" style="color:#98a0a7"
+                                                            x-text="kwnArticleTime(item)"></span>
+                                                    </div>
+
+                                                    <span class="text-sm leading-[1.45]"
+                                                        :style="'font-weight:' + (item.read ? '500' : '600')
+                                                            + ';color:' + (item.read ? '#4a5158' : 'var(--dc-text)')"
+                                                        x-text="item.title"></span>
+
+                                                    <span x-show="item.content"
+                                                        class="kwn-summary text-[11.5px] leading-[1.6]"
+                                                        style="color:#6b737a" x-text="item.content"></span>
+
+                                                    <div class="flex items-center gap-3 flex-wrap pt-0.5">
+                                                        <a :href="item.originalUrl" target="_blank" rel="noopener noreferrer"
+                                                            @click.stop class="text-[11px]"
+                                                            style="color:var(--dc-blue)">원문 보기</a>
+                                                        <button @click.stop="toggleKwnSaved(item)"
+                                                            class="border-none bg-transparent text-[11px] p-0"
+                                                            :style="'color:' + (item.saved ? 'var(--dc-amber)' : 'var(--dc-muted)')"
+                                                            x-text="item.saved ? '★ 저장됨' : '☆ 저장'"></button>
+                                                    </div>
+                                                </div>
+
+                                                <span x-show="!item.read"
+                                                    class="w-[7px] h-[7px] rounded-full flex-none mt-1.5"
+                                                    style="background:var(--dc-red)"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- 빈 상태 -->
+                            <div x-show="!kwn.loading && kwn.list.length === 0"
+                                class="dc-card flex flex-col items-center gap-3 px-5 py-14">
+                                <span class="text-[26px]" style="color:#c9ced6">&#8981;</span>
+                                <span class="text-[13px]" style="color:#4a5158"
+                                    x-text="kwn.query.trim()
+                                        ? '‘' + kwn.query.trim() + '’ 결과가 없습니다'
+                                        : '조건에 맞는 뉴스가 없습니다'"></span>
+                                <span class="text-[11.5px] text-center leading-[1.6] max-w-[380px]"
+                                    style="color:var(--dc-muted)"
+                                    x-text="kwn.query.trim()
+                                        ? '수집된 기사 안에서만 검색합니다. 이 검색어를 키워드로 등록하면 앞으로 자동으로 모아 드립니다.'
+                                        : '기간을 넓히거나 키워드 선택을 해제해 보세요.'"></span>
+                                <div class="flex gap-2 pt-1">
+                                    <button @click="resetKwnFilters()"
+                                        class="border rounded-[7px] px-4 py-2 text-[11.5px] bg-white"
+                                        style="border-color:rgba(0,0,0,.14);color:var(--dc-sub)">필터 초기화</button>
+                                    <button x-show="kwn.query.trim()" @click="openKwnAdd()"
+                                        class="border-none rounded-[7px] px-4 py-2 text-[11.5px] font-semibold text-white"
+                                        style="background:var(--dc-blue)">이 검색어를 키워드로 등록</button>
+                                </div>
+                            </div>
+
+                            <!-- 더보기 -->
+                            <button x-show="kwn.list.length > 0 && kwn.page + 1 < kwn.totalPages"
+                                @click="loadMoreKwnNews()" :disabled="kwn.loading"
+                                class="self-center mt-0.5 border rounded-lg px-6 py-2.5 text-xs bg-white transition disabled:opacity-50"
+                                style="border-color:rgba(0,0,0,.14);color:var(--dc-sub)"
+                                x-text="kwn.loading ? '불러오는 중...' : ('더보기 · ' + kwnRemainLabel())"></button>
+                        </section>
+                    </div>
+                </div>
+                </template>
+
+                <!-- ===== 키워드 등록 모달 ===== -->
+                <div x-show="kwn.showAddModal" x-cloak
+                    class="modal-backdrop fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto"
+                    style="background:rgba(16,18,20,.42);padding:70px 20px" @click="kwn.showAddModal = false">
+                    <div @click.stop class="w-[520px] max-w-full bg-white rounded-xl overflow-hidden"
+                        style="box-shadow:0 20px 60px rgba(0,0,0,.26)">
+                        <div class="flex items-center justify-between gap-3.5 px-5 py-4 border-b"
+                            style="border-color:var(--dc-border)">
+                            <div class="flex flex-col gap-1">
+                                <span class="text-sm font-semibold">키워드 등록</span>
+                                <span class="text-[11px]" style="color:var(--dc-muted)">
+                                    등록 즉시 1회 수집하고, 이후 수집 주기에 맞춰 쌓입니다</span>
+                            </div>
+                            <button @click="kwn.showAddModal = false"
+                                class="border-none bg-transparent text-xl leading-none"
+                                style="color:#98a0a7">&times;</button>
+                        </div>
+                        <div class="px-5 pt-4 pb-5 flex flex-col gap-4">
+                            <label class="flex flex-col gap-1.5">
+                                <span class="text-[10.5px]" style="color:#7a828a">키워드</span>
+                                <input x-model="kwn.newKeyword.keyword" @keydown.enter.prevent="addKwnKeyword()"
+                                    placeholder="예: 삼성전자, HBM, 미국 금리"
+                                    class="border rounded-lg px-3 py-2.5 text-[13px] outline-none"
+                                    style="border-color:rgba(0,0,0,.16)">
+                            </label>
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-[10.5px]" style="color:#7a828a">수집 범위</span>
+                                <div class="flex gap-1.5">
+                                    <template x-for="r in [{v:'DOMESTIC',n:'국내'},{v:'INTERNATIONAL',n:'해외'}]" :key="r.v">
+                                        <button @click="kwn.newKeyword.region = r.v"
+                                            class="flex-1 min-h-[40px] border rounded-lg text-xs transition"
+                                            :style="kwn.newKeyword.region === r.v
+                                                ? 'border-color:var(--dc-blue-line);background:var(--dc-blue-soft);color:var(--dc-blue)'
+                                                : 'border-color:rgba(0,0,0,.14);background:#fff;color:#4a5158'"
+                                            x-text="r.n"></button>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button @click="kwn.showAddModal = false"
+                                    class="border rounded-[7px] px-4 py-2.5 text-xs bg-white"
+                                    style="border-color:rgba(0,0,0,.14);color:#4a5158">취소</button>
+                                <button @click="addKwnKeyword()" :disabled="kwn.saving || !kwn.newKeyword.keyword.trim()"
+                                    class="border-none rounded-[7px] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
+                                    style="background:var(--dc-blue)">등록하고 수집</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== 키워드 수정 모달 ===== -->
+                <div x-show="kwn.editTarget" x-cloak
+                    class="modal-backdrop fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto"
+                    style="background:rgba(16,18,20,.42);padding:70px 20px" @click="closeKwnEdit()">
+                    <div @click.stop class="w-[520px] max-w-full bg-white rounded-xl overflow-hidden"
+                        style="box-shadow:0 20px 60px rgba(0,0,0,.26)">
+                        <template x-if="kwn.editTarget">
+                        <div>
+                            <div class="flex items-center justify-between gap-3.5 px-5 py-4 border-b"
+                                style="border-color:var(--dc-border)">
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-sm font-semibold" x-text="kwn.editTarget.keyword + ' 수정'"></span>
+                                    <span class="text-[11px]" style="color:var(--dc-muted)"
+                                        x-text="'이미 수집된 기사 ' + kwnEditCount() + '건은 이름을 바꿔도 그대로 유지됩니다'"></span>
+                                </div>
+                                <button @click="closeKwnEdit()" class="border-none bg-transparent text-xl leading-none"
+                                    style="color:#98a0a7">&times;</button>
+                            </div>
+                            <div class="px-5 pt-4 pb-5 flex flex-col gap-4">
+                                <label class="flex flex-col gap-1.5">
+                                    <span class="text-[10.5px]" style="color:#7a828a">키워드</span>
+                                    <input x-model="kwn.editTarget.keyword"
+                                        class="border rounded-lg px-3 py-2.5 text-[13px] outline-none"
+                                        style="border-color:rgba(0,0,0,.16)">
+                                </label>
+                                <div class="flex flex-col gap-1.5">
+                                    <span class="text-[10.5px]" style="color:#7a828a">수집 범위</span>
+                                    <div class="flex gap-1.5">
+                                        <template x-for="r in [{v:'DOMESTIC',n:'국내'},{v:'INTERNATIONAL',n:'해외'}]" :key="r.v">
+                                            <button @click="kwn.editTarget.region = r.v"
+                                                class="flex-1 min-h-[40px] border rounded-lg text-xs transition"
+                                                :style="kwn.editTarget.region === r.v
+                                                    ? 'border-color:var(--dc-blue-line);background:var(--dc-blue-soft);color:var(--dc-blue)'
+                                                    : 'border-color:rgba(0,0,0,.14);background:#fff;color:#4a5158'"
+                                                x-text="r.n"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- 활성 토글 -->
+                                <button @click="kwn.editTarget.active = !kwn.editTarget.active"
+                                    class="flex items-center gap-3 text-left px-3.5 py-3 border rounded-[9px]"
+                                    style="border-color:rgba(0,0,0,.12);background:var(--dc-fill)">
+                                    <span class="relative block flex-none rounded-full transition-colors"
+                                        style="width:30px;height:17px"
+                                        :style="'width:30px;height:17px;background:'
+                                            + (kwn.editTarget.active ? 'var(--dc-blue)' : '#c9ced6')">
+                                        <span class="absolute rounded-full bg-white transition-all"
+                                            style="top:2px;width:13px;height:13px"
+                                            :style="'top:2px;width:13px;height:13px;left:'
+                                                + (kwn.editTarget.active ? '15px' : '2px')"></span>
+                                    </span>
+                                    <span class="text-[11.5px] leading-[1.5]" style="color:#4a5158"
+                                        x-text="kwn.editTarget.active
+                                            ? '수집 중 — 스케줄러가 매 주기마다 이 키워드를 수집합니다'
+                                            : '중단 — 저장된 기사는 유지되고 새 수집만 멈춥니다'"></span>
+                                </button>
+
+                                <div class="flex justify-between items-center gap-2">
+                                    <button @click="askKwnDeleteFromEdit()"
+                                        class="border rounded-[7px] px-4 py-2.5 text-xs bg-white"
+                                        style="border-color:var(--dc-red-line);color:var(--dc-red)">키워드 삭제</button>
+                                    <div class="flex gap-2">
+                                        <button @click="closeKwnEdit()"
+                                            class="border rounded-[7px] px-4 py-2.5 text-xs bg-white"
+                                            style="border-color:rgba(0,0,0,.14);color:#4a5158">취소</button>
+                                        <button @click="saveKwnEdit()" :disabled="kwn.saving || !kwn.editTarget.keyword.trim()"
+                                            class="border-none rounded-[7px] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
+                                            style="background:var(--dc-blue)">저장</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ===== 삭제 확인 모달 (단건/다건 공용) ===== -->
+                <div x-show="kwn.deleteTargets.length > 0" x-cloak
+                    class="modal-backdrop fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto"
+                    style="background:rgba(16,18,20,.5);padding:90px 20px" @click="closeKwnDelete()">
+                    <div @click.stop class="w-[440px] max-w-full bg-white rounded-xl p-5 flex flex-col gap-4"
+                        style="box-shadow:0 20px 60px rgba(0,0,0,.28)">
+                        <div class="flex gap-3">
+                            <span class="w-6 h-6 rounded-full text-white flex items-center justify-center
+                                         text-sm font-semibold flex-none"
+                                style="background:var(--dc-red)">!</span>
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-[13.5px] font-semibold"
+                                    x-text="kwn.deleteTargets.length === 1
+                                        ? '‘' + kwn.deleteTargets[0].keyword + '’ 키워드를 삭제합니다'
+                                        : '키워드 ' + kwn.deleteTargets.length + '개를 삭제합니다'"></span>
+                                <span x-show="kwn.deleteTargets.length > 1"
+                                    class="text-[11px]" style="color:var(--dc-muted)"
+                                    x-text="kwn.deleteTargets.map(k => k.keyword).join(', ')"></span>
+                                <span class="text-[11.5px] leading-[1.65]" style="color:#4a5158">
+                                    이 키워드로 수집된 기사 <span x-text="kwnDeleteArticleCount()"></span>건도 목록에서 함께 사라집니다.
+                                    기사만 남기고 싶으면 삭제 대신 <strong class="font-semibold">수집 중단</strong>을 사용하세요.
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button @click="closeKwnDelete()"
+                                class="border rounded-[7px] px-4 py-2.5 text-xs bg-white"
+                                style="border-color:rgba(0,0,0,.14);color:#4a5158">취소</button>
+                            <button @click="confirmKwnDelete()" :disabled="kwn.saving"
+                                class="border-none rounded-[7px] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
+                                style="background:var(--dc-red)">삭제</button>
+                        </div>
+                    </div>
+                </div>
+            </div>

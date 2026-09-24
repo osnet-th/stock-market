@@ -50,14 +50,18 @@ public interface NewsJpaRepository extends JpaRepository<NewsEntity, Long> {
      *
      * <p>{@code unreadOnly} 를 SQL 안에서 처리하는 것이 핵심이다 — 조회 후 걸러내면
      * 페이지 건수와 전체 건수가 어긋난다. 읽음 상태 행이 없으면 "안 읽음"이므로 NOT EXISTS 로 본다.
+     *
+     * <p>선택 조건에 {@code CAST} 를 씌운 이유: {@code :param IS NULL} 만 있으면 Postgres 가
+     * 그 위치의 파라미터 타입을 추론하지 못해 {@code could not determine data type of parameter}
+     * 로 실패한다. 캐스트가 타입 힌트를 준다 (#115 validation V3).
      */
     @Query("""
             SELECT n FROM NewsEntity n
             WHERE n.keywordId IN :keywordIds
-              AND (:startAt IS NULL OR n.publishedAt >= :startAt)
-              AND (:endAt IS NULL OR n.publishedAt <= :endAt)
-              AND (:region IS NULL OR n.region = :region)
-              AND (:unreadOnly = false OR NOT EXISTS (
+              AND (CAST(:startAt AS LocalDateTime) IS NULL OR n.publishedAt >= :startAt)
+              AND (CAST(:endAt AS LocalDateTime) IS NULL OR n.publishedAt <= :endAt)
+              AND (CAST(:region AS String) IS NULL OR n.region = :region)
+              AND (CAST(:unreadOnly AS Boolean) = false OR NOT EXISTS (
                     SELECT 1 FROM UserNewsStateEntity s
                      WHERE s.newsId = n.id AND s.userId = :userId AND s.read = true))
             ORDER BY n.publishedAt DESC, n.id DESC

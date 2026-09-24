@@ -120,7 +120,9 @@ public interface NewsJpaRepository extends JpaRepository<NewsEntity, Long> {
      * <p>단독 구독자일 때만 호출된다 — 다른 구독자가 있으면 그들의 기사를 옮기는 셈이 된다.
      * 목업 수정 모달의 "이미 수집된 기사 N건은 이름을 바꿔도 그대로 유지됩니다" 약속을 지키는 부분이다.
      */
-    @Modifying
+    // 벌크 UPDATE 는 영속성 컨텍스트를 우회한다. 정리하지 않으면 이 트랜잭션에서 이미 적재된
+    // NewsEntity 가 옛 keywordId 인 채로 재사용돼 뒤따르는 조회가 조용히 틀어진다 (#115 review M2)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE NewsEntity n SET n.keywordId = :newKeywordId WHERE n.keywordId = :oldKeywordId")
     int reassignKeywordId(@Param("oldKeywordId") Long oldKeywordId,
                           @Param("newKeywordId") Long newKeywordId);

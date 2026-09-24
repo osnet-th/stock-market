@@ -518,7 +518,7 @@ const KeywordNewsComponent = {
             await this.loadKwnNews(0);
         } catch (e) {
             console.error('키워드 등록 실패:', e);
-            alert('키워드 등록에 실패했습니다.');
+            alert((e && e.userMessage) || '키워드 등록에 실패했습니다.');
         } finally {
             this.kwn.saving = false;
         }
@@ -556,7 +556,8 @@ const KeywordNewsComponent = {
             await this.loadKwnNews(0);
         } catch (e) {
             console.error('키워드 수정 실패:', e);
-            alert(e && e.message ? e.message : '키워드 수정에 실패했습니다.');
+            // userMessage 는 서버가 내려준 사람이 읽을 문구다. 없으면 JSON 원문 대신 기본 문구를 쓴다
+            alert((e && e.userMessage) || '키워드 수정에 실패했습니다.');
         } finally {
             this.kwn.saving = false;
         }
@@ -604,7 +605,7 @@ const KeywordNewsComponent = {
             await this.loadKwnNews(0);
         } catch (e) {
             console.error('키워드 삭제 실패:', e);
-            alert('키워드 삭제에 실패했습니다.');
+            alert((e && e.userMessage) || '키워드 삭제에 실패했습니다.');
         } finally {
             this.kwn.saving = false;
         }

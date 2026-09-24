@@ -46,7 +46,21 @@ const API = {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`API Error ${response.status}: ${errorText}`);
+                // 서버가 GlobalExceptionHandler 로 {code, message} 를 주므로 message 를 꺼내
+                // Error.message 에 담는다. 이러지 않으면 호출부가 사용자에게 보여줄 때
+                // JSON 원문이 그대로 노출된다 (#115 review M1).
+                const error = new Error(`API Error ${response.status}: ${errorText}`);
+                error.status = response.status;
+                error.body = errorText;
+                try {
+                    const parsed = JSON.parse(errorText);
+                    if (parsed && typeof parsed.message === 'string' && parsed.message.trim()) {
+                        error.userMessage = parsed.message;
+                    }
+                } catch (parseErr) {
+                    // 본문이 JSON 이 아니면 그대로 둔다 — 원문은 error.body 로 남는다
+                }
+                throw error;
             }
 
             return response.json();

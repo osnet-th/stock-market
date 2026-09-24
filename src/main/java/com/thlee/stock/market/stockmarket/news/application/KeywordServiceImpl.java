@@ -20,6 +20,8 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioI
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -248,19 +250,33 @@ public class KeywordServiceImpl implements KeywordService {
             throw new IllegalArgumentException("이미 등록된 키워드입니다.");
         }
 
-        // 4번(이관) 판정을 구독 해제 전에 해야 한다 — 해제 후에는 단독 여부를 알 수 없다
+        // 이관·해제 판정은 구독을 건드리기 전에 끝내야 한다 — 이후에는 원래 상태를 알 수 없다
         boolean soleSubscriber = userKeywordRepository.findByKeywordId(keywordId).size() <= 1;
+        // 2번에서 "내" 구독이 아님을 확인했으므로, 여기 남은 구독자는 전부 다른 사용자다
+        boolean targetHasOtherSubscribers = existingTarget.isPresent()
+                && userKeywordRepository.existsByKeywordId(existingTarget.get().getId());
+
+        // 대상이 남이 쓰는 키워드면 기사를 옮길 수 없다(그 사람 목록에 내 기사가 섞인다).
+        // 그렇다고 옮기지 않으면, 단독 구독자인 이 키워드는 해제 시 기사까지 삭제된다.
+        // 둘 다 사용자가 의도한 바가 아니므로 수정 자체를 막고 안전한 경로를 안내한다.
+        if (targetHasOtherSubscribers && soleSubscriber) {
+            throw new IllegalArgumentException(
+                    "이미 수집 중인 키워드라 이름을 바꿀 수 없습니다. 새 키워드로 등록한 뒤 기존 키워드를 삭제해 주세요.");
+        }
 
         // 3. 새 키워드 구독
         Keyword renamed = registerKeyword(newName, newRegion, userId);
 
-        // 4. 단독 구독자면 기사 이관 + ES 재색인
-        if (soleSubscriber) {
+        // 4. 안전할 때만 기사 이관 + ES 재색인.
+        //    - 기존 키워드의 단독 구독자여야 한다(아니면 남의 기사를 옮기는 셈)
+        //    - 대상 키워드에 다른 구독자가 없어야 한다(아니면 남의 목록에 내 기사가 섞인다)
+        if (soleSubscriber && !targetHasOtherSubscribers) {
             int moved = newsRepository.reassignKeywordId(keywordId, renamed.getId());
             if (moved > 0) {
                 // ES 문서의 keywordId 가 옛 값으로 남으면 키워드 스코프 검색에서 누락된다.
-                // 인덱서는 예외를 삼키므로 ES 장애가 수정 자체를 깨뜨리지는 않는다.
-                newsIndexPort.indexAll(newsRepository.findAllByKeywordId(renamed.getId()));
+                // 커밋 후에 색인한다 — 트랜잭션 안에서 하면 이후 단계가 실패해 롤백될 때
+                // DB 는 되돌아가고 ES 만 새 값으로 남는다 (NewsSaveService 와 같은 원칙).
+                indexAfterCommit(renamed.getId());
             }
         }
 
@@ -305,6 +321,26 @@ public class KeywordServiceImpl implements KeywordService {
         } else {
             deactivateUserKeyword(userId, keywordId);
         }
+    }
+
+    /**
+     * 커밋 이후에 ES 재색인을 수행한다 (#115 review M3).
+     *
+     * <p>트랜잭션 안에서 색인하면 뒤따르는 단계가 실패했을 때 DB 는 롤백되는데
+     * ES 문서만 새 keywordId 로 남아 색인과 DB 가 어긋난다.
+     * 인덱서가 예외를 삼키므로 ES 장애가 수정 결과를 되돌리지는 않는다.
+     */
+    private void indexAfterCommit(Long keywordId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            newsIndexPort.indexAll(newsRepository.findAllByKeywordId(keywordId));
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                newsIndexPort.indexAll(newsRepository.findAllByKeywordId(keywordId));
+            }
+        });
     }
 
     private void disablePortfolioNewsByKeywordId(Long userId, Long keywordId) {

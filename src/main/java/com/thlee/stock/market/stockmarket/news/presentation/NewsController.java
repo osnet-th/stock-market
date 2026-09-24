@@ -1,14 +1,19 @@
 package com.thlee.stock.market.stockmarket.news.presentation;
 
 import com.thlee.stock.market.stockmarket.common.response.PageResult;
+import com.thlee.stock.market.stockmarket.news.application.CollectorScheduleService;
 import com.thlee.stock.market.stockmarket.news.application.KeywordNewsBatchService;
+import com.thlee.stock.market.stockmarket.news.application.UserNewsStateService;
 import com.thlee.stock.market.stockmarket.news.application.NewsQueryService;
+import com.thlee.stock.market.stockmarket.news.application.dto.CollectorScheduleResponse;
 import com.thlee.stock.market.stockmarket.news.application.dto.KeywordNewsFeedResponse;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsBatchSaveResult;
 import com.thlee.stock.market.stockmarket.news.application.dto.NewsDto;
+import com.thlee.stock.market.stockmarket.news.presentation.dto.MarkAllReadRequest;
 import com.thlee.stock.market.stockmarket.news.presentation.dto.NewsCollectRequest;
 import com.thlee.stock.market.stockmarket.news.presentation.dto.NewsCollectResponse;
 import com.thlee.stock.market.stockmarket.news.presentation.dto.NewsQueryResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +29,8 @@ public class NewsController {
 
     private final NewsQueryService newsQueryService;
     private final KeywordNewsBatchService keywordNewsBatchService;
+    private final CollectorScheduleService collectorScheduleService;
+    private final UserNewsStateService userNewsStateService;
 
     /**
      * 뉴스 조회 (keywordId 기반, 페이징)
@@ -67,5 +74,56 @@ public class NewsController {
                 request.getRegion()
         );
         return ResponseEntity.ok(NewsCollectResponse.from(result));
+    }
+
+    /**
+     * 수집 스케줄 상태 조회 (#115 통합 화면 헤더).
+     *
+     * <p>마지막 실행은 수집 이력에서, 다음 실행은 스케줄러와 같은 cron 설정으로 계산한다.
+     * 연속 실패 키워드 수는 사용자마다 다르므로 인증 주체와 일치하는지 확인한다 (#114 H1).
+     */
+    @GetMapping("/collector/schedule")
+    public ResponseEntity<CollectorScheduleResponse> getCollectorSchedule(@RequestParam Long userId) {
+        if (!NewsSecurityContext.matchesCurrentUser(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(collectorScheduleService.getSchedule(userId));
+    }
+
+    /**
+     * 기사 읽음 처리 (#115) — 목업에서 카드를 열면 굵기가 풀리는 동작.
+     */
+    @PatchMapping("/{newsId}/read")
+    public ResponseEntity<Void> markRead(@PathVariable Long newsId, @RequestParam Long userId) {
+        if (!NewsSecurityContext.matchesCurrentUser(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        userNewsStateService.markRead(userId, newsId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 기사 저장(★) 토글 (#115).
+     *
+     * @return 토글 후 저장 여부
+     */
+    @PatchMapping("/{newsId}/save")
+    public ResponseEntity<Boolean> toggleSaved(@PathVariable Long newsId, @RequestParam Long userId) {
+        if (!NewsSecurityContext.matchesCurrentUser(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(userNewsStateService.toggleSaved(userId, newsId));
+    }
+
+    /**
+     * 모두 읽음 (#115) — 현재 화면에 보이는 기사만 대상으로 한다.
+     */
+    @PatchMapping("/read-all")
+    public ResponseEntity<Integer> markAllRead(@RequestParam Long userId,
+                                               @Valid @RequestBody MarkAllReadRequest request) {
+        if (!NewsSecurityContext.matchesCurrentUser(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(userNewsStateService.markAllRead(userId, request.getNewsIds()));
     }
 }

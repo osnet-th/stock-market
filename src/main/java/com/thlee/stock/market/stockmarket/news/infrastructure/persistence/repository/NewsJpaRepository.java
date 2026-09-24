@@ -45,8 +45,11 @@ public interface NewsJpaRepository extends JpaRepository<NewsEntity, Long> {
      * 검색어 없는 조회 — 키워드 스코프 안에서 기간·지역 필터를 적용해 최신순 페이징 (#115).
      *
      * <p>목업의 기본 화면("저장된 전체 뉴스")이 이 경로를 탄다. 전문 검색이 아니라서
-     * ES 를 거치지 않으며, 그 덕에 정렬이 안정적이고 언론사·읽음 상태를 같은 행에서 바로 읽는다.
+     * ES 를 거치지 않으며, 그 덕에 정렬이 안정적이다.
      * 파라미터가 null 이면 그 조건을 건너뛴다.
+     *
+     * <p>{@code unreadOnly} 를 SQL 안에서 처리하는 것이 핵심이다 — 조회 후 걸러내면
+     * 페이지 건수와 전체 건수가 어긋난다. 읽음 상태 행이 없으면 "안 읽음"이므로 NOT EXISTS 로 본다.
      */
     @Query("""
             SELECT n FROM NewsEntity n
@@ -54,21 +57,26 @@ public interface NewsJpaRepository extends JpaRepository<NewsEntity, Long> {
               AND (:startAt IS NULL OR n.publishedAt >= :startAt)
               AND (:endAt IS NULL OR n.publishedAt <= :endAt)
               AND (:region IS NULL OR n.region = :region)
+              AND (:unreadOnly = false OR NOT EXISTS (
+                    SELECT 1 FROM UserNewsStateEntity s
+                     WHERE s.newsId = n.id AND s.userId = :userId AND s.read = true))
             ORDER BY n.publishedAt DESC, n.id DESC
             """)
     Page<NewsEntity> findLatestByScope(@Param("keywordIds") Collection<Long> keywordIds,
                                        @Param("startAt") LocalDateTime startAt,
                                        @Param("endAt") LocalDateTime endAt,
                                        @Param("region") Region region,
+                                       @Param("unreadOnly") boolean unreadOnly,
+                                       @Param("userId") Long userId,
                                        Pageable pageable);
 
     /**
-     * 키워드별 총 건수 + 마지막 저장 시각 (#115 레일 통계).
+     * 키워드별 총 건수 (#115 레일 통계).
      * 키워드 수만큼 조회하면 N+1 이 되므로 한 방에 묶는다.
      */
     @Query("""
             SELECT new com.thlee.stock.market.stockmarket.news.domain.repository.KeywordNewsCount(
-                n.keywordId, COUNT(n), MAX(n.createdAt)
+                n.keywordId, COUNT(n)
             )
             FROM NewsEntity n
             WHERE n.keywordId IN :keywordIds

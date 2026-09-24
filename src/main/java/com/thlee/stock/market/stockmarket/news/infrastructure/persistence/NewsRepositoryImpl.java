@@ -100,7 +100,7 @@ public class NewsRepositoryImpl implements NewsRepository {
     }
 
     @Override
-    public PageResult<News> findLatestByScope(NewsSearchCriteria criteria) {
+    public PageResult<News> findLatestByScope(NewsSearchCriteria criteria, Long userId) {
         if (criteria.hasNoKeywordScope()) {
             return new PageResult<>(List.of(), criteria.page(), criteria.size(), 0);
         }
@@ -118,6 +118,8 @@ public class NewsRepositoryImpl implements NewsRepository {
                 startAt,
                 endAt,
                 criteria.region(),
+                criteria.unreadOnly(),
+                userId,
                 PageRequest.of(criteria.page(), criteria.size())
         );
 

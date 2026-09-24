@@ -7,6 +7,8 @@ import com.thlee.stock.market.stockmarket.news.application.dto.UpdateKeywordRequ
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.model.UserKeyword;
+import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordCollectionHistoryRepository;
+import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordCollectionSummary;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordDailyNewsCount;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordNewsCount;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
@@ -41,6 +43,8 @@ public class KeywordServiceImpl implements KeywordService {
     private final PortfolioItemRepository portfolioItemRepository;
     /** 키워드 수정 시 이관된 기사를 재색인한다 (#115) — 안 하면 스코프 검색에서 누락된다. */
     private final NewsIndexPort newsIndexPort;
+    /** 마지막 성공·연속 실패 판정 근거 (#115 Phase 6). */
+    private final KeywordCollectionHistoryRepository collectionHistoryRepository;
 
     @Override
     @Transactional
@@ -109,7 +113,7 @@ public class KeywordServiceImpl implements KeywordService {
         LocalDate today = LocalDate.now();
         LocalDate windowStart = today.minusDays(KeywordStatsResponse.SPARKLINE_DAYS - 1L);
 
-        // 쿼리 2회로 전 키워드를 집계한다 (키워드마다 조회하면 N+1)
+        // 쿼리 3회로 전 키워드를 집계한다 (키워드마다 조회하면 N+1)
         Map<Long, KeywordNewsCount> totals = newsRepository.aggregateCountsByKeywordIds(keywordIds).stream()
                 .collect(Collectors.toMap(KeywordNewsCount::keywordId, Function.identity(), (a, b) -> a));
         Map<Long, Map<LocalDate, Long>> dailyByKeyword = newsRepository
@@ -119,6 +123,11 @@ public class KeywordServiceImpl implements KeywordService {
                         KeywordDailyNewsCount::keywordId,
                         Collectors.toMap(KeywordDailyNewsCount::day, KeywordDailyNewsCount::dailyCount, (a, b) -> a)
                 ));
+        // 마지막 성공·연속 실패는 수집 이력이 근거다 (#115 Phase 6).
+        // MAX(news.created_at) 은 "마지막으로 기사가 저장된 시각"이라 새 기사가 없던 성공을 놓친다.
+        Map<Long, KeywordCollectionSummary> collectionByKeyword = collectionHistoryRepository
+                .summarizeByKeywordIds(keywordIds).stream()
+                .collect(Collectors.toMap(KeywordCollectionSummary::keywordId, Function.identity(), (a, b) -> a));
 
         long todayTotal = 0L;
         List<KeywordStatsResponse.Item> items = new ArrayList<>(keywordIds.size());
@@ -135,11 +144,13 @@ public class KeywordServiceImpl implements KeywordService {
             todayTotal += todayCount;
 
             KeywordNewsCount total = totals.get(keywordId);
+            KeywordCollectionSummary collection = collectionByKeyword.get(keywordId);
             items.add(new KeywordStatsResponse.Item(
                     keywordId,
                     total != null ? total.totalCount() : 0L,
                     todayCount,
-                    total != null ? total.lastCollectedAt() : null,
+                    collection != null ? collection.lastSuccessAt() : null,
+                    collection != null ? collection.failureStreak() : 0L,
                     daily
             ));
         }

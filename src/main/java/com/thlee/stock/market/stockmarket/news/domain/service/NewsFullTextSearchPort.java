@@ -4,6 +4,8 @@ import com.thlee.stock.market.stockmarket.common.response.PageResult;
 import com.thlee.stock.market.stockmarket.news.domain.model.News;
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsSearchCriteria;
 
+import java.util.List;
+
 /**
  * 뉴스 전문 검색 포트
  *
@@ -14,4 +16,11 @@ import com.thlee.stock.market.stockmarket.news.domain.model.NewsSearchCriteria;
 public interface NewsFullTextSearchPort {
 
     PageResult<News> search(NewsSearchCriteria criteria);
+
+    /**
+     * {@code excludedUrls} 에 해당하는 문서를 빼고 검색한다 (#115 `안 읽은 것만`).
+     *
+     * <p>제외를 쿼리에 넣어야 전체 건수가 정확하다 — 조회 후 걸러내면 페이징이 어긋난다.
+     */
+    PageResult<News> search(NewsSearchCriteria criteria, List<String> excludedUrls);
 }

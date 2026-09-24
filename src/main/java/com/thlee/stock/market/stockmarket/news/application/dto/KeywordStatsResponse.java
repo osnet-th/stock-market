@@ -36,19 +36,24 @@ public class KeywordStatsResponse {
         private final long totalCount;
         private final long todayCount;
         /**
-         * 마지막으로 기사가 저장된 시각. 수집을 시도했지만 새 기사가 없었던 경우는 반영되지 않는다.
-         * 수집이 한 번도 성공하지 않았으면 null.
+         * 마지막 수집 <b>성공</b> 시각 (수집 이력 기준, #115 Phase 6).
+         * 새 기사가 0건이어도 외부 API 호출이 정상이면 성공이다.
+         * 한 번도 성공하지 않았거나 이력이 없으면 null.
          */
-        private final LocalDateTime lastCollectedAt;
+        private final LocalDateTime lastSuccessAt;
+
+        /** 마지막 성공 이후 실패 횟수. 0 이면 정상, 1 이상이면 레일에 실패 표시를 낸다. */
+        private final long failureStreak;
         /** 오래된 날 → 오늘 순서의 일별 수집 건수. 길이는 항상 {@link #SPARKLINE_DAYS}. */
         private final List<Long> daily;
 
         public Item(Long keywordId, long totalCount, long todayCount,
-                    LocalDateTime lastCollectedAt, List<Long> daily) {
+                    LocalDateTime lastSuccessAt, long failureStreak, List<Long> daily) {
             this.keywordId = keywordId;
             this.totalCount = totalCount;
             this.todayCount = todayCount;
-            this.lastCollectedAt = lastCollectedAt;
+            this.lastSuccessAt = lastSuccessAt;
+            this.failureStreak = failureStreak;
             this.daily = daily;
         }
     }

@@ -45,10 +45,15 @@ public class NewsElasticsearchSearcher implements NewsFullTextSearchPort {
 
     @Override
     public PageResult<News> search(NewsSearchCriteria criteria) {
+        return search(criteria, List.of());
+    }
+
+    @Override
+    public PageResult<News> search(NewsSearchCriteria criteria, List<String> excludedUrls) {
         int page = criteria.page();
         int size = criteria.size();
         try {
-            NativeQuery searchQuery = buildSearchQuery(criteria);
+            NativeQuery searchQuery = buildSearchQuery(criteria, excludedUrls);
             SearchHits<NewsDocument> searchHits = elasticsearchOperations.search(searchQuery, NewsDocument.class);
 
             List<News> newsList = searchHits.getSearchHits().stream()
@@ -63,7 +68,7 @@ public class NewsElasticsearchSearcher implements NewsFullTextSearchPort {
         }
     }
 
-    private NativeQuery buildSearchQuery(NewsSearchCriteria criteria) {
+    private NativeQuery buildSearchQuery(NewsSearchCriteria criteria, List<String> excludedUrls) {
         BoolQuery.Builder boolBuilder = new BoolQuery.Builder();
 
         // multi_match — 목업의 `제목만` 은 content 를 제외한다 (#115)
@@ -83,6 +88,16 @@ public class NewsElasticsearchSearcher implements NewsFullTextSearchPort {
             boolBuilder.filter(Query.of(q -> q.terms(TermsQuery.of(t -> t
                     .field("keywordId")
                     .terms(TermsQueryField.of(f -> f.value(keywordValues)))
+            ))));
+        }
+
+        // "안 읽은 것만" — 읽은 기사를 쿼리 단계에서 빼야 totalHits 가 정확해진다.
+        // 후처리로 거르면 페이지 건수와 전체 건수가 어긋난다. 문서 _id 가 originalUrl 이다 (#115)
+        if (excludedUrls != null && !excludedUrls.isEmpty()) {
+            List<FieldValue> excluded = excludedUrls.stream().map(FieldValue::of).toList();
+            boolBuilder.mustNot(Query.of(q -> q.terms(TermsQuery.of(t -> t
+                    .field("_id")
+                    .terms(TermsQueryField.of(f -> f.value(excluded)))
             ))));
         }
 

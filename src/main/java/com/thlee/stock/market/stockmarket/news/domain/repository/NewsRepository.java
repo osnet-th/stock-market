@@ -31,9 +31,11 @@ public interface NewsRepository {
     long countByKeywordIdsSince(List<Long> keywordIds, LocalDateTime since);
 
     /**
-     * 검색어 없는 조회 — 키워드 스코프 + 기간·지역 필터 최신순 페이징 (#115).
+     * 검색어 없는 조회 — 키워드 스코프 + 기간·지역·읽음 필터 최신순 페이징 (#115).
+     *
+     * <p>{@code unreadOnly} 가 사용자별 조건이라 userId 를 함께 받는다.
      */
-    PageResult<News> findLatestByScope(NewsSearchCriteria criteria);
+    PageResult<News> findLatestByScope(NewsSearchCriteria criteria, Long userId);
 
     /**
      * originalUrl 목록으로 저장된 뉴스를 조회한다 (#115).

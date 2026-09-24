@@ -42,6 +42,9 @@ public class NewsSearchRequest {
     /** 정렬. 기본 최신순 — 검색어가 없으면 관련도가 무의미해 최신순으로 강제된다. */
     private NewsSearchSort sort = NewsSearchSort.LATEST;
 
+    /** 목업 필터 바의 `안 읽은 것만` 토글. */
+    private boolean unreadOnly = false;
+
     @Min(value = 0, message = "페이지 번호는 0 이상이어야 합니다.")
     private int page = 0;
 

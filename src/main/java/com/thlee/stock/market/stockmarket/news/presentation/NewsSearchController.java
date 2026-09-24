@@ -59,11 +59,12 @@ public class NewsSearchController {
                 request.getRegion(),
                 request.getField(),
                 request.getSort(),
+                request.isUnreadOnly(),
                 request.getPage(),
                 request.getSize()
         );
 
-        PageResult<NewsDto> result = newsSearchApplicationService.search(criteria);
+        PageResult<NewsDto> result = newsSearchApplicationService.search(criteria, userId);
         return ResponseEntity.ok(NewsSearchResponse.from(result));
     }
 

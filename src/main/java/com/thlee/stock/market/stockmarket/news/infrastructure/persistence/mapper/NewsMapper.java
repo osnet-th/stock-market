@@ -17,7 +17,8 @@ public class NewsMapper {
                 news.getPublishedAt(),
                 news.getCreatedAt(),
                 news.getKeywordId(),
-                news.getRegion()
+                news.getRegion(),
+                news.getSource()
         );
     }
 
@@ -30,7 +31,8 @@ public class NewsMapper {
                 entity.getPublishedAt(),
                 entity.getCreatedAt(),
                 entity.getKeywordId(),
-                entity.getRegion()
+                entity.getRegion(),
+                entity.getSource()
         );
     }
 }

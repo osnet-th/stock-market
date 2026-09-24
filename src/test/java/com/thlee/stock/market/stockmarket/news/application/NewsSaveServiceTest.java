@@ -40,7 +40,7 @@ class NewsSaveServiceTest {
 
         NewsSaveRequest request = new NewsSaveRequest(
                 "https://example.com/1", "제목", "본문",
-                LocalDateTime.now(), 1L, Region.DOMESTIC
+                LocalDateTime.now(), 1L, Region.DOMESTIC, "한국경제"
         );
 
         // when
@@ -72,7 +72,7 @@ class NewsSaveServiceTest {
 
         NewsSaveRequest request = new NewsSaveRequest(
                 "https://example.com/dup", "중복 제목", "중복 본문",
-                LocalDateTime.now(), 1L, Region.DOMESTIC
+                LocalDateTime.now(), 1L, Region.DOMESTIC, "매일경제"
         );
 
         // when

@@ -4,6 +4,7 @@ import com.thlee.stock.market.stockmarket.news.domain.model.NewsSearchResult;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.service.NewsSearchPort;
 import com.thlee.stock.market.stockmarket.news.infrastructure.infrastructure.common.HtmlTextCleaner;
+import com.thlee.stock.market.stockmarket.news.infrastructure.infrastructure.common.NewsSourceResolver;
 import com.thlee.stock.market.stockmarket.news.infrastructure.infrastructure.naver.dto.NaverNewsItem;
 import com.thlee.stock.market.stockmarket.news.infrastructure.infrastructure.naver.dto.NaverNewsResponse;
 import lombok.RequiredArgsConstructor;
@@ -47,11 +48,14 @@ public class NaverNewsSearchPort implements NewsSearchPort {
     }
 
     private NewsSearchResult toNewsSearchResult(NaverNewsItem item) {
+        // 네이버 응답에는 언론사 필드가 없다 → 기사 URL 도메인으로 파생한다 (#115)
+        String url = item.getOriginallink() != null ? item.getOriginallink() : item.getLink();
         return new NewsSearchResult(
             HtmlTextCleaner.clean(item.getTitle()),
-            item.getOriginallink() != null ? item.getOriginallink() : item.getLink(),
+            url,
             HtmlTextCleaner.clean(item.getDescription()),
-            parseNaverDateTime(item.getPubDate())
+            parseNaverDateTime(item.getPubDate()),
+            NewsSourceResolver.fromUrl(url)
         );
     }
 }

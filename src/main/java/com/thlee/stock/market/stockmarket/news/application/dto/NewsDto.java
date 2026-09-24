@@ -15,6 +15,7 @@ public class NewsDto {
     private final LocalDateTime publishedAt;
     private final LocalDateTime createdAt;
     private final Long keywordId;
+    private final String source;
 
     public NewsDto(Long id,
                    String originalUrl,
@@ -22,7 +23,8 @@ public class NewsDto {
                    String content,
                    LocalDateTime publishedAt,
                    LocalDateTime createdAt,
-                   Long keywordId) {
+                   Long keywordId,
+                   String source) {
         this.id = id;
         this.originalUrl = originalUrl;
         this.title = title;
@@ -30,6 +32,7 @@ public class NewsDto {
         this.publishedAt = publishedAt;
         this.createdAt = createdAt;
         this.keywordId = keywordId;
+        this.source = source;
     }
 
     public static NewsDto from(News news) {
@@ -40,7 +43,8 @@ public class NewsDto {
                 news.getContent(),
                 news.getPublishedAt(),
                 news.getCreatedAt(),
-                news.getKeywordId()
+                news.getKeywordId(),
+                news.getSource()
         );
     }
 
@@ -51,4 +55,6 @@ public class NewsDto {
     public LocalDateTime getPublishedAt() { return publishedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public Long getKeywordId() { return keywordId; }
+    /** 언론사명. 기존 데이터는 null → 프론트가 originalUrl 도메인으로 폴백한다 (#115). */
+    public String getSource() { return source; }
 }

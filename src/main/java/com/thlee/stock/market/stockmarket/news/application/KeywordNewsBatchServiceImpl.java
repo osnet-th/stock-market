@@ -61,7 +61,8 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
                         context.news().getContent(),
                         context.news().getPublishedAt(),
                         context.keywordId(),
-                        context.region()
+                        context.region(),
+                        context.news().getSource()
                 ))
                 .toList();
 
@@ -92,7 +93,8 @@ public class KeywordNewsBatchServiceImpl implements KeywordNewsBatchService {
                         context.news().getContent(),
                         context.news().getPublishedAt(),
                         context.keywordId(),
-                        context.region()
+                        context.region(),
+                        context.news().getSource()
                 ))
                 .toList();
 

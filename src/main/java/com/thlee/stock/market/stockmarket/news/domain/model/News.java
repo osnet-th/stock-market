@@ -17,6 +17,8 @@ public class News {
     private LocalDateTime createdAt;
     private Long keywordId;
     private Region region;
+    /** 언론사명 (#115). 기존 데이터는 null 이라 표시 측에서 도메인으로 폴백한다. */
+    private String source;
 
     private News(String originalUrl,
                  String title,
@@ -24,7 +26,8 @@ public class News {
                  LocalDateTime publishedAt,
                  LocalDateTime createdAt,
                  Long keywordId,
-                 Region region) {
+                 Region region,
+                 String source) {
         this.originalUrl = originalUrl;
         this.title = title;
         this.content = content;
@@ -32,6 +35,7 @@ public class News {
         this.createdAt = createdAt;
         this.keywordId = keywordId;
         this.region = region;
+        this.source = source;
     }
 
     /**
@@ -44,7 +48,8 @@ public class News {
                 LocalDateTime publishedAt,
                 LocalDateTime createdAt,
                 Long keywordId,
-                Region region) {
+                Region region,
+                String source) {
         this.id = id;
         this.originalUrl = originalUrl;
         this.title = title;
@@ -53,6 +58,7 @@ public class News {
         this.createdAt = createdAt;
         this.keywordId = keywordId;
         this.region = region;
+        this.source = source;
     }
 
     /**
@@ -63,7 +69,8 @@ public class News {
                               String content,
                               LocalDateTime publishedAt,
                               Long keywordId,
-                              Region region) {
+                              Region region,
+                              String source) {
         validateOriginalUrl(originalUrl);
         validateTitle(title);
         validatePublishedAt(publishedAt);
@@ -76,7 +83,8 @@ public class News {
                 publishedAt,
                 LocalDateTime.now(),
                 keywordId,
-                region
+                region,
+                source
         );
     }
 

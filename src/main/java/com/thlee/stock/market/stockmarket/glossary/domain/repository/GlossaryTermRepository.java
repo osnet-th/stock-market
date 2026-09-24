@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.glossary.domain.repository;
 
 import com.thlee.stock.market.stockmarket.glossary.domain.model.GlossaryTerm;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,7 +24,13 @@ public interface GlossaryTermRepository {
     /** 동일 필터 기준 총 건수. 페이지네이션 응답 totalCount 용. */
     long countList(Long userId, GlossaryTermListFilter filter);
 
-    /** 단건 삭제. */
+    /**
+     * 후보 id 중 해당 사용자 소유 용어 id 만 반환 (함께 볼 용어 참조 검증용).
+     * 빈 입력은 빈 목록. 반환 순서는 보장하지 않는다 — 순서 보존은 호출자 책임.
+     */
+    List<Long> findOwnedIds(Long userId, Collection<Long> candidateIds);
+
+    /** 단건 삭제. 함께 볼 용어 관계(참조하는/참조받는 양방향)도 함께 정리한다. */
     int deleteByIdAndUserId(Long id, Long userId);
 
     /** 카테고리 삭제 미리보기 N건 산출용. */

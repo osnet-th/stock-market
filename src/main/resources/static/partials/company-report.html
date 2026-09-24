@@ -717,6 +717,125 @@
                     <div><label class="block text-xs text-gray-500 mb-1">기타 유동자산</label><input type="number" min="0" max="100" x-model="companyReport.form.params.ratios.otherCurrent" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></div>
                 </div>
             </div>
+
+            <!-- S-RIM: 재무 조회 실패 시에도 수동 입력/저장 가능 -->
+            <section class="bg-white border border-gray-200 rounded p-4" @input="crSrimChanged()" @change="crSrimChanged()">
+                <label class="flex items-center gap-2 font-semibold text-gray-800">
+                        <input type="checkbox" x-model="companyReport.srim.enabled" /> S-RIM 적정주가 (선택)</label>
+                <p class="text-xs text-gray-500 mt-2">예상 ROE와 요구수익률은 사용자 가정값입니다. 연도별 ROE를 독립 적용하며 감소율은 초과이익의 연간 감소율입니다.</p>
+                <div x-show="companyReport.srim.enabled" class="space-y-4 mt-4">
+                    <label class="block text-xs text-gray-600">자기자본·ROE 근거 금액 단위 <select x-model="companyReport.srim.amountScale" @change.stop="crSrimChangeUnit()" class="border rounded p-1.5">
+                        <option value="0">기본 단위 (원/달러)</option>
+                        <option value="8">억 (원/달러)</option>
+                        <option value="12">조 (원/달러)</option>
+                        </select>
+                        </label>
+                    <p class="text-xs text-gray-600">기본 통화는 <strong x-text="crSrimCurrencyLabel()">
+                        </strong>입니다. 자기자본·ROE 근거는 선택한 금액 단위로, 비교 주가는 기본 통화 단위로 입력하세요.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+<label class="block text-xs text-gray-600">지배주주지분<input type="text" x-model="companyReport.srim.equity" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        </label>
+                        <label class="block text-xs text-gray-600">자본 기준일<input type="date" x-model="companyReport.srim.equityDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        </label>
+                        <label class="block text-xs text-gray-600">총 주식수 (주)<input type="text" x-model="companyReport.srim.shares" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        </label>
+                        <label class="block text-xs text-gray-600">주식수 기준일<input type="date" x-model="companyReport.srim.sharesDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        </label>
+                        <label class="block text-xs text-gray-600">요구수익률 (%)<input type="text" x-model="companyReport.srim.requiredReturn" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        </label>
+                        <label class="block text-xs text-gray-600">비교 기준 주가 (선택)<input type="text" x-model="companyReport.srim.referencePrice" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        </label>
+                        <label class="block text-xs text-gray-600">주가 기준일<input type="date" x-model="companyReport.srim.referencePriceDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        </label>
+                        </div>
+                    <button type="button" @click="crSrimUseReference()" :disabled="!companyReport.preview?.snapshot?.priceMetrics?.referencePriceDate" class="text-xs text-blue-700 underline disabled:opacity-40">리포트의 기준 주가 가져오기</button>
+                    <p class="text-xs text-gray-500">비교율은 위 기준 주가 대비이며 실시간 현재가가 아닙니다. ROE 계산용 평균 자본은 공통 자기자본을 바꾸지 않습니다.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50">
+                        <tr>
+                        <th class="px-3 py-2">기준 연도</th>
+                        <th class="px-3 py-2">입력 방식</th>
+                        <th class="px-3 py-2">예상 ROE</th>
+                        <th class="px-3 py-2">영구 유지</th>
+                        <th class="px-3 py-2">매년 10% 감소</th>
+                        <th class="px-3 py-2">매년 20% 감소</th>
+                        <th>삭제</th>
+                        </tr>
+                        </thead>
+                            <template x-for="(row, idx) in companyReport.srim.years" :key="idx">
+                                <tbody class="border-b border-gray-200">
+                                    <tr>
+                                        <td class="p-2">
+                        <input aria-label="기준 연도" type="number" min="1900" max="2200" x-model="row.year" class="w-24 border rounded p-1.5" />
+                        </td>
+                                        <td class="p-2">
+                        <select aria-label="ROE 입력 방식" x-model="row.mode" class="border rounded p-1.5">
+                        <option value="DIRECT">직접 입력</option>
+                        <option value="CALCULATED">ROE 계산</option>
+                        </select>
+                        </td>
+                                        <td class="p-2">
+                        <input x-show="row.mode === 'DIRECT'" aria-label="예상 ROE 퍼센트" x-model="row.directRoe" class="w-24 border rounded p-1.5" />
+                        <span x-show="row.mode === 'CALCULATED'" x-text="crSrimPercent(companyReport.srim.result?.results?.[idx]?.roe)">
+                        </span>
+                        </td>
+<td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div x-text="crSrimPrice(companyReport.srim.result?.results?.[idx]?.perpetual, crSrimCurrency())">
+                        </div>
+                        <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.srim.result?.results?.[idx]?.perpetual)">
+                        </div>
+                        <span class="text-xs text-amber-700" x-show="Number(companyReport.srim.result?.results?.[idx]?.perpetual?.price) &lt; 0">음수 산출값 · 해석 주의</span>
+                        </td>
+                        <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div x-text="crSrimPrice(companyReport.srim.result?.results?.[idx]?.decline10, crSrimCurrency())">
+                        </div>
+                        <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.srim.result?.results?.[idx]?.decline10)">
+                        </div>
+                        <span class="text-xs text-amber-700" x-show="Number(companyReport.srim.result?.results?.[idx]?.decline10?.price) &lt; 0">음수 산출값 · 해석 주의</span>
+                        </td>
+                        <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div x-text="crSrimPrice(companyReport.srim.result?.results?.[idx]?.decline20, crSrimCurrency())">
+                        </div>
+                        <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.srim.result?.results?.[idx]?.decline20)">
+                        </div>
+                        <span class="text-xs text-amber-700" x-show="Number(companyReport.srim.result?.results?.[idx]?.decline20?.price) &lt; 0">음수 산출값 · 해석 주의</span>
+                        </td>
+                                        <td class="p-2">
+                        <button type="button" @click="crSrimRemoveYear(idx)" class="text-red-600 text-xs">삭제</button>
+                        </td>
+                                    </tr>
+                                    <tr x-show="row.mode === 'CALCULATED'">
+                        <td colspan="7" class="p-3 bg-gray-50">
+                                        <p class="text-xs text-gray-600 mb-2" x-text="(Number(row.year) - 1) + '년 말 지분과 ' + row.year + '년 말 예상 지분의 평균으로 ROE를 계산합니다.'">
+                        </p>
+                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+<label class="block text-xs text-gray-600">전기말 지배주주지분<input type="text" x-model="row.previousEquity" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        </label>
+                        <label class="block text-xs text-gray-600">당기말 예상 지배주주지분<input type="text" x-model="row.expectedEquity" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        </label>
+                        <label class="block text-xs text-gray-600">당기 예상 지배주주순이익<input type="text" x-model="row.expectedIncome" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        </label>
+                        </div>
+                                        <p class="text-xs text-gray-500 mt-2">예상 ROE = 예상 지배주주순이익 ÷ ((전기말 지분 + 당기말 예상 지분) ÷ 2) × 100</p>
+                                        <button type="button" @click="crSrimCalculate()" :disabled="companyReport.srim.loading" class="text-blue-700 text-xs underline mt-2">ROE 적용 후 적정주가 계산</button>
+                                    </td>
+                        </tr>
+                                </tbody>
+                            </template>
+                        </table>
+                    </div>
+                    <div class="flex gap-3 items-center flex-wrap">
+                        <button type="button" @click="crSrimAddYear()" :disabled="companyReport.srim.years.length >= 30" class="px-3 py-2 text-sm border rounded disabled:opacity-40">+ 연도 추가</button>
+                        <button type="button" @click="crSrimCalculate()" :disabled="companyReport.srim.loading" class="px-3 py-2 text-sm bg-blue-600 text-white rounded disabled:opacity-40" x-text="companyReport.srim.loading ? '계산 중…' : '계산하기'">
+                        </button>
+                        <span x-show="!companyReport.srim.result && !companyReport.srim.loading" class="text-xs text-gray-500">입력 후 계산하세요 · 변경 시 재계산 필요</span>
+                    </div>
+                    <p x-show="companyReport.srim.error" x-text="companyReport.srim.error" role="alert" class="text-sm text-red-600">
+                        </p>
+                    <p class="text-xs text-gray-500">누락된 결과는 —로 표시합니다. 입력 근거는 임시저장할 수 있으며 완료 저장 시 모든 연도의 필수 입력이 필요합니다. 저장 시 서버에서 최종 계산합니다.</p>
+                </div>
+            </section>
         </div>
 
         <!-- ===== 6단계: 주주·위험 ===== -->
@@ -1515,6 +1634,89 @@
                             </template>
                         </div>
                     </div>
+                </template>
+
+
+                <template x-if="companyReport.detail.srim">
+                    <section class="bg-white border border-gray-200 rounded p-4">
+                        <h3 class="font-semibold text-gray-800">S-RIM 적정주가</h3>
+                        <p class="text-xs text-gray-500 mt-1">저장 당시 가정과 계산 결과입니다. 데이터 새로고침으로 변경되지 않습니다. 조건 변경은 리포트 수정에서 진행하세요.</p>
+                        <p class="text-xs text-gray-500 mt-1" x-text="'계산 시점: ' + companyReport.detail.srim.calculatedAt">
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-3 text-sm">
+                            <div>지배주주지분: <span x-text="crSrimNumber(companyReport.detail.srim.input.equity, 8)">
+                        </span> <span x-text="companyReport.detail.srim.input.currency">
+                        </span>
+                        <div class="text-xs text-gray-500" x-text="companyReport.detail.srim.input.equityDate">
+                        </div>
+                        </div>
+                            <div>총 주식수: <span x-text="crSrimNumber(companyReport.detail.srim.input.shares, 0)">
+                        </span>주<div class="text-xs text-gray-500" x-text="companyReport.detail.srim.input.sharesDate">
+                        </div>
+                        </div>
+                            <div>요구수익률: <span x-text="crSrimPercent(companyReport.detail.srim.input.requiredReturn)">
+                        </span>
+                        </div>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-3" x-text="companyReport.detail.srim.input.referencePrice == null ? '비교 기준 주가 미입력' : '비교 기준 주가: ' + crSrimNumber(companyReport.detail.srim.input.referencePrice) + ' ' + companyReport.detail.srim.input.currency + ' (' + companyReport.detail.srim.input.referencePriceDate + ')' ">
+                        </p>
+                        <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50">
+                        <tr>
+                        <th class="px-3 py-2">기준 연도</th>
+                        <th class="px-3 py-2">입력 방식</th>
+                        <th class="px-3 py-2">예상 ROE</th>
+                        <th class="px-3 py-2">영구 유지</th>
+                        <th class="px-3 py-2">매년 10% 감소</th>
+                        <th class="px-3 py-2">매년 20% 감소</th>
+                        </tr>
+                        </thead>
+                            <template x-for="(row, idx) in companyReport.detail.srim.input.years" :key="idx">
+                                <tbody class="border-b border-gray-200">
+                        <tr>
+                                    <td class="px-3 py-2" x-text="row.year">
+                        </td>
+                                    <td class="px-3 py-2 whitespace-nowrap" x-text="row.mode === 'DIRECT' ? '직접 입력' : 'ROE 계산'">
+                        </td>
+                                    <td class="px-3 py-2" x-text="crSrimPercent(companyReport.detail.srim.results[idx]?.roe)">
+                        </td>
+<td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div x-text="crSrimPrice(companyReport.detail.srim.results[idx]?.perpetual, companyReport.detail.srim.input.currency)">
+                        </div>
+                        <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.detail.srim.results[idx]?.perpetual)">
+                        </div>
+                        <span class="text-xs text-amber-700" x-show="Number(companyReport.detail.srim.results[idx]?.perpetual?.price) &lt; 0">음수 산출값 · 해석 주의</span>
+                        </td>
+                        <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div x-text="crSrimPrice(companyReport.detail.srim.results[idx]?.decline10, companyReport.detail.srim.input.currency)">
+                        </div>
+                        <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.detail.srim.results[idx]?.decline10)">
+                        </div>
+                        <span class="text-xs text-amber-700" x-show="Number(companyReport.detail.srim.results[idx]?.decline10?.price) &lt; 0">음수 산출값 · 해석 주의</span>
+                        </td>
+                        <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div x-text="crSrimPrice(companyReport.detail.srim.results[idx]?.decline20, companyReport.detail.srim.input.currency)">
+                        </div>
+                        <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.detail.srim.results[idx]?.decline20)">
+                        </div>
+                        <span class="text-xs text-amber-700" x-show="Number(companyReport.detail.srim.results[idx]?.decline20?.price) &lt; 0">음수 산출값 · 해석 주의</span>
+                        </td>
+                                </tr>
+                        <tr x-show="row.mode === 'CALCULATED'">
+                        <td colspan="6" class="px-3 py-2 text-xs text-gray-500 bg-gray-50">
+                                    <span x-text="'전기말 지분 ' + crSrimNumber(row.previousEquity, 8) + ' · 당기말 예상 지분 ' + crSrimNumber(row.expectedEquity, 8) + ' · 예상 순이익 ' + crSrimNumber(row.expectedIncome, 8) + ' (' + companyReport.detail.srim.input.currency + ')' ">
+                        </span>
+                                    <div x-text="'평균 지분: ' + crSrimNumber(companyReport.detail.srim.results[idx]?.averageEquity, 8)">
+                        </div>
+                                </td>
+                        </tr>
+                        </tbody>
+                            </template>
+                        </table>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-3">각 연도의 ROE를 독립 적용합니다. 감소율은 초과이익의 연간 감소율이며, 비교율은 저장된 기준 주가 대비입니다.</p>
+                    </section>
                 </template>
 
                 <!-- 8. 주주 동향 -->

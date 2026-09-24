@@ -9,6 +9,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -48,6 +50,12 @@ public class CompanyAnalysisReportRepositoryImpl implements CompanyAnalysisRepor
         return stockNameKeyword == null
                 ? jpaRepository.countByUserId(userId)
                 : jpaRepository.countByUserIdAndStockNameContainingIgnoreCase(userId, stockNameKeyword);
+    }
+
+    @Override
+    public boolean updateSnapshot(Long id, Long userId, String snapshotJson,
+                                  LocalDateTime snapshotAt, String stockName) {
+        return jpaRepository.updateSnapshot(id, userId, snapshotJson, snapshotAt, stockName) > 0;
     }
 
     @Override

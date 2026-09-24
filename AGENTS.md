@@ -1,168 +1,28 @@
-# CLAUDE.md
+# AGENTS.md
 
-이 문서는 이 저장소에서 코딩 에이전트가 따라야 하는 실행 계약이다.
+이 파일은 Codex 계열 에이전트가 이 저장소에서 작업할 때 가장 먼저 읽는 래퍼 문서입니다.
 
-## Purpose
+## 필수 하네스
 
-- 모든 작업은 `start -> brainstorm -> issue -> plan -> work -> review -> validation -> commit -> push` 순서를 따른다.
-- workflow, 사용자 게이트, 승인 게이트, 컨텍스트 우선순위, 구현/리뷰/검증/커밋/푸시 기준만 정의한다.
-- 세부 코드 규칙과 worktree 규칙은 별도 policy 문서에 둔다.
+- 모든 작업 제어 규칙은 [docs/ai/agent-harness.md](docs/ai/agent-harness.md)를 따른다.
+- 작업 시작 전 반드시 [docs/ai/agent-harness.md](docs/ai/agent-harness.md)를 읽고 적용한다.
+- 이 문서와 공통 하네스 문서가 충돌하면 더 보수적인 규칙을 따른다.
+- `AGENTS.md`와 `CLAUDE.md`는 동일한 참조 구조를 유지한다.
+- 공통 정책 변경은 [docs/ai/agent-harness.md](docs/ai/agent-harness.md)에 반영한다.
+- 래퍼 문서 변경이 필요하면 `AGENTS.md`와 `CLAUDE.md`에 동일하게 반영한다. 의도적으로 차이를 둘 경우 plan에 차이, 사유, 승인 여부를 명시한다.
 
-## Workflow Policy
+## 빠른 확인
 
-### 공통 규칙
+- 응답 시 항상 "태형님"이라고 호칭한다.
+- 코드 구현이나 수정은 승인된 `docs/plans/` plan 문서가 있을 때만 진행한다. 오타·컴파일 에러·문서 수정·로직 무변경 국소 수정은 agent-harness의 lightweight workflow로 대화 승인 후 진행할 수 있다.
+- 작업 흐름은 착수 → brainstorm → plan/plan-approval → implement → review → explain(구현 이해 게이트) → verify → pr → merge 단계를 따르고, 단계는 `{worktree}/.claude/issues/{이슈번호}/stage` 마커로 관리한다.
+- 비 이슈로 시작한 documented 작업은 brainstorm 완료 후 plan 진입 전에 GitHub 이슈 등록 여부를 확인한다(github-issue-gate 이슈 등록 Gate).
+- issue 착수는 `scripts/start-issue-worktree.sh {이슈번호}`, PR/병합은 `gh` CLI를 사용한다. 병합은 태형님 승인 후에만 수행한다.
+- 커밋 메시지와 PR 본문에는 AI/도구 작성자 정보(`Co-Authored-By` 등)를 포함하지 않는다.
+- brainstorm/plan/리뷰 결과/구현 설명 4종은 [docs/ai/notion-guide.md](docs/ai/notion-guide.md)에 따라 Notion(프로젝트 플래너 > stock-market)에 동기화한다.
 
-- work는 항상 현재 plan 범위 안에서만 진행한다.
-- current plan이 없으면 work를 시작하지 않는다.
-- work 중 범위가 바뀌면 plan부터 갱신한다.
-- 각 단계는 시작 전에 태형님에게 무엇을 할지 제시하고, 다음 단계로 넘어가도 되는지 확인받는다.
-- 태형님 승인 없이 다음 단계로 넘어가지 않는다.
-- documented workflow의 단계 전환 승인은 `docs/gates/*.md`에 모으고, 각 단계 산출물은 해당 게이트 로그를 참조한다.
-- brainstorm 완료 후 plan으로 넘어가기 전에 GitHub Issue 등록 여부를 확인한다.
-- 대응 Issue가 없으면 brainstorm 내용을 바탕으로 GitHub Issue를 등록하고, Issue 번호를 기준으로 worktree를 생성한다.
+## 프로젝트 참고
 
-### documented workflow
-
-아래 경우에는 문서를 파일로 남긴다.
-
-- 비즈니스 로직 변경
-- API, Entity, 구조 변경
-- 요구사항 해석이 필요한 작업
-- 영향 범위가 크거나 리스크가 높은 작업
-
-정의:
-
-- current brainstorm: `docs/brainstorms/*.md`
-- current issue: `docs/issues/*.md`
-- current plan: `docs/plans/*.md`
-- current work: `docs/works/*.md`
-- current review: `docs/reviews/*.md`
-- current validation: `docs/validations/*.md`
-- current commit: `docs/commits/*.md`
-- current push: `docs/pushes/*.md`
-- current gate: `docs/gates/*.md`
-
-### lightweight workflow
-
-아래 경우에는 같은 순서를 따르되 문서를 파일로 남기지 않을 수 있다.
-
-- 오타 수정
-- 명백한 컴파일 에러 수정
-- 문서 수정
-- 로직 의미 변경이 없는 국소적 수정
-
-정의:
-
-- current brainstorm: 현재 대화에서 명시된 문제 정의
-- current plan: 현재 대화에서 명시된 작업 범위와 단계
-- issue/work/review/validation/commit/push/gate는 현재 대화에서 결과와 태형님 승인 여부를 명시한다.
-
-### escalation
-
-lightweight workflow로 시작했더라도 아래 조건이 생기면 즉시 documented workflow로 승격한다.
-
-- 로직 의미 변경 필요
-- 영향 범위 확대
-- 요구사항 해석 필요
-- 구조, API, Entity 변경 필요
-
-## Approval Gates
-
-아래 조건은 반드시 중단 후 사용자 확인을 받는다.
-
-- 패키지 구조, 레이어 책임, 의존성 방향 변경
-- public API 시그니처 변경 또는 신규 공개 API 추가
-- Entity 생성 또는 수정
-- 비즈니스 로직의 동작 변경
-- current plan 범위를 넘어서는 추가 작업 필요
-- 현재 작업 완료 후 다음 작업으로 연속 진행 필요
-- brainstorm, issue, plan, work, review, validation, commit, push 각 단계로 전환
-
-## Context Sources
-
-작업 전 아래 순서로 컨텍스트를 확인한다.
-
-1. 사용자 최신 명시 지시
-2. `ARCHITECTURE.md`
-3. `docs/policies/code-convention.md`
-4. `docs/policies/git-worktree.md`
-5. `compound-engineering.local.md`
-6. current gate
-7. current plan
-8. current issue
-9. current brainstorm
-10. current work
-11. current review
-12. current validation
-13. current commit
-14. current push
-15. `docs/solutions/**`
-16. 현재 코드베이스
-17. 레거시 참고 자료
-
-레거시 참고 자료:
-
-- `.claude/analyzes/**`
-- `.claude/designs/**`
-- `MD_WRITE_GUIDE.md`
-
-규칙:
-
-- documented workflow에서 `current plan`은 `docs/plans/*.md` 파일이다.
-- documented workflow에서 issue/work/review/validation/commit/push/gate는 각각 `docs/issues/*.md`, `docs/works/*.md`, `docs/reviews/*.md`, `docs/validations/*.md`, `docs/commits/*.md`, `docs/pushes/*.md`, `docs/gates/*.md` 파일이다.
-- lightweight workflow에서 `current plan`은 현재 대화 내 명시된 작업 범위다.
-- policy 문서의 세부 규칙은 `CLAUDE.md`에 중복 기재하지 않는다.
-
-## Implementation Contract
-
-- 아키텍처 기준은 [ARCHITECTURE.md](ARCHITECTURE.md)를 따른다.
-- 코드 구조와 리뷰 기준은 [docs/policies/code-convention.md](docs/policies/code-convention.md)를 따른다.
-- 작업 격리와 브랜치 분리 기준은 [docs/policies/git-worktree.md](docs/policies/git-worktree.md)를 따른다.
-- 요청 없는 리팩토링 또는 API 변경은 하지 않는다.
-- Entity는 ID 기반 참조만 허용한다.
-- Lombok 사용을 기본으로 하며 수동 getter/setter는 작성하지 않는다.
-- 테스트는 명시적 요청 시에만 작성하되, 기본 구현은 테스트 가능한 구조로 유지한다.
-- 한 번에 하나의 작업만 진행한다.
-- documented workflow에서는 plan의 체크리스트를 완료 상태로 갱신한다.
-- documented workflow에서는 단계별 산출물이 current gate 문서를 참조하도록 유지한다.
-- documented workflow의 worktree 생성은 `scripts/create-worktree.sh --issue <number> ...`로 수행한다.
-
-## Review Contract
-
-리뷰 시 아래 순서를 따른다.
-
-1. Findings를 심각도 순으로 제시
-2. Open Questions / Assumptions 정리
-3. Change Summary를 짧게 정리
-
-Findings에는 아래를 포함한다.
-
-- 버그, 회귀 위험, 누락 테스트, 설계 위반
-- `docs/policies/code-convention.md` 위반 여부
-- 파일/라인 근거
-
-문제 없음이면 `명시적 findings 없음`을 먼저 적고 남은 리스크를 덧붙인다.
-
-## Validation Contract
-
-- validation 단계에서는 실행한 명령, 결과, 미검증 항목을 `docs/validations/*.md`에 기록한다.
-- 검증 실패 또는 미검증 항목이 있으면 태형님에게 다음 진행 여부를 확인한다.
-
-## Commit / Push Contract
-
-- commit 단계에서는 포함 파일, 제외 파일, 커밋 메시지, 태형님 승인 여부를 `docs/commits/*.md`에 기록한다.
-- push 단계에서는 대상 remote/branch, push 의도, 태형님 승인 여부를 `docs/pushes/*.md`에 기록한다.
-- push 결과는 push 완료 후 최종 응답 또는 후속 기록으로 남긴다.
-
-## Response Contract
-
-- 작업 중 업데이트와 최종 응답에서 사용자를 `태형님`으로 호칭한다.
-
-최종 응답은 아래 형식을 기본으로 한다.
-
-1. 요약
-2. 변경 파일
-3. 검증 결과
-4. 리스크/다음 단계
-
-단순 질의는 짧게 답하되, 규칙 위반 가능성이 있으면 즉시 게이트를 안내한다.
+- 프로젝트 개요, 기술 스택, 개발 규칙, 테스트 가이드는 [CLAUDE.md](CLAUDE.md)를 따른다.
+- 패키지 구조, 계층 규칙, 의존성 방향은 [ARCHITECTURE.md](ARCHITECTURE.md)를 따른다.
+- 문서 작성 규칙은 [MD_WRITE_GUIDE.md](MD_WRITE_GUIDE.md)를 따른다.

@@ -3,11 +3,11 @@ package com.thlee.stock.market.stockmarket.salary.domain.model.enums;
 import lombok.Getter;
 
 /**
- * 월별 지출 카테고리 (8개 고정).
+ * 기본 지출 카테고리 시드 카탈로그 (8종).
  *
- * <p><b>중요: Enum 상수 이름은 재명명 금지.</b> 이 값은
- * {@code @Enumerated(EnumType.STRING)}으로 DB에 저장되므로, 이름을 바꾸면
- * 기존 행이 orphan이 된다. 추가는 허용하며, 제거 시 데이터 이관 스크립트 필수.
+ * <p>카테고리는 사용자 정의 테이블({@code user_spending_category})로 전환되었고,
+ * 본 enum은 사용자별 최초 시드의 원천으로만 쓰인다. 기존 행들이 enum 이름을
+ * code('FOOD' 등)로 저장하고 있으므로 <b>상수 이름 재명명 금지</b>. 추가는 허용.
  */
 @Getter
 public enum SpendingCategory {

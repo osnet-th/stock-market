@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/thlee/Documents/personal/stock-market/scripts/harness-stage-reminder.sh",
+            "timeout": 15,
+            "statusMessage": "Checking harness stage"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/thlee/Documents/personal/stock-market/scripts/test-gate-reminder.sh",
+            "timeout": 10,
+            "statusMessage": "Checking test-plan gate"
+          }
+        ]
+      }
+    ]
+  }
+}

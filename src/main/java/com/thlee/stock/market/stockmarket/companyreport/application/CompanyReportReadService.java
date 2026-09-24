@@ -3,6 +3,7 @@ package com.thlee.stock.market.stockmarket.companyreport.application;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.CompanyReportResults;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportValuation;
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.SrimData;
 import com.thlee.stock.market.stockmarket.companyreport.domain.exception.CompanyReportNotFoundException;
 import com.thlee.stock.market.stockmarket.companyreport.domain.model.CompanyAnalysisReport;
 import com.thlee.stock.market.stockmarket.companyreport.domain.model.ValuationParams;
@@ -73,7 +74,8 @@ public class CompanyReportReadService {
                 report.isDraft(), report.getDraftStep(),
                 report.getValuationParams(), snapshot, valuation,
                 gradeSuggestionCalculator.calculate(snapshot, valuation),
-                report.getSnapshotAt(), report.getCreatedAt(), report.getUpdatedAt());
+                report.getSnapshotAt(), report.getCreatedAt(), report.getUpdatedAt(),
+                SrimData.from(report.getSrim()));
     }
 
     private ReportValuation computeValuation(ReportSnapshot snapshot, ValuationParams params) {

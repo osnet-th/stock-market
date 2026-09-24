@@ -251,8 +251,7 @@ const PortfolioComponent = {
         return '마지막 저장 ' + list[list.length - 1].snapshotDate;
     },
 
-    // salary.js 에도 renderTrendChart 가 있어 이름이 겹치면 나중에 로드되는 쪽이 덮어쓴다.
-    // 컴포넌트가 같은 dashboard 객체에 병합되는 구조라 포트폴리오 전용 이름을 쓴다.
+    // 컴포넌트가 같은 dashboard 객체에 병합되는 구조라 이름 충돌을 피해 포트폴리오 전용 이름을 쓴다.
     renderPortfolioTrendChart() {
         const canvas = document.getElementById('portfolioTrendChart');
         if (!canvas) return;

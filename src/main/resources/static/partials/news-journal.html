@@ -1,302 +1,585 @@
-            <!-- ========== NEWS JOURNAL (뉴스 기록) ========== -->
-            <div x-show="currentPage === 'news-journal'" x-cloak
-                 x-init="$watch('currentPage', v => { if (v === 'news-journal') newsJournalLoad(); }); if (currentPage === 'news-journal') newsJournalLoad();">
-                <!-- 헤더 -->
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 class="text-xl font-bold text-gray-800">뉴스 기록</h2>
-                        <p class="text-xs text-gray-500 mt-1">사건을 일자별로 정리하고 타임라인으로 회고합니다.</p>
-                    </div>
-                    <button type="button" @click="newsJournalOpenCreate()"
-                            class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-                        새 사건 기록
-                    </button>
-                </div>
+            <!-- ========== NEWS JOURNAL (뉴스 기록) — 마스터-디테일 리디자인 ==========
+                 목업: 업로드 b18ca2f9-*.html (docs/plans/2026-08-21-001-feat-news-journal-redesign-plan.md)
+                 보기·수정·새 기록 모두 디테일 pane 인라인 (모달 없음). 새 기록 초안은 localStorage 보관. -->
+            <div id="njPage" x-show="currentPage === 'news-journal'" x-cloak
+                 x-init="$watch('currentPage', v => { if (v === 'news-journal') njEnter(); }); if (currentPage === 'news-journal') njEnter();"
+                 @resize.window="newsJournal.vw = window.innerWidth"
+                 @keydown.escape.window="njEsc()">
 
-                <!-- 주제 분류 탭 -->
-                <div class="mb-3 -mx-1 overflow-x-auto">
-                    <div class="flex items-center gap-2 px-1 whitespace-nowrap">
-                        <button type="button" @click="newsJournalSelectCategoryTab(null)"
-                                class="px-3 py-1.5 text-xs rounded-full border transition"
-                                :class="newsJournal.activeCategoryId === null
-                                        ? 'bg-blue-600 text-white border-blue-600'
-                                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'">
-                            전체
-                        </button>
-                        <template x-for="cat in newsJournal.categories" :key="cat.id">
-                            <button type="button" @click="newsJournalSelectCategoryTab(cat.id)"
-                                    class="px-3 py-1.5 text-xs rounded-full border transition"
-                                    :class="newsJournal.activeCategoryId === cat.id
-                                            ? 'bg-blue-600 text-white border-blue-600'
-                                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
-                                    x-text="cat.name"></button>
-                        </template>
-                    </div>
-                </div>
+                <div class="nj-shell dc-card flex flex-col overflow-hidden">
 
-                <!-- 필터 바 -->
-                <div class="bg-white border border-gray-200 rounded p-3 mb-4 flex flex-wrap items-end gap-3">
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">시장영향</label>
-                        <select x-model="newsJournal.filter.impact"
-                                class="text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                            <option value="">전체</option>
-                            <option value="GOOD">호재</option>
-                            <option value="BAD">악재</option>
-                            <option value="NEUTRAL">중립</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">시작일</label>
-                        <input type="date" x-model="newsJournal.filter.from"
-                               class="text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">종료일</label>
-                        <input type="date" x-model="newsJournal.filter.to"
-                               class="text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    </div>
-                    <div class="flex gap-2">
-                        <button type="button" @click="newsJournalApplyFilter()"
-                                class="text-sm px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-50">필터 적용</button>
-                        <button type="button" @click="newsJournalResetFilter()"
-                                class="text-sm px-3 py-1.5 text-gray-500 hover:text-gray-700">초기화</button>
-                    </div>
-                </div>
+                    <!-- ===== 헤더 (제목 · 필터 · 키워드 · 뷰) ===== -->
+                    <header class="flex-none flex flex-col bg-white" style="border-bottom:1px solid rgba(0,0,0,.09);padding:15px 24px;gap:13px">
 
-                <!-- 상태 메시지 -->
-                <div x-show="newsJournal.loading" class="text-sm text-gray-400 mb-2">로딩 중…</div>
-                <div x-show="newsJournal.error" class="text-sm text-red-600 mb-2" x-text="newsJournal.error"></div>
+                        <!-- 제목 행 -->
+                        <div class="flex items-center justify-between flex-wrap" style="gap:18px">
+                            <div class="flex items-baseline flex-wrap" style="gap:12px">
+                                <h2 class="dc-h1" style="margin:0">뉴스 기록</h2>
+                                <span class="dc-meta" x-text="njTotalNote()"></span>
+                            </div>
+                            <div class="flex items-center flex-wrap" style="gap:8px">
+                                <button type="button" data-nj="draft-chip" x-show="njHasSavedDraft()" @click="njResumeDraft()"
+                                        class="flex items-center"
+                                        style="gap:7px;border:1px solid #ecdcc2;background:#fbf8f3;color:#8a6a34;border-radius:7px;padding:7px 13px;font-family:inherit;font-size:11.5px;cursor:pointer">
+                                    <span style="width:6px;height:6px;border-radius:50%;background:#b5854a"></span>
+                                    <span x-text="'작성 중 초안 · ' + njDraftPreview() + ' — 이어쓰기'"></span>
+                                </button>
+                                <button type="button" data-nj="new" class="nj-btn-primary" style="font-family:inherit" @click="njNewRecord()">+ 새 사건 기록</button>
+                            </div>
+                        </div>
 
-                <!-- 빈 상태 -->
-                <template x-if="!newsJournal.loading && newsJournal.items.length === 0 && !newsJournal.error">
-                    <div class="bg-white border border-dashed border-gray-300 rounded p-8 text-center text-sm text-gray-500">
-                        아직 기록된 사건이 없습니다. 우측 상단의 “새 사건 기록” 버튼으로 첫 사건을 추가해 보세요.
-                    </div>
-                </template>
+                        <!-- 필터 행: 검색 · 시장영향 · 분류 · 기간 -->
+                        <div class="flex items-center flex-wrap" style="gap:9px">
+                            <div class="flex items-center" style="flex:1 1 300px;min-width:230px;gap:9px;padding:0 13px;height:38px;border-radius:8px;background:#f7f8fa"
+                                 :style="{ border: '1px solid ' + (newsJournal.query.trim() ? '#1f4f9e' : 'rgba(0,0,0,.12)') }">
+                                <span style="font-size:13px;color:#8b9299">⌕</span>
+                                <input data-nj="search" x-model="newsJournal.query" @input.debounce.300ms="njQueryChanged()"
+                                       placeholder="제목 · WHAT · WHY · HOW 본문까지 검색"
+                                       style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-size:12.5px;color:#14161a;font-family:inherit">
+                                <button type="button" data-nj="search-clear" aria-label="검색어 지우기" x-show="newsJournal.query.length > 0" @click="njClearQuery()"
+                                        style="border:none;background:transparent;color:#8b9299;font-size:14px;cursor:pointer;padding:0 2px;font-family:inherit">×</button>
+                            </div>
 
-                <!-- 세로 타임라인 -->
-                <ol x-show="newsJournal.items.length > 0" class="relative border-l-2 border-slate-200 ml-3 pl-6 py-2">
-                    <template x-for="item in newsJournal.items" :key="item.id">
-                        <li class="relative mb-6 last:mb-0">
-                            <!-- 도트 -->
-                            <span class="absolute -left-[34px] top-2 h-3 w-3 rounded-full ring-4 ring-white"
-                                  :class="newsJournalImpactDotClass(item.impact)"></span>
-                            <!-- 카드 -->
-                            <div class="bg-white border border-gray-200 rounded shadow-sm p-4">
-                                <div class="flex items-start justify-between gap-3 mb-2">
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex flex-wrap items-center gap-2 mb-1">
-                                            <span class="text-xs text-gray-500" x-text="item.occurredDate"></span>
-                                            <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-medium border rounded"
-                                                  :class="newsJournalImpactBadgeClass(item.impact)"
-                                                  x-text="newsJournalImpactLabel(item.impact)"></span>
-                                            <template x-if="item.category">
-                                                <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-medium border rounded bg-slate-50 text-slate-600 border-slate-200"
-                                                      x-text="item.category.name"></span>
-                                            </template>
-                                        </div>
-                                        <h3 class="text-base font-semibold text-gray-800 break-words" x-text="item.title"></h3>
-                                    </div>
-                                    <div class="flex gap-1 shrink-0">
-                                        <button type="button" @click="newsJournalOpenEdit(item)"
-                                                class="text-xs px-2 py-1 text-gray-500 hover:text-blue-600">수정</button>
-                                        <button type="button" @click="newsJournalDelete(item.id)"
-                                                class="text-xs px-2 py-1 text-gray-500 hover:text-red-600">삭제</button>
-                                    </div>
-                                </div>
-
-                                <!-- WHAT / WHY / HOW -->
-                                <div class="space-y-2 text-sm text-gray-700">
-                                    <template x-if="item.what">
-                                        <div>
-                                            <div class="text-[11px] font-semibold text-gray-400 mb-0.5">WHAT</div>
-                                            <p class="whitespace-pre-wrap leading-relaxed" x-text="item.what"></p>
-                                        </div>
-                                    </template>
-                                    <template x-if="item.why">
-                                        <div>
-                                            <div class="text-[11px] font-semibold text-gray-400 mb-0.5">WHY</div>
-                                            <p class="whitespace-pre-wrap leading-relaxed" x-text="item.why"></p>
-                                        </div>
-                                    </template>
-                                    <template x-if="item.how">
-                                        <div>
-                                            <div class="text-[11px] font-semibold text-gray-400 mb-0.5">HOW</div>
-                                            <p class="whitespace-pre-wrap leading-relaxed" x-text="item.how"></p>
-                                        </div>
-                                    </template>
-                                </div>
-
-                                <!-- 관련 기사 -->
-                                <template x-if="item.links && item.links.length > 0">
-                                    <div class="mt-3 pt-3 border-t border-gray-100">
-                                        <div class="text-[11px] font-semibold text-gray-400 mb-1">관련 기사</div>
-                                        <ul class="space-y-1">
-                                            <template x-for="(link, idx) in item.links" :key="idx">
-                                                <li class="text-sm">
-                                                    <a :href="link.url" target="_blank" rel="noopener noreferrer"
-                                                       class="text-blue-600 hover:underline break-all" x-text="link.title"></a>
-                                                </li>
-                                            </template>
-                                        </ul>
-                                    </div>
+                            <div class="nj-seg">
+                                <template x-for="seg in njImpactSegs()" :key="seg.key">
+                                    <button type="button" style="font-family:inherit"
+                                            :class="newsJournal.impact === seg.key ? 'nj-seg-btn on' : 'nj-seg-btn'"
+                                            @click="njSetImpact(seg.key)">
+                                        <span style="width:6px;height:6px;border-radius:50%;flex:none" :style="{ background: seg.dot }"></span>
+                                        <span x-text="seg.name"></span>
+                                        <span class="font-mono" style="font-size:10px;color:#98a0a7" x-text="seg.count"></span>
+                                    </button>
                                 </template>
+                            </div>
 
-                                <!-- 키워드 -->
-                                <template x-if="item.keywords && item.keywords.length > 0">
-                                    <div class="mt-3 flex flex-wrap gap-1.5">
-                                        <template x-for="(kw, idx) in item.keywords" :key="idx">
-                                            <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-full"
-                                                  x-text="'#' + kw"></span>
+                            <!-- 분류 드롭다운 -->
+                            <div style="position:relative;flex:none" @click.outside="newsJournal.catOpen = false">
+                                <button type="button" class="flex items-center"
+                                        data-nj="cat-toggle" @click="newsJournal.catOpen = !newsJournal.catOpen; newsJournal.tagPanel = false"
+                                        style="gap:8px;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:11.5px;cursor:pointer;white-space:nowrap"
+                                        :style="newsJournal.categoryId == null
+                                                ? { border: '1px solid rgba(0,0,0,.14)', background: '#fff', color: '#33383d' }
+                                                : { border: '1px solid #14161a', background: '#14161a', color: '#fff' }">
+                                    <span x-text="njCatLabel()"></span>
+                                    <span class="font-mono" style="font-size:10px;opacity:.7" x-text="njCatBadge()"></span>
+                                    <span style="font-size:9px;opacity:.6">▾</span>
+                                </button>
+                                <div data-nj="cat-pop" x-show="newsJournal.catOpen" x-cloak class="nj-pop" style="left:0;top:36px;width:236px">
+                                    <div style="padding:9px 10px;border-bottom:1px solid rgba(0,0,0,.07)">
+                                        <input x-model="newsJournal.catQuery" placeholder="분류 찾기"
+                                               style="width:100%;box-sizing:border-box;border:1px solid rgba(0,0,0,.13);border-radius:6px;padding:7px 10px;font-size:11.5px;outline:none;font-family:inherit">
+                                    </div>
+                                    <div class="flex flex-col" style="max-height:236px;overflow-y:auto">
+                                        <template x-for="c in njCatOptions()" :key="c.id === null ? '_all' : c.id">
+                                            <button type="button" class="flex items-center" @click="njSetCategory(c.id)"
+                                                    style="gap:9px;text-align:left;border:none;border-bottom:1px solid rgba(0,0,0,.05);font-family:inherit;font-size:11.5px;padding:9px 12px;cursor:pointer"
+                                                    :style="newsJournal.categoryId === c.id
+                                                            ? { background: '#eff3fa', color: '#1f4f9e', fontWeight: '600' }
+                                                            : { background: '#fff', color: '#33383d', fontWeight: '400' }">
+                                                <span style="width:10px;flex:none;color:#1f4f9e;font-size:10px" x-text="newsJournal.categoryId === c.id ? '✓' : ''"></span>
+                                                <span style="flex:1;min-width:0" x-text="c.name"></span>
+                                                <span class="font-mono" style="font-size:10px;color:#98a0a7" x-text="c.count"></span>
+                                            </button>
+                                        </template>
+                                    </div>
+                                    <span style="padding:8px 12px;font-size:10px;color:#98a0a7;line-height:1.5;border-top:1px solid rgba(0,0,0,.06)" x-text="njCatNote()"></span>
+                                </div>
+                            </div>
+
+                            <button type="button" data-nj="range-toggle" @click="njToggleRange()"
+                                    style="border-radius:8px;padding:7px 12px;font-family:inherit;font-size:11.5px;cursor:pointer;white-space:nowrap"
+                                    :style="newsJournal.showRange
+                                            ? { border: '1px solid #b9cbe8', background: '#eff3fa', color: '#1f4f9e' }
+                                            : { border: '1px solid rgba(0,0,0,.14)', background: '#fff', color: '#33383d' }"
+                                    x-text="njRangeLabel()"></button>
+                            <div x-show="newsJournal.showRange" class="flex items-center"
+                                 style="gap:7px;padding:4px 10px;border:1px solid #b9cbe8;background:#eff3fa;border-radius:8px">
+                                <input type="date" x-model="newsJournal.from" @change="njReload()" class="font-mono"
+                                       style="border:1px solid rgba(0,0,0,.14);border-radius:6px;padding:5px 8px;font-size:11px;background:#fff;outline:none">
+                                <span style="font-size:11px;color:#7d90ad">~</span>
+                                <input type="date" x-model="newsJournal.to" @change="njReload()" class="font-mono"
+                                       style="border:1px solid rgba(0,0,0,.14);border-radius:6px;padding:5px 8px;font-size:11px;background:#fff;outline:none">
+                            </div>
+                        </div>
+
+                        <!-- 키워드 행: 검색(초성) · 상위 칩 · 전체 패널 · 뷰 토글 -->
+                        <div class="flex items-center flex-wrap" style="gap:9px">
+                            <div class="flex items-center" style="gap:8px;padding:0 11px;height:32px;border:1px solid rgba(0,0,0,.12);border-radius:20px;background:#f7f8fa;flex:none">
+                                <span style="font-size:11px;color:#8b9299">#</span>
+                                <input data-nj="tag-search" x-model="newsJournal.tagQuery" placeholder="키워드 찾기 · ㅂㄷㅊ 처럼 초성도 됩니다"
+                                       style="border:none;background:transparent;outline:none;font-size:11.5px;color:#14161a;font-family:inherit"
+                                       :style="{ width: njTagInputW() }">
+                                <span class="font-mono" style="font-size:10px;color:#b2b8bd" x-text="njTagCount()"></span>
+                            </div>
+                            <div class="flex items-center" style="flex:1 1 240px;min-width:0;gap:5px;overflow-x:auto">
+                                <template x-for="t in njTagChips()" :key="t">
+                                    <button type="button" style="font-family:inherit"
+                                            :class="newsJournal.tagSel.includes(t) ? 'nj-chip on' : 'nj-chip'"
+                                            @click="njToggleTag(t)">
+                                        <span x-text="t"></span>
+                                        <span class="font-mono" style="font-size:9.5px;opacity:.65" x-text="njTagFreq(t)"></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <div style="position:relative;flex:none" @click.outside="newsJournal.tagPanel = false">
+                                <button type="button" data-nj="tag-more" @click="newsJournal.tagPanel = !newsJournal.tagPanel; newsJournal.catOpen = false"
+                                        style="border-radius:20px;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer;white-space:nowrap;color:#1f4f9e"
+                                        :style="newsJournal.tagPanel
+                                                ? { border: '1px dashed #1f4f9e', background: '#eff3fa' }
+                                                : { border: '1px dashed rgba(0,0,0,.2)', background: 'transparent' }"
+                                        x-text="njMoreLabel()"></button>
+                                <div data-nj="tag-panel" x-show="newsJournal.tagPanel" x-cloak class="nj-pop"
+                                     style="right:0;top:34px;max-width:min(392px, calc(100vw - 300px));max-height:min(460px, calc(100dvh - 330px))" :style="{ width: njPanelW() }">
+                                    <div class="flex-none flex items-center justify-between" style="gap:10px;padding:9px 12px;border-bottom:1px solid rgba(0,0,0,.07)">
+                                        <span style="font-size:10.5px;color:#7a828a" x-text="njPanelNote()"></span>
+                                        <div class="flex" style="gap:2px;padding:2px;background:#f2f4f7;border-radius:6px">
+                                            <button type="button" @click="newsJournal.tagSort = '빈도'"
+                                                    style="border:none;border-radius:5px;padding:4px 9px;font-family:inherit;font-size:10px;cursor:pointer;white-space:nowrap"
+                                                    :style="newsJournal.tagSort === '빈도' ? { background: '#fff', color: '#14161a', fontWeight: '600' } : { background: 'transparent', color: '#7a828a', fontWeight: '400' }">추천</button>
+                                            <button type="button" @click="newsJournal.tagSort = '이름'"
+                                                    style="border:none;border-radius:5px;padding:4px 9px;font-family:inherit;font-size:10px;cursor:pointer;white-space:nowrap"
+                                                    :style="newsJournal.tagSort === '이름' ? { background: '#fff', color: '#14161a', fontWeight: '600' } : { background: 'transparent', color: '#7a828a', fontWeight: '400' }">가나다 전체</button>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col" style="flex:1;min-height:0;overflow-y:auto">
+                                        <template x-if="newsJournal.tagSort === '빈도'">
+                                            <div class="flex flex-col">
+                                                <template x-for="s in njPanelSections()" :key="s.label">
+                                                    <div class="flex flex-col" style="gap:7px;padding:11px 12px;border-bottom:1px solid rgba(0,0,0,.05)">
+                                                        <div class="flex items-baseline" style="gap:7px">
+                                                            <span style="font-size:10.5px;font-weight:600;color:#4a5158" x-text="s.label"></span>
+                                                            <span class="font-mono" style="font-size:9.5px;color:#b2b8bd" x-text="s.tags.length"></span>
+                                                            <span style="font-size:9.5px;color:#b2b8bd" x-text="s.hint"></span>
+                                                        </div>
+                                                        <div class="flex flex-wrap" style="gap:5px">
+                                                            <template x-for="t in s.tags" :key="t">
+                                                                <button type="button" style="font-family:inherit"
+                                                                        :class="newsJournal.tagSel.includes(t) ? 'nj-chip on' : 'nj-chip'"
+                                                                        @click="njToggleTag(t)">
+                                                                    <span x-text="t"></span>
+                                                                    <span class="font-mono" style="font-size:9.5px;opacity:.65" x-text="njTagFreq(t)"></span>
+                                                                </button>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="newsJournal.tagSort === '이름'">
+                                            <div class="flex flex-col">
+                                                <template x-for="g in njAlphaGroups()" :key="g.key">
+                                                    <div class="flex" style="gap:10px;padding:9px 12px;border-bottom:1px solid rgba(0,0,0,.05)">
+                                                        <span class="font-mono" style="width:22px;flex:none;font-size:11px;font-weight:600;color:#98a0a7;padding-top:4px" x-text="g.key"></span>
+                                                        <div class="flex flex-wrap" style="flex:1;min-width:0;gap:5px">
+                                                            <template x-for="t in g.tags" :key="t">
+                                                                <button type="button" style="font-family:inherit"
+                                                                        :class="newsJournal.tagSel.includes(t) ? 'nj-chip on' : 'nj-chip'"
+                                                                        @click="njToggleTag(t)">
+                                                                    <span x-text="t"></span>
+                                                                    <span class="font-mono" style="font-size:9.5px;opacity:.65" x-text="njTagFreq(t)"></span>
+                                                                </button>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <div x-show="njNoPanelResult()" style="padding:26px 14px;text-align:center;font-size:11.5px;color:#98a0a7">일치하는 키워드가 없습니다</div>
+                                    </div>
+                                    <span class="flex-none" style="padding:8px 12px;font-size:10px;color:#98a0a7;line-height:1.5;border-top:1px solid rgba(0,0,0,.06)">기억해서 적지 않아도 됩니다 — 하나 고를수록 함께 등장한 키워드가 위로 오며 범위가 좁혀집니다. 관계도에서 지도처럼 탐색할 수도 있습니다.</span>
+                                </div>
+                            </div>
+                            <div class="nj-seg" style="flex:none">
+                                <button type="button" style="font-family:inherit"
+                                        :class="newsJournal.view === 'list' ? 'nj-seg-btn on' : 'nj-seg-btn'"
+                                        data-nj="view-list" @click="newsJournal.view = 'list'; newsJournal.pane = 'list'">목록</button>
+                                <button type="button" style="font-family:inherit"
+                                        :class="newsJournal.view === 'graph' ? 'nj-seg-btn on' : 'nj-seg-btn'"
+                                        data-nj="view-graph" @click="newsJournal.view = 'graph'">키워드 관계도</button>
+                            </div>
+                        </div>
+
+                        <!-- 선택 키워드 필터 바 -->
+                        <div x-show="newsJournal.tagSel.length > 0" class="flex items-center flex-wrap"
+                             style="gap:8px;padding:9px 12px;background:#eff3fa;border:1px solid #dbe4f2;border-radius:8px">
+                            <span style="font-size:11px;color:#1f4f9e;flex:none" x-text="njTagSelNote()"></span>
+                            <template x-for="t in newsJournal.tagSel" :key="t">
+                                <span class="flex items-center" style="gap:6px;padding:4px 8px 4px 11px;border:1px solid #b9cbe8;background:#fff;border-radius:20px;font-size:11px;color:#1f4f9e">
+                                    <span x-text="t"></span>
+                                    <button type="button" @click="njToggleTag(t)"
+                                            style="border:none;background:transparent;color:#7d90ad;font-size:12px;cursor:pointer;padding:0 1px;font-family:inherit">×</button>
+                                </span>
+                            </template>
+                            <button type="button" @click="njClearTags()"
+                                    style="border:none;background:transparent;color:#6b737a;font-family:inherit;font-size:11px;cursor:pointer;margin-left:auto">키워드 필터 해제</button>
+                        </div>
+                    </header>
+
+                    <!-- ===== 메인 (관계도 | 목록 + 디테일) ===== -->
+                    <main class="flex items-stretch" style="flex:1;min-width:0;min-height:0" @click="njClosePopovers()">
+
+                        <!-- 키워드 관계도 뷰 -->
+                        <div x-show="newsJournal.view === 'graph'" class="flex flex-col bg-white" style="flex:1;min-width:0;min-height:0">
+                            <div class="flex-none flex items-center justify-between flex-wrap" style="gap:14px;padding:13px 22px;border-bottom:1px solid rgba(0,0,0,.08);background:#fbfcfd">
+                                <div class="flex flex-col" style="gap:3px">
+                                    <span style="font-size:13px;font-weight:600">키워드 관계도</span>
+                                    <span style="font-size:11px;color:#8b9299" x-text="njGraphNote()"></span>
+                                </div>
+                                <button type="button" class="nj-btn-ghost" style="font-family:inherit"
+                                        @click="newsJournal.view = 'list'; newsJournal.pane = 'list'">목록으로 보기</button>
+                            </div>
+                            <div style="flex:1;min-height:0;overflow:auto;padding:10px 16px">
+                                <div x-show="njGraphNodes().length > 0" style="position:relative;width:900px;height:470px;margin:0 auto">
+                                    <svg width="900" height="470" viewBox="0 0 900 470" style="position:absolute;inset:0" x-html="njGraphEdges()"></svg>
+                                    <template x-for="n in njGraphNodes()" :key="n.tag">
+                                        <div style="display:contents">
+                                            <button type="button" class="nj-node"
+                                                    :style="{ left: n.x + 'px', top: n.y + 'px', width: (n.r * 2) + 'px', height: (n.r * 2) + 'px',
+                                                              background: n.on ? '#1f4f9e' : '#fff', color: n.on ? '#fff' : '#33383d',
+                                                              border: n.on ? '2px solid #1f4f9e' : '1.4px solid #8fa8c9',
+                                                              opacity: n.lit ? 1 : 0.28 }"
+                                                    @click="njToggleTag(n.tag)"
+                                                    @mouseenter="newsJournal.hoverTag = n.tag"
+                                                    @mouseleave="newsJournal.hoverTag = null"
+                                                    x-text="n.count"></button>
+                                            <span class="nj-node-label"
+                                                  :style="{ left: n.x + 'px', top: (n.y + n.r + 4) + 'px',
+                                                            color: n.on ? '#1f4f9e' : '#4a5158', opacity: n.lit ? 1 : 0.28 }"
+                                                  x-text="n.tag"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div x-show="njGraphNodes().length === 0" class="flex flex-col items-center" style="gap:10px;padding:60px 20px">
+                                    <span style="font-size:24px;color:#c9ced6">◎</span>
+                                    <span style="font-size:12px;color:#8b9299">아직 키워드가 없습니다 — 기록에 키워드를 붙이면 관계도가 그려집니다</span>
+                                </div>
+                            </div>
+                            <div class="flex-none flex items-center flex-wrap" style="gap:8px;padding:12px 22px;border-top:1px solid rgba(0,0,0,.07);background:#fbfcfd">
+                                <span style="font-size:10.5px;color:#7a828a;flex:none">가장 자주 겹치는 짝</span>
+                                <template x-for="c in njCoTop()" :key="c.a + '×' + c.b">
+                                    <button type="button" class="flex items-center nj-btn-ghost" style="gap:7px;border-radius:20px;padding:5px 12px;font-size:11px;font-family:inherit"
+                                            @click="njSelectPair(c.a, c.b)">
+                                        <span x-text="c.a + ' × ' + c.b"></span>
+                                        <span class="font-mono" style="font-size:9.5px;color:#98a0a7" x-text="c.w + '건 함께'"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- 목록 pane -->
+                        <section x-show="njShowListPane()" class="flex flex-col"
+                                 style="min-width:0;min-height:0;border-right:1px solid rgba(0,0,0,.08);background:#f7f8fa"
+                                 :style="njNarrow() ? { flex: '1 1 100%', maxWidth: '100%' } : { flex: '1 1 400px', maxWidth: '460px' }">
+                            <div class="flex-none flex items-center justify-between bg-white" style="gap:10px;padding:11px 18px;border-bottom:1px solid rgba(0,0,0,.07)">
+                                <span style="font-size:11.5px;color:#4a5158" x-text="njResultNote()"></span>
+                                <div class="flex items-center" style="gap:3px;padding:2px;background:#f2f4f7;border-radius:7px">
+                                    <button type="button" data-nj="group-month" @click="newsJournal.group = '월별'"
+                                            style="border:none;border-radius:5px;padding:5px 10px;font-family:inherit;font-size:10.5px;cursor:pointer;white-space:nowrap"
+                                            :style="newsJournal.group === '월별' ? { background: '#fff', color: '#14161a', fontWeight: '600' } : { background: 'transparent', color: '#7a828a', fontWeight: '400' }">월별</button>
+                                    <button type="button" data-nj="group-cat" @click="newsJournal.group = '분류별'"
+                                            style="border:none;border-radius:5px;padding:5px 10px;font-family:inherit;font-size:10.5px;cursor:pointer;white-space:nowrap"
+                                            :style="newsJournal.group === '분류별' ? { background: '#fff', color: '#14161a', fontWeight: '600' } : { background: 'transparent', color: '#7a828a', fontWeight: '400' }">분류별</button>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col" style="flex:1;min-height:0;overflow-y:auto">
+                                <div x-show="newsJournal.error" style="padding:10px 18px;font-size:11.5px;color:#c02a22" x-text="newsJournal.error"></div>
+                                <div x-show="newsJournal.loading" style="padding:14px 18px;font-size:11.5px;color:#98a0a7">불러오는 중…</div>
+
+                                <template x-for="g in njGroups()" :key="g.key">
+                                    <div class="flex flex-col">
+                                        <div class="nj-group-head">
+                                            <span class="font-mono" style="font-size:10.5px;font-weight:600;color:#4a5158" x-text="g.label"></span>
+                                            <span style="font-size:10px;color:#98a0a7" x-text="g.rows.length + '건'"></span>
+                                        </div>
+                                        <template x-for="r in g.rows" :key="r.id">
+                                            <div class="nj-row flex" style="gap:11px;padding:12px 18px"
+                                                 :style="(newsJournal.sel && newsJournal.sel.id === r.id)
+                                                         ? { background: '#fff', borderLeft: '3px solid #1f4f9e' }
+                                                         : { background: 'transparent', borderLeft: '3px solid transparent' }"
+                                                 @click="njSelectRow(r)">
+                                                <div class="flex flex-col" style="flex:1;min-width:0;gap:6px">
+                                                    <div class="flex items-center flex-wrap" style="gap:6px">
+                                                        <span class="flex items-center" style="gap:5px;font-size:9.5px;padding:2px 8px;border-radius:4px"
+                                                              :style="{ background: njImpactMeta(r.impact).bg, color: njImpactMeta(r.impact).color }">
+                                                            <span style="width:5px;height:5px;border-radius:50%" :style="{ background: njImpactMeta(r.impact).dot }"></span>
+                                                            <span x-text="njImpactMeta(r.impact).label"></span>
+                                                        </span>
+                                                        <span x-show="r.category" style="font-size:9.5px;padding:2px 8px;border-radius:4px;background:#eff2f6;color:#4a5158" x-text="r.category?.name"></span>
+                                                        <span class="font-mono" style="font-size:10px;color:#98a0a7" x-text="njRowDate(r)"></span>
+                                                        <span x-show="(r.links || []).length > 0" style="font-size:9.5px;color:#1f4f9e" x-text="'🔗 ' + (r.links || []).length"></span>
+                                                    </div>
+                                                    <span style="font-size:13px;line-height:1.42"
+                                                          :style="(newsJournal.sel && newsJournal.sel.id === r.id) ? { fontWeight: '600', color: '#14161a' } : { fontWeight: '500', color: '#33383d' }"
+                                                          x-text="r.title"></span>
+                                                    <span style="font-size:11px;color:#8b9299;line-height:1.55" x-text="njRowPreview(r)"></span>
+                                                    <div class="flex items-center flex-wrap" style="gap:5px" x-show="njRowTags(r).length > 0">
+                                                        <template x-for="t in njRowTags(r)" :key="t">
+                                                            <button type="button" style="font-size:9.5px;padding:1px 7px;border-radius:20px;font-family:inherit;cursor:pointer"
+                                                                    :style="newsJournal.tagSel.includes(t)
+                                                                            ? { color: '#1f4f9e', border: '1px solid #b9cbe8', background: '#eff3fa' }
+                                                                            : { color: '#6b737a', border: '1px solid rgba(0,0,0,.1)', background: 'transparent' }"
+                                                                    @click.stop="njToggleTag(t)" x-text="t"></button>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </template>
                                     </div>
                                 </template>
-                            </div>
-                        </li>
-                    </template>
-                </ol>
 
-                <!-- 페이지네이션 -->
-                <div x-show="newsJournal.pagination.totalCount > 0"
-                     class="flex items-center justify-center gap-3 mt-6 text-sm">
-                    <button type="button" @click="newsJournalChangePage(-1)"
-                            :disabled="newsJournal.pagination.page === 0"
-                            class="px-3 py-1.5 border border-gray-300 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50">이전</button>
-                    <span class="text-gray-600">
-                        <span x-text="newsJournal.pagination.page + 1"></span>
-                        /
-                        <span x-text="newsJournalTotalPages()"></span>
-                        <span class="text-gray-400 ml-1">(총 <span x-text="newsJournal.pagination.totalCount"></span>건)</span>
-                    </span>
-                    <button type="button" @click="newsJournalChangePage(1)"
-                            :disabled="newsJournal.pagination.page + 1 >= newsJournalTotalPages()"
-                            class="px-3 py-1.5 border border-gray-300 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50">다음</button>
-                </div>
+                                <!-- 더 불러오기 -->
+                                <button type="button" data-nj="load-more" x-show="!newsJournal.loading && njRemaining() > 0" @click="njLoadMore()"
+                                        :disabled="newsJournal.loadingMore"
+                                        style="margin:12px 18px;border:1px dashed rgba(0,0,0,.18);background:transparent;color:#6b737a;border-radius:8px;padding:11px;font-family:inherit;font-size:11.5px;cursor:pointer">
+                                    <span x-show="!newsJournal.loadingMore" x-text="'더 불러오기 (남은 ' + njRemaining() + '건)'"></span>
+                                    <span x-show="newsJournal.loadingMore">불러오는 중…</span>
+                                </button>
 
-                <!-- 생성/수정 모달 -->
-                <div x-show="newsJournal.mode === 'create' || newsJournal.mode === 'edit'" x-cloak
-                     class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
-                     @click.self="newsJournalCloseModal()" @keydown.escape.window="newsJournalCloseModal()">
-                    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200">
-                            <h3 class="text-base font-semibold text-gray-800">
-                                <span x-show="newsJournal.mode === 'create'">새 사건 기록</span>
-                                <span x-show="newsJournal.mode === 'edit'">사건 수정</span>
-                            </h3>
-                            <button type="button" @click="newsJournalCloseModal()" class="text-gray-400 hover:text-gray-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
-                        <form @submit.prevent="newsJournalSave()" class="px-5 py-4 space-y-3">
-                            <div>
-                                <label class="block text-xs text-gray-600 mb-1">제목 <span class="text-red-500">*</span></label>
-                                <input type="text" x-model="newsJournal.form.title" maxlength="200"
-                                       class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                       placeholder="예: 미 연준 기준금리 0.25%p 인하">
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-1">발생 일자 <span class="text-red-500">*</span></label>
-                                    <input type="date" x-model="newsJournal.form.occurredDate"
-                                           :max="new Date().toISOString().slice(0, 10)"
-                                           class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-1">시장영향 <span class="text-red-500">*</span></label>
-                                    <select x-model="newsJournal.form.impact"
-                                            class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                        <option value="GOOD">호재</option>
-                                        <option value="BAD">악재</option>
-                                        <option value="NEUTRAL">중립</option>
-                                    </select>
+                                <!-- 빈 상태 -->
+                                <div x-show="!newsJournal.loading && !newsJournal.error && newsJournal.recs.length === 0"
+                                     class="flex flex-col items-center" style="gap:11px;padding:52px 22px">
+                                    <span style="font-size:24px;color:#c9ced6">⌕</span>
+                                    <span style="font-size:12.5px;color:#4a5158">조건에 맞는 기록이 없습니다</span>
+                                    <button type="button" data-nj="reset" class="nj-btn-ghost" style="font-family:inherit;padding:8px 15px" @click="njResetFilters()">필터 초기화</button>
                                 </div>
                             </div>
-                            <div>
-                                <label class="block text-xs text-gray-600 mb-1">주제 분류 <span class="text-red-500">*</span></label>
-                                <input type="text" x-model="newsJournal.form.category" maxlength="50"
-                                       list="newsJournalCategoryOptions"
-                                       class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                       placeholder="예: 거시경제, IT, 부동산 (기존 분류 자동완성 / 신규 입력 시 자동 등록)">
-                                <datalist id="newsJournalCategoryOptions">
-                                    <template x-for="cat in newsJournal.categories" :key="cat.id">
-                                        <option :value="cat.name"></option>
-                                    </template>
-                                </datalist>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-600 mb-1">WHAT (무슨 일인가)</label>
-                                <textarea x-model="newsJournal.form.what" rows="2" maxlength="4000"
-                                          class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-600 mb-1">WHY (왜 일어났나)</label>
-                                <textarea x-model="newsJournal.form.why" rows="2" maxlength="4000"
-                                          class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-600 mb-1">HOW (어떻게 흘러갈까)</label>
-                                <textarea x-model="newsJournal.form.how" rows="2" maxlength="4000"
-                                          class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
-                            </div>
-                            <!-- 관련 기사 (URL 리스트) -->
-                            <div>
-                                <div class="flex items-center justify-between mb-1">
-                                    <label class="block text-xs text-gray-600">관련 기사 (선택)</label>
-                                    <button type="button" @click="newsJournalAddLink()"
-                                            class="text-xs text-blue-600 hover:underline">+ 기사 추가</button>
-                                </div>
-                                <template x-if="newsJournal.form.links.length === 0">
-                                    <div class="text-xs text-gray-400 py-2">아직 추가된 기사가 없습니다.</div>
-                                </template>
-                                <template x-for="(link, idx) in newsJournal.form.links" :key="idx">
-                                    <div class="flex gap-2 mb-2">
-                                        <input type="text" x-model="link.title" maxlength="200" placeholder="기사 제목"
-                                               class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                        <input type="url" x-model="link.url" maxlength="2000" placeholder="https://…"
-                                               class="flex-[2] text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                        <button type="button" @click="newsJournalRemoveLink(idx)"
-                                                class="text-xs text-gray-400 hover:text-red-500 px-1">삭제</button>
+                        </section>
+
+                        <!-- 디테일 pane (보기 / 편집 / 빈 선택) -->
+                        <section x-show="njShowDetailPane()" class="flex flex-col bg-white" style="min-width:0;min-height:0;overflow:hidden"
+                                 :style="njNarrow() ? { flex: '1 1 100%' } : { flex: '2 1 560px' }">
+
+                            <button type="button" data-nj="back" x-show="njNarrow()" @click="newsJournal.pane = 'list'"
+                                    class="flex-none flex items-center"
+                                    style="gap:8px;border:none;border-bottom:1px solid rgba(0,0,0,.08);background:#f7f8fa;color:#1f4f9e;font-family:inherit;font-size:11.5px;padding:11px 18px;cursor:pointer;text-align:left"
+                                    x-text="'‹ 목록으로 (' + newsJournal.totalCount + '건)'"></button>
+
+                            <!-- 편집 (인라인) -->
+                            <template x-if="newsJournal.mode === 'edit' && newsJournal.draft">
+                                <div data-nj="edit" class="flex flex-col" style="min-height:0;flex:1">
+                                    <div class="flex items-center justify-between" style="gap:14px;padding:14px 22px;border-bottom:1px solid rgba(0,0,0,.08);background:#fbfcfd">
+                                        <div class="flex flex-col" style="gap:3px">
+                                            <span style="font-size:13.5px;font-weight:600" x-text="newsJournal.draft.id ? '기록 수정' : '새 사건 기록'"></span>
+                                            <span class="flex items-center" style="gap:6px;font-size:10.5px" :style="{ color: newsJournal.dirty ? '#b5854a' : '#98a0a7' }">
+                                                <span style="width:5px;height:5px;border-radius:50%" :style="{ background: newsJournal.dirty ? '#b5854a' : '#98a0a7' }"></span>
+                                                <span x-text="njDraftNote()"></span>
+                                            </span>
+                                        </div>
+                                        <div class="flex items-center" style="gap:8px">
+                                            <button type="button" data-nj="cancel" @click="njCancelEdit()"
+                                                    style="border:1px solid rgba(0,0,0,.14);background:#fff;color:#4a5158;border-radius:7px;padding:8px 15px;font-family:inherit;font-size:11.5px;cursor:pointer">닫기</button>
+                                            <button type="button" data-nj="save" @click="njSave()" :disabled="newsJournal.saving" class="nj-btn-primary"
+                                                    style="font-family:inherit;padding:9px 18px;font-size:11.5px">
+                                                <span x-show="!newsJournal.saving">저장</span>
+                                                <span x-show="newsJournal.saving">저장 중…</span>
+                                            </button>
+                                        </div>
                                     </div>
-                                </template>
-                            </div>
-                            <!-- 키워드 (해시태그) -->
-                            <div>
-                                <label class="block text-xs text-gray-600 mb-1">키워드 (선택)</label>
-                                <div x-show="newsJournal.form.keywords.length > 0"
-                                     class="flex flex-wrap items-center gap-1.5 mb-1.5">
-                                    <template x-for="(kw, idx) in newsJournal.form.keywords" :key="idx">
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
-                                            <span x-text="'#' + kw"></span>
-                                            <button type="button" @click="newsJournalRemoveKeyword(idx)"
-                                                    class="text-blue-400 hover:text-red-500 leading-none">&times;</button>
-                                        </span>
-                                    </template>
+
+                                    <div class="flex flex-col" style="flex:1;min-height:0;overflow-y:auto;padding:18px 22px 26px;gap:16px">
+                                        <div x-show="newsJournal.formError" style="padding:10px 13px;border:1px solid #e8c9c6;background:#fdf3f2;border-radius:8px;font-size:11.5px;color:#c02a22" x-text="newsJournal.formError"></div>
+
+                                        <label class="flex flex-col" style="gap:6px">
+                                            <span class="nj-label">제목 <span style="color:#c02a22">*</span></span>
+                                            <input :value="newsJournal.draft.title" @input="njPatchDraft('title', $event.target.value)"
+                                                   maxlength="200" placeholder="예: 미 연준 기준금리 0.25%p 인하"
+                                                   class="nj-input" style="padding:11px 13px;font-size:14px;font-weight:500"
+                                                   :style="newsJournal.draft.title ? {} : { borderColor: '#e8c9c6' }">
+                                        </label>
+
+                                        <div class="flex flex-wrap" style="gap:10px">
+                                            <label class="flex flex-col" style="flex:1 1 160px;gap:6px">
+                                                <span class="nj-label">발생 일자 <span style="color:#c02a22">*</span></span>
+                                                <input type="date" :value="newsJournal.draft.occurredDate" @input="njPatchDraft('occurredDate', $event.target.value)"
+                                                       :max="new Date().toISOString().slice(0, 10)"
+                                                       class="nj-input font-mono" style="font-size:12.5px">
+                                            </label>
+                                            <div class="flex flex-col" style="flex:1 1 240px;gap:6px">
+                                                <span class="nj-label">시장영향 <span style="color:#c02a22">*</span></span>
+                                                <div class="flex" style="gap:6px">
+                                                    <template x-for="p in njImpactPicks()" :key="p.key">
+                                                        <button type="button" class="flex items-center justify-center"
+                                                                style="flex:1;gap:6px;min-height:41px;border-radius:8px;font-family:inherit;font-size:12px;cursor:pointer"
+                                                                :style="newsJournal.draft.impact === p.key
+                                                                        ? { border: '1px solid ' + p.dot, background: p.bg, color: p.color, fontWeight: '600' }
+                                                                        : { border: '1px solid rgba(0,0,0,.14)', background: '#fff', color: '#4a5158', fontWeight: '400' }"
+                                                                @click="njPatchDraft('impact', p.key)">
+                                                            <span style="width:7px;height:7px;border-radius:50%" :style="{ background: p.dot }"></span>
+                                                            <span x-text="p.label"></span>
+                                                        </button>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex flex-col" style="gap:7px">
+                                            <span class="nj-label">주제 분류 <span style="color:#c02a22">*</span></span>
+                                            <div class="flex items-center flex-wrap" style="gap:6px">
+                                                <template x-for="name in njCatPicks()" :key="name">
+                                                    <button type="button" style="border-radius:20px;padding:7px 14px;font-family:inherit;font-size:11.5px;cursor:pointer"
+                                                            :style="newsJournal.draft.category === name
+                                                                    ? { border: '1px solid #b9cbe8', background: '#eff3fa', color: '#1f4f9e' }
+                                                                    : { border: '1px solid rgba(0,0,0,.13)', background: '#fff', color: '#4a5158' }"
+                                                            @click="njPickCategory(name)" x-text="name"></button>
+                                                </template>
+                                                <input x-model="newsJournal.newCat" @keydown.enter.prevent="njAddNewCat()"
+                                                       maxlength="50" placeholder="+ 새 분류 입력 후 Enter"
+                                                       style="border:1px dashed rgba(0,0,0,.2);border-radius:20px;padding:7px 13px;font-size:11.5px;outline:none;background:transparent;width:180px;color:#33383d;font-family:inherit">
+                                            </div>
+                                        </div>
+
+                                        <div class="flex flex-col" style="gap:11px;padding:15px 16px;background:#fbfcfd;border:1px solid rgba(0,0,0,.07);border-radius:10px">
+                                            <template x-for="w in njWwhMeta()" :key="w.key">
+                                                <label class="flex flex-col" style="gap:6px">
+                                                    <span class="flex items-baseline" style="gap:8px">
+                                                        <span class="font-mono" style="font-size:10.5px;font-weight:600;letter-spacing:.08em" :style="{ color: w.color }" x-text="w.key"></span>
+                                                        <span style="font-size:10.5px;color:#8b9299" x-text="w.hint"></span>
+                                                        <span class="font-mono" style="margin-left:auto;font-size:9.5px;color:#b2b8bd" x-text="njWwhLen(w.field)"></span>
+                                                    </span>
+                                                    <textarea :rows="w.rows" maxlength="4000" :placeholder="w.ph"
+                                                              :value="newsJournal.draft[w.field]" @input="njPatchDraft(w.field, $event.target.value)"
+                                                              style="border:1px solid rgba(0,0,0,.14);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.65;outline:none;color:#14161a;background:#fff;font-family:inherit"></textarea>
+                                                </label>
+                                            </template>
+                                        </div>
+
+                                        <div class="flex flex-col" style="gap:8px">
+                                            <div class="flex items-center justify-between" style="gap:10px">
+                                                <span class="flex items-baseline" style="gap:8px">
+                                                    <span class="nj-label">관련 기사</span>
+                                                    <span style="font-size:10px;color:#b2b8bd">선택 — 없어도 저장됩니다</span>
+                                                </span>
+                                                <button type="button" @click="njAddLink()"
+                                                        style="border:none;background:transparent;color:#1f4f9e;font-family:inherit;font-size:11px;cursor:pointer;padding:2px">+ 기사 추가</button>
+                                            </div>
+                                            <template x-for="(l, li) in newsJournal.draft.links" :key="li">
+                                                <div class="flex items-center" style="gap:7px">
+                                                    <input :value="l.title" @input="l.title = $event.target.value; newsJournal.dirty = true"
+                                                           maxlength="200" placeholder="기사 제목 (선택)"
+                                                           style="flex:1 1 180px;min-width:0;border:1px solid rgba(0,0,0,.14);border-radius:7px;padding:9px 11px;font-size:12px;outline:none;font-family:inherit">
+                                                    <input :value="l.url" @input="l.url = $event.target.value; newsJournal.dirty = true"
+                                                           maxlength="2000" placeholder="https://" class="font-mono"
+                                                           style="flex:1 1 220px;min-width:0;border-radius:7px;padding:9px 11px;font-size:11.5px;outline:none"
+                                                           :style="njLinkUrlInvalid(l) ? { border: '1px solid #e8c9c6' } : { border: '1px solid rgba(0,0,0,.14)' }">
+                                                    <button type="button" @click="njRemoveLink(li)"
+                                                            style="border:1px solid rgba(0,0,0,.12);background:#fff;color:#c02a22;border-radius:6px;padding:8px 10px;font-family:inherit;font-size:11px;cursor:pointer;flex:none">×</button>
+                                                </div>
+                                            </template>
+                                            <button type="button" x-show="newsJournal.draft.links.length === 0" @click="njAddLink()"
+                                                    style="border:1px dashed rgba(0,0,0,.18);background:transparent;color:#6b737a;border-radius:8px;padding:11px;font-family:inherit;font-size:11.5px;cursor:pointer;text-align:center">기사 링크를 넣고 싶으면 여기를 누르세요 · 비워둬도 됩니다</button>
+                                        </div>
+
+                                        <div class="flex flex-col" style="gap:8px">
+                                            <span class="flex items-baseline" style="gap:8px">
+                                                <span class="nj-label">키워드</span>
+                                                <span style="font-size:10px;color:#b2b8bd">선택</span>
+                                            </span>
+                                            <div class="flex items-center flex-wrap" style="gap:6px">
+                                                <template x-for="t in newsJournal.draft.keywords" :key="t">
+                                                    <span class="flex items-center" style="gap:6px;padding:5px 8px 5px 11px;border:1px solid rgba(0,0,0,.13);border-radius:20px;font-size:11px;color:#33383d;background:#f8f9fb">
+                                                        <span x-text="t"></span>
+                                                        <button type="button" @click="njRemoveTag(t)"
+                                                                style="border:none;background:transparent;color:#98a0a7;font-size:12px;cursor:pointer;padding:0 1px;font-family:inherit">×</button>
+                                                    </span>
+                                                </template>
+                                                <input x-model="newsJournal.newTag" @keydown.enter.prevent="njAddTag()"
+                                                       maxlength="50" placeholder="키워드 입력 후 Enter"
+                                                       style="border:1px dashed rgba(0,0,0,.2);border-radius:20px;padding:6px 13px;font-size:11px;outline:none;background:transparent;width:170px;color:#33383d;font-family:inherit">
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="flex gap-2">
-                                    <input type="text" x-model="newsJournal.keywordDraft" maxlength="50"
-                                           @keydown.enter.prevent="newsJournalAddKeyword()"
-                                           placeholder="키워드 입력 후 Enter (예: 금리, 반도체)"
-                                           class="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                    <button type="button" @click="newsJournalAddKeyword()"
-                                            class="text-xs px-3 border border-gray-300 rounded hover:bg-gray-50 whitespace-nowrap">추가</button>
+                            </template>
+
+                            <!-- 보기 -->
+                            <template x-if="newsJournal.mode !== 'edit' && newsJournal.sel">
+                                <div data-nj="view" class="flex flex-col" style="min-height:0;flex:1">
+                                    <div class="flex items-start justify-between" style="gap:14px;padding:16px 22px;border-bottom:1px solid rgba(0,0,0,.08);background:#fbfcfd">
+                                        <div class="flex flex-col" style="gap:8px;min-width:0">
+                                            <div class="flex items-center flex-wrap" style="gap:7px">
+                                                <span class="flex items-center" style="gap:5px;font-size:10px;padding:3px 9px;border-radius:5px"
+                                                      :style="{ background: njImpactMeta(newsJournal.sel.impact).bg, color: njImpactMeta(newsJournal.sel.impact).color }">
+                                                    <span style="width:5px;height:5px;border-radius:50%" :style="{ background: njImpactMeta(newsJournal.sel.impact).dot }"></span>
+                                                    <span x-text="njImpactMeta(newsJournal.sel.impact).label"></span>
+                                                </span>
+                                                <span x-show="newsJournal.sel.category" style="font-size:10px;padding:3px 9px;border-radius:5px;background:#eff2f6;color:#4a5158" x-text="newsJournal.sel.category?.name"></span>
+                                                <span class="font-mono" style="font-size:11px;color:#8b9299" x-text="njDetailDate()"></span>
+                                            </div>
+                                            <h3 style="margin:0;font-size:18px;font-weight:600;line-height:1.4;letter-spacing:-.01em" x-text="newsJournal.sel.title"></h3>
+                                        </div>
+                                        <div class="flex" style="gap:7px;flex:none">
+                                            <button type="button" data-nj="edit-btn" @click="njEditCurrent()"
+                                                    style="border:1px solid rgba(0,0,0,.14);background:#fff;color:#1f4f9e;border-radius:7px;padding:8px 14px;font-family:inherit;font-size:11.5px;cursor:pointer">수정</button>
+                                            <button type="button" data-nj="delete-btn" @click="njDeleteCurrent()"
+                                                    style="border:1px solid rgba(0,0,0,.12);background:#fff;color:#c02a22;border-radius:7px;padding:8px 13px;font-family:inherit;font-size:11.5px;cursor:pointer">삭제</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col" style="flex:1;min-height:0;overflow-y:auto;padding:18px 22px 30px;gap:14px">
+                                        <template x-for="s in njDetailSections()" :key="s.key">
+                                            <div class="flex flex-col" style="gap:8px;padding:15px 17px;background:#fbfcfd;border:1px solid rgba(0,0,0,.07);border-radius:9px"
+                                                 :style="{ borderLeft: '3px solid ' + s.color }">
+                                                <div class="flex items-baseline" style="gap:9px">
+                                                    <span class="font-mono" style="font-size:10.5px;font-weight:600;letter-spacing:.09em" :style="{ color: s.color }" x-text="s.key"></span>
+                                                    <span style="font-size:10.5px;color:#8b9299" x-text="s.hint"></span>
+                                                </div>
+                                                <template x-for="(line, idx) in s.lines" :key="idx">
+                                                    <div class="flex" style="gap:9px">
+                                                        <span style="width:4px;height:4px;border-radius:50%;flex:none;margin-top:8px;opacity:.5" :style="{ background: s.color }"></span>
+                                                        <span style="flex:1;min-width:0;font-size:12.5px;color:#33383d;line-height:1.75" x-text="line"></span>
+                                                    </div>
+                                                </template>
+                                                <span x-show="s.lines.length === 0" style="font-size:11.5px;color:#b2b8bd">작성되지 않음</span>
+                                            </div>
+                                        </template>
+
+                                        <div x-show="njDetailLinks().length > 0" class="flex flex-col" style="gap:8px">
+                                            <span class="nj-label" x-text="'관련 기사 ' + njDetailLinks().length + '건'"></span>
+                                            <template x-for="l in njDetailLinks()" :key="l.url">
+                                                <a :href="l.url" target="_blank" rel="noopener noreferrer"
+                                                   class="nj-link-card flex items-center" style="gap:10px;padding:11px 13px">
+                                                    <span style="flex:1;min-width:0;font-size:12px;color:#14161a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" x-text="l.title"></span>
+                                                    <span class="font-mono" style="font-size:10px;color:#8b9299;flex:none" x-text="l.host"></span>
+                                                    <span style="font-size:11px;color:#1f4f9e;flex:none">↗</span>
+                                                </a>
+                                            </template>
+                                        </div>
+
+                                        <div x-show="(newsJournal.sel.keywords || []).length > 0" class="flex items-center flex-wrap" style="gap:6px">
+                                            <span class="nj-label" style="margin-right:2px">키워드</span>
+                                            <template x-for="t in (newsJournal.sel.keywords || [])" :key="t">
+                                                <button type="button" @click="njToggleTag(t)"
+                                                        style="font-size:10.5px;color:#4a5158;padding:3px 10px;border:1px solid rgba(0,0,0,.11);border-radius:20px;background:#f8f9fb;font-family:inherit;cursor:pointer"
+                                                        x-text="t"></button>
+                                            </template>
+                                        </div>
+
+                                        <div x-show="njRelated().length > 0" class="flex flex-col" style="gap:8px;padding-top:4px;border-top:1px solid rgba(0,0,0,.07)">
+                                            <span class="nj-label">같은 분류의 다른 기록</span>
+                                            <template x-for="r in njRelated()" :key="r.id">
+                                                <div class="nj-rel-card flex items-center" style="gap:10px;padding:9px 12px" @click="njSelectRow(r)">
+                                                    <span style="width:6px;height:6px;border-radius:50%;flex:none" :style="{ background: njImpactMeta(r.impact).dot }"></span>
+                                                    <span style="flex:1;min-width:0;font-size:11.5px;color:#33383d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" x-text="r.title"></span>
+                                                    <span class="font-mono" style="font-size:10px;color:#98a0a7;flex:none" x-text="njRowDate(r)"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <!-- 폼 에러 -->
-                            <div x-show="newsJournal.formError" class="text-sm text-red-600" x-text="newsJournal.formError"></div>
-                        </form>
-                        <div class="px-5 py-3 border-t border-gray-200 flex justify-end gap-2 bg-gray-50">
-                            <button type="button" @click="newsJournalCloseModal()"
-                                    class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800">취소</button>
-                            <button type="button" @click="newsJournalSave()"
-                                    :disabled="newsJournal.saving"
-                                    class="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50">
-                                <span x-show="!newsJournal.saving">저장</span>
-                                <span x-show="newsJournal.saving">저장 중…</span>
-                            </button>
-                        </div>
-                    </div>
+                            </template>
+
+                            <!-- 빈 선택 상태 -->
+                            <template x-if="newsJournal.mode !== 'edit' && !newsJournal.sel">
+                                <div class="flex flex-col items-center justify-center" style="flex:1;gap:12px;padding:40px">
+                                    <span style="font-size:26px;color:#c9ced6">☰</span>
+                                    <span style="font-size:13px;color:#4a5158">왼쪽에서 기록을 선택하세요</span>
+                                    <span style="font-size:11.5px;color:#8b9299;text-align:center;line-height:1.6;max-width:320px">모달 대신 이 자리에서 바로 읽고 수정합니다. 작성 중 화면을 벗어나도 초안은 남습니다.</span>
+                                    <button type="button" class="nj-btn-primary" style="font-family:inherit;margin-top:4px;padding:10px 18px" @click="njNewRecord()">+ 새 사건 기록</button>
+                                </div>
+                            </template>
+                        </section>
+                    </main>
                 </div>
             </div>
             <!-- ========== NEWS JOURNAL end ========== -->

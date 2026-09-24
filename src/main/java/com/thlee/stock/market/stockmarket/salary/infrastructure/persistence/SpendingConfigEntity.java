@@ -1,10 +1,7 @@
 package com.thlee.stock.market.stockmarket.salary.infrastructure.persistence;
 
-import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -47,9 +44,9 @@ public class SpendingConfigEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Enumerated(EnumType.STRING)
+    /** 사용자 카테고리 code (기본 8종은 SpendingCategory enum 이름과 동일) */
     @Column(name = "category", nullable = false, length = 20)
-    private SpendingCategory category;
+    private String category;
 
     /** 매월 1일로 정규화 (도메인 팩토리에서 강제) */
     @Column(name = "effective_from_month", nullable = false)
@@ -62,6 +59,10 @@ public class SpendingConfigEntity {
     @Column(name = "memo", length = 200)
     private String memo;
 
+    /** 카테고리 월 예산 (nullable — 미설정). KRW whole-number */
+    @Column(name = "budget", precision = 15, scale = 0)
+    private BigDecimal budget;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -71,15 +72,16 @@ public class SpendingConfigEntity {
     protected SpendingConfigEntity() {
     }
 
-    public SpendingConfigEntity(Long id, Long userId, SpendingCategory category,
+    public SpendingConfigEntity(Long id, Long userId, String category,
                                 LocalDate effectiveFromMonth, BigDecimal amount, String memo,
-                                LocalDateTime createdAt, LocalDateTime updatedAt) {
+                                BigDecimal budget, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.category = category;
         this.effectiveFromMonth = effectiveFromMonth;
         this.amount = amount;
         this.memo = memo;
+        this.budget = budget;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }

@@ -64,7 +64,28 @@ public class PortfolioSummaryService {
      */
     @Transactional
     public PortfolioSnapshotResponse saveTodaySnapshot(Long userId) {
-        PortfolioEvaluation evaluation = evaluate(userId);
+        return upsertTodaySnapshot(userId, evaluate(userId));
+    }
+
+    /**
+     * 이미 계산된 평가 결과로 오늘자 스냅샷을 저장한다. 같은 날 이미 있으면 금액만 갱신한다.
+     *
+     * <p>자산 스냅샷 배치가 여러 사용자를 한 번에 평가한 뒤 사용자별로 호출한다. 배치 오케스트레이션과
+     * 다른 빈이어야 이 메서드의 트랜잭션이 프록시를 거쳐 적용되고, 사용자 1명이 트랜잭션 1개가 되어
+     * 한 사용자의 실패가 나머지 사용자를 막지 않는다.</p>
+     */
+    @Transactional
+    public PortfolioSnapshotResponse saveSnapshot(Long userId, PortfolioEvaluation evaluation) {
+        if (!Objects.equals(userId, evaluation.getUserId())) {
+            throw new IllegalArgumentException("평가 결과의 사용자와 저장 대상 사용자가 다릅니다.");
+        }
+        return upsertTodaySnapshot(userId, evaluation);
+    }
+
+    /**
+     * 오늘자 스냅샷 upsert. 같은 날 행이 있으면 금액만 갱신하고 없으면 새로 만든다.
+     */
+    private PortfolioSnapshotResponse upsertTodaySnapshot(Long userId, PortfolioEvaluation evaluation) {
         LocalDate today = LocalDate.now();
 
         PortfolioSnapshot snapshot = snapshotRepository

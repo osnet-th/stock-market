@@ -1,43 +1,38 @@
-            <!-- ========== SALARY USAGE RATIO ========== -->
+            <!-- ========== SALARY USAGE RATIO (목업 기반 재설계) ========== -->
             <div x-show="currentPage === 'salary'" x-cloak>
-                <h2 class="text-xl font-bold text-gray-800 mb-6">월급 사용 비율</h2>
 
-                <!-- 월 선택 바 -->
-                <div class="flex flex-wrap items-center gap-2 mb-6">
-                    <button @click="goPrevSalaryMonth()"
-                            :disabled="!salary.currentMonth"
-                            class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40"
-                            title="이전 월">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-                        </svg>
-                    </button>
-
-                    <select :value="salary.currentMonth"
-                            @change="onSalaryMonthSelected($event.target.value)"
-                            class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[120px] sm:min-w-[140px]">
-                        <template x-if="!salary.availableMonths.length">
-                            <option :value="salary.currentMonth" x-text="salary.currentMonth || '선택'"></option>
-                        </template>
-                        <template x-for="m in salary.availableMonths" :key="m">
-                            <option :value="m" :selected="m === salary.currentMonth" x-text="m"></option>
-                        </template>
-                    </select>
-
-                    <button @click="goNextSalaryMonth()"
-                            class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
-                            title="다음 월">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </button>
-
-                    <button @click="openSalaryNewMonthDialog()"
-                            class="ml-2 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">
-                        + 새 월 기록
-                    </button>
-
-                    <div class="ml-auto text-sm text-gray-400" x-show="salary.loading">로딩 중…</div>
+                <!-- 헤더 행: 제목 · 월 전환 · 상속 노트 | 예산 토글 · 지난달 복사 · 새 월 기록 -->
+                <div class="flex flex-wrap items-center justify-between gap-x-5 gap-y-3 mb-4">
+                    <div class="flex flex-wrap items-center gap-x-3.5 gap-y-2 min-w-0">
+                        <h2 class="dc-h1">월급 사용 비율</h2>
+                        <div class="flex items-center gap-0.5 p-[3px] rounded-lg" style="background:#f2f4f7">
+                            <button @click="goPrevSalaryMonth()"
+                                    :disabled="!salary.currentMonth"
+                                    class="w-7 h-7 rounded-md text-[13px] hover:bg-white disabled:opacity-40"
+                                    style="color:#4a5158" title="이전 월">‹</button>
+                            <span class="font-mono-num text-[12.5px] font-semibold px-2.5 min-w-[74px] text-center"
+                                  x-text="salary.currentMonth || '—'"></span>
+                            <button @click="goNextSalaryMonth()"
+                                    class="w-7 h-7 rounded-md text-[13px] hover:bg-white"
+                                    style="color:#4a5158" title="다음 월">›</button>
+                        </div>
+                        <span class="text-[11px]" style="color:#8b9299" x-text="salaryInheritNote()"></span>
+                        <span class="text-[11px] text-gray-400" x-show="salary.loading">로딩 중…</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button @click="toggleSalaryBudgetColumn()"
+                                class="text-xs px-3.5 py-2 rounded-lg border"
+                                :style="salary.showBudget
+                                    ? 'border-color:#b9cbe8;background:#eff3fa;color:#1f4f9e'
+                                    : 'border-color:rgba(0,0,0,.14);background:#fff;color:#33383d'"
+                                x-text="salary.showBudget ? '예산 열 숨기기' : '예산 대비 보기'"></button>
+                        <button @click="copyPrevSalaryMonth()"
+                                class="text-xs px-3.5 py-2 rounded-lg border bg-white transition"
+                                style="border-color:rgba(0,0,0,.14);color:#33383d">지난달 복사</button>
+                        <button @click="openSalaryNewMonthDialog()"
+                                class="text-xs font-semibold px-4 py-2 rounded-lg text-white"
+                                style="background:#1f4f9e">+ 새 월 기록</button>
+                    </div>
                 </div>
 
                 <!-- 초기 로딩 전 placeholder -->
@@ -45,130 +40,388 @@
                     <div class="text-center py-10 text-gray-400 text-sm">데이터를 불러오는 중…</div>
                 </template>
 
-                <!-- 월별 뷰 로드 후: 입력 섹션은 항상 표시, 요약/차트/추이는 데이터 있을 때만 -->
                 <template x-if="salary.monthlyView">
-                    <div>
-                        <!-- 요약 배너 (데이터 있을 때만) -->
-                        <template x-if="salaryHasAnyData()">
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                                <div class="bg-white rounded-xl border border-gray-200 p-4">
-                                    <p class="text-xs text-gray-500">월급 (실수령)</p>
-                                    <p class="text-xl font-bold text-gray-800 mt-1"
-                                       x-text="salary.monthlyView.income != null ? formatKrw(salary.monthlyView.income) : '미입력'"></p>
-                                    <p class="text-xs text-gray-400 mt-1"
-                                       x-show="salary.monthlyView.incomeInheritedFromMonth"
-                                       x-text="'상속 출처: ' + salary.monthlyView.incomeInheritedFromMonth"></p>
-                                </div>
-                                <div class="bg-white rounded-xl border border-gray-200 p-4">
-                                    <p class="text-xs text-gray-500">잔여 / 초과</p>
-                                    <p class="text-xl font-bold mt-1"
-                                       :class="salaryIsOverspending() ? 'text-red-600' : 'text-emerald-600'"
-                                       x-text="salaryRemainingDisplay()"></p>
-                                    <p class="text-xs text-red-600 mt-1"
-                                       x-show="salaryIsOverspending()"
-                                       x-text="'초과 ' + formatKrw(salaryOverspendingAmount())"></p>
-                                </div>
-                                <div class="bg-white rounded-xl border border-gray-200 p-4">
-                                    <p class="text-xs text-gray-500">저축율</p>
-                                    <p class="text-xl font-bold mt-1"
-                                       :class="salaryIsNegativeRatio() ? 'text-red-600' : 'text-indigo-600'"
-                                       x-text="salaryRatioDisplay()"></p>
-                                    <p class="text-xs text-gray-400 mt-1">= 저축·투자 / 월급</p>
-                                </div>
-                            </div>
-                        </template>
+                    <div class="flex flex-col gap-3.5">
 
-                        <!-- 온보딩 안내 (데이터 없을 때) -->
-                        <template x-if="!salaryHasAnyData()">
-                            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-4">
-                                <p class="text-sm text-indigo-800 font-medium">월 실수령액을 먼저 입력해주세요.</p>
-                                <p class="text-xs text-indigo-600 mt-1">
-                                    월급을 저장하면 카테고리별 지출 입력 · 도넛/바/추이 차트가 활성화됩니다.
-                                </p>
-                            </div>
-                        </template>
+                        <!-- ===== 요약 카드 3장 ===== -->
+                        <section class="flex flex-wrap items-stretch gap-3">
 
-                        <!-- 입력 섹션 (항상 표시) -->
-                        <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3 mb-4">
-                            <h3 class="text-sm font-semibold text-gray-700">입력</h3>
-
-                            <!-- 월급 -->
-                            <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-                                <label class="w-full sm:w-24 text-sm text-gray-600 shrink-0">월 실수령액</label>
-                                <input x-ref="salaryIncomeInput"
-                                       type="number" min="0" step="1"
-                                       x-model="salary.editingIncome"
-                                       placeholder="예: 3000000"
-                                       class="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg text-sm"/>
-                                <button @click="saveSalaryIncome()"
-                                        class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 shrink-0">저장</button>
-                                <button @click="deleteSalaryIncomeRecord()"
-                                        x-show="hasSalaryDirectIncomeRecord()"
-                                        class="px-2 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 shrink-0"
-                                        title="이번 월의 변경 레코드 삭제">×</button>
-                            </div>
-
-                            <!-- 카테고리 입력 -->
-                            <template x-for="cat in SALARY_CATEGORIES" :key="cat.key">
-                                <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-                                    <label class="w-full sm:w-24 text-sm text-gray-600 flex items-center gap-1 shrink-0">
-                                        <span class="inline-block w-2 h-2 rounded-full shrink-0"
-                                              :style="{ backgroundColor: cat.color }"></span>
-                                        <span x-text="cat.label"></span>
-                                    </label>
-                                    <input type="number" min="0" step="1"
-                                           x-model="salary.editingSpending[cat.key].amount"
-                                           class="w-28 px-2 py-2 border border-gray-200 rounded-lg text-sm shrink-0"/>
-                                    <input type="text" placeholder="메모 (선택)"
-                                           x-model="salary.editingSpending[cat.key].memo"
-                                           maxlength="200"
-                                           class="flex-1 min-w-0 px-2 py-2 border border-gray-200 rounded-lg text-sm"/>
-                                    <button @click="saveSalarySpending(cat.key)"
-                                            class="px-2 py-2 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700 shrink-0">저장</button>
-                                    <button @click="deleteSalarySpendingRecord(cat.key)"
-                                            x-show="hasSalaryDirectSpendingRecord(cat.key)"
-                                            class="px-2 py-2 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50 shrink-0"
-                                            title="이번 월의 변경 레코드 삭제">×</button>
-                                </div>
-                            </template>
-                        </div>
-
-                        <!-- 차트 섹션 (데이터 있을 때만) -->
-                        <template x-if="salaryHasAnyData()">
-                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                                <div class="bg-white rounded-xl border border-gray-200 p-4">
-                                    <h3 class="text-sm font-semibold text-gray-700 mb-3">월별 분포</h3>
-                                    <div class="relative h-48 sm:h-64">
-                                        <canvas x-ref="salaryDonutCanvas"
-                                                role="img"
-                                                aria-label="월별 카테고리 비율 도넛 차트"></canvas>
+                            <!-- 월 실수령액 + 배분 리본 -->
+                            <div class="dc-card flex flex-col gap-3 px-[18px] py-4"
+                                 style="flex:2 1 420px;min-width:300px">
+                                <div class="flex flex-wrap items-baseline justify-between gap-3">
+                                    <div class="flex items-baseline gap-2.5">
+                                        <span class="text-[11px]" style="color:#7a828a">월 실수령액</span>
+                                        <input :value="salaryWon(salary.income)"
+                                               @change="setSalaryIncome($event.target.value)"
+                                               class="w-[150px] font-mono-num text-[15px] font-semibold text-right rounded-lg border px-2.5 py-[7px] outline-none focus:border-blue-400"
+                                               style="border-color:rgba(0,0,0,.14);color:#14161a">
+                                        <span class="text-[11.5px]" style="color:#8b9299">원</span>
+                                    </div>
+                                    <div class="flex items-baseline gap-4">
+                                        <span class="flex items-baseline gap-1.5">
+                                            <span class="text-[11px]" style="color:#7a828a">배분됨</span>
+                                            <span class="font-mono-num text-sm font-semibold"
+                                                  x-text="salaryWon(salaryAllocated())"></span>
+                                        </span>
+                                        <span class="flex items-baseline gap-1.5">
+                                            <span class="text-[11px]" style="color:#7a828a" x-text="salaryLeftLabel()"></span>
+                                            <span class="font-mono-num text-sm font-semibold"
+                                                  :style="'color:' + salaryLeftColor()"
+                                                  x-text="salaryWon(Math.abs(salaryLeft()))"></span>
+                                        </span>
                                     </div>
                                 </div>
-                                <div class="bg-white rounded-xl border border-gray-200 p-4">
-                                    <h3 class="text-sm font-semibold text-gray-700 mb-3">카테고리별 금액</h3>
-                                    <div class="relative h-48 sm:h-64">
-                                        <canvas x-ref="salaryBarCanvas"
-                                                role="img"
-                                                aria-label="월별 카테고리 금액 바 차트"></canvas>
-                                    </div>
+                                <div class="flex h-[26px] rounded-md overflow-hidden" style="background:#eff2f6">
+                                    <template x-for="seg in salaryRibbon()" :key="seg.key">
+                                        <div class="h-full flex items-center justify-center overflow-hidden"
+                                             :style="'background:' + seg.color + ';width:' + seg.w"
+                                             :title="seg.title">
+                                            <span class="font-mono-num text-[9.5px] text-white whitespace-nowrap"
+                                                  :style="'opacity:' + (seg.showLabel ? '1' : '0')"
+                                                  x-text="seg.pct"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="flex flex-wrap gap-3">
+                                    <template x-for="seg in salaryRibbon()" :key="'lg-' + seg.key">
+                                        <span class="flex items-center gap-1.5 text-[10.5px]" style="color:#4a5158">
+                                            <span class="w-[7px] h-[7px] rounded-[2px]"
+                                                  :style="'background:' + seg.color"></span>
+                                            <span x-text="seg.name + ' ' + seg.pct"></span>
+                                        </span>
+                                    </template>
                                 </div>
                             </div>
-                        </template>
 
-                        <!-- 추이 라인 차트 (데이터 있을 때만) -->
-                        <template x-if="salaryHasAnyData()">
-                            <div class="bg-white rounded-xl border border-gray-200 p-4">
-                                <h3 class="text-sm font-semibold text-gray-700 mb-3">최근 12개월 추이</h3>
-                                <div class="relative h-56 sm:h-80">
-                                    <canvas x-ref="salaryLineCanvas"
-                                            role="img"
-                                            aria-label="최근 12개월 월급/총지출/저축율 추이 라인 차트"></canvas>
+                            <!-- 저축률 다크 카드 -->
+                            <div class="rounded-[10px] flex flex-col gap-2.5 px-[18px] py-4 text-white"
+                                 style="flex:1 1 220px;min-width:200px;background:#14161a">
+                                <span class="text-[11px]" style="color:#9aa3ab">저축률</span>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="font-mono-num text-[30px] font-semibold tracking-tight"
+                                          x-text="salaryRate().toFixed(1) + '%'"></span>
+                                    <span class="font-mono-num text-xs"
+                                          :style="'color:' + salarySavingDeltaColor()"
+                                          x-text="salarySavingDeltaLabel()"></span>
                                 </div>
-                                <template x-if="!salary.trend || !salary.trend.points || !salary.trend.points.length">
-                                    <p class="text-center text-sm text-gray-400 py-8">기록된 데이터가 없습니다.</p>
+                                <div class="h-1.5 rounded-[3px] overflow-hidden" style="background:rgba(255,255,255,.16)">
+                                    <div class="h-full rounded-[3px]"
+                                         :style="'width:' + Math.min(100, salaryRate()).toFixed(1) + '%;background:#5fa8e8'"></div>
+                                </div>
+                                <span class="text-[10.5px] leading-relaxed flex items-center gap-1 flex-wrap" style="color:#9aa3ab">
+                                    <span x-text="salarySavingNote()"></span>
+                                    <span>· 목표</span>
+                                    <input :value="salaryTarget()"
+                                           @change="setSalaryTarget($event.target.value)"
+                                           class="w-9 font-mono-num text-[10.5px] text-right bg-transparent border-b outline-none text-white focus:border-blue-300"
+                                           style="border-color:rgba(255,255,255,.3)" title="저축률 목표(%) — 저장 시 반영">
+                                    <span>%</span>
+                                </span>
+                            </div>
+
+                            <!-- 고정비 / 변동비 카드 -->
+                            <div class="dc-card flex flex-col gap-2.5 px-[18px] py-4"
+                                 style="flex:1 1 220px;min-width:200px">
+                                <span class="text-[11px]" style="color:#7a828a">고정비 / 변동비</span>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="font-mono-num text-[22px] font-semibold"
+                                          x-text="(salaryFixedVar().fixed / salaryFixedVar().total * 100).toFixed(0) + '%'"></span>
+                                    <span class="text-[11px]" style="color:#8b9299"
+                                          x-text="'/ ' + (salaryFixedVar().variable / salaryFixedVar().total * 100).toFixed(0) + '%'"></span>
+                                </div>
+                                <div class="flex h-1.5 rounded-[3px] overflow-hidden" style="background:#eff2f6">
+                                    <div class="h-full"
+                                         :style="'width:' + (salaryFixedVar().fixed / salaryFixedVar().total * 100).toFixed(1) + '%;background:#456c85'"></div>
+                                    <div class="h-full flex-1" style="background:#e0a04a"></div>
+                                </div>
+                                <span class="text-[10.5px] leading-relaxed" style="color:#8b9299"
+                                      x-text="'고정 ' + salaryMan(salaryFixedVar().fixed) + ' · 변동 ' + salaryMan(salaryFixedVar().variable)"></span>
+                            </div>
+                        </section>
+
+                        <!-- ===== 사용처 계층 테이블 ===== -->
+                        <section class="dc-card flex flex-col gap-3 px-[18px] pt-4 pb-[18px] overflow-x-auto">
+                            <div class="flex flex-wrap items-center justify-between gap-3.5">
+                                <div class="flex items-baseline gap-2.5">
+                                    <span class="dc-title">사용처</span>
+                                    <span class="text-[11px]" style="color:#8b9299">항목을 추가하면 상위 카테고리 금액은 합계로 자동 계산됩니다</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button @click="expandAllSalaryCats()"
+                                            class="text-[10.5px] px-[11px] py-[5px] rounded-md border bg-white hover:text-blue-800"
+                                            style="border-color:rgba(0,0,0,.14);color:#6b737a">모두 펼치기</button>
+                                    <button @click="collapseAllSalaryCats()"
+                                            class="text-[10.5px] px-[11px] py-[5px] rounded-md border bg-white hover:text-blue-800"
+                                            style="border-color:rgba(0,0,0,.14);color:#6b737a">모두 접기</button>
+                                    <button @click="addSalaryCategory()"
+                                            class="text-[10.5px] px-[11px] py-[5px] rounded-md border bg-white"
+                                            style="border-color:rgba(0,0,0,.14);color:#1f4f9e">+ 카테고리</button>
+                                </div>
+                            </div>
+
+                            <!-- 열 헤더 -->
+                            <div class="flex items-center gap-2.5 px-3 pb-2 text-[10px] tracking-wider border-b min-w-[840px]"
+                                 style="color:#98a0a7;border-color:rgba(0,0,0,.08)">
+                                <span class="flex-1 min-w-[180px]">카테고리 · 항목</span>
+                                <span class="w-[150px] flex-none text-right">금액</span>
+                                <span class="w-16 flex-none text-right">비율</span>
+                                <span class="w-[190px] flex-none">월급 대비</span>
+                                <span class="flex-none text-right"
+                                      :style="'width:' + (salary.showBudget ? '178px' : '0px') + ';display:' + (salary.showBudget ? 'block' : 'none')">예산 대비</span>
+                                <span class="w-[82px] flex-none text-right">관리</span>
+                            </div>
+
+                            <!-- 카테고리 행들 -->
+                            <div class="flex flex-col min-w-[840px]">
+                                <template x-for="c in salary.cats" :key="c.uid">
+                                    <div class="flex flex-col border-b" style="border-color:rgba(0,0,0,.055)">
+                                        <!-- 카테고리 행 -->
+                                        <div class="group flex items-center gap-2.5 px-3 py-2.5" style="background:#f8f9fb">
+                                            <div class="flex flex-col flex-none -my-1 opacity-30 group-hover:opacity-100 transition-opacity">
+                                                <button @click.stop="moveSalaryCategory(c, -1)" title="위로"
+                                                        class="text-[8px] leading-[9px] px-0.5 hover:text-blue-800 disabled:opacity-20"
+                                                        style="color:#8b9299"
+                                                        :disabled="salary.cats.indexOf(c) === 0">▲</button>
+                                                <button @click.stop="moveSalaryCategory(c, 1)" title="아래로"
+                                                        class="text-[8px] leading-[9px] px-0.5 hover:text-blue-800 disabled:opacity-20"
+                                                        style="color:#8b9299"
+                                                        :disabled="salary.cats.indexOf(c) === salary.cats.length - 1">▼</button>
+                                            </div>
+                                            <div class="flex-1 min-w-[180px] flex items-center gap-2 cursor-pointer"
+                                                 @click="toggleSalaryCat(c)">
+                                                <span class="font-mono-num text-[10px] w-2.5 flex-none" style="color:#8b9299"
+                                                      x-text="c.open ? '▾' : '▸'"></span>
+                                                <span class="w-2 h-2 rounded-[2px] flex-none" :style="'background:' + c.color"></span>
+                                                <span x-show="c.system" class="text-[12.5px] font-semibold" style="color:#14161a" x-text="c.label"></span>
+                                                <input x-show="!c.system" :value="c.label" @click.stop
+                                                       @change="setSalaryCategoryName(c, $event.target.value)"
+                                                       maxlength="40" placeholder="카테고리 이름"
+                                                       class="text-[12.5px] font-semibold rounded-md border border-transparent px-1.5 py-0.5 outline-none bg-transparent focus:bg-blue-50/50 focus:border-blue-200 w-[120px]"
+                                                       style="color:#14161a">
+                                                <span x-show="c.system" class="text-[9.5px] px-[7px] py-px rounded"
+                                                      :style="'background:' + salaryCatKind(c).bg + ';color:' + salaryCatKind(c).color"
+                                                      x-text="salaryCatKind(c).label"></span>
+                                                <button x-show="!c.system" @click.stop="toggleSalaryCatSavings(c)"
+                                                        title="클릭하면 저축률 계산 포함 여부가 바뀝니다 (저장 시 반영)"
+                                                        class="text-[9.5px] px-[7px] py-px rounded border border-dashed cursor-pointer"
+                                                        :style="'background:' + salaryCatKind(c).bg + ';color:' + salaryCatKind(c).color
+                                                            + ';border-color:' + (c.savings ? '#b9cbe8' : 'rgba(0,0,0,.12)')"
+                                                        x-text="salaryCatKind(c).label"></button>
+                                                <span class="text-[10.5px]" style="color:#8b9299" x-text="salaryCatCountLabel(c)"></span>
+                                            </div>
+                                            <div class="w-[150px] flex-none flex justify-end">
+                                                <template x-if="c.items.length === 0">
+                                                    <input :value="salaryWon(c.flat)"
+                                                           @change="setSalaryFlat(c, $event.target.value)"
+                                                           class="w-[130px] font-mono-num text-[12.5px] text-right rounded-md border px-2.5 py-1.5 outline-none focus:border-blue-400"
+                                                           style="border-color:rgba(0,0,0,.14);color:#14161a">
+                                                </template>
+                                                <template x-if="c.items.length > 0">
+                                                    <span class="font-mono-num text-[13px] font-semibold py-1.5"
+                                                          x-text="salaryWon(salaryCatTotal(c))"></span>
+                                                </template>
+                                            </div>
+                                            <span class="w-16 flex-none text-right font-mono-num text-xs" style="color:#4a5158"
+                                                  x-text="salaryCatPctLabel(c)"></span>
+                                            <div class="w-[190px] flex-none h-2 rounded-[2px] overflow-hidden" style="background:#eff2f6">
+                                                <div class="h-full rounded-[2px]"
+                                                     :style="'width:' + salaryCatBarW(c) + ';background:' + c.color"></div>
+                                            </div>
+                                            <div class="flex-none items-center justify-end gap-[7px]"
+                                                 :style="'width:' + (salary.showBudget ? '178px' : '0px') + ';display:' + (salary.showBudget ? 'flex' : 'none')">
+                                                <input :value="salaryWon(c.budget)"
+                                                       @change="setSalaryBudget(c, $event.target.value)"
+                                                       class="w-24 font-mono-num text-[11.5px] text-right rounded-md border px-2 py-[5px] outline-none focus:border-blue-400"
+                                                       style="border-color:rgba(0,0,0,.13);color:#4a5158">
+                                                <span class="font-mono-num text-[11.5px] w-[66px] text-right"
+                                                      :style="'color:' + salaryBudgetDiffColor(c)"
+                                                      x-text="salaryBudgetDiffLabel(c)"></span>
+                                            </div>
+                                            <div class="w-[82px] flex-none flex justify-end gap-1">
+                                                <button @click="addSalaryItem(c)" title="하위 항목 추가"
+                                                        class="text-[10.5px] px-2 py-1 rounded border bg-white"
+                                                        style="border-color:rgba(0,0,0,.14);color:#1f4f9e">+ 항목</button>
+                                                <button x-show="!c.savings" @click="removeSalaryCategory(c)" title="카테고리 삭제"
+                                                        class="text-[10.5px] px-[7px] py-1 rounded border bg-white"
+                                                        style="border-color:rgba(0,0,0,.12);color:#c02a22">×</button>
+                                            </div>
+                                        </div>
+
+                                        <!-- 하위 항목 행들 -->
+                                        <template x-if="c.open">
+                                            <div class="flex flex-col bg-white">
+                                                <template x-for="item in c.items" :key="item.uid">
+                                                    <div class="flex items-center gap-2.5 py-2 pr-3 pl-[38px] border-t"
+                                                         style="border-color:rgba(0,0,0,.045)">
+                                                        <div class="flex-1 min-w-[180px] flex items-center gap-2">
+                                                            <span class="w-[5px] h-[5px] rounded-full flex-none"
+                                                                  :style="'background:' + c.color"></span>
+                                                            <input :value="item.name"
+                                                                   @change="setSalaryItemName(item, $event.target.value)"
+                                                                   placeholder="항목 이름" maxlength="100"
+                                                                   class="flex-1 min-w-0 max-w-[280px] text-xs rounded-md border border-transparent px-2 py-1.5 outline-none bg-transparent focus:bg-blue-50/50 focus:border-blue-200"
+                                                                   style="color:#33383d">
+                                                            <button @click="toggleSalaryItemFixed(item)"
+                                                                    title="고정비 / 변동비 전환"
+                                                                    class="text-[9.5px] px-[7px] py-0.5 rounded border flex-none"
+                                                                    :style="item.fixed
+                                                                        ? 'border-color:#cfe0d8;background:#eef2f0;color:#2e6b52'
+                                                                        : 'border-color:#ecdcc2;background:#faf4ea;color:#8a6a34'"
+                                                                    x-text="item.fixed ? '고정' : '변동'"></button>
+                                                        </div>
+                                                        <div class="w-[150px] flex-none flex justify-end">
+                                                            <input :value="salaryWon(item.amount)"
+                                                                   @change="setSalaryItemAmount(item, $event.target.value)"
+                                                                   class="w-[130px] font-mono-num text-xs text-right rounded-md border px-2.5 py-1.5 outline-none focus:border-blue-400"
+                                                                   style="border-color:rgba(0,0,0,.13);color:#14161a">
+                                                        </div>
+                                                        <span class="w-16 flex-none text-right font-mono-num text-[11.5px]" style="color:#8b9299"
+                                                              x-text="salaryItemPctOfCat(c, item)"></span>
+                                                        <div class="w-[190px] flex-none h-1.5 rounded-[2px] overflow-hidden" style="background:#f2f4f7">
+                                                            <div class="h-full rounded-[2px] opacity-75"
+                                                                 :style="'width:' + salaryItemBarW(c, item) + ';background:' + c.color"></div>
+                                                        </div>
+                                                        <div class="flex-none justify-end"
+                                                             :style="'width:' + (salary.showBudget ? '178px' : '0px') + ';display:' + (salary.showBudget ? 'flex' : 'none')">
+                                                            <span class="font-mono-num text-[11px]" style="color:#98a0a7"
+                                                                  x-text="salaryItemShareLabel(item)"></span>
+                                                        </div>
+                                                        <div class="w-[82px] flex-none flex justify-end">
+                                                            <button @click="removeSalaryItem(c, item)"
+                                                                    class="text-[10.5px] px-[7px] py-1 rounded border bg-white"
+                                                                    style="border-color:rgba(0,0,0,.12);color:#c02a22">×</button>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <div class="flex items-center gap-2.5 pt-2 pb-2.5 pr-3 pl-[38px] border-t"
+                                                     style="border-color:rgba(0,0,0,.04)">
+                                                    <button @click="addSalaryItem(c)"
+                                                            class="text-[11px] px-[13px] py-[7px] rounded-md border border-dashed bg-transparent hover:bg-blue-50/50"
+                                                            style="border-color:rgba(0,0,0,.18);color:#1f4f9e"
+                                                            x-text="'+ ' + c.label + ' 항목 추가'"></button>
+                                                    <span x-show="c.items.length === 0"
+                                                          class="text-[10.5px]" style="color:#98a0a7">항목이 없으면 카테고리 금액을 직접 입력합니다</span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
                                 </template>
+
+                                <!-- 미배분 / 초과 행 -->
+                                <div class="flex items-center gap-2.5 p-3 border-b"
+                                     style="background:#f8f9fb;border-color:rgba(0,0,0,.055)">
+                                    <span class="flex-1 min-w-[180px] text-xs font-semibold" style="color:#4a5158"
+                                          x-text="salaryLeftLabel()"></span>
+                                    <span class="w-[150px] flex-none text-right font-mono-num text-[13px] font-semibold"
+                                          :style="'color:' + salaryLeftColor()"
+                                          x-text="salaryWon(Math.abs(salaryLeft()))"></span>
+                                    <span class="w-16 flex-none text-right font-mono-num text-xs"
+                                          :style="'color:' + salaryLeftColor()"
+                                          x-text="salaryLeftPctLabel()"></span>
+                                    <div class="w-[190px] flex-none h-2 rounded-[2px] overflow-hidden" style="background:#eff2f6">
+                                        <div class="h-full rounded-[2px]"
+                                             :style="'width:' + salaryLeftBarW() + ';background:' + salaryLeftColor()"></div>
+                                    </div>
+                                    <span class="flex-none"
+                                          :style="'width:' + (salary.showBudget ? '178px' : '0px') + ';display:' + (salary.showBudget ? 'block' : 'none')"></span>
+                                    <span class="w-[82px] flex-none"></span>
+                                </div>
                             </div>
-                        </template>
+
+                            <!-- 저장 footer -->
+                            <div class="flex flex-wrap items-center justify-between gap-3.5 pt-1">
+                                <span class="text-[11px]" style="color:#8b9299" x-text="salarySaveHint()"></span>
+                                <div class="flex gap-2">
+                                    <button @click="resetSalaryBuffer()"
+                                            class="text-xs px-4 py-[9px] rounded-lg border bg-white"
+                                            style="border-color:rgba(0,0,0,.14);color:#4a5158">되돌리기</button>
+                                    <button @click="saveSalaryMonthly()"
+                                            :disabled="salary.saving"
+                                            class="text-xs font-semibold px-5 py-[9px] rounded-lg text-white disabled:opacity-60"
+                                            style="background:#c02a22"
+                                            x-text="salarySaveLabel()"></button>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- ===== 추이 + 지난달 대비 + 인사이트 ===== -->
+                        <section class="flex flex-wrap items-stretch gap-3.5">
+
+                            <!-- 추이 차트 -->
+                            <div class="dc-card flex flex-col gap-3 px-[18px] pt-4 pb-3"
+                                 style="flex:2 1 520px;min-width:320px">
+                                <div class="flex flex-wrap items-start justify-between gap-3.5">
+                                    <div class="flex flex-col gap-1">
+                                        <span class="dc-title" x-text="salaryTrendTitle()"></span>
+                                        <span class="text-[11px]" style="color:#8b9299" x-text="salaryTrendNote()"></span>
+                                    </div>
+                                    <div class="flex items-center gap-1 p-[3px] rounded-lg" style="background:#f2f4f7">
+                                        <template x-for="mode in ['비율', '금액', '구성']" :key="mode">
+                                            <button @click="salary.trendMode = mode"
+                                                    class="text-[11px] px-3 py-1.5 rounded-md whitespace-nowrap"
+                                                    :class="salary.trendMode === mode ? 'bg-white font-semibold' : ''"
+                                                    :style="salary.trendMode === mode ? 'color:#14161a' : 'color:#7a828a'"
+                                                    x-text="mode"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div class="h-[230px]" x-html="salaryTrendSvg()"></div>
+                                <div class="flex justify-between font-mono-num text-[10px] border-t pt-[7px]"
+                                     style="color:#98a0a7;border-color:rgba(0,0,0,.06)">
+                                    <template x-for="a in salaryTrendAxis()" :key="a">
+                                        <span x-text="a"></span>
+                                    </template>
+                                </div>
+                                <div class="flex flex-wrap gap-3.5 pb-1">
+                                    <template x-for="l in salaryTrendLegend()" :key="l.name">
+                                        <span class="flex items-center gap-1.5 text-[10.5px]" style="color:#4a5158">
+                                            <span class="w-3.5 h-0.5 block" :style="'background:' + l.color"></span>
+                                            <span x-text="l.name"></span>
+                                        </span>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- 우측: 지난달 대비 + 인사이트 -->
+                            <div class="flex flex-col gap-3.5" style="flex:1 1 300px;min-width:280px">
+                                <div class="dc-card flex flex-col gap-[11px] px-[18px] py-4">
+                                    <div class="flex items-baseline justify-between">
+                                        <span class="dc-title">지난달 대비</span>
+                                        <span class="text-[10.5px]" style="color:#8b9299" x-text="salaryPrevMonthLabel()"></span>
+                                    </div>
+                                    <template x-if="salaryDeltas().length === 0">
+                                        <span class="text-[11px] py-2" style="color:#98a0a7">전월 기록이 없어 비교할 수 없습니다</span>
+                                    </template>
+                                    <template x-for="d in salaryDeltas()" :key="d.key">
+                                        <div class="flex items-center gap-2.5">
+                                            <span class="w-[7px] h-[7px] rounded-[2px] flex-none" :style="'background:' + d.color"></span>
+                                            <span class="flex-1 min-w-0 text-[11.5px] whitespace-nowrap overflow-hidden text-ellipsis"
+                                                  style="color:#33383d" x-text="d.name"></span>
+                                            <div class="w-[88px] flex-none h-4 relative">
+                                                <div class="absolute rounded-[2px]" style="inset:5px 0;background:#f2f4f7"></div>
+                                                <div class="absolute top-0 bottom-0 left-1/2 w-px" style="background:#c9ced6"></div>
+                                                <div class="absolute rounded-[2px]"
+                                                     :style="'top:5px;bottom:5px;left:' + d.barL + ';width:' + d.barW + ';background:' + d.barColor"></div>
+                                            </div>
+                                            <span class="w-[78px] flex-none text-right font-mono-num text-[11px]"
+                                                  :style="'color:' + d.barColor" x-text="d.label"></span>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div class="dc-card flex flex-col gap-2.5 px-[18px] py-4">
+                                    <span class="dc-title">눈에 띄는 것</span>
+                                    <template x-for="ins in salaryInsights()" :key="ins.key">
+                                        <div class="flex flex-col gap-1 px-3 py-[11px] rounded-lg"
+                                             :style="'background:' + ins.bg + ';border-left:3px solid ' + ins.color">
+                                            <span class="text-[11.5px] font-semibold" :style="'color:' + ins.color" x-text="ins.title"></span>
+                                            <span class="text-[11px] leading-relaxed" style="color:#4a5158" x-text="ins.body"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </section>
                     </div>
                 </template>
 
@@ -188,7 +441,8 @@
                             <button @click="closeSalaryNewMonthDialog()"
                                     class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">취소</button>
                             <button @click="confirmSalaryNewMonth()"
-                                    class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">확인</button>
+                                    class="px-4 py-2 rounded-lg text-white text-sm font-medium"
+                                    style="background:#1f4f9e">확인</button>
                         </div>
                     </div>
                 </div>

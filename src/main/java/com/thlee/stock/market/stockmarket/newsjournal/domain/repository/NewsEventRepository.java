@@ -37,4 +37,7 @@ public interface NewsEventRepository {
      * {@code category_id IS NULL} 인 레거시 backfill 잔재 행은 결과에서 제외한다.
      */
     List<NewsEventCategoryCount> countByCategoryGroupedByCategoryId(Long userId);
+
+    /** 사용자별 시장영향 그룹 합계(화면 통계용). 0건 임팩트는 결과에 없다. */
+    List<NewsEventImpactCount> countByImpactGroupedByImpact(Long userId);
 }

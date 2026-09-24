@@ -1,7 +1,6 @@
 package com.thlee.stock.market.stockmarket.salary.domain.repository;
 
 import com.thlee.stock.market.stockmarket.salary.domain.model.SpendingConfig;
-import com.thlee.stock.market.stockmarket.salary.domain.model.enums.SpendingCategory;
 
 import java.time.YearMonth;
 import java.util.List;
@@ -16,7 +15,7 @@ public interface SpendingConfigRepository {
 
     /** 해당 월·카테고리의 변경 레코드(상속이 아닌 직접 레코드) */
     Optional<SpendingConfig> findByUserIdAndCategoryAndEffectiveFromMonth(
-            Long userId, SpendingCategory category, YearMonth yearMonth);
+            Long userId, String category, YearMonth yearMonth);
 
     /**
      * 특정 월 시점의 카테고리별 유효 지출 (상속 포함).
@@ -35,5 +34,5 @@ public interface SpendingConfigRepository {
     List<YearMonth> findDistinctMonths(Long userId);
 
     void deleteByUserIdAndCategoryAndEffectiveFromMonth(
-            Long userId, SpendingCategory category, YearMonth yearMonth);
+            Long userId, String category, YearMonth yearMonth);
 }

@@ -160,3 +160,12 @@ src/main/java/com/thlee/stock/market/stockmarket/
 | **예외 처리** | domain.exception으로 비즈니스 규칙 위반 표현, presentation에서 HTTP Status 매핑 |
 
 ---
+
+## 6. 기업 리포트 S-RIM
+
+- `companyreport.domain.model`: S-RIM 입력/평가 값과 순수 Java 계산·검증. 비율은 소수, 금액은 기본 통화 단위이며 중간 계산은 BigDecimal 정밀도를 유지한다.
+- `companyreport.application`: 계산 미리보기 및 저장 조합. API/저장 DTO는 도메인 모델과 별도로 매핑한다.
+- `companyreport.infrastructure.persistence`: 리포트의 nullable `srim` JSONB에 입력, 연도별 결과, 계산 버전/시각을 보존한다. 기존 데이터는 null로 호환된다.
+- `companyreport.presentation`: 로그인한 사용자의 계산 미리보기와 리포트 생성/수정/상세 API를 제공한다. 저장은 클라이언트 결과를 수용하지 않고 서버에서 계산한다.
+- 일반 재무 새로고침은 외부 조회 후 application의 짧은 트랜잭션에서 재무 컬럼만 갱신한다. 동시에 수정되는 S-RIM 사용자 입력을 덮어쓰지 않는다.
+- 기존 DCF/청산가치의 조회 시 파생 계산과 S-RIM의 저장 결과 조회는 독립적이다.

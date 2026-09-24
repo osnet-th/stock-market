@@ -46,7 +46,8 @@ public final class CompanyReportResults {
             Map<String, GradeSuggestion> suggestedGrades,
             LocalDateTime snapshotAt,
             LocalDateTime createdAt,
-            LocalDateTime updatedAt
+            LocalDateTime updatedAt,
+            SrimData srim
     ) {}
 
     public record Preview(

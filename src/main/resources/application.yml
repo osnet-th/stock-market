@@ -169,6 +169,10 @@ scheduler:
     update:
       enabled: true
       cron: 0 0 */1 * * *
+  portfolio:
+    # 자산 스냅샷 일 1회 저장 (국내장 마감 15:30 직후 종가 기준, 개장일에만 기록)
+    snapshot:
+      cron: 0 40 15 * * MON-FRI
   logging:
     # 만료 월 인덱스 삭제 (직전월까지 유지, 그 이전은 DELETE)
     cleanup:

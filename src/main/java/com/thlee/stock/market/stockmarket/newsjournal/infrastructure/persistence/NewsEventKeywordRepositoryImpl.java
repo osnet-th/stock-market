@@ -2,6 +2,7 @@ package com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistenc
 
 import com.thlee.stock.market.stockmarket.newsjournal.domain.model.NewsEventKeyword;
 import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventKeywordRepository;
+import com.thlee.stock.market.stockmarket.newsjournal.domain.repository.NewsEventKeywordRow;
 import com.thlee.stock.market.stockmarket.newsjournal.infrastructure.persistence.mapper.NewsEventMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -43,6 +44,11 @@ public class NewsEventKeywordRepositoryImpl implements NewsEventKeywordRepositor
             grouped.computeIfAbsent(e.getEventId(), k -> new ArrayList<>()).add(NewsEventMapper.toDomain(e));
         }
         return grouped;
+    }
+
+    @Override
+    public List<NewsEventKeywordRow> findRowsByUserId(Long userId) {
+        return jpaRepository.findRowsByUserId(userId);
     }
 
     @Override

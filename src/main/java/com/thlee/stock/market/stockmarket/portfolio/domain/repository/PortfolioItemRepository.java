@@ -51,6 +51,11 @@ public interface PortfolioItemRepository {
     List<PortfolioItem> findByUserIdIn(List<Long> userIds);
 
     /**
+     * ACTIVE 항목을 1건 이상 보유한 사용자 ID 목록 (자산 스냅샷 배치 대상)
+     */
+    List<Long> findUserIdsWithActiveItems();
+
+    /**
      * 포트폴리오 항목 삭제
      */
     void delete(PortfolioItem item);

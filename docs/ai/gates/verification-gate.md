@@ -62,8 +62,8 @@ Gate 진입 시점에 [notion-guide.md](../notion-guide.md)에 따라 Implementa
 
 - plan 체크리스트가 실제 작업 상태와 일치하는가
 - plan 범위를 벗어난 파일 수정이 없는가
-- `/Users/thlee/Documents/personal/stock-market/scripts/validate-plan.sh {plan-file}`이 통과했는가
-- `/Users/thlee/Documents/personal/stock-market/scripts/check-plan-conflicts.sh {이슈번호}`가 통과했는가
+- `scripts/validate-plan.sh {plan-file}`이 통과했는가
+- `scripts/check-plan-conflicts.sh {이슈번호}`가 통과했는가
 - [ARCHITECTURE.md](../../../ARCHITECTURE.md)의 계층 규칙, DTO/Entity/Domain 경계를 지켰는가
 - `docs/ai/agent-harness.md`, `AGENTS.md`, `CLAUDE.md`를 수정했다면 공통 하네스 단일 원본 구조를 유지했는가
 - Implementation/Review 작업으로 만든 새 파일이 있으면 `git add -N`을 적용해 `git diff`에 보이도록 했는가
@@ -84,12 +84,12 @@ Gate 진입 시점에 [notion-guide.md](../notion-guide.md)에 따라 Implementa
 
 ## Root Path Harness
 
-- 메인 저장소 문서와 스크립트 기준 경로는 `/Users/thlee/Documents/personal/stock-market`다.
-- issue worktree는 `/Users/thlee/Documents/personal/stock-market-issue-{이슈번호}`에 생성한다.
-- issue worktree 안에는 메인 저장소의 최신 `docs/`, `scripts/`가 없을 수 있으므로 하네스 스크립트는 절대 경로로 실행한다.
-- plan 경로는 `/Users/thlee/Documents/personal/stock-market/docs/plans/`를 기준으로 사용한다.
+- 메인 저장소 문서와 스크립트 기준 경로는 git 저장소 루트다.
+- issue worktree는 메인 저장소와 같은 상위 디렉터리의 `stock-market-issue-{이슈번호}`에 생성한다.
+- issue worktree 안에는 메인 저장소의 최신 `docs/`, `scripts/`가 없을 수 있으므로 하네스 스크립트는 메인 저장소의 것을 실행한다. 스크립트는 실행 위치와 무관하게 메인 저장소 루트를 스스로 판별한다.
+- plan 경로는 `docs/plans/`를 기준으로 사용한다.
 - root script 예:
-  - `/Users/thlee/Documents/personal/stock-market/scripts/start-issue-worktree.sh`
-  - `/Users/thlee/Documents/personal/stock-market/scripts/validate-plan.sh`
-  - `/Users/thlee/Documents/personal/stock-market/scripts/check-plan-conflicts.sh`
-  - `/Users/thlee/Documents/personal/stock-market/scripts/checkpoint-guard.sh`
+  - `scripts/start-issue-worktree.sh`
+  - `scripts/validate-plan.sh`
+  - `scripts/check-plan-conflicts.sh`
+  - `scripts/checkpoint-guard.sh`

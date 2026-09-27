@@ -13,7 +13,7 @@
 
 ## 이슈 착수 Gate
 
-issue 기반 작업 공간 준비는 `/Users/thlee/Documents/personal/stock-market/scripts/start-issue-worktree.sh {이슈번호}`를 사용한다. 스크립트는 아래를 수행한다.
+issue 기반 작업 공간 준비는 `scripts/start-issue-worktree.sh {이슈번호}`를 사용한다. 스크립트는 아래를 수행한다.
 
 1. `gh issue view {이슈번호}`로 이슈 존재와 open 상태를 확인하고, 제목/본문을 `{worktree}/.claude/issues/{이슈번호}/{이슈번호}.md`에 저장한다.
 2. 메인 저장소에서 `main` 전환 후 `git pull`로 최신화한다.

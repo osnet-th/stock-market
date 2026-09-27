@@ -28,8 +28,9 @@ fi
 ISSUE="$1"
 SLUG="${2:-}"
 
-ROOT="/Users/thlee/Documents/personal/stock-market"
-PARENT="/Users/thlee/Documents/personal"
+ROOT=$(git -C "$(dirname -- "$0")" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
+ROOT="${ROOT%/.git}"
+PARENT=$(dirname -- "$ROOT")
 WORKTREE_DIR="$PARENT/stock-market-issue-$ISSUE"
 
 if ! printf '%s\n' "$ISSUE" | grep -Eq '^[0-9]+$'; then

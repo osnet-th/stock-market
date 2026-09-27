@@ -18,7 +18,8 @@
 
 set -u
 
-ROOT="/Users/thlee/Documents/personal/stock-market"
+ROOT=$(git -C "$(dirname -- "$0")" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
+ROOT="${ROOT%/.git}"
 PLANS_DIR="$ROOT/docs/plans"
 
 WT="${1:-}"

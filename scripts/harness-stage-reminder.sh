@@ -22,8 +22,21 @@ import subprocess
 import sys
 import time
 
-ROOT = "/Users/thlee/Documents/personal/stock-market"
-WORKTREE_PARENT = "/Users/thlee/Documents/personal"
+def _repo_root():
+    """메인 저장소 루트. worktree 안에서 실행해도 공용 git 디렉터리로 메인을 가리킨다."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", os.path.dirname(os.path.abspath(__file__)),
+             "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            capture_output=True, text=True, timeout=5)
+        if out.returncode == 0:
+            return os.path.dirname(out.stdout.strip())
+    except Exception:
+        pass
+    return ""
+
+ROOT = _repo_root()
+WORKTREE_PARENT = os.path.dirname(ROOT) if ROOT else ""
 PLANS_DIR = os.path.join(ROOT, "docs", "plans")
 BRAINSTORM_DIR = os.path.join(ROOT, "docs", "brainstorms")
 VALID_STAGES = {"brainstorm", "plan", "plan-approval", "implement", "review", "explain", "verify", "pr", "merge"}

@@ -4,7 +4,7 @@ set -eu
 
 usage() {
   echo "Usage: $0 <plan-file>" >&2
-  echo "Example: $0 /Users/thlee/Documents/personal/stock-market/docs/plans/example-plan.md" >&2
+  echo "Example: $0 docs/plans/example-plan.md" >&2
 }
 
 if [ "$#" -ne 1 ]; then

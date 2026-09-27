@@ -207,20 +207,20 @@ agents:
 
 ## 관련 파일 (절대경로)
 
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/favorite/application/FavoriteIndicatorService.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/favorite/application/SingleFlightCoordinator.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/favorite/application/RefreshRateLimiter.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/favorite/application/exception/FavoriteRefreshForbiddenException.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/favorite/application/exception/RefreshRateLimitExceededException.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/favorite/presentation/FavoriteIndicatorController.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/favorite/presentation/dto/EnrichedFavoriteResponse.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/favorite/presentation/dto/GlobalRefreshResponse.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/economics/application/GlobalIndicatorCacheService.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/economics/application/GlobalIndicatorQueryService.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/infrastructure/web/GlobalExceptionHandler.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/infrastructure/security/config/DevSecurityConfig.java`
-- `/Users/thlee/Documents/personal/stock-market/src/main/resources/static/index.html`
-- `/Users/thlee/Documents/personal/stock-market/src/main/resources/static/js/components/favorite.js`
+- `src/main/java/com/thlee/stock/market/stockmarket/favorite/application/FavoriteIndicatorService.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/favorite/application/SingleFlightCoordinator.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/favorite/application/RefreshRateLimiter.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/favorite/application/exception/FavoriteRefreshForbiddenException.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/favorite/application/exception/RefreshRateLimitExceededException.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/favorite/presentation/FavoriteIndicatorController.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/favorite/presentation/dto/EnrichedFavoriteResponse.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/favorite/presentation/dto/GlobalRefreshResponse.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/economics/application/GlobalIndicatorCacheService.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/economics/application/GlobalIndicatorQueryService.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/infrastructure/web/GlobalExceptionHandler.java`
+- `src/main/java/com/thlee/stock/market/stockmarket/infrastructure/security/config/DevSecurityConfig.java`
+- `src/main/resources/static/index.html`
+- `src/main/resources/static/js/components/favorite.js`
 
 ## 다음 단계
 
@@ -364,5 +364,5 @@ Phase 5 (P1 4건 반영) 완료 후 4개 에이전트(performance/architecture/s
 
 ## 관련 파일 (Rev.2 추가)
 
-- `/Users/thlee/Documents/personal/stock-market/src/main/java/com/thlee/stock/market/stockmarket/favorite/infrastructure/config/GlobalFavoriteExecutorConfig.java` (신규)
+- `src/main/java/com/thlee/stock/market/stockmarket/favorite/infrastructure/config/GlobalFavoriteExecutorConfig.java` (신규)
 - 기타 Rev.1 관련 파일 목록 동일

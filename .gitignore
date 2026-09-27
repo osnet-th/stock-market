@@ -37,3 +37,5 @@ out/
 .vscode/
 .env
 .env-local
+### Compound Engineering ###
+.context/compound-engineering/

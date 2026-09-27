@@ -32,7 +32,7 @@
 docs/brainstorms/{YYYY-MM-DD}-{issue-or-topic}-brainstorm.md
 ```
 
-현재 CWD가 issue worktree 하위여도 메인 저장소 `/Users/thlee/Documents/personal/stock-market/docs/brainstorms/` 하위에 작성한다.
+현재 CWD가 issue worktree 하위여도 메인 저장소 `docs/brainstorms/` 하위에 작성한다.
 
 ## 문서 형식
 

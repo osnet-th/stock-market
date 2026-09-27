@@ -15,8 +15,8 @@
 - issue 기반 Implementation에서 root plan이 `active`가 되고 충돌 검사를 통과한 뒤에는 직접 구현하지 않고 반드시 `/ce:work`로 구현을 시작한다.
 - `/ce:work`의 task 기준은 승인된 root plan의 작업 리스트와 `allowed_paths`/`blocked_paths`다.
 - `/ce:work`가 root plan 작업 리스트에 없는 구현을 요구하면 구현하지 않고 root plan 갱신, 검증, 재승인 단계로 복귀한다.
-- plan 문서는 메인 저장소 `/Users/thlee/Documents/personal/stock-market/docs/plans/` 하위에만 생성한다.
-- Harness Brainstorm 문서는 메인 저장소 `/Users/thlee/Documents/personal/stock-market/docs/brainstorms/` 하위에만 생성한다.
+- plan 문서는 메인 저장소 `docs/plans/` 하위에만 생성한다.
+- Harness Brainstorm 문서는 메인 저장소 `docs/brainstorms/` 하위에만 생성한다.
 - 현재 CWD가 issue worktree 하위여도 plan/Harness Brainstorm 문서는 worktree 내부 `docs/`가 아니라 메인 저장소 공용 위치에 생성한다.
 - 착오로 issue worktree 내부에 plan/Harness Brainstorm 문서를 만든 경우 작업 종료 보고 또는 worktree 삭제 전에 메인 저장소 공용 위치로 이동한 뒤 worktree 내부 원본 문서를 삭제하고, 상대 링크와 `origin` 참조가 깨지지 않는지 확인한다.
 - 신규 문서는 `.claude/designs/`, `.claude/analyzes/`에 작성하지 않는다.
@@ -29,7 +29,7 @@
 - 테스트 작성 여부가 미확정이거나 `test_plan_status: pending`이면 plan에는 테스트 시나리오 미승인 상태와 다음 확인 절차만 남기고 상세 테스트 케이스를 쓰지 않는다.
 - 기능 계획이 끝난 뒤 단위 테스트를 작성하기로 결정되면, 먼저 대화로 테스트 시나리오를 설명하고 사용자 승인을 받은 뒤 승인된 내용만 plan에 반영한다.
 - 단위 테스트를 작성하기로 한 plan은 Given/When/Then, 정상/예외 케이스, Mock 대상, 제외 범위, 검증 명령을 사용자 승인받은 뒤에만 `test_plan_status: approved`로 둘 수 있다. 승인 전에는 `/ce:work`로 구현을 시작하지 않는다.
-- `/ce:plan` 이후 구현 승인 전 `/Users/thlee/Documents/personal/stock-market/scripts/validate-plan.sh {plan-file}`을 실행한다.
+- `/ce:plan` 이후 구현 승인 전 `scripts/validate-plan.sh {plan-file}`을 실행한다.
 - `validate-plan.sh` 통과 후 승인 요청 시점에 [notion-guide.md](../notion-guide.md)에 따라 해당 작업의 Plan 페이지를 동기화하고, `active` 전환 시 같은 페이지를 최종본으로 업데이트한다.
 - issue 기반 Implementation에서 "진행해", "구현해", "계속해" 요청을 받아도 `/ce:plan` 결과로 확정한 root plan이 `active`가 아니면 구현하지 않고 plan 작성/승인 단계로 복귀한다. root plan이 `active`이면 `/ce:work`를 먼저 실행해 root plan 작업 리스트 기준 task를 선택한다.
 - plan status lifecycle은 `draft -> active -> blocked -> done` 기준으로 관리한다.

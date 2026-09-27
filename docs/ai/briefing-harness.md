@@ -101,7 +101,7 @@ plan 작업 2 -> 코드 위치/책임:
 
 절차:
 
-1. **diff 스냅샷 고정 + 경로 검사(메인, 즉시)**: `/Users/thlee/Documents/personal/stock-market/scripts/checkpoint-guard.sh {worktree경로}`를 실행한다. 스크립트가 신규 파일 포함 스냅샷을 `.claude/issues/{이슈번호}/checkpoints/task-{N}.diff`로 저장하고, 변경 파일을 root plan의 `allowed_paths`/`blocked_paths`와 대조한다.
+1. **diff 스냅샷 고정 + 경로 검사(메인, 즉시)**: `scripts/checkpoint-guard.sh {worktree경로}`를 실행한다. 스크립트가 신규 파일 포함 스냅샷을 `.claude/issues/{이슈번호}/checkpoints/task-{N}.diff`로 저장하고, 변경 파일을 root plan의 `allowed_paths`/`blocked_paths`와 대조한다.
 2. **위반 처리**: 스크립트가 exit 1(경로 위반)이면 서브에이전트를 스폰하지 않고 즉시 중단해 태형님에게 보고한다. exit 2(plan 미발견)이면 plan 상태를 먼저 확인한다.
 3. **의미 검사(서브에이전트, 백그라운드)**: read-only 리뷰 서브에이전트를 백그라운드로 스폰하고, 메인은 기다리지 않고 다음 작업 단위를 진행한다. 서브에이전트는 파일을 수정하지 않고 판정만 반환한다.
    - 입력: ①이번 스냅샷 `task-{N}.diff`, ②직전 스냅샷 `task-{N-1}.diff`(있는 경우, 이번 단위 변경분 식별용), ③root plan 문서, ④Harness Brainstorm 문서, ⑤`.claude/issues/{이슈번호}/{이슈번호}.md`, ⑥이번 변경분이 plan 작업 리스트의 어느 항목에 대응하는지

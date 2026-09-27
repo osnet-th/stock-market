@@ -6,7 +6,7 @@ status: done
 date: 2026-08-26
 origin: dataworks docs/ai 하네스 (bigx 스킬·Jira·Bitbucket 종속 제거판)
 branch: chore/agent-harness-adoption
-worktree: (메인 저장소 루트)
+worktree: /Users/thlee/Documents/personal/stock-market
 test_plan_status: none
 schema_plan_status: none
 docs_only: true
@@ -93,7 +93,7 @@ dataworks 대비 변경: review에 포함돼 있던 구현 이해 게이트를 `
 
 ### 2. scripts 이식
 
-- [x] 2-1. `scripts/harness-stage-reminder.sh` — ROOT=`(메인 저장소 상위 디렉터리)`, worktree glob `stock-market-issue-*`, 티켓 패턴 `#?\d+`→이슈 번호, stage 경로 `.claude/issues/{N}/stage`, VALID_STAGES에 `explain`/`pr`/`merge` 추가, 단계 메시지에서 bigx·Jira·CodeRabbit 제거(Notion 동기화 의무는 brainstorm·plan-approval·review·explain·merge 단계 메시지에 유지)
+- [x] 2-1. `scripts/harness-stage-reminder.sh` — ROOT=`/Users/thlee/Documents/personal`, worktree glob `stock-market-issue-*`, 티켓 패턴 `#?\d+`→이슈 번호, stage 경로 `.claude/issues/{N}/stage`, VALID_STAGES에 `explain`/`pr`/`merge` 추가, 단계 메시지에서 bigx·Jira·CodeRabbit 제거(Notion 동기화 의무는 brainstorm·plan-approval·review·explain·merge 단계 메시지에 유지)
 - [x] 2-2. `scripts/checkpoint-guard.sh` — 경로 치환 이식 (`.claude/jira` → `.claude/issues`)
 - [x] 2-3. `scripts/validate-plan.sh` — 경로 치환 이식, Jira 관련 검사 제거, 스키마 키워드·test_plan_status 게이트 유지
 - [x] 2-4. `scripts/check-plan-conflicts.sh` — 단일 모듈 기준 파일 단위 충돌 검사로 단순화 (인자: 이슈번호)

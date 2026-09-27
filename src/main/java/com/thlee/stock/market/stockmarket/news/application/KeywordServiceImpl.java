@@ -1,21 +1,34 @@
 package com.thlee.stock.market.stockmarket.news.application;
 
 import com.thlee.stock.market.stockmarket.news.application.dto.KeywordResponse;
+import com.thlee.stock.market.stockmarket.news.application.dto.KeywordStatsResponse;
 import com.thlee.stock.market.stockmarket.news.application.dto.RegisterKeywordRequest;
+import com.thlee.stock.market.stockmarket.news.application.dto.UpdateKeywordRequest;
 import com.thlee.stock.market.stockmarket.news.domain.model.Keyword;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.model.UserKeyword;
+import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordCollectionHistoryRepository;
+import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordCollectionSummary;
+import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordDailyNewsCount;
+import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordNewsCount;
 import com.thlee.stock.market.stockmarket.news.domain.repository.KeywordRepository;
 import com.thlee.stock.market.stockmarket.news.domain.repository.NewsRepository;
 import com.thlee.stock.market.stockmarket.news.domain.repository.UserKeywordRepository;
+import com.thlee.stock.market.stockmarket.news.domain.service.NewsIndexPort;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.PortfolioItem;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -30,6 +43,10 @@ public class KeywordServiceImpl implements KeywordService {
     private final UserKeywordRepository userKeywordRepository;
     private final NewsRepository newsRepository;
     private final PortfolioItemRepository portfolioItemRepository;
+    /** 키워드 수정 시 이관된 기사를 재색인한다 (#115) — 안 하면 스코프 검색에서 누락된다. */
+    private final NewsIndexPort newsIndexPort;
+    /** 마지막 성공·연속 실패 판정 근거 (#115 Phase 6). */
+    private final KeywordCollectionHistoryRepository collectionHistoryRepository;
 
     @Override
     @Transactional
@@ -82,6 +99,68 @@ public class KeywordServiceImpl implements KeywordService {
     }
 
     @Override
+    public List<Long> getSubscribedKeywordIds(Long userId) {
+        return userKeywordRepository.findByUserId(userId).stream()
+                .map(UserKeyword::getKeywordId)
+                .toList();
+    }
+
+    @Override
+    public KeywordStatsResponse getKeywordStats(Long userId) {
+        List<Long> keywordIds = getSubscribedKeywordIds(userId);
+        if (keywordIds.isEmpty()) {
+            return KeywordStatsResponse.empty();
+        }
+
+        LocalDate today = LocalDate.now();
+        LocalDate windowStart = today.minusDays(KeywordStatsResponse.SPARKLINE_DAYS - 1L);
+
+        // 쿼리 3회로 전 키워드를 집계한다 (키워드마다 조회하면 N+1)
+        Map<Long, KeywordNewsCount> totals = newsRepository.aggregateCountsByKeywordIds(keywordIds).stream()
+                .collect(Collectors.toMap(KeywordNewsCount::keywordId, Function.identity(), (a, b) -> a));
+        Map<Long, Map<LocalDate, Long>> dailyByKeyword = newsRepository
+                .aggregateDailyCountsByKeywordIds(keywordIds, windowStart.atStartOfDay())
+                .stream()
+                .collect(Collectors.groupingBy(
+                        KeywordDailyNewsCount::keywordId,
+                        Collectors.toMap(KeywordDailyNewsCount::day, KeywordDailyNewsCount::dailyCount, (a, b) -> a)
+                ));
+        // 마지막 성공·연속 실패는 수집 이력이 근거다 (#115 Phase 6).
+        // MAX(news.created_at) 은 "마지막으로 기사가 저장된 시각"이라 새 기사가 없던 성공을 놓친다.
+        Map<Long, KeywordCollectionSummary> collectionByKeyword = collectionHistoryRepository
+                .summarizeByKeywordIds(keywordIds).stream()
+                .collect(Collectors.toMap(KeywordCollectionSummary::keywordId, Function.identity(), (a, b) -> a));
+
+        long todayTotal = 0L;
+        List<KeywordStatsResponse.Item> items = new ArrayList<>(keywordIds.size());
+        for (Long keywordId : keywordIds) {
+            Map<LocalDate, Long> byDay = dailyByKeyword.getOrDefault(keywordId, Map.of());
+
+            // 수집이 없던 날은 행이 아예 없으므로 0 으로 메워 항상 7칸을 만든다
+            List<Long> daily = new ArrayList<>(KeywordStatsResponse.SPARKLINE_DAYS);
+            for (int i = 0; i < KeywordStatsResponse.SPARKLINE_DAYS; i++) {
+                daily.add(byDay.getOrDefault(windowStart.plusDays(i), 0L));
+            }
+
+            long todayCount = byDay.getOrDefault(today, 0L);
+            todayTotal += todayCount;
+
+            KeywordNewsCount total = totals.get(keywordId);
+            KeywordCollectionSummary collection = collectionByKeyword.get(keywordId);
+            items.add(new KeywordStatsResponse.Item(
+                    keywordId,
+                    total != null ? total.totalCount() : 0L,
+                    todayCount,
+                    collection != null ? collection.lastSuccessAt() : null,
+                    collection != null ? collection.failureStreak() : 0L,
+                    daily
+            ));
+        }
+
+        return new KeywordStatsResponse(todayTotal, items);
+    }
+
+    @Override
     public List<Keyword> getAllKeywords() {
         return keywordRepository.findAll();
     }
@@ -122,6 +201,146 @@ public class KeywordServiceImpl implements KeywordService {
             newsRepository.deleteByKeywordId(keywordId);
             keywordRepository.deleteById(keywordId);
         }
+    }
+
+    /**
+     * 키워드 수정 (#115) — 공유 리소스라 UPDATE 대신 <b>재구독</b>으로 처리한다.
+     *
+     * <p>절차
+     * <ol>
+     *   <li>이름·지역이 그대로면 활성 토글만 반영하고 끝낸다(불필요한 이관 방지)</li>
+     *   <li>새 (이름, 지역) 이 이미 내 구독이면 병합이 되므로 막는다</li>
+     *   <li>새 키워드를 find-or-create 하고 구독한다</li>
+     *   <li><b>단독 구독자면</b> 기존 기사를 새 키워드로 이관한다 — 목업의 "기사 유지" 약속.
+     *       다른 구독자가 있으면 그들의 기사이므로 옮기지 않는다</li>
+     *   <li>기존 구독을 해제한다</li>
+     * </ol>
+     *
+     * <p><b>포트폴리오 연동</b>: 5번의 {@code unsubscribeKeyword} 가
+     * 같은 이름의 포트폴리오 항목 {@code newsEnabled} 를 끈다. 이는 기존 모델의 의도된 역방향 동기화다 —
+     * 항목명으로 키워드를 만드는 구조(`PortfolioService.toggleNews`)라서, 이름을 바꾸면
+     * 그 항목을 수집하던 키워드가 없어지므로 플래그를 켜 둔 채로 두면 "뉴스 ON 인데 아무것도 안 모임"이 된다.
+     */
+    @Override
+    @Transactional
+    public KeywordResponse updateKeyword(Long userId, Long keywordId, UpdateKeywordRequest request) {
+        Keyword current = keywordRepository.findById(keywordId)
+                .orElseThrow(() -> new IllegalArgumentException("키워드를 찾을 수 없습니다."));
+        UserKeyword subscription = userKeywordRepository.findByUserIdAndKeywordId(userId, keywordId)
+                .orElseThrow(() -> new IllegalArgumentException("구독 정보를 찾을 수 없습니다."));
+
+        String newName = request.getKeyword() == null ? "" : request.getKeyword().trim();
+        if (newName.isBlank()) {
+            throw new IllegalArgumentException("키워드는 필수입니다.");
+        }
+        Region newRegion = request.getRegion();
+
+        // 1. 이름·지역이 그대로면 활성 토글만 반영한다
+        if (newName.equals(current.getKeyword()) && newRegion == current.getRegion()) {
+            applyActiveState(userId, keywordId, request.isActive());
+            UserKeyword updated = userKeywordRepository.findByUserIdAndKeywordId(userId, keywordId)
+                    .orElse(subscription);
+            return KeywordResponse.from(current, updated);
+        }
+
+        // 2. 새 (이름, 지역) 을 이미 구독 중이면 두 키워드가 합쳐져 버린다 — 사전에 막는다
+        Optional<Keyword> existingTarget = keywordRepository.findByKeywordAndRegion(newName, newRegion);
+        if (existingTarget.isPresent()
+                && userKeywordRepository.findByUserIdAndKeywordId(userId, existingTarget.get().getId()).isPresent()) {
+            throw new IllegalArgumentException("이미 등록된 키워드입니다.");
+        }
+
+        // 이관·해제 판정은 구독을 건드리기 전에 끝내야 한다 — 이후에는 원래 상태를 알 수 없다
+        boolean soleSubscriber = userKeywordRepository.findByKeywordId(keywordId).size() <= 1;
+        // 2번에서 "내" 구독이 아님을 확인했으므로, 여기 남은 구독자는 전부 다른 사용자다
+        boolean targetHasOtherSubscribers = existingTarget.isPresent()
+                && userKeywordRepository.existsByKeywordId(existingTarget.get().getId());
+
+        // 대상이 남이 쓰는 키워드면 기사를 옮길 수 없다(그 사람 목록에 내 기사가 섞인다).
+        // 그렇다고 옮기지 않으면, 단독 구독자인 이 키워드는 해제 시 기사까지 삭제된다.
+        // 둘 다 사용자가 의도한 바가 아니므로 수정 자체를 막고 안전한 경로를 안내한다.
+        if (targetHasOtherSubscribers && soleSubscriber) {
+            throw new IllegalArgumentException(
+                    "이미 수집 중인 키워드라 이름을 바꿀 수 없습니다. 새 키워드로 등록한 뒤 기존 키워드를 삭제해 주세요.");
+        }
+
+        // 3. 새 키워드 구독
+        Keyword renamed = registerKeyword(newName, newRegion, userId);
+
+        // 4. 안전할 때만 기사 이관 + ES 재색인.
+        //    - 기존 키워드의 단독 구독자여야 한다(아니면 남의 기사를 옮기는 셈)
+        //    - 대상 키워드에 다른 구독자가 없어야 한다(아니면 남의 목록에 내 기사가 섞인다)
+        if (soleSubscriber && !targetHasOtherSubscribers) {
+            int moved = newsRepository.reassignKeywordId(keywordId, renamed.getId());
+            if (moved > 0) {
+                // ES 문서의 keywordId 가 옛 값으로 남으면 키워드 스코프 검색에서 누락된다.
+                // 커밋 후에 색인한다 — 트랜잭션 안에서 하면 이후 단계가 실패해 롤백될 때
+                // DB 는 되돌아가고 ES 만 새 값으로 남는다 (NewsSaveService 와 같은 원칙).
+                indexAfterCommit(renamed.getId());
+            }
+        }
+
+        // 5. 기존 구독 해제 (기사는 이미 옮겼으므로 여기서 지워질 것이 없다)
+        unsubscribeKeyword(userId, keywordId);
+
+        applyActiveState(userId, renamed.getId(), request.isActive());
+        UserKeyword newSubscription = userKeywordRepository.findByUserIdAndKeywordId(userId, renamed.getId())
+                .orElseThrow(() -> new IllegalStateException("재구독 정보를 찾을 수 없습니다."));
+        return KeywordResponse.from(renamed, newSubscription);
+    }
+
+    @Override
+    @Transactional
+    public void deactivateUserKeywords(Long userId, List<Long> keywordIds) {
+        if (keywordIds == null || keywordIds.isEmpty()) {
+            return;
+        }
+        for (Long keywordId : keywordIds) {
+            deactivateUserKeyword(userId, keywordId);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void unsubscribeKeywords(Long userId, List<Long> keywordIds) {
+        if (keywordIds == null || keywordIds.isEmpty()) {
+            return;
+        }
+        for (Long keywordId : keywordIds) {
+            unsubscribeKeyword(userId, keywordId);
+        }
+    }
+
+    /**
+     * {@code registerKeyword} 는 항상 구독을 활성 상태로 만든다 —
+     * 수정 모달에서 `중단`을 선택했다면 여기서 되돌린다.
+     */
+    private void applyActiveState(Long userId, Long keywordId, boolean active) {
+        if (active) {
+            activateUserKeyword(userId, keywordId);
+        } else {
+            deactivateUserKeyword(userId, keywordId);
+        }
+    }
+
+    /**
+     * 커밋 이후에 ES 재색인을 수행한다 (#115 review M3).
+     *
+     * <p>트랜잭션 안에서 색인하면 뒤따르는 단계가 실패했을 때 DB 는 롤백되는데
+     * ES 문서만 새 keywordId 로 남아 색인과 DB 가 어긋난다.
+     * 인덱서가 예외를 삼키므로 ES 장애가 수정 결과를 되돌리지는 않는다.
+     */
+    private void indexAfterCommit(Long keywordId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            newsIndexPort.indexAll(newsRepository.findAllByKeywordId(keywordId));
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                newsIndexPort.indexAll(newsRepository.findAllByKeywordId(keywordId));
+            }
+        });
     }
 
     private void disablePortfolioNewsByKeywordId(Long userId, Long keywordId) {

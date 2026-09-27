@@ -34,7 +34,7 @@ class NewsElasticsearchIndexerTest {
         News news = new News(
                 1L, "https://example.com/1", "삼성전자 실적 발표",
                 "삼성전자가 분기 실적을 발표했다.",
-                LocalDateTime.now(), LocalDateTime.now(), 100L, Region.DOMESTIC
+                LocalDateTime.now(), LocalDateTime.now(), 100L, Region.DOMESTIC, "한국경제"
         );
         when(elasticsearchOperations.save(anyList())).thenReturn(Collections.emptyList());
 
@@ -72,7 +72,7 @@ class NewsElasticsearchIndexerTest {
         News news = new News(
                 2L, "https://example.com/2", "뉴스 제목",
                 null,
-                LocalDateTime.now(), LocalDateTime.now(), 100L, Region.INTERNATIONAL
+                LocalDateTime.now(), LocalDateTime.now(), 100L, Region.INTERNATIONAL, "Reuters"
         );
         when(elasticsearchOperations.save(anyList())).thenReturn(Collections.emptyList());
 
@@ -90,7 +90,7 @@ class NewsElasticsearchIndexerTest {
         News news = new News(
                 3L, "https://example.com/3", "뉴스 제목",
                 "본문 내용",
-                LocalDateTime.now(), LocalDateTime.now(), 100L, Region.DOMESTIC
+                LocalDateTime.now(), LocalDateTime.now(), 100L, Region.DOMESTIC, "매일경제"
         );
         when(elasticsearchOperations.save(anyList()))
                 .thenThrow(new RuntimeException("ES connection refused"));

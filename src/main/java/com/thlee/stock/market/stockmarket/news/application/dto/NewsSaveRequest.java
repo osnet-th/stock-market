@@ -16,18 +16,21 @@ public class NewsSaveRequest {
     private final LocalDateTime publishedAt;
     private final Long keywordId;
     private final Region region;
+    private final String source;
 
     public NewsSaveRequest(String originalUrl,
                            String title,
                            String content,
                            LocalDateTime publishedAt,
                            Long keywordId,
-                           Region region) {
+                           Region region,
+                           String source) {
         this.originalUrl = originalUrl;
         this.title = title;
         this.content = content;
         this.publishedAt = publishedAt;
         this.keywordId = keywordId;
         this.region = region;
+        this.source = source;
     }
 }

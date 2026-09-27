@@ -47,6 +47,13 @@ public class NewsEntity {
     @Enumerated(EnumType.STRING)
     private Region region;
 
+    /**
+     * 언론사명 (#115). 수집 어댑터가 채운다.
+     * nullable — 이 컬럼 도입 전에 수집된 기존 행은 null 이고, 표시 측에서 도메인으로 폴백한다.
+     */
+    @Column(name = "source", length = 100)
+    private String source;
+
     protected NewsEntity() {
     }
 
@@ -57,7 +64,8 @@ public class NewsEntity {
                       LocalDateTime publishedAt,
                       LocalDateTime createdAt,
                       Long keywordId,
-                      Region region) {
+                      Region region,
+                      String source) {
         this.id = id;
         this.originalUrl = originalUrl;
         this.title = title;
@@ -66,6 +74,7 @@ public class NewsEntity {
         this.createdAt = createdAt;
         this.keywordId = keywordId;
         this.region = region;
+        this.source = source;
     }
 
     @PrePersist

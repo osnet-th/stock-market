@@ -1,11 +1,30 @@
+/**
+ * 해시를 화면 키로 해석한다.
+ *
+ * #115 에서 `키워드`·`뉴스 검색` 두 화면이 `키워드 뉴스` 하나로 합쳐졌다.
+ * 기존 북마크(#keywords, #news-search)로 들어와도 새 화면으로 보내야 하므로,
+ * 최초 진입과 popstate 양쪽에서 이 함수를 쓴다.
+ */
+const PAGE_ALIASES = {
+    keywords: 'keyword-news',
+    'news-search': 'keyword-news'
+};
+
+const VALID_PAGES = ['home', 'keyword-news', 'ecos', 'global', 'portfolio', 'stock-eval',
+    'company-report', 'salary', 'news-journal', 'glossary', 'realestate', 'admin-logs'];
+
+function resolvePageKey(hash) {
+    const key = PAGE_ALIASES[hash] || hash;
+    return VALID_PAGES.includes(key) ? key : 'home';
+}
+
 /** Dashboard - 코어(라우팅, 초기화) + 컴포넌트 통합 */
 function dashboard() {
     return {
         // ==================== 코어 상태 ====================
         currentPage: (() => {
             const hash = location.hash.replace('#', '');
-            const validPages = ['home', 'keywords', 'news-search', 'ecos', 'global', 'portfolio', 'stock-eval', 'company-report', 'salary', 'news-journal', 'glossary', 'realestate', 'admin-logs'];
-            return validPages.includes(hash) ? hash : 'home';
+            return resolvePageKey(hash);
         })(),
 
         // 부트 게이트 — partial mount + Alpine.initTree 완료 전까지 false. popstate/navigateTo 차단에 사용.
@@ -13,8 +32,7 @@ function dashboard() {
 
         menus: [
             { key: 'home', label: '대시보드', icon: 'home' },
-            { key: 'keywords', label: '키워드', icon: 'tag' },
-            { key: 'news-search', label: '뉴스 검색', icon: 'search' },
+            { key: 'keyword-news', label: '키워드 뉴스', icon: 'tag' },
             { key: 'ecos', label: '국내 경제지표', icon: 'chart' },
             { key: 'global', label: '글로벌 경제지표', icon: 'globe' },
             { key: 'portfolio', label: '포트폴리오', icon: 'portfolio' },
@@ -37,9 +55,7 @@ function dashboard() {
         // ==================== 컴포넌트 통합 ====================
         ...AuthComponent,
         ...HomeComponent,
-        ...KeywordComponent,
-        ...NewsComponent,
-        ...NewsSearchComponent,
+        ...KeywordNewsComponent,
         ...EcosComponent,
         ...DerivedIndicatorComponent,
         ...GlobalComponent,
@@ -82,7 +98,7 @@ function dashboard() {
             // ==================== Partial 부트스트랩 ====================
             // _header / _sidebar / 메뉴 partial mount + Alpine.initTree.
             // bootReady=true 이전에는 popstate / navigateTo 차단(아래 가드 참조).
-            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'home-indicators', 'home-side', 'news-search', 'admin-logs', 'keywords', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'portfolio', 'portfolio-holdings', 'portfolio-sales', 'portfolio-targets', 'portfolio-analysis', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate', 'stock-eval', 'company-report'];
+            const partialNames = ['_header', '_sidebar', '_chat', 'home', 'home-indicators', 'home-side', 'keyword-news', 'admin-logs', 'news-journal', 'glossary', 'ecos', 'global', 'salary', 'portfolio', 'portfolio-holdings', 'portfolio-sales', 'portfolio-targets', 'portfolio-analysis', 'portfolio-add', 'portfolio-edit', 'portfolio-sale', 'portfolio-deposit-financial', 'realestate', 'stock-eval', 'company-report'];
             const cleanupRegistry = {
                 // retry-while-active 시 mountPartial 이 cleanup → mount → navigateTo 재 dispatch.
                 // home-indicators: 비교 보기 차트 destroy (#114). 리마운트 시 stale 인스턴스 방지
@@ -125,7 +141,7 @@ function dashboard() {
                         }
                     });
                 }
-                // news-search / admin-logs / keywords / news-journal / global: 차트 없음, cleanup 불필요
+                // keyword-news / admin-logs / news-journal / global: 차트 없음, cleanup 불필요
             };
             const securedNames = ['admin-logs'];      // /secured-partials/admin-logs.html (hasRole ADMIN)
 
@@ -153,8 +169,7 @@ function dashboard() {
             window.addEventListener('popstate', () => {
                 if (!this.bootReady) return;  // 부트 게이트: partial mount 완료 전 popstate 차단
                 const hash = location.hash.replace('#', '');
-                const validPages = this.menus.map(m => m.key);
-                const page = validPages.includes(hash) ? hash : 'home';
+                const page = resolvePageKey(hash);
                 if (this.currentPage !== page) {
                     this.navigateTo(page);
                 }
@@ -244,15 +259,8 @@ function dashboard() {
                         this.loadDashboardSummary()
                     ]);
                     break;
-                case 'keywords':
-                    if (this.checkLoggedIn()) {
-                        await this.loadKeywords();
-                        this.news.selectedKeywordId = null;
-                        this.news.selectedKeywordText = null;
-                        this.news.list = [];
-                    }
-                    break;
-                case 'news-search':
+                case 'keyword-news':
+                    await this.kwnEnter();
                     break;
                 case 'ecos':
                     this.initEcosCharts();

@@ -3,6 +3,7 @@ package com.thlee.stock.market.stockmarket.news.infrastructure.infrastructure.gn
 import com.thlee.stock.market.stockmarket.news.domain.model.NewsSearchResult;
 import com.thlee.stock.market.stockmarket.news.domain.model.Region;
 import com.thlee.stock.market.stockmarket.news.domain.service.NewsSearchPort;
+import com.thlee.stock.market.stockmarket.news.infrastructure.infrastructure.common.NewsSourceResolver;
 import com.thlee.stock.market.stockmarket.news.infrastructure.infrastructure.gnews.dto.GNewsArticle;
 import com.thlee.stock.market.stockmarket.news.infrastructure.infrastructure.gnews.dto.GNewsResponse;
 import lombok.RequiredArgsConstructor;
@@ -42,8 +43,18 @@ public class GNewsSearchPort implements NewsSearchPort {
             article.getTitle(),
             article.getUrl(),
             article.getDescription() != null ? article.getDescription() : article.getContent(),
-            parseIsoDateTime(article.getPublishedAt())
+            parseIsoDateTime(article.getPublishedAt()),
+            resolveSource(article)
         );
+    }
+
+    /** 응답의 언론사명을 쓰고, 비어 있으면 URL 도메인으로 폴백한다 (#115). */
+    private String resolveSource(GNewsArticle article) {
+        GNewsArticle.Source source = article.getSource();
+        if (source != null && source.getName() != null && !source.getName().isBlank()) {
+            return source.getName();
+        }
+        return NewsSourceResolver.fromUrl(article.getUrl());
     }
 
     private LocalDateTime parseIsoDateTime(String publishedAt) {

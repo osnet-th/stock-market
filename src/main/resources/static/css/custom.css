@@ -14,6 +14,40 @@
     --dc-nav-active: #eff3fa;  /* 사이드바 활성 (목업은 셀과 다른 톤) */
     --dc-red-tint: #fdf5f4;
     --dc-amber-tint: #fbf8f3;
+
+    /* ===== #115 키워드 뉴스 워크스페이스 (같은 목업 계열) ===== */
+    --dc-blue-soft: var(--dc-nav-active);  /* 선택 배경 — 레일 행·칩·국내 뱃지 (#eff3fa) */
+    --dc-blue-line: #b9cbe8;               /* 선택 테두리 */
+    --dc-sepia: #f4f1eb;                   /* 해외 뱃지 배경 */
+    --dc-sepia-text: #8a6a34;              /* 해외 뱃지 글자 */
+    --dc-fill: #f7f8fa;                    /* 입력·보조 영역 배경 */
+    --dc-fill-2: #f2f4f7;                  /* 필터 그룹 배경 */
+    --dc-hover: #e9edf3;                   /* 케밥 버튼 hover */
+    --dc-red-line: #f0c9c6;                /* 삭제 버튼 테두리 */
+    --dc-red-soft: #fdf3f2;                /* 삭제 hover 배경 */
+    --dc-red-deep: #9e2019;                /* 삭제 확정 hover */
+    --dc-blue-deep: #173d7a;               /* 주요 버튼 hover */
+}
+
+/* ===== #115 키워드 뉴스 ===== */
+/* 필터 그룹(세그먼트) — 목업: 배경 #f2f4f7, 안쪽 여백 3px, 선택 시 흰 알약 */
+.kwn-seg { display: flex; align-items: center; gap: 4px; padding: 3px; background: var(--dc-fill-2); border-radius: 8px; }
+.kwn-seg button { border: none; border-radius: 6px; padding: 7px 12px; font-size: 11.5px; cursor: pointer; white-space: nowrap; background: transparent; color: #7a828a; }
+.kwn-seg button.is-on { background: #fff; color: var(--dc-text); font-weight: 600; }
+
+/* 레일 행 hover — Tailwind 로 표현하기 번거로워 클래스로 둔다 */
+.kwn-row:hover { background: var(--dc-fill) !important; }
+.kwn-kebab:hover { background: var(--dc-hover); color: var(--dc-blue); }
+.kwn-menu-item:hover { background: var(--dc-fill-2); }
+.kwn-menu-item.is-danger:hover { background: var(--dc-red-soft); }
+.kwn-card:hover { border-color: var(--dc-blue-line); }
+
+/* 기사 요약 2줄 제한 */
+.kwn-summary {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 body.app-surface {

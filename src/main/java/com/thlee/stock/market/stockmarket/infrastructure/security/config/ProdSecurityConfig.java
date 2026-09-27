@@ -77,8 +77,9 @@ public class ProdSecurityConfig {
                 // Actuator health 엔드포인트는 permitAll
                 .requestMatchers("/actuator/health").permitAll()
 
-                // 뉴스 검색 엔드포인트는 permitAll
-                .requestMatchers("/api/news/search").permitAll()
+                // 뉴스 검색은 인증 필수 (#115) — 검색 스코프가 "내 구독 키워드"로 바뀌어
+                // 비로그인 호출은 결과가 있을 수 없다. 이전에는 permitAll 전역 검색이었다.
+                .requestMatchers("/api/news/search").authenticated()
 
                 // glossary(개인 용어 사전) 엔드포인트는 모두 인증 필수 — 회귀 가드
                 .requestMatchers("/api/glossary/**").authenticated()

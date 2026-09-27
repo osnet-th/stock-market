@@ -6,18 +6,29 @@
 - 단계별 산출물은 이 게이트 로그를 `gate: docs/gates/2026-08-17-keyword-news-workspace-gates.md`로 참조한다.
 
 ## Stage Decisions
-- start: approved (2026-08-17, 태형님이 목업 `키워드 뉴스 워크스페이스 (단일파일).html` 제시하며
-  "이거 html 보고 그대로 똑같이 키워드랑 뉴스 검색 부분 통합하는 디자인으로 진행해줘")
-- brainstorm: approved (2026-08-17, 결정 3건 회신 — 범위 **C(목업 100%)**, 메뉴 **둘 다 없애고 통합**,
-  키워드 CRUD 는 **목업 v2 로 회신** — "이거 보고 수정 삭제, 활성화 비활성화도 넣엇으니까 확인해")
-- issue: approved (2026-08-17, 태형님 "진행해" → GitHub Issue #115 등록,
-  worktree `feat/issue-115-keyword-news-workspace` 생성)
-- plan: **작성 완료, 착수 승인 대기**
-- work: pending
-- review: pending
-- validation: pending
-- commit: pending
-- push: pending
+
+승인 줄은 해당 단계 **진입 승인**을 뜻한다. 상세 맥락은 Stage Log 에 있다.
+
+- start: approved
+- brainstorm: approved
+- issue: approved
+- plan: approved
+- work: approved
+- review: approved
+- validation: approved
+- commit: approved
+- push: approved
+
+각 승인의 근거가 된 태형님 지시
+- start — 목업 제시 + "이거 html 보고 그대로 똑같이 키워드랑 뉴스 검색 부분 통합하는 디자인으로 진행해줘"
+- brainstorm — 범위 C(목업 100%) · 메뉴 통합 · 목업 v2 로 CRUD 회신
+- issue — "진행해" (Issue #115 등록 + worktree 생성)
+- plan — "phase 7까지 다 진행해" (Phase 2~7 개별 승인 일괄)
+- work — "진행해" (각 Phase 착수 시점마다)
+- review — "리뷰 먼저 진행해" → findings 제시 후 "1번"(H1 + M1~M3 조치)
+- validation — "진행해" → ES 검증은 "1"(기존 버그도 이번 작업에 포함해 수정)
+- commit — "진행해" (체크포인트 커밋 + main 병합)
+- push — "올려" (PR 생성) · "병합해줘" (병합)
 
 ## Stage Log
 - 2026-08-17: 태형님이 목업 제시. #114 와 같은 번들 HTML(React + `x-dc` 템플릿)이라

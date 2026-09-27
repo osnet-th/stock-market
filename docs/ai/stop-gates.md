@@ -13,8 +13,8 @@
 - `/ce:work`가 선택한 task가 root plan 작업 리스트, `allowed_paths`, `blocked_paths`와 매핑되지 않음.
 - `main` 또는 `master` 브랜치에서 코드 구현/수정/커밋이 필요함.
 - issue worktree 기반 작업에서 현재 브랜치가 허용된 `issue/{이슈번호}-{slug}` 형식이 아니거나 plan의 branch/worktree와 다름.
-- `/Users/thlee/Documents/personal/stock-market/scripts/validate-plan.sh {plan-file}`이 실패함.
-- `/Users/thlee/Documents/personal/stock-market/scripts/check-plan-conflicts.sh {이슈번호}`가 활성 plan 충돌을 보고함.
+- `scripts/validate-plan.sh {plan-file}`이 실패함.
+- `scripts/check-plan-conflicts.sh {이슈번호}`가 활성 plan 충돌을 보고함.
 - plan frontmatter에 `test_plan_status` 또는 `schema_plan_status`가 누락됨.
 - test/schema 승인 상태가 필요한 구현 범위와 맞지 않음.
 

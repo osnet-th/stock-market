@@ -7,7 +7,9 @@
 # 관련 정책: docs/ai/test-planning-harness.md
 # 기계적 차단: scripts/validate-plan.sh (test_plan_status: pending + status: active|done → fail)
 
-PLANS_DIR="/Users/thlee/Documents/personal/stock-market/docs/plans"
+ROOT=$(git -C "$(dirname -- "$0")" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
+ROOT="${ROOT%/.git}"
+PLANS_DIR="$ROOT/docs/plans"
 
 [ -d "$PLANS_DIR" ] || exit 0
 

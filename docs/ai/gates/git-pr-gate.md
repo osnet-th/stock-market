@@ -13,7 +13,7 @@
 - issue worktree 안에서 작업을 시작할 때만 `git branch --show-current`와 `git status`로 현재 브랜치와 변경사항을 확인한다.
 - worktree 사용 시 plan의 `worktree` 경로와 현재 작업 디렉토리가 일치해야 한다.
 - 현재 브랜치가 plan의 `branch`와 다르면 구현을 중단한다.
-- 작업 시작 전과 커밋 전 `/Users/thlee/Documents/personal/stock-market/scripts/check-plan-conflicts.sh {이슈번호}`를 실행한다.
+- 작업 시작 전과 커밋 전 `scripts/check-plan-conflicts.sh {이슈번호}`를 실행한다.
 - 충돌 검사 실패 시 병렬 진행을 중단하고, 충돌 issue 완료 후 순차 처리하거나 plan의 `allowed_paths`를 좁힌 뒤 재승인받는다.
 - Implementation/Review 작업으로 새 파일을 만들면 완료 전 `git add -N {new-file}`을 실행해 `git diff`에서 신규 파일 내용이 보이도록 한다.
 - `git add -N`은 intent-to-add 용도이며 실제 내용을 stage하지 않는다. 실제 `git add`는 커밋 단계 또는 태형님이 명시적으로 요청한 경우에만 실행한다.
@@ -41,7 +41,7 @@ issue 기반 Implementation 작업에서 완료 의사를 보이면 최종 응�
 
 1. 가능한 검증을 실행한다.
 2. plan 체크리스트를 실제 작업 상태와 일치시킨다. 이 단계에서는 plan `status`를 `done`으로 전환하지 않는다.
-3. 커밋 전 `/Users/thlee/Documents/personal/stock-market/scripts/check-plan-conflicts.sh {이슈번호}`를 실행한다.
+3. 커밋 전 `scripts/check-plan-conflicts.sh {이슈번호}`를 실행한다.
 4. 작업 범위 변경만 stage하고 커밋한다.
 5. 현재 작업 브랜치를 원격에 push한다.
 6. `gh pr create`로 PR을 생성하거나 같은 브랜치의 기존 열린 PR URL을 확인한다.

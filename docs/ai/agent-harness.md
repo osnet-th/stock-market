@@ -103,8 +103,8 @@ lightweight로 시작했더라도 아래 조건이 생기면 즉시 중단하고
 10. issue 기반이 아닌 구현/수정 작업에서 plan이 없거나 불충분하면 `docs/plans/`에 plan을 작성 또는 업데이트하고 승인을 기다린다.
 11. issue 기반 Plan 또는 Implementation에서 코드 맥락 이해가 필요한 경우 [briefing-harness.md](briefing-harness.md)를 읽고, plan 승인 전 현재 코드 기준 실행 브리핑과 plan-to-code 매핑 브리핑을 수행한다.
 12. Entity 또는 DB 스키마 변경 가능성이 있으면 [gates/planning-gate.md](gates/planning-gate.md)의 DB Schema Review Gate를 먼저 수행하고 태형님 승인을 받는다.
-13. `/ce:plan` 이후 구현 시작 전 `/Users/thlee/Documents/personal/stock-market/scripts/validate-plan.sh {plan-file}`을 실행한다.
-14. 구현/수정 작업 시작 전 `/Users/thlee/Documents/personal/stock-market/scripts/check-plan-conflicts.sh {이슈번호}`를 실행한다.
+13. `/ce:plan` 이후 구현 시작 전 `scripts/validate-plan.sh {plan-file}`을 실행한다.
+14. 구현/수정 작업 시작 전 `scripts/check-plan-conflicts.sh {이슈번호}`를 실행한다.
 15. issue 기반 Implementation이면 `/ce:work`를 실행하고, 선택한 작업이 root plan 작업 리스트와 `allowed_paths`/`blocked_paths` 안인지 확인한다.
 16. 승인된 plan 범위 안에서 한 번에 하나의 작업만 수행한다.
 17. 구현 중 합의된 큰 작업 단위가 끝나면 [briefing-harness.md](briefing-harness.md)의 체크포인트 브리핑을 수행하고 태형님 확인 후 다음 큰 작업 단위로 진행한다.

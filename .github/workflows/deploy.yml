@@ -1,16 +1,19 @@
-# 이 워크플로는 더 이상 배포하지 않는다.
+# main 에 push 되면 빌드를 검증하고, 통과하면 배포 훅 API 로 내부 서버 배포를 트리거한다.
 #
-# 내부 서버는 인바운드 포트 개방이 없어 GitHub 클라우드 러너에서 SSH 로 접속할 수 없다.
-# 기존에 있던 appleboy/ssh-action 배포 단계는 구조상 성공할 수 없었으므로 제거했다.
-# 배포는 Cloudflare Tunnel 을 거치는 배포 훅 API 로 트리거한다(scripts/deploy-hook-listener.py).
+# 내부 서버는 인바운드 포트 개방이 없어 러너가 SSH 로 접속할 수 없다. 대신 서버가 먼저 연결해 둔
+# Cloudflare Tunnel 을 거쳐 배포 훅(scripts/deploy-hook-listener.py)을 호출한다.
 #
-# 여기서는 main 에 빌드가 깨진 코드가 올라가는 것을 막는 검증만 수행한다.
-name: Build check
+# 저장소가 public 이라 이 워크플로의 로그는 누구에게나 보인다. 배포 로그에는 서버 경로와
+# 실패 시 앱 로그가 들어가므로 여기서는 runId·상태·종료 코드·소요 시간만 출력한다.
+# 상세 로그는 서버의 배포 로그 디렉토리나 배포 훅 /status 로 확인한다.
+name: Build and deploy
 
 on:
   push:
     branches:
       - main
+  # Actions 화면의 "Run workflow" 버튼으로 코드 변경 없이 다시 배포할 때 쓴다.
+  workflow_dispatch:
 
 jobs:
   build:
@@ -27,3 +30,107 @@ jobs:
       - run: chmod +x ./gradlew
 
       - run: ./gradlew clean build -x test
+
+  deploy:
+    # 빌드가 깨진 커밋은 배포하지 않는다.
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # 배포는 한 번에 하나만. 진행 중인 배포를 취소하지 않고 끝나길 기다린다.
+    concurrency:
+      group: deploy-home-server
+      cancel-in-progress: false
+
+    steps:
+      - name: Trigger deploy hook and wait for result
+        env:
+          HOOK_URL: https://deploy.hubth.com
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          DEPLOY_HOOK_TOKEN: ${{ secrets.DEPLOY_HOOK_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          for v in CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET DEPLOY_HOOK_TOKEN; do
+            if [ -z "${!v}" ]; then
+              echo "::error::시크릿 $v 가 설정되지 않았습니다."
+              exit 1
+            fi
+          done
+
+          body=$(mktemp)
+          # 응답 본문은 파일에만 남기고 출력하지 않는다. 상태 코드만 돌려준다.
+          call() {
+            curl -sS -o "$body" -w '%{http_code}' --max-time 30 -X "$1" \
+              -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
+              -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+              -H "Authorization: Bearer $DEPLOY_HOOK_TOKEN" \
+              "$HOOK_URL$2" 2>/dev/null
+          }
+
+          started=$(date +%s)
+
+          # 1) 배포 요청. 다른 배포가 진행 중(409)이면 끝날 때까지 기다렸다가 다시 요청한다.
+          run_id=""
+          for attempt in $(seq 1 60); do
+            code=$(call POST /deploy) || true
+            case "$code" in
+              202)
+                run_id=$(jq -r '.runId' "$body")
+                break
+                ;;
+              409)
+                echo "다른 배포가 진행 중입니다. 10초 후 다시 요청합니다. ($attempt/60)"
+                sleep 10
+                ;;
+              401|403)
+                echo "::error::배포 훅 인증 실패 (HTTP $code). 시크릿 값을 확인하세요."
+                exit 1
+                ;;
+              *)
+                echo "::error::배포 요청 실패 (HTTP ${code:-000})."
+                exit 1
+                ;;
+            esac
+          done
+          if [ -z "$run_id" ]; then
+            echo "::error::진행 중인 배포가 10분 안에 끝나지 않아 배포를 요청하지 못했습니다."
+            exit 1
+          fi
+          echo "배포 시작 runId=$run_id"
+
+          # 2) 완료까지 대기. 배포 중 터널이 잠깐 끊겨 조회가 실패해도 재시도한다.
+          deadline=$(( $(date +%s) + 15 * 60 ))
+          while :; do
+            sleep 10
+            elapsed=$(( $(date +%s) - started ))
+            code=$(call GET /status) || true
+            if [ "$code" = "200" ]; then
+              current=$(jq -r '.lastRun.runId // ""' "$body")
+              status=$(jq -r '.lastRun.status // ""' "$body")
+              exit_code=$(jq -r '.lastRun.exitCode // "null"' "$body")
+              if [ "$current" != "$run_id" ]; then
+                echo "::error::다른 배포($current)가 이어서 시작되어 이 배포($run_id)의 결과를 확인할 수 없습니다."
+                exit 1
+              fi
+              case "$status" in
+                succeeded)
+                  echo "배포 성공 runId=$run_id exitCode=$exit_code (${elapsed}초)"
+                  exit 0
+                  ;;
+                failed)
+                  echo "::error::배포 실패 runId=$run_id exitCode=$exit_code (${elapsed}초). 상세 로그는 서버 배포 로그에서 확인하세요."
+                  exit 1
+                  ;;
+                *)
+                  echo "진행 중 (${elapsed}초)"
+                  ;;
+              esac
+            else
+              echo "상태 조회 실패 (HTTP ${code:-000}), 다시 시도합니다. (${elapsed}초)"
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::배포가 15분 안에 끝나지 않았습니다 (runId=$run_id)."
+              exit 1
+            fi
+          done

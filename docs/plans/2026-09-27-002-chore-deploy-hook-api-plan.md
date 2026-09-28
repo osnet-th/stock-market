@@ -1,7 +1,7 @@
 ---
 issue: TBD
 status: active
-branch: chore/deploy-hook-api
+branch: chore/deploy-hook-auto
 worktree: /Users/tang/Documents/workspace/stock-market
 test_plan_status: none
 schema_plan_status: none
@@ -129,7 +129,11 @@ blocked_paths:
 - [ ] 7. 검증 — 인증 실패 거부, 중복 요청 거부, 배포 실행·완료, 배포 중 상태 조회 유지
   - [x] 7-1. 서버 실환경 리스너 검증 (2026-09-28, 가짜 배포 스크립트, 임시 포트 19000) — 401·404·202·**409**·상태 조회·완료 판정·토큰 로그 미노출·컨테이너→호스트 도달 전부 통과. 테스트 산출물 정리 완료
   - [ ] 7-2. Cloudflare Access 검증 — 토큰 없음 403 ✓ (2026-09-28), 서비스 토큰 통과 ✓ (서버 ingress 미반영으로 404, 예상된 상태)
-  - [ ] 7-3. 외부 → edge → 터널 → 리스너 종단 검증 (PR 병합·배포·systemd 등록 후)
+  - [x] 7-3. 외부 → edge → 터널 → 리스너 종단 검증 (2026-09-28) — 외부 `GET /status` 200, `POST /deploy` 202 후 실제 배포 실행 확인. 헬스 체크 주소 문제 발견(아래 추가 범위의 선행 조건)
+- [x] 8. `.github/workflows/deploy.yml`에 `deploy` job 추가 — 빌드 통과 후 배포 훅 호출, 완료까지 대기 (아래 `추가 범위`)
+  - 로컬 검증 (2026-09-28): 실제 리스너를 상대로 워크플로 실행 스크립트를 그대로 돌림 — 정상 성공 / 배포 실패 / 틀린 토큰 401 / 시크릿 누락 / 수동 배포 진행 중 409 대기 후 성공, 5개 통과. 출력에 배포 로그 노출 0건
+- [x] 9. GitHub Secrets 등록 절차 정리 (아래 `시크릿 등록`)
+- [ ] 10. 검증 — main push → 자동 배포 → Actions에 결과 표시, 공개 로그에 배포 로그 미노출
 
 ## 요구사항 원장
 
@@ -141,19 +145,22 @@ blocked_paths:
 | REQ-4 | 배포 전용 서브도메인으로 수신, nginx 경유하지 않음 | brainstorm 확인 2 | 포함 | — |
 | REQ-5 | 중복 실행 거부 | brainstorm 권장 접근 | 포함 | — |
 | REQ-6 | 배포 중에도 상태 조회 유지, 완료 후 결과·로그 조회 | 태형님 요청 | 포함 | — |
-| REQ-7 | 기존 배포 워크플로를 빌드 검증만 남기도록 정리 | brainstorm 확인 4 | 포함 | — |
+| REQ-7 | 기존 배포 워크플로를 빌드 검증만 남기도록 정리 | brainstorm 확인 4 | 포함 | 2026-09-28 REQ-13으로 배포 단계를 다시 붙인다. SSH가 아니라 배포 훅 호출 |
 | REQ-8 | 배포 스크립트 내용 무수정 재사용 | brainstorm 결정 | 포함 | — |
 | REQ-9 | 앱 내부 배포 엔드포인트 / 관리자 화면 버튼 | brainstorm 제외 범위 | 제외 | 앱이 재기동 대상이라 불가 |
 | REQ-10 | GitHub self-hosted runner | brainstorm 제외 범위 | 제외 | public 저장소에서 fork PR 임의 코드 실행 위험 |
 | REQ-11 | 롤백 API · 배포 이력 저장 · 알림 연동 | brainstorm 제외 범위 | 제외 | 별건 |
 | REQ-12 | 포트포워딩·방화벽 변경, 배포 절차 변경 | brainstorm 제외 범위 | 제외 | 이번 목표가 트리거 교체로 한정됨 |
+| REQ-13 | main push 시 빌드가 통과하면 자동으로 배포 훅 호출 | 태형님 요청 2026-09-28 | 포함 | 매번 토큰 3개로 curl 치는 불편 해소 |
+| REQ-14 | GitHub Actions 공개 로그에 배포 로그를 노출하지 않음 | 추가 범위 설계 | 포함 | public 저장소라 Actions 로그가 공개됨 |
+| REQ-15 | 연속 push 시 배포를 직렬화, 진행 중이면 기다렸다 실행 | 추가 범위 설계 | 포함 | 409로 최신 커밋 배포가 누락되는 것 방지 |
 
 ## 수정 가능 범위
 
 - `scripts/deploy-hook-listener.py` (신규), `scripts/deploy-hook.service` (신규)
 - `cloudflared/config.yml` — ingress 항목 추가
 - `docker-compose.yml` — `cloudflared` 서비스에 `extra_hosts`만 추가
-- `.github/workflows/deploy.yml` — SSH 단계 제거
+- `.github/workflows/deploy.yml` — SSH 단계 제거, 배포 훅 호출 `deploy` job 추가(REQ-13)
 - 이 plan 문서와 대응 brainstorm 문서
 
 ## 수정 금지 범위
@@ -201,9 +208,12 @@ DEPLOY_LOG_DIR=$HOME/deploy-logs
 BIND_HOST=172.17.0.1
 BIND_PORT=9000
 LOG_KEEP=20
+HEALTH_URL=https://hubth.com/
 EOF
 chmod 600 ~/.deploy-hook.env
 ```
+
+`HEALTH_URL`은 필수다. `deploy-on-server.sh`의 기본값 `http://localhost/`는 이 서버에서 닿지 않는다 (nginx가 호스트 80 포트를 열지 않고 컨테이너 내부로만 노출). 리스너 환경변수는 배포 스크립트로 그대로 상속되므로 스크립트를 고치지 않고 여기서 바꾼다. 이미 등록한 경우 이 줄을 추가하고 `sudo systemctl restart deploy-hook`.
 
 호출할 때 토큰이 필요하면 `grep DEPLOY_HOOK_TOKEN ~/.deploy-hook.env`로 확인한다.
 
@@ -285,3 +295,69 @@ cd "$HOME/hubth-server" && docker compose up -d cloudflared
 컨테이너(`172.20.0.x`)에서 호스트 `172.17.0.1`로 가는 경로가 방화벽에 막히면 훅이 502를 낸다.
 그때는 `~/.deploy-hook.env`의 `BIND_HOST`를 `0.0.0.0`으로 바꾸고 `sudo systemctl restart deploy-hook`한다.
 이 경우 LAN에서도 접근 가능해지므로 Bearer 토큰이 유일한 방어선이 된다는 점을 감안한다.
+
+## 추가 범위: main push 자동 배포 (2026-09-28)
+
+배포 훅은 완성되었지만 매번 토큰 3개를 넣어 curl을 치는 게 불편하다(태형님). main에 push하면 GitHub Actions가 빌드 통과 후 배포 훅을 호출하게 한다.
+
+### 설계
+
+```text
+main push ─▶ build job (기존 gradle 빌드 검증)
+                │ 성공 시
+                ▼
+            deploy job ─▶ POST /deploy (시크릿 3개) ─▶ 202 runId
+                │
+                ▼
+            GET /status 폴링 ─▶ 내 runId가 succeeded / failed 될 때까지
+```
+
+| 항목 | 결정 | 이유 |
+|---|---|---|
+| 트리거 | `push`(main) + `workflow_dispatch` | Actions 화면에서 수동 재실행 버튼으로도 배포 가능 |
+| 순서 | `deploy`는 `needs: build` | 빌드가 깨진 커밋은 배포하지 않는다 |
+| 인증 | 시크릿 `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`, `DEPLOY_HOOK_TOKEN` | 기존 2단 인증 그대로 |
+| 완료 대기 | `/status` 10초 간격 폴링, 최대 15분 | Actions 화면에서 배포 성공·실패를 바로 본다 |
+| 409 (진행 중) | 끝날 때까지 기다렸다 다시 요청 | 연속 push에서 최신 커밋 배포가 빠지지 않게 |
+| 직렬화 | `deploy` job에 `concurrency` 그룹, `cancel-in-progress: false` | Actions 쪽에서도 배포를 한 번에 하나로 |
+| **로그 노출** | **runId·상태·종료 코드·소요 시간만 출력. 배포 로그 본문은 출력하지 않는다** | public 저장소라 Actions 로그가 누구에게나 보인다. 배포 로그에는 서버 경로와, 실패 시 앱 로그 50줄이 들어간다 |
+
+- 실패 시 상세 로그는 서버 `~/deploy-logs/{runId}.log` 또는 `/status`로 확인한다.
+- 트리거가 `push`/`workflow_dispatch`뿐이라 fork PR에서는 이 job이 돌지 않고 시크릿에 접근할 수 없다.
+- 서버가 배포하면서 다시 빌드하므로 빌드는 두 번 돈다(Actions 검증 + 서버 실제 빌드). 서버가 직접 빌드하는 구조상 피할 수 없다.
+
+### 선행 조건 (태형님)
+
+1. 서버 `HEALTH_URL` 설정 — 없으면 자동 배포가 매번 "실패"로 끝난다.
+   ```
+   echo 'HEALTH_URL=https://hubth.com/' >> ~/.deploy-hook.env
+   sudo systemctl restart deploy-hook
+   ```
+2. GitHub Secrets 3개 등록 (작업 9에서 명령 정리).
+3. (권장) 쓰지 않는 기존 시크릿 `SERVER_HOST`·`SERVER_PORT`·`SERVER_USER`·`SERVER_SSH_KEY` 삭제. 특히 `SERVER_SSH_KEY`는 서버 접속 개인키다.
+
+### 참고
+
+하네스 CI의 `documented-workflow-check`는 이번에도 실패한다(이슈·단계 문서 없음). 이전 PR과 같은 이유이며 필수 체크가 아니다.
+
+### 시크릿 등록 (태형님, 맥에서)
+
+**워크플로를 main에 병합하는 순간 첫 자동 배포가 돈다.** 시크릿이 없으면 `deploy` job이 실패하므로 병합 전에 등록한다.
+값은 화면에 남지 않게 입력하거나 파이프로 넘긴다.
+
+```bash
+gh secret set CF_ACCESS_CLIENT_ID
+```
+
+```bash
+gh secret set CF_ACCESS_CLIENT_SECRET
+```
+
+`DEPLOY_HOOK_TOKEN`은 서버 토큰 파일에서 읽어 바로 넘긴다(복사 실수·화면 노출 없음). 집 네트워크에서 실행한다.
+
+```bash
+ssh -i ~/.ssh/hubth-server-deploy <SSH_USER>@<SSH_HOST> "sed -n 's/^DEPLOY_HOOK_TOKEN=//p' ~/.deploy-hook.env" | gh secret set DEPLOY_HOOK_TOKEN
+```
+
+등록 확인은 `gh secret list`(이름만 보인다).
+

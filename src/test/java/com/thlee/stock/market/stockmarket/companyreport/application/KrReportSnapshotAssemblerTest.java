@@ -57,7 +57,7 @@ class KrReportSnapshotAssemblerTest {
         lenient().when(stockFinancialService.getStockQuantities(CODE, "2025", "11011"))
                 .thenReturn(List.of(quantity("보통주", "1000", "2025-12-31")));
         lenient().when(stockFinancialService.getStockQuantities(CODE, "2026", "11012"))
-                .thenReturn(List.of(quantity("보통주", "900", "2026-06-30")));
+                .thenReturn(List.of(quantity("보통주", "900", "2026-06-30"), quantity("합계", "950", "2026-06-30")));
     }
 
     @Test
@@ -69,6 +69,8 @@ class KrReportSnapshotAssemblerTest {
         ReportSnapshot snapshot = assembler.assemble(CODE);
 
         assertThat(snapshot.priceMetrics().marketCap()).isEqualByComparingTo("90000");
+        assertThat(snapshot.srimBasis().sharesDate()).isEqualTo("2026-06-30");
+        assertThat(snapshot.srimBasis().sharesReport()).isEqualTo("2026 반기보고서");
         assertThat(snapshot.schemaVersion()).isEqualTo(3);
     }
 

@@ -1638,7 +1638,9 @@ const CompanyReportComponent = {
     // kind: 'statements' | 'ratios'
     crReasonRows(kind) {
         const snap = this._crReasonSource()?.snapshot;
-        const keys = this.crReasonSourceConfig[this.crReason.key]?.[kind] || [];
+        const ownersKeys = ['is.ownersNetIncome', 'bs.ownersEquity'];
+        const keys = (this.crReasonSourceConfig[this.crReason.key]?.[kind] || [])
+            .filter(k => this._crReasonRoeOwners() || !ownersKeys.includes(k)); // 지배주주 행은 ROE가 지배주주 기준일 때만
         return keys.map(k => (snap?.[kind] || []).find(r => r.key === k)).filter(Boolean);
     },
 

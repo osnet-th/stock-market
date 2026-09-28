@@ -64,7 +64,9 @@ const StockEvalComponent = {
         },
 
         // S-RIM 즉석 계산기 (저장 없음). 화면 요소는 기업 리포트 S-RIM을 복제하고, 숫자 파싱·표시 헬퍼(_crSrim*)만 재사용한다.
-        srim: null,
+        srim: { amountScale: '0', appliedScale: '0', equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
+            referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false,
+            fetchLoading: false, fetchError: '', basis: null, priceMetrics: null, autoFilled: {}, sources: {}, _gen: 0, _fetchGen: 0 },
     },
 
     // ==================== 검색 / 선택 ====================
@@ -125,6 +127,7 @@ const StockEvalComponent = {
     },
 
     // ==================== S-RIM (DART 탭, 저장 없음) ====================
+    // 종목 전환 시 초기화 — 필드 구성은 위 stockEval.srim 초기값과 같게 유지한다
     _seSrimEmpty() {
         return { amountScale: '0', appliedScale: '0', equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
             referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false,
@@ -132,7 +135,6 @@ const StockEvalComponent = {
     },
 
     seSrim() {
-        if (!this.stockEval.srim) this.stockEval.srim = this._seSrimEmpty();
         return this.stockEval.srim;
     },
 

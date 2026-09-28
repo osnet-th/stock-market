@@ -72,7 +72,8 @@ public class UsReportSnapshotAssembler implements ReportSnapshotAssembler {
                 extractor.valuationInputs(facts, baseYear),
                 new Shareholders(List.of(), List.of(), extractor.dividendRows(facts, baseYear), null),
                 extractor.riskSignals(facts, baseYear),
-                extractor.roeBasis(facts));
+                extractor.roeBasis(facts),
+                null);
     }
 
     private UsCompanyProfile fetchProfileSafely(String ticker) {

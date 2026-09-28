@@ -3,6 +3,11 @@ package com.thlee.stock.market.stockmarket.companyreport.application;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.MetricRow;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.RatioRow;
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.SrimBasis;
+import com.thlee.stock.market.stockmarket.stock.application.dto.StockQuantityResponse;
+import com.thlee.stock.market.stockmarket.stock.application.dto.ValuationMetricResponse;
+import com.thlee.stock.market.stockmarket.stock.domain.model.PeriodicReport;
+import com.thlee.stock.market.stockmarket.stock.domain.model.ReportCode;
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse.TimelineColumn;
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse.TimelineDetailGroup;
@@ -11,6 +16,7 @@ import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelin
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -107,6 +113,69 @@ class SnapshotFinancialExtractorTest {
 
         assertThat(roe(timeline)).containsEntry("2025", "10.91");
         assertThat(extractor.roeBasis(timeline)).isEqualTo(ReportSnapshot.ROE_BASIS_TOTAL);
+    }
+
+    @Test
+    @DisplayName("A7 최신 분기 컬럼에 지배주주지분이 있으면 그 값과 분기 결산일을 S-RIM 근거로 쓴다")
+    void srimEquityFromLatestColumn() {
+        FinancialTimelineResponse timeline = timeline(List.of(),
+                List.of(group("BS", List.of(row(OWNERS_EQUITY_ID, OWNERS_NAME, Map.of("2025", "1000", "2026", "1100"))))),
+                List.of(column("2025", "11011", false), column("2026", "11014", true)));
+
+        SrimBasis basis = extractor.srimBasis(timeline, "2025", List.of(), null);
+
+        assertThat(basis.equity()).isEqualByComparingTo("1100");
+        assertThat(basis.equityDate()).isEqualTo("2026-09-30");
+        assertThat(basis.yearEndEquities()).containsOnlyKeys("2025");
+    }
+
+    @Test
+    @DisplayName("A8 최신 분기 컬럼에 값이 없으면 기준연도 연간 값과 12월 말 기준일을 쓴다")
+    void srimEquityFallsBackToBaseYear() {
+        FinancialTimelineResponse timeline = timeline(List.of(),
+                List.of(group("BS", List.of(row(OWNERS_EQUITY_ID, OWNERS_NAME, Map.of("2025", "1000"))))),
+                List.of(column("2025", "11011", false), column("2026", "11014", true)));
+
+        SrimBasis basis = extractor.srimBasis(timeline, "2025", List.of(), null);
+
+        assertThat(basis.equity()).isEqualByComparingTo("1000");
+        assertThat(basis.equityDate()).isEqualTo("2025-12-31");
+    }
+
+    @Test
+    @DisplayName("A9 S-RIM 주식수는 합계 유통주식수, 시가총액은 기존대로 보통주 유통주식수를 쓴다")
+    void srimUsesTotalSharesWhilePriceMetricsKeepCommon() {
+        FinancialTimelineResponse timeline = timeline(List.of(), List.of(), List.of(column("2025", "11011", false)));
+        List<StockQuantityResponse> quantities = List.of(quantity("보통주", "900"), quantity("우선주", "100"),
+                quantity("합계", "1000"));
+        ValuationMetricResponse valuation = new ValuationMetricResponse(
+                null, null, null, null, null, "2026-09-25", new BigDecimal("10"), List.of());
+
+        SrimBasis basis = extractor.srimBasis(timeline, "2025", quantities,
+                new PeriodicReport(2026, ReportCode.SEMI_ANNUAL));
+        BigDecimal marketCap = extractor.priceMetrics(timeline, "2025", valuation, quantities).marketCap();
+
+        assertThat(basis.shares()).isEqualByComparingTo("1000");
+        assertThat(basis.sharesCategory()).isEqualTo("합계");
+        assertThat(basis.sharesReport()).isEqualTo("2026 반기보고서");
+        assertThat(basis.sharesDate()).isEqualTo("2026-06-30");
+        assertThat(marketCap).isEqualByComparingTo("9000");
+    }
+
+    @Test
+    @DisplayName("A10 합계 행이 없으면 S-RIM 주식수를 비운다 (보통주로 대체하지 않음)")
+    void srimSharesEmptyWithoutTotalRow() {
+        FinancialTimelineResponse timeline = timeline(List.of(), List.of(), List.of(column("2025", "11011", false)));
+
+        SrimBasis basis = extractor.srimBasis(timeline, "2025", List.of(quantity("보통주", "900")),
+                new PeriodicReport(2026, ReportCode.SEMI_ANNUAL));
+
+        assertThat(basis.shares()).isNull();
+    }
+
+    private StockQuantityResponse quantity(String category, String distributed) {
+        return new StockQuantityResponse(category, null, null, null, null, null, null, null, null, "0",
+                distributed, "2026-06-30");
     }
 
     private Map<String, String> roe(FinancialTimelineResponse timeline) {

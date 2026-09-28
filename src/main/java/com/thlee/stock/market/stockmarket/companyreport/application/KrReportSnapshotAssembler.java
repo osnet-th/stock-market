@@ -138,7 +138,7 @@ public class KrReportSnapshotAssembler implements ReportSnapshotAssembler {
         List<MajorShareholderResponse> shareholders = fetchShareholdersSafely(stockCode);
         Boolean capitalIncrease = fetchCapitalIncreaseSafely(stockCode);
         return new SideData(profile.join(), shareholders, bulkHoldings.join(),
-                valuation.join(), dividends.join(), quantities.join(), capitalIncrease);
+                valuation.join(), dividends.join(), quantities.join(), shareReport, capitalIncrease);
     }
 
     private List<MajorShareholderResponse> fetchShareholdersSafely(String stockCode) {
@@ -166,6 +166,7 @@ public class KrReportSnapshotAssembler implements ReportSnapshotAssembler {
             ValuationMetricResponse valuation,
             List<DividendInfoResponse> dividends,
             List<StockQuantityResponse> quantities,
+            PeriodicReport shareReport,
             Boolean capitalIncrease
     ) {}
 
@@ -210,7 +211,8 @@ public class KrReportSnapshotAssembler implements ReportSnapshotAssembler {
                 extractor.valuationInputs(response, baseYear),
                 toShareholders(side),
                 extractor.riskSignals(response, baseYear, side.capitalIncrease()),
-                extractor.roeBasis(response));
+                extractor.roeBasis(response),
+                extractor.srimBasis(response, baseYear, side.quantities(), side.shareReport()));
     }
 
     private String resolveStockName(String stockCode, CompanyProfileResponse profile) {

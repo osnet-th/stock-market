@@ -62,6 +62,7 @@ public class ReportSnapshotJsonMapper {
                 snapshot.valuationInputs(),
                 snapshot.shareholders(),
                 snapshot.riskSignals(),
-                snapshot.roeBasis() != null ? snapshot.roeBasis() : ReportSnapshot.ROE_BASIS_TOTAL);
+                snapshot.roeBasis() != null ? snapshot.roeBasis() : ReportSnapshot.ROE_BASIS_TOTAL,
+                snapshot.srimBasis());
     }
 }

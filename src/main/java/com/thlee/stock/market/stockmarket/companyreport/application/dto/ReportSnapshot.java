@@ -18,6 +18,7 @@ import java.util.Map;
  * <p>schemaVersion 3: 재무제표 요약에 지배주주지분·비지배지분·지배주주순이익 행 추가(연결재무제표 종목만),
  * roeBasis 추가 — ROE 산출 기준(OWNERS: 지배주주순이익 ÷ 지배주주지분, TOTAL: 당기순이익 ÷ 자본총계).
  * roeBasis가 없는 v2 이하 스냅샷은 TOTAL로 해석한다.
+ * srimBasis 추가 — S-RIM 입력 자동 채움 근거(국내 연결재무제표 종목만, 그 외 null).
  */
 public record ReportSnapshot(
         int schemaVersion,
@@ -36,7 +37,8 @@ public record ReportSnapshot(
         ValuationInputs valuationInputs,
         Shareholders shareholders,
         RiskSignals riskSignals,
-        String roeBasis
+        String roeBasis,
+        SrimBasis srimBasis
 ) {
 
     public static final int CURRENT_SCHEMA_VERSION = 3;
@@ -47,6 +49,29 @@ public record ReportSnapshot(
     public static final String CURRENCY_USD = "USD";
     public static final String ROE_BASIS_OWNERS = "OWNERS";
     public static final String ROE_BASIS_TOTAL = "TOTAL";
+
+    /**
+     * S-RIM 입력 자동 채움 근거. 값이 없는 항목은 null.
+     *
+     * @param equity          지배주주지분 (최신 정기보고서 컬럼 우선, 없으면 기준연도 연간 값)
+     * @param equityDate      자본 기준일 (yyyy-MM-dd)
+     * @param equityReport    자본 출처 보고서 (예: "2026 3분기보고서")
+     * @param yearEndEquities 연도 → 기말 지배주주지분 (연간 컬럼만, 연도 행 전기말 지분 채움용)
+     * @param shares          합계 유통주식수 (자기주식 차감, 보통주+우선주)
+     * @param sharesDate      주식수 기준일 (DART 결산기준일)
+     * @param sharesReport    주식수 출처 보고서 (예: "2026 반기보고서")
+     * @param sharesCategory  주식수 행 구분 (예: "합계")
+     */
+    public record SrimBasis(
+            BigDecimal equity,
+            String equityDate,
+            String equityReport,
+            Map<String, BigDecimal> yearEndEquities,
+            BigDecimal shares,
+            String sharesDate,
+            String sharesReport,
+            String sharesCategory
+    ) {}
 
     public record ColumnMeta(String year, String reportLabel, boolean partial) {}
 

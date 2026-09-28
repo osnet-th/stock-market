@@ -7,6 +7,7 @@ import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSn
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.PriceMetrics;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.RatioRow;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.RiskSignals;
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.SrimBasis;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.UnclassifiedLine;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.ValuationInputs;
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse;
@@ -16,6 +17,8 @@ import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelin
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse.TimelineRow;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockQuantityResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.ValuationMetricResponse;
+import com.thlee.stock.market.stockmarket.stock.domain.model.PeriodicReport;
+import com.thlee.stock.market.stockmarket.stock.domain.model.ReportCode;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -529,6 +532,79 @@ public class SnapshotFinancialExtractor {
         return net.subtract(operatingCf)
                 .divide(totalAssets, 4, RoundingMode.HALF_UP)
                 .multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    // === S-RIM 자동 채움 근거 ===
+
+    /**
+     * 지배주주지분은 최신 정기보고서 컬럼(분기·반기 포함) 값을 우선하고, 없으면 기준연도 연간 값을 쓴다.
+     * 주식수는 합계 행의 유통주식수(자기주식 차감)만 쓰며, 합계 행이 없으면 비운다 — 보통주로 대체하지 않는다.
+     */
+    public SrimBasis srimBasis(FinancialTimelineResponse timeline, String baseYear,
+            List<StockQuantityResponse> quantities, PeriodicReport shareReport) {
+        Map<String, BigDecimal> equities = ownersEquitySeries(timeline);
+        TimelineColumn equityColumn = equityColumn(timeline, equities, baseYear);
+        StockQuantityResponse total = totalQuantity(quantities);
+        return new SrimBasis(
+                equityColumn == null ? null : equities.get(equityColumn.getYear()),
+                equityColumn == null ? null : periodEndDate(equityColumn.getYear(), equityColumn.getReportCode()),
+                equityColumn == null ? null : equityColumn.getYear() + " " + equityColumn.getReportLabel(),
+                yearEndEquities(timeline, equities),
+                total == null ? null : parse(total.getDistributedStockCount()),
+                total == null ? null : total.getSettlementDate(),
+                shareReport == null ? null : shareReport.year() + " " + shareReport.reportCode().getLabel(),
+                total == null ? null : total.getCategory());
+    }
+
+    private TimelineColumn equityColumn(FinancialTimelineResponse timeline, Map<String, BigDecimal> equities,
+            String baseYear) {
+        List<TimelineColumn> columns = timeline.getColumns();
+        TimelineColumn latest = columns.stream()
+                .max(Comparator.comparing(TimelineColumn::getYear))
+                .orElse(null);
+        if (latest != null && equities.containsKey(latest.getYear())) {
+            return latest;
+        }
+        return columns.stream()
+                .filter(column -> column.getYear().equals(baseYear) && !column.isPartial())
+                .filter(column -> equities.containsKey(column.getYear()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Map<String, BigDecimal> yearEndEquities(FinancialTimelineResponse timeline, Map<String, BigDecimal> equities) {
+        Map<String, BigDecimal> yearEnd = new LinkedHashMap<>();
+        timeline.getColumns().stream()
+                .filter(column -> !column.isPartial() && equities.containsKey(column.getYear()))
+                .forEach(column -> yearEnd.put(column.getYear(), equities.get(column.getYear())));
+        return yearEnd;
+    }
+
+    private StockQuantityResponse totalQuantity(List<StockQuantityResponse> quantities) {
+        if (quantities == null) {
+            return null;
+        }
+        return quantities.stream()
+                .filter(quantity -> quantity.getCategory() != null && quantity.getCategory().contains("합계"))
+                .filter(quantity -> parse(quantity.getDistributedStockCount()) != null)
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * 보고서 기간 종료일 (12월 결산 기준 — 정기보고서 파싱 규칙과 동일)
+     */
+    private String periodEndDate(String year, String reportCode) {
+        if (ReportCode.Q1.getCode().equals(reportCode)) {
+            return year + "-03-31";
+        }
+        if (ReportCode.SEMI_ANNUAL.getCode().equals(reportCode)) {
+            return year + "-06-30";
+        }
+        if (ReportCode.Q3.getCode().equals(reportCode)) {
+            return year + "-09-30";
+        }
+        return year + "-12-31";
     }
 
     // === 가치평가 입력 (청산가치/DCF 원시 데이터) ===

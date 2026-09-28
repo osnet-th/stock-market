@@ -325,6 +325,9 @@
                     <button type="button" @click="setEvalDartSubTab('disclosures')"
                             :class="stockEval.dart.subTab === 'disclosures' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
                             class="px-3 py-1.5 text-sm font-medium rounded">공시</button>
+                    <button type="button" @click="setEvalDartSubTab('srim')"
+                            :class="stockEval.dart.subTab === 'srim' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
+                            class="px-3 py-1.5 text-sm font-medium rounded">S-RIM 적정주가</button>
                 </div>
 
                 <!-- ===== 연도별 추세 ===== -->
@@ -585,6 +588,94 @@
                             </template>
                         </div>
                     </template>
+                </div>
+                <!-- ===== S-RIM 적정주가 (저장 없음) ===== -->
+                <div x-show="stockEval.dart.subTab === 'srim'">
+                    <section class="bg-white border border-gray-200 rounded p-4 space-y-4" @input="seSrimChanged()" @change="seSrimChanged()">
+                        <p class="text-xs text-gray-500">S-RIM 적정주가를 즉석에서 계산합니다. 입력과 결과는 저장되지 않으며 화면을 떠나면 사라집니다. 예상 ROE와 요구수익률은 사용자 가정값입니다.</p>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <button type="button" @click="seSrimFetch()" :disabled="seSrim().fetchLoading" class="px-3 py-1.5 text-sm border border-blue-600 text-blue-700 rounded disabled:opacity-40"
+                                    x-text="seSrim().fetchLoading ? '재무 데이터 불러오는 중…' : '재무 데이터 가져오기'"></button>
+                            <span class="text-xs text-red-600" x-show="seSrim().fetchError" x-text="seSrim().fetchError"></span>
+                        </div>
+                        <p class="text-xs text-gray-500">재무 데이터 가져오기는 지배주주지분·유통주식수(보통주+우선주 합계, 자기주식 차감)·기준일·기준 주가와 ROE 계산 행의 전기말 지분을 채웁니다. 직접 수정한 칸은 덮어쓰지 않습니다. 기업 리포트 스냅샷을 조립하므로 수 초가 걸릴 수 있습니다.</p>
+                        <label class="block text-xs text-gray-600">자기자본·ROE 근거 금액 단위 <select x-model="seSrim().amountScale" @change.stop="seSrimChangeUnit()" class="border rounded p-1.5">
+                            <option value="0">원</option>
+                            <option value="8">억 원</option>
+                            <option value="12">조 원</option>
+                        </select></label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <label class="block text-xs text-gray-600">지배주주지분<input type="text" x-model="seSrim().equity" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <span class="block text-[11px] text-emerald-700 mt-0.5" x-show="seSrimSource('equity')" x-text="seSrimSource('equity')"></span></label>
+                            <label class="block text-xs text-gray-600">자본 기준일<input type="date" x-model="seSrim().equityDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></label>
+                            <label class="block text-xs text-gray-600">유통주식수 (주)<input type="text" x-model="seSrim().shares" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <span class="block text-[11px] text-emerald-700 mt-0.5" x-show="seSrimSource('shares')" x-text="seSrimSource('shares')"></span></label>
+                            <label class="block text-xs text-gray-600">주식수 기준일<input type="date" x-model="seSrim().sharesDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></label>
+                            <label class="block text-xs text-gray-600">요구수익률 (%)<input type="text" x-model="seSrim().requiredReturn" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></label>
+                            <label class="block text-xs text-gray-600">비교 기준 주가 (원, 선택)<input type="text" x-model="seSrim().referencePrice" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                <span class="block text-[11px] text-emerald-700 mt-0.5" x-show="seSrimSource('referencePrice')" x-text="seSrimSource('referencePrice')"></span></label>
+                            <label class="block text-xs text-gray-600">주가 기준일<input type="date" x-model="seSrim().referencePriceDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></label>
+                        </div>
+                        <p class="text-xs text-gray-500">비교율은 위 기준 주가 대비이며 실시간 현재가가 아닙니다. ROE 계산용 평균 자본은 공통 자기자본을 바꾸지 않습니다.</p>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2">기준 연도</th>
+                                        <th class="px-3 py-2">입력 방식</th>
+                                        <th class="px-3 py-2">예상 ROE</th>
+                                        <th class="px-3 py-2">영구 유지</th>
+                                        <th class="px-3 py-2">매년 10% 감소</th>
+                                        <th class="px-3 py-2">매년 20% 감소</th>
+                                        <th>삭제</th>
+                                    </tr>
+                                </thead>
+                                <template x-for="(row, idx) in seSrim().years" :key="idx">
+                                    <tbody class="border-b border-gray-200">
+                                        <tr>
+                                            <td class="p-2"><input aria-label="기준 연도" type="number" min="1900" max="2200" x-model="row.year" class="w-24 border rounded p-1.5" /></td>
+                                            <td class="p-2">
+                                                <select aria-label="ROE 입력 방식" x-model="row.mode" class="border rounded p-1.5">
+                                                    <option value="DIRECT">직접 입력</option>
+                                                    <option value="CALCULATED">ROE 계산</option>
+                                                </select>
+                                            </td>
+                                            <td class="p-2">
+                                                <input x-show="row.mode === 'DIRECT'" aria-label="예상 ROE 퍼센트" x-model="row.directRoe" class="w-24 border rounded p-1.5" />
+                                                <span x-show="row.mode === 'CALCULATED'" x-text="crSrimPercent(seSrim().result?.results?.[idx]?.roe)"></span>
+                                            </td>
+                                            <template x-for="key in ['perpetual', 'decline10', 'decline20']" :key="key">
+                                                <td class="px-3 py-2 text-right whitespace-nowrap">
+                                                    <div x-text="crSrimPrice(seSrim().result?.results?.[idx]?.[key], 'KRW')"></div>
+                                                    <div class="text-xs text-gray-500" x-text="crSrimDifference(seSrim().result?.results?.[idx]?.[key])"></div>
+                                                    <span class="text-xs text-amber-700" x-show="Number(seSrim().result?.results?.[idx]?.[key]?.price) &lt; 0">음수 산출값 · 해석 주의</span>
+                                                </td>
+                                            </template>
+                                            <td class="p-2"><button type="button" @click="seSrimRemoveYear(idx)" class="text-red-600 text-xs">삭제</button></td>
+                                        </tr>
+                                        <tr x-show="row.mode === 'CALCULATED'">
+                                            <td colspan="7" class="p-3 bg-gray-50">
+                                                <p class="text-xs text-gray-600 mb-2" x-text="(Number(row.year) - 1) + '년 말 지분과 ' + row.year + '년 말 예상 지분의 평균으로 ROE를 계산합니다.'"></p>
+                                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                    <label class="block text-xs text-gray-600">전기말 지배주주지분<input type="text" x-model="row.previousEquity" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                                        <span class="block text-[11px] text-emerald-700 mt-0.5" x-show="seSrimRowSource(row)" x-text="seSrimRowSource(row)"></span></label>
+                                                    <label class="block text-xs text-gray-600">당기말 예상 지배주주지분<input type="text" x-model="row.expectedEquity" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></label>
+                                                    <label class="block text-xs text-gray-600">당기 예상 지배주주순이익<input type="text" x-model="row.expectedIncome" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" /></label>
+                                                </div>
+                                                <p class="text-xs text-gray-500 mt-2">예상 ROE = 예상 지배주주순이익 ÷ ((전기말 지분 + 당기말 예상 지분) ÷ 2) × 100</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </template>
+                            </table>
+                        </div>
+                        <div class="flex gap-3 items-center flex-wrap">
+                            <button type="button" @click="seSrimAddYear()" :disabled="seSrim().years.length >= 30" class="px-3 py-2 text-sm border rounded disabled:opacity-40">+ 연도 추가</button>
+                            <button type="button" @click="seSrimCalculate()" :disabled="seSrim().loading" class="px-3 py-2 text-sm bg-blue-600 text-white rounded disabled:opacity-40"
+                                    x-text="seSrim().loading ? '계산 중…' : '계산하기'"></button>
+                            <span class="text-sm text-red-600" x-show="seSrim().error" x-text="seSrim().error"></span>
+                        </div>
+                    </section>
                 </div>
             </div><!-- /DART 탭 -->
         </div>

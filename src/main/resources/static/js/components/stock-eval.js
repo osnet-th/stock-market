@@ -49,7 +49,7 @@ const StockEvalComponent = {
         // DART 재무상세 컨텍스트 (financial.js 타임라인/공시 로직을 ctx로 재사용).
         // 필드명은 portfolio와 동일해야 공용 메서드가 동작. canvasPrefix로 canvas id 유일화.
         dart: {
-            subTab: 'timeline',          // timeline | disclosures
+            subTab: 'timeline',          // timeline | disclosures | srim
             stockCode: null,
             canvasPrefix: 'eval-',
             timelineData: null, timelineLoading: false, timelineError: null,
@@ -62,6 +62,9 @@ const StockEvalComponent = {
             disclosureData: null, disclosureLoading: false, disclosureError: null,
             disclosureSelectedTypes: [], disclosurePeriod: '1',
         },
+
+        // S-RIM 즉석 계산기 (저장 없음). 화면 요소는 기업 리포트 S-RIM을 복제하고, 숫자 파싱·표시 헬퍼(_crSrim*)만 재사용한다.
+        srim: null,
     },
 
     // ==================== 검색 / 선택 ====================
@@ -110,6 +113,7 @@ const StockEvalComponent = {
         dart.disclosurePeriod = '1';
         dart.disclosureSelectedTypes = [];
         dart.stockCode = stockCode;
+        this.stockEval.srim = this._seSrimEmpty();
     },
 
     setEvalProvider(provider) {
@@ -118,6 +122,185 @@ const StockEvalComponent = {
 
     setEvalDartSubTab(subTab) {
         this.stockEval.dart.subTab = subTab;
+    },
+
+    // ==================== S-RIM (DART 탭, 저장 없음) ====================
+    _seSrimEmpty() {
+        return { amountScale: '0', appliedScale: '0', equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
+            referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false,
+            fetchLoading: false, fetchError: '', basis: null, priceMetrics: null, autoFilled: {}, sources: {}, _gen: 0, _fetchGen: 0 };
+    },
+
+    seSrim() {
+        if (!this.stockEval.srim) this.stockEval.srim = this._seSrimEmpty();
+        return this.stockEval.srim;
+    },
+
+    seSrimChanged() {
+        const s = this.seSrim();
+        s._gen += 1;
+        s.result = null;
+        s.error = '';
+        s.loading = false;
+    },
+
+    seSrimChangeUnit() {
+        const s = this.seSrim();
+        this.seSrimChanged();
+        const shift = Number(s.appliedScale) - Number(s.amountScale);
+        try {
+            const equity = this._crSrimDecimal(s.equity, '지배주주지분', shift);
+            const years = s.years.map(row => {
+                const copy = { ...row };
+                ['previousEquity', 'expectedEquity', 'expectedIncome'].forEach(key => {
+                    copy[key] = this._crSrimDecimal(row[key], 'ROE 근거값', shift) ?? '';
+                });
+                return copy;
+            });
+            s.equity = equity ?? '';
+            s.years = years;
+            s.appliedScale = s.amountScale;
+        } catch (e) {
+            s.amountScale = s.appliedScale;
+            s.error = e.message;
+        }
+    },
+
+    seSrimAddYear() {
+        const s = this.seSrim();
+        if (s.years.length >= 30) return;
+        const filled = s.years.map(r => Number(r.year)).filter(y => Number.isInteger(y) && y > 0);
+        const next = filled.length ? Math.max(...filled) + 1 : new Date().getFullYear();
+        s.years.push({ year: next <= 2200 ? String(next) : '', mode: 'DIRECT', directRoe: '', previousEquity: '', expectedEquity: '', expectedIncome: '' });
+        this.seSrimChanged();
+    },
+
+    seSrimRemoveYear(index) {
+        this.seSrim().years.splice(index, 1);
+        this.seSrimChanged();
+    },
+
+    // 버튼 클릭 시에만 리포트 미리보기(스냅샷 조립)를 호출한다 — 무거운 호출이라 로딩·실패를 표시한다.
+    async seSrimFetch() {
+        const s = this.seSrim();
+        const stockCode = this.stockEval.selected?.stockCode;
+        if (!stockCode || s.fetchLoading) return;
+        const gen = ++s._fetchGen;
+        s.fetchLoading = true;
+        s.fetchError = '';
+        try {
+            const preview = await API.previewCompanyReport(stockCode);
+            if (gen !== s._fetchGen || stockCode !== this.stockEval.selected?.stockCode) return;
+            s.basis = preview?.snapshot?.srimBasis || null;
+            s.priceMetrics = preview?.snapshot?.priceMetrics || null;
+            if (!s.basis) {
+                s.fetchError = '이 종목은 자동으로 채울 재무 데이터가 없습니다. 직접 입력하세요.';
+                return;
+            }
+            this._seSrimApply(s);
+        } catch (e) {
+            if (gen === s._fetchGen) s.fetchError = e?.message || '재무 데이터를 가져오지 못했습니다.';
+        } finally {
+            if (gen === s._fetchGen) s.fetchLoading = false;
+        }
+    },
+
+    _seSrimApply(s) {
+        const basis = s.basis;
+        const scale = Number(s.amountScale);
+        const equitySource = ['지배주주지분', basis.equityReport, basis.equityDate].filter(Boolean).join(' · ');
+        const sharesSource = [(basis.sharesCategory || '') + ' 유통주식수(자기주식 차감)', basis.sharesReport, basis.sharesDate]
+            .filter(Boolean).join(' · ');
+        this._seSrimFill(s, 'equity', basis.equity, v => this._crSrimShift(v, -scale), equitySource);
+        this._seSrimFill(s, 'equityDate', basis.equityDate, v => v, equitySource);
+        this._seSrimFill(s, 'shares', basis.shares, v => v, sharesSource);
+        this._seSrimFill(s, 'sharesDate', basis.sharesDate, v => v, sharesSource);
+        const p = s.priceMetrics;
+        if (p?.referencePrice != null && p.referencePriceDate) {
+            const priceSource = '리포트 기준 주가 · ' + p.referencePriceDate;
+            this._seSrimFill(s, 'referencePrice', String(p.referencePrice), v => v, priceSource);
+            this._seSrimFill(s, 'referencePriceDate', p.referencePriceDate, v => v, priceSource);
+        }
+        s.years.forEach(row => this._seSrimFillPreviousEquity(s, row, scale));
+        this.seSrimChanged();
+    },
+
+    // 비어 있거나 직전 자동 채움 값 그대로인 칸만 갱신한다 (직접 고친 칸 보존)
+    _seSrimFill(s, key, raw, toDisplay, source) {
+        if (raw == null || raw === '') return;
+        const current = s[key];
+        const empty = current == null || String(current).trim() === '';
+        if (!empty && !this._seSrimIsAutoValue(s, key, current)) return;
+        s[key] = toDisplay(String(raw));
+        s.autoFilled = { ...s.autoFilled, [key]: key === 'equity' ? this._crSrimShift(String(raw), 0) : String(raw) };
+        s.sources = { ...s.sources, [key]: source };
+    },
+
+    _seSrimIsAutoValue(s, key, current) {
+        const raw = s.autoFilled?.[key];
+        const text = String(current ?? '').trim();
+        if (raw == null || !text) return false;
+        if (key !== 'equity') return text === raw;
+        return /^[+-]?\d+(\.\d+)?$/.test(text) && this._crSrimShift(text, Number(s.amountScale)) === raw;
+    },
+
+    _seSrimFillPreviousEquity(s, row, scale) {
+        if (row.mode !== 'CALCULATED') return;
+        const year = Number(row.year);
+        const raw = Number.isInteger(year) ? s.basis.yearEndEquities?.[String(year - 1)] : null;
+        if (raw == null) return;
+        if (String(row.previousEquity ?? '').trim() && !this._seSrimIsAutoRow(s, row)) return;
+        row.previousEquity = this._crSrimShift(String(raw), -scale);
+        row._autoPrevious = this._crSrimShift(String(raw), 0);
+    },
+
+    _seSrimIsAutoRow(s, row) {
+        const current = String(row.previousEquity ?? '').trim();
+        if (row._autoPrevious == null || !/^[+-]?\d+(\.\d+)?$/.test(current)) return false;
+        return this._crSrimShift(current, Number(s.amountScale)) === row._autoPrevious;
+    },
+
+    seSrimSource(key) {
+        const s = this.seSrim();
+        return this._seSrimIsAutoValue(s, key, s[key]) ? (s.sources?.[key] || '') : '';
+    },
+
+    seSrimRowSource(row) {
+        return this._seSrimIsAutoRow(this.seSrim(), row) ? (Number(row.year) - 1) + '년 말 지배주주지분 (사업보고서)' : '';
+    },
+
+    _seSrimInput() {
+        const s = this.seSrim();
+        const scale = Number(s.amountScale);
+        return { equity: this._crSrimDecimal(s.equity, '지배주주지분', scale), equityDate: s.equityDate || null,
+            shares: this._crSrimDecimal(s.shares, '유통주식수'), sharesDate: s.sharesDate || null,
+            requiredReturn: this._crSrimDecimal(s.requiredReturn, '요구수익률', -2), currency: 'KRW',
+            referencePrice: this._crSrimDecimal(s.referencePrice, '비교 주가'), referencePriceDate: s.referencePriceDate || null,
+            years: s.years.map(row => {
+                const text = String(row.year ?? '').trim();
+                if (text && !/^\d{4}$/.test(text)) throw new Error('연도를 네 자리 정수로 입력하세요.');
+                return { year: text ? Number(text) : null, mode: row.mode,
+                    directRoe: this._crSrimDecimal(row.directRoe, '예상 ROE', -2),
+                    previousEquity: this._crSrimDecimal(row.previousEquity, '전기말 지분', scale),
+                    expectedEquity: this._crSrimDecimal(row.expectedEquity, '당기말 지분', scale),
+                    expectedIncome: this._crSrimDecimal(row.expectedIncome, '예상 순이익', scale) };
+            }) };
+    },
+
+    // 기존 S-RIM 계산 미리보기 API 재사용 — 결과는 화면 상태에만 두고 저장하지 않는다
+    async seSrimCalculate() {
+        this.seSrimChanged();
+        const s = this.seSrim();
+        const gen = s._gen;
+        s.loading = true;
+        try {
+            const result = await API.calculateCompanyReportSrim(this._seSrimInput());
+            if (gen === s._gen) s.result = result;
+        } catch (e) {
+            if (gen === s._gen) s.error = e?.message || 'S-RIM 계산에 실패했습니다.';
+        } finally {
+            if (gen === s._gen) s.loading = false;
+        }
     },
 
     _stockEvalResetTabs() {

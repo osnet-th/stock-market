@@ -201,7 +201,8 @@ public class DartFinancialAdapter implements StockFinancialPort {
                 item.getEtc(),
                 item.getIstcTotqy(),
                 item.getTesstkCo(),
-                item.getDistbStockCo()
+                item.getDistbStockCo(),
+                item.getStlmDt()
         );
     }
 

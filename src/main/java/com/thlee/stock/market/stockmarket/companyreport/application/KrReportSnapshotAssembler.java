@@ -11,6 +11,7 @@ import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSn
 import com.thlee.stock.market.stockmarket.stock.application.CompanyInfoService;
 import com.thlee.stock.market.stockmarket.stock.application.DisclosureQueryService;
 import com.thlee.stock.market.stockmarket.stock.application.FinancialTimelineService;
+import com.thlee.stock.market.stockmarket.stock.application.ShareReportSelector;
 import com.thlee.stock.market.stockmarket.stock.application.StockFinancialService;
 import com.thlee.stock.market.stockmarket.stock.application.ValuationMetricService;
 import com.thlee.stock.market.stockmarket.stock.application.dto.BulkHoldingReportResponse;
@@ -21,6 +22,7 @@ import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelin
 import com.thlee.stock.market.stockmarket.stock.application.dto.MajorShareholderResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockQuantityResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.ValuationMetricResponse;
+import com.thlee.stock.market.stockmarket.stock.domain.model.PeriodicReport;
 import com.thlee.stock.market.stockmarket.stock.domain.model.PublicationType;
 import com.thlee.stock.market.stockmarket.stock.domain.model.ReportCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.TimelineItem;
@@ -61,6 +63,7 @@ public class KrReportSnapshotAssembler implements ReportSnapshotAssembler {
     private final CompanyInfoService companyInfoService;
     private final DisclosureQueryService disclosureQueryService;
     private final SnapshotFinancialExtractor extractor;
+    private final ShareReportSelector shareReportSelector;
     private final Executor executor;
 
     public KrReportSnapshotAssembler(
@@ -70,6 +73,7 @@ public class KrReportSnapshotAssembler implements ReportSnapshotAssembler {
             CompanyInfoService companyInfoService,
             DisclosureQueryService disclosureQueryService,
             SnapshotFinancialExtractor extractor,
+            ShareReportSelector shareReportSelector,
             @Qualifier(FinancialTimelineExecutorConfig.EXECUTOR_NAME) Executor executor) {
         this.timelineService = timelineService;
         this.stockFinancialService = stockFinancialService;
@@ -77,6 +81,7 @@ public class KrReportSnapshotAssembler implements ReportSnapshotAssembler {
         this.companyInfoService = companyInfoService;
         this.disclosureQueryService = disclosureQueryService;
         this.extractor = extractor;
+        this.shareReportSelector = shareReportSelector;
         this.executor = executor;
     }
 
@@ -117,15 +122,19 @@ public class KrReportSnapshotAssembler implements ReportSnapshotAssembler {
     /**
      * 최대주주 이력·증자이력 조회는 내부적으로 같은 executor에 하위 태스크를 제출·join하므로,
      * executor 스레드가 아닌 호출 스레드에서 실행한다 (중첩 join으로 인한 풀 고갈/데드락 방지).
+     * 주식총수 기준 보고서(사업·반기 최신) 선택도 공시 조회를 동반하므로 호출 스레드에서 먼저 수행한다.
      */
     private SideData fetchSideData(String stockCode, String baseYear) {
+        PeriodicReport shareReport = shareReportSelector.latest(stockCode, baseYear);
+        String shareYear = shareReport == null ? baseYear : String.valueOf(shareReport.year());
+        String shareReportCode = shareReport == null ? ReportCode.ANNUAL.getCode() : shareReport.reportCode().getCode();
         var profile = supplySafely(() -> companyInfoService.getCompanyProfile(stockCode), "기업개황");
         var bulkHoldings = supplySafely(() -> companyInfoService.getBulkHoldingReports(stockCode), "대량보유");
         var valuation = supplySafely(() -> valuationMetricService.calculate(stockCode), "주가지표");
         var dividends = supplySafely(
                 () -> stockFinancialService.getDividendInfos(stockCode, baseYear, ReportCode.ANNUAL.getCode()), "배당");
         var quantities = supplySafely(
-                () -> stockFinancialService.getStockQuantities(stockCode, baseYear, ReportCode.ANNUAL.getCode()), "주식총수");
+                () -> stockFinancialService.getStockQuantities(stockCode, shareYear, shareReportCode), "주식총수");
         List<MajorShareholderResponse> shareholders = fetchShareholdersSafely(stockCode);
         Boolean capitalIncrease = fetchCapitalIncreaseSafely(stockCode);
         return new SideData(profile.join(), shareholders, bulkHoldings.join(),

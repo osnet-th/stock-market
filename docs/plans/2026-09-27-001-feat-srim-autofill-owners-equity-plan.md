@@ -16,6 +16,12 @@ allowed_paths:
   - src/main/java/com/thlee/stock/market/stockmarket/stock/application/dto/StockQuantityResponse.java
   - src/main/java/com/thlee/stock/market/stockmarket/stock/application/StockFinancialService.java
   - src/main/java/com/thlee/stock/market/stockmarket/stock/infrastructure/stock/dart/DartFinancialAdapter.java
+  - src/main/java/com/thlee/stock/market/stockmarket/stock/application/ValuationMetricService.java
+  - src/main/java/com/thlee/stock/market/stockmarket/stock/infrastructure/stock/sec/SecFinancialAdapter.java
+  - src/test/java/com/thlee/stock/market/stockmarket/companyreport/application/**
+  - src/test/java/com/thlee/stock/market/stockmarket/stock/application/**
+  - src/test/java/com/thlee/stock/market/stockmarket/stock/infrastructure/stock/**
+  - docs/plans/tests/2026-09-27-124-srim-autofill-owners-equity-test-plan.md
   - src/main/resources/static/js/components/company-report.js
   - src/main/resources/static/js/components/stock-eval.js
   - src/main/resources/static/partials/company-report.html
@@ -24,16 +30,14 @@ allowed_paths:
 blocked_paths:
   - src/main/java/com/thlee/stock/market/stockmarket/companyreport/domain/**
   - src/main/java/com/thlee/stock/market/stockmarket/companyreport/infrastructure/**
-  - src/main/java/com/thlee/stock/market/stockmarket/companyreport/application/UsReportSnapshotAssembler.java
-  - src/main/java/com/thlee/stock/market/stockmarket/companyreport/application/UsSnapshotFinancialExtractor.java
-  - src/main/java/com/thlee/stock/market/stockmarket/stock/application/ValuationMetricService.java
   - src/main/java/com/thlee/stock/market/stockmarket/stockevaluation/**
+  - src/main/java/com/thlee/stock/market/stockmarket/chatbot/**
   - src/main/resources/db/**
 ---
 
 # S-RIM 입력 자동 채움 · 지배주주지분 노출 · 종목 평가 S-RIM (#124)
 
-> Notion Plan 페이지(2026-09-27)를 저장소 문서로 재구성하고 2026-09-28 보완 결정을 반영했다. 로컬 원본이 원격에 없어 재구성했으므로 `draft`로 두고 재승인을 받는다.
+> Notion Plan 페이지(2026-09-27)를 저장소 문서로 재구성하고 2026-09-28 보완 결정(미국 ROE·주가지표 반기 전환 범위 포함, 단위 테스트 작성)을 반영했다. 로컬 원본이 원격에 없어 재구성했으므로 `draft`로 두고 재승인을 받는다.
 
 ## 요약
 기업 리포트가 이미 조회하는 전체재무제표에서 지배주주지분을 꺼내 화면에 드러내고, S-RIM 입력을 버튼 한 번으로 채운다. 주식총수 기준을 반기까지 넓히고, 종목 평가 화면에 저장하지 않는 S-RIM 계산 섹션을 붙인다. 새 외부 API는 없다. 예외는 주식총수 기준 보고서 선택으로, 기존 정기공시 목록 조회를 한 번 더 쓴다.
@@ -41,11 +45,14 @@ blocked_paths:
 ## 작업 리스트
 - [ ] U1 지배주주지분·비지배지분·지배주주순이익 추출 + 스냅샷 노출 + schemaVersion 3
 - [ ] U2 요약 표 행 추가 + ROE 기준 교체 + ROE 기준 전달 + 근거 산식·기준표 문구
+- [ ] U2b 미국 리포트 ROE 기준 표기 + 기준 혼합 방지
 - [ ] U3 결산기준일 어댑터 유실 복구
 - [ ] U4 리포트 경로 주식총수 사업·반기 전환 + 폴백
+- [ ] U4b 주가지표 서비스 주식총수 사업·반기 전환 + 챗봇 경로 회귀 확인
 - [ ] U5 S-RIM 자동 채움 근거 스냅샷 노출
 - [ ] U6 기업 리포트 자동 채움 버튼·라벨·출처
 - [ ] U7 종목 평가 무저장 S-RIM 섹션
+- [ ] 단위 테스트 (승인된 시나리오 기준, 구현 전 작성)
 - [ ] 검증: 전후 수치 비교 (REQ-16)
 
 ## 요구사항 원장
@@ -64,16 +71,16 @@ blocked_paths:
 | REQ-10 | EPS·BPS·시가총액 산출 주식수는 보통주 기준으로 유지된다 | 이슈 확정결정·완료조건4 | 포함 | U4 (기존 조회 함수 불변) |
 | REQ-11 | 기존 저장 리포트는 재무 새로고침 전까지 변하지 않는다 | 이슈 확정결정 | 포함 | U2 (ROE 기준 미표기 = 전체 기준), U6 (v2 버튼 비활성) |
 | REQ-12 | 스냅샷 schemaVersion을 2에서 3으로 올린다 | 이슈 확정결정 | 포함 | U1 |
-| REQ-13 | 미국 리포트의 ROE 기준은 바꾸지 않는다 | brainstorm·plan 확정 | 포함 | U2 (US 경로 blocked) |
-| REQ-14 | 반기 전환은 리포트 조립 경로에만 적용한다 | plan 확정 (KTD6) | 포함 | U4 |
+| REQ-13 | 미국 리포트 ROE는 지배주주 태그 기준을 유지하고 사용 기준을 표기하며 기준 혼합을 막는다 | 2026-09-28 범위 확대 (REQ-22와 한 쌍) | 포함 | U2b |
+| REQ-14 | 반기 전환은 리포트 조립 경로와 주가지표 서비스 모두에 적용한다 | 2026-09-28 범위 확대 (REQ-21과 한 쌍) | 포함 | U4, U4b |
 | REQ-15 | 종목 평가 S-RIM 입력도 버튼 한 번으로 채워진다 | 이슈 작업4 | 포함 | U7 |
 | REQ-16 | 주식총수를 쓰는 파생 지표와 ROE의 변화가 확인된다 | 이슈 완료조건7 | 포함 | 검증 단계 전후 비교 |
 | REQ-17 | 자동 채움은 누를 때만 동작하고 직접 입력한 칸을 덮어쓰지 않는다 | 이슈 작업2 | 포함 | U6, U7 |
 | REQ-18 | ROE 근거 산식과 기준 표기는 스냅샷의 ROE 기준을 따른다 | 2026-09-28 보완 | 포함 | U2 |
 | REQ-19 | 수익성 제안 등급 변화는 의도된 변화로 두고 기준표 문구에 지배주주 기준을 표기한다 | 2026-09-28 보완 | 포함 | U2 |
 | REQ-20 | 종목 평가 S-RIM에 기준 주가 비교를 포함한다 | 2026-09-28 보완 | 포함 | U7 |
-| REQ-21 | 주가지표 서비스의 반기 전환 | 이슈 작업3 | 제외 | 공유 경로 회귀 범위가 커서 후속 이슈로 분리 |
-| REQ-22 | 미국 리포트 ROE 지배주주 기준 | 이슈 작업1 해석 | 제외 | 데이터 출처가 달라 후속 이슈로 분리 |
+| REQ-21 | 주가지표 서비스의 반기 전환 (EPS·BPS·PER·PBR 반기 주식수) | 이슈 작업3 · 2026-09-28 포함 결정 | 포함 | U4b, 챗봇 경로 회귀 확인 |
+| REQ-22 | 미국 리포트 ROE 지배주주 기준 | 이슈 작업1 해석 · 2026-09-28 포함 결정 | 포함 | U2b |
 | REQ-23 | S-RIM 계산식·시나리오 변경 | 이슈 범위 제외 | 제외 | — |
 | REQ-24 | 종목 평가 S-RIM 결과 저장 | 이슈 범위 제외 | 제외 | — |
 | REQ-25 | 우선주 시가총액 차감 방식 | 이슈 범위 제외 | 제외 | 주식수 합산 방식 고정 |
@@ -90,7 +97,7 @@ blocked_paths:
 - **KTD3 — S-RIM 주식수 조회를 기존 유통주식수 조회와 분리한다.** 기존(보통주 우선)은 그대로 둔다.
 - **KTD4 — 주식총수 보고서 후보를 사업·반기로 제한한다.** (사업연도, 기간 종료월) 쌍으로 비교한다. 공시 조회 실패 또는 후보 없음이면 기준연도 사업보고서로 폴백한다.
 - **KTD5 — 종목 평가 계산은 기존 S-RIM 계산 API를 재사용한다.**
-- **KTD6 — 미국 경로와 주가지표 서비스는 범위 밖.**
+- **KTD6 — 미국 경로와 주가지표 서비스도 이번 범위에 포함한다.** (2026-09-28 태형님 확정, 9/27 범위 최소 결정 번복) 주가지표 서비스는 U4의 보고서 선택 로직을 재사용하고, 호출처(기업 리포트·챗봇 컨텍스트) 회귀를 확인한다. 미국은 SEC 조회가 이미 지배주주 태그(`NetIncomeLoss`, `StockholdersEquity`)를 우선하므로 사용 태그에 따라 ROE 기준 값을 채우고 한쪽만 폴백되면 전체 기준으로 맞춘다.
 - **KTD7 — 종목 평가 자동 채움은 기존 리포트 미리보기 API를 쓴다.** 버튼 클릭 시에만 호출하고 로딩·실패를 표시한다.
 - **KTD8 — S-RIM 화면 요소는 공유하지 않고 복제한다.** 후속 S-RIM 작업은 두 화면을 함께 고친다.
 
@@ -106,6 +113,11 @@ blocked_paths:
 - `company-report.js`: 근거 산식(현재 `'ROE = 당기순이익 ÷ 자본총계'`)과 원천 행 목록을 ROE 기준 값으로 분기. 기준표 E 조건·판정 note에 지배주주 기준 표기.
 - 수익성 제안 등급 계산 로직과 임계값은 바꾸지 않는다.
 
+### U2b 미국 리포트 ROE (선행 U2)
+- SEC 순이익·자본 조회에서 어떤 태그가 쓰였는지 연도별로 전달한다 (지배주주 태그 / 비지배 포함 폴백 태그).
+- 두 값 모두 지배주주 태그면 ROE 기준 값 = 지배주주. 한쪽이라도 폴백 태그면 분자·분모를 모두 전체 기준 태그로 맞추거나, 불가하면 ROE를 비우지 않고 전체 기준으로 표기한다.
+- 태그 의미는 구현 전 실제 종목 1~2개로 실측 확인한다.
+
 ### U3 결산기준일 복구 (선행 없음)
 - `DartStockTotqyItem.stlm_dt`를 `StockQuantity` → `StockQuantityResponse`까지 전달.
 
@@ -113,6 +125,11 @@ blocked_paths:
 - `KrReportSnapshotAssembler`: 정기공시 목록으로 사업·반기 중 최신 (연도, 보고서 코드) 쌍을 고른다. 공시 조회는 호출 스레드에서 먼저 수행하고 결과만 병렬 태스크에 넘긴다.
 - 실패·후보 없음 → (기준연도, 사업보고서) 폴백.
 - 기존 보통주 우선 유통주식수 계산 함수는 수정하지 않는다.
+
+### U4b 주가지표 서비스 반기 전환 (선행 U4)
+- `ValuationMetricService`의 사업보고서 고정 주식총수 조회를 U4의 사업·반기 선택 로직으로 바꾼다. 실패·후보 없음이면 사업보고서 폴백.
+- EPS·BPS 분자(연간 순이익·자본)는 기존 기준을 유지하고 주식수만 최신 기준이 된다. 주식수 기준일을 경고·근거에 남긴다.
+- 호출처 회귀 확인: 기업 리포트 주가지표, 챗봇 컨텍스트. 챗봇 코드는 수정하지 않는다.
 
 ### U5 자동 채움 근거 노출 (선행 U1, U3, U4)
 - 스냅샷에 S-RIM 근거를 추가: 지배주주지분 값·기준일(ISO), 연도별 기말 지배주주지분, 합계 유통주식수·주식수 기준일·보고서 종류·행 구분.
@@ -135,9 +152,9 @@ blocked_paths:
 
 ## 시스템 전반 영향
 - **ROE 변화(의도)** — 지배주주 기준으로 바뀐다. 수익성 제안 등급은 ROE 경계값(0/5/10/15%) 근처 종목에서 바뀔 수 있다. 이미 저장된 등급은 적용 버튼 없이는 바뀌지 않는다.
-- **반기 전환으로 바뀌는 값** — 시가총액·PSR·PCR·EV/EBITDA·자기주식수. EPS·BPS·PER·PBR은 주가지표 서비스가 내려주므로 연간 기준 유지, 폴백 경로로 떨어지는 연도만 함께 바뀐다.
-- **기준 혼재** — 반기 주식수 시가총액 ÷ 연간 매출(PSR 등), 주당 지표 보통주 vs S-RIM 합계. 출처 표시로 구분한다.
-- **미국·국내 불일치** — 국내 ROE만 지배주주 기준. ROE 기준 값으로 표기한다.
+- **반기 전환으로 바뀌는 값** — 시가총액·PSR·PCR·EV/EBITDA·자기주식수·EPS·BPS·PER·PBR. 챗봇 컨텍스트의 주가지표도 함께 바뀐다.
+- **기준 혼재** — 반기 주식수 ÷ 연간 이익·매출(EPS·PSR 등), 주당 지표 보통주 vs S-RIM 합계. 출처·기준일 표시로 구분한다.
+- **미국 ROE** — 지배주주 태그 기준을 명시하고, 폴백 태그 종목은 전체 기준으로 표기한다.
 
 ## 위험과 완화
 | 위험 | 완화 |
@@ -151,6 +168,8 @@ blocked_paths:
 | v2·미국 리포트에 틀린 산식 표시 | ROE 기준 값으로 분기 |
 | 자동 채움이 사용자 입력을 덮어씀 | 직접 고친 칸 보존 |
 | 단위 불일치로 금액이 틀리게 들어감 | 현재 금액 단위로 환산 |
+| 주가지표 서비스 변경이 챗봇 응답에 영향 | 호출처 회귀 확인, 챗봇 코드 불변 |
+| 미국 SEC 태그 의미 오해 | 구현 전 실측 확인 |
 | 종목 평가 자동 채움 지연 | 클릭 시에만 호출, 로딩·실패 표시 |
 | 화면 요소 복제로 두 화면이 어긋남 | 후속 작업은 두 화면을 함께 고친다 |
 
@@ -160,11 +179,14 @@ blocked_paths:
 - 합계 행이 없는 종목의 실제 존재 여부.
 - 종목 평가 자동 채움 체감 지연 — 구현 단계 실측.
 
-## 테스트
-`test_plan_status: pending`. 단위 테스트 작성 여부는 plan 승인 전에 태형님 결정을 받는다.
+## 단위 테스트 계획
+- 테스트 작성: 작성함 (2026-09-28 태형님 결정)
+- 테스트 시나리오: 대화로 협의 중
+- 사용자 승인: 미승인
+- 다음 단계: 시나리오 승인 후 테스트 계획 문서에 반영하고 `test_plan_status: approved`로 전환
 
 ## 완료 정의
-- REQ-1~20 충족, REQ-21~29는 제외로 유지(REQ-21·22는 후속 이슈 등록).
+- REQ-1~22 충족, REQ-23~29는 제외로 유지.
 - 국내 리포트에서 지배주주지분·비지배지분·지배주주순이익 행과 지배주주 기준 ROE가 보인다.
 - S-RIM 자동 채움 버튼이 공통 칸과 ROE 계산 모드 연도 행을 채우고 출처를 표시한다.
 - 반기보고서가 있는 종목이 반기 기준 주식수와 기준일을 쓴다.

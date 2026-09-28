@@ -200,7 +200,8 @@ public class KrReportSnapshotAssembler implements ReportSnapshotAssembler {
                 extractor.priceMetrics(response, baseYear, side.valuation(), side.quantities()),
                 extractor.valuationInputs(response, baseYear),
                 toShareholders(side),
-                extractor.riskSignals(response, baseYear, side.capitalIncrease()));
+                extractor.riskSignals(response, baseYear, side.capitalIncrease()),
+                extractor.roeBasis(response));
     }
 
     private String resolveStockName(String stockCode, CompanyProfileResponse profile) {

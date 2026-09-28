@@ -15,7 +15,9 @@ import java.util.Map;
  * unsupportedSections는 데이터 소스가 구조적으로 제공하지 않는 섹션 키 목록 —
  * "데이터 없음(조회 실패)"과 "미지원(설계)"을 구분해 프론트가 섹션 제거·안내 배너를 렌더한다.
  *
- * <p>schemaVersion 3: 재무제표 요약에 지배주주지분·비지배지분·지배주주순이익 행 추가(연결재무제표 종목만).
+ * <p>schemaVersion 3: 재무제표 요약에 지배주주지분·비지배지분·지배주주순이익 행 추가(연결재무제표 종목만),
+ * roeBasis 추가 — ROE 산출 기준(OWNERS: 지배주주순이익 ÷ 지배주주지분, TOTAL: 당기순이익 ÷ 자본총계).
+ * roeBasis가 없는 v2 이하 스냅샷은 TOTAL로 해석한다.
  */
 public record ReportSnapshot(
         int schemaVersion,
@@ -33,7 +35,8 @@ public record ReportSnapshot(
         PriceMetrics priceMetrics,
         ValuationInputs valuationInputs,
         Shareholders shareholders,
-        RiskSignals riskSignals
+        RiskSignals riskSignals,
+        String roeBasis
 ) {
 
     public static final int CURRENT_SCHEMA_VERSION = 3;
@@ -42,6 +45,8 @@ public record ReportSnapshot(
     public static final String COUNTRY_US = "US";
     public static final String CURRENCY_KRW = "KRW";
     public static final String CURRENCY_USD = "USD";
+    public static final String ROE_BASIS_OWNERS = "OWNERS";
+    public static final String ROE_BASIS_TOTAL = "TOTAL";
 
     public record ColumnMeta(String year, String reportLabel, boolean partial) {}
 

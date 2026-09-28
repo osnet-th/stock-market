@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.companyreport.application;
 
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.BreakdownTerm;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.MetricBreakdown;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.MetricRow;
@@ -207,12 +208,15 @@ public class SnapshotFinancialExtractor {
         Map<String, BigDecimal> revenue = summarySeries(timeline, "매출액");
         Map<String, BigDecimal> net = summarySeries(timeline, "당기순이익");
         Map<String, BigDecimal> operatingMargin = percentSeries(summarySeries(timeline, "영업이익"), revenue);
-        Map<String, BigDecimal> roe = percentSeries(net, summarySeries(timeline, "자본총계"));
+        boolean ownersBasis = ReportSnapshot.ROE_BASIS_OWNERS.equals(roeBasis(timeline));
+        Map<String, BigDecimal> roe = ownersBasis
+                ? percentSeries(ownersNetIncomeSeries(timeline), ownersEquitySeries(timeline))
+                : percentSeries(net, summarySeries(timeline, "자본총계"));
         Map<String, BigDecimal> roa = percentSeries(net, summarySeries(timeline, "자산총계"));
         return List.of(
                 ratioRow("operatingMargin", "영업이익률(%)", "profitability", operatingMargin,
                         judge(operatingMargin.get(baseYear), new BigDecimal("5"), BigDecimal.ZERO)),
-                ratioRow("roe", "ROE(%)", "profitability", roe,
+                ratioRow("roe", ownersBasis ? "ROE(지배주주, %)" : "ROE(%)", "profitability", roe,
                         judge(roe.get(baseYear), new BigDecimal("10"), new BigDecimal("5"))),
                 ratioRow("roa", "ROA(%)", "profitability", roa,
                         judge(roa.get(baseYear), new BigDecimal("5"), BigDecimal.ZERO)));
@@ -226,6 +230,15 @@ public class SnapshotFinancialExtractor {
                         judge(revenueGrowth.get(baseYear), new BigDecimal("10"), BigDecimal.ZERO)),
                 ratioRow("operatingProfitGrowth", "영업이익 성장률(%)", "growth", operatingGrowth,
                         judge(operatingGrowth.get(baseYear), new BigDecimal("10"), BigDecimal.ZERO)));
+    }
+
+    /**
+     * ROE 산출 기준. 지배주주지분·지배주주순이익이 모두 있으면 OWNERS, 하나라도 없으면 TOTAL(당기순이익 ÷ 자본총계).
+     * 분자·분모 기준을 섞지 않기 위해 연도별이 아니라 종목 단위로 한 기준만 쓴다.
+     */
+    public String roeBasis(FinancialTimelineResponse timeline) {
+        boolean hasOwners = !ownersEquitySeries(timeline).isEmpty() && !ownersNetIncomeSeries(timeline).isEmpty();
+        return hasOwners ? ReportSnapshot.ROE_BASIS_OWNERS : ReportSnapshot.ROE_BASIS_TOTAL;
     }
 
     /**

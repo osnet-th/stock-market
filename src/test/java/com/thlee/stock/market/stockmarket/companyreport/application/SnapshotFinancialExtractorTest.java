@@ -1,6 +1,8 @@
 package com.thlee.stock.market.stockmarket.companyreport.application;
 
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.MetricRow;
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.RatioRow;
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse.TimelineColumn;
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse.TimelineDetailGroup;
@@ -72,7 +74,53 @@ class SnapshotFinancialExtractorTest {
         assertThat(values(rows, "is.ownersNetIncome")).containsEntry("2025", "95");
     }
 
+    @Test
+    @DisplayName("A4 지배주주 계정이 모두 있으면 ROE = 지배주주순이익 ÷ 지배주주지분, 기준은 지배주주")
+    void roeOnOwnersBasis() {
+        FinancialTimelineResponse timeline = timeline(
+                summary("120", "1100"),
+                List.of(group("BS", List.of(row(OWNERS_EQUITY_ID, OWNERS_NAME, Map.of("2025", "1000")))),
+                        group("IS", List.of(row(OWNERS_NET_INCOME_ID, OWNERS_NAME, Map.of("2025", "100"))))),
+                List.of(column("2025", "11011", false)));
+
+        assertThat(roe(timeline)).containsEntry("2025", "10.00");
+        assertThat(extractor.roeBasis(timeline)).isEqualTo(ReportSnapshot.ROE_BASIS_OWNERS);
+    }
+
+    @Test
+    @DisplayName("A5 지배주주 계정이 없으면(개별재무제표) ROE = 당기순이익 ÷ 자본총계, 기준은 전체")
+    void roeOnTotalBasisWithoutOwnersAccounts() {
+        FinancialTimelineResponse timeline = timeline(summary("120", "1100"), List.of(),
+                List.of(column("2025", "11011", false)));
+
+        assertThat(roe(timeline)).containsEntry("2025", "10.91");
+        assertThat(extractor.roeBasis(timeline)).isEqualTo(ReportSnapshot.ROE_BASIS_TOTAL);
+    }
+
+    @Test
+    @DisplayName("A6 지배주주지분만 있고 지배주주순이익이 없으면 기준을 섞지 않고 전체 기준으로 계산한다")
+    void roeFallsBackToTotalWhenOwnersIncomeMissing() {
+        FinancialTimelineResponse timeline = timeline(
+                summary("120", "1100"),
+                List.of(group("BS", List.of(row(OWNERS_EQUITY_ID, OWNERS_NAME, Map.of("2025", "1000"))))),
+                List.of(column("2025", "11011", false)));
+
+        assertThat(roe(timeline)).containsEntry("2025", "10.91");
+        assertThat(extractor.roeBasis(timeline)).isEqualTo(ReportSnapshot.ROE_BASIS_TOTAL);
+    }
+
+    private Map<String, String> roe(FinancialTimelineResponse timeline) {
+        return extractor.ratioRows(timeline, "2025").stream()
+                .filter(r -> "roe".equals(r.key())).findFirst()
+                .map(RatioRow::values).orElse(Map.of());
+    }
+
     // === fixture ===
+
+    static List<TimelineRow> summary(String netIncome, String totalEquity) {
+        return List.of(row(null, "당기순이익", Map.of("2025", netIncome)),
+                row(null, "자본총계", Map.of("2025", totalEquity)));
+    }
 
     static FinancialTimelineResponse timeline(List<TimelineDetailGroup> details) {
         return timeline(List.of(), details, List.of(column("2025", "11011", false)));

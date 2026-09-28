@@ -38,10 +38,11 @@ public class ReportSnapshotJsonMapper {
     }
 
     /**
-     * v1(국내 전용) 스냅샷 하위 호환 — country/currency/unsupportedSections 부재 시 KR/KRW/빈 목록으로 해석
+     * 하위 호환 — v1: country/currency/unsupportedSections 부재 시 KR/KRW/빈 목록, v2 이하: roeBasis 부재 시 TOTAL로 해석
      */
     private ReportSnapshot withDefaults(ReportSnapshot snapshot) {
-        if (snapshot.country() != null && snapshot.currency() != null && snapshot.unsupportedSections() != null) {
+        if (snapshot.country() != null && snapshot.currency() != null && snapshot.unsupportedSections() != null
+                && snapshot.roeBasis() != null) {
             return snapshot;
         }
         return new ReportSnapshot(
@@ -60,6 +61,7 @@ public class ReportSnapshotJsonMapper {
                 snapshot.priceMetrics(),
                 snapshot.valuationInputs(),
                 snapshot.shareholders(),
-                snapshot.riskSignals());
+                snapshot.riskSignals(),
+                snapshot.roeBasis() != null ? snapshot.roeBasis() : ReportSnapshot.ROE_BASIS_TOTAL);
     }
 }

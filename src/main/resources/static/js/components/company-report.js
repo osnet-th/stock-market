@@ -1379,9 +1379,9 @@ const CompanyReportComponent = {
                 { grade: 'B', label: '영업이익률·ROE·ROA 모두 양호' },
                 { grade: 'C', label: '주의 있음 (판정 불가는 주의로 봄)' },
                 { grade: 'D', label: '위험 있음' },
-                { grade: 'E', label: '영업이익률 ≤0%(영업적자, 0 포함) 또는 기준연도 ROE 음수(순적자)' }
+                { grade: 'E', label: '영업이익률 ≤0%(영업적자, 0 포함) 또는 기준연도 ROE 음수(지배주주 기준 순적자)' }
             ],
-            note: '판정 기준 — 영업이익률: 양호 ≥5%·위험 ≤0%, ROE: 양호 ≥10%·위험 ≤5%, ROA: 양호 ≥5%·위험 ≤0%.'
+            note: '판정 기준 — 영업이익률: 양호 ≥5%·위험 ≤0%, ROE: 양호 ≥10%·위험 ≤5%, ROA: 양호 ≥5%·위험 ≤0%. ROE는 지배주주순이익 ÷ 지배주주지분 기준이며, 지배주주 계정이 없는 종목·이전 리포트는 당기순이익 ÷ 자본총계 기준이다.'
         },
         growth: {
             rules: [
@@ -1422,7 +1422,7 @@ const CompanyReportComponent = {
         profitability() {
             return [
                 this._crReasonRatioFormula('영업이익률 = 영업이익 ÷ 매출액', 'is.operatingProfit', 'is.revenue', 'operatingMargin'),
-                this._crReasonRatioFormula('ROE = 당기순이익 ÷ 자본총계', 'is.netIncome', 'bs.totalEquity', 'roe'),
+                this._crReasonRoeFormula(),
                 this._crReasonRatioFormula('ROA = 당기순이익 ÷ 자산총계', 'is.netIncome', 'bs.totalAssets', 'roa')
             ];
         },
@@ -1495,6 +1495,17 @@ const CompanyReportComponent = {
         return formula + '\n= ' + this.crAmt(numer) + ' ÷ ' + this.crAmt(denom) + ' = ' + this.crPct(result);
     },
 
+    // ROE 산출 기준은 스냅샷 roeBasis를 따른다 (없으면 이전 스냅샷 → 전체 기준)
+    _crReasonRoeFormula() {
+        return this._crReasonRoeOwners()
+            ? this._crReasonRatioFormula('ROE = 지배주주순이익 ÷ 지배주주지분', 'is.ownersNetIncome', 'bs.ownersEquity', 'roe')
+            : this._crReasonRatioFormula('ROE = 당기순이익 ÷ 자본총계', 'is.netIncome', 'bs.totalEquity', 'roe');
+    },
+
+    _crReasonRoeOwners() {
+        return this._crReasonSource()?.snapshot?.roeBasis === 'OWNERS';
+    },
+
     _crReasonNetCashFormula() {
         const vi = this._crReasonSource()?.snapshot?.valuationInputs;
         if (!vi || vi.netCash == null) return null;
@@ -1526,7 +1537,7 @@ const CompanyReportComponent = {
             ratios: ['equityRatio', 'currentRatio', 'debtRatio']
         },
         profitability: {
-            statements: ['is.revenue', 'is.operatingProfit', 'is.netIncome'],
+            statements: ['is.revenue', 'is.operatingProfit', 'is.netIncome', 'is.ownersNetIncome', 'bs.ownersEquity'],
             ratios: ['operatingMargin', 'roe', 'roa']
         },
         growth: {

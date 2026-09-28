@@ -8,7 +8,7 @@ date: 2026-09-27
 branch: issue/124-srim-autofill-owners-equity
 worktree: /Users/thlee/Documents/personal/stock-market-issue-124
 brainstorm: docs/brainstorms/2026-09-27-srim-autofill-owners-equity-brainstorm.md
-test_plan_status: pending
+test_plan_status: approved
 schema_plan_status: none
 allowed_paths:
   - src/main/java/com/thlee/stock/market/stockmarket/companyreport/application/**
@@ -17,6 +17,7 @@ allowed_paths:
   - src/main/java/com/thlee/stock/market/stockmarket/stock/application/StockFinancialService.java
   - src/main/java/com/thlee/stock/market/stockmarket/stock/infrastructure/stock/dart/DartFinancialAdapter.java
   - src/main/java/com/thlee/stock/market/stockmarket/stock/application/ValuationMetricService.java
+  - src/main/java/com/thlee/stock/market/stockmarket/stock/application/ShareReportSelector.java
   - src/main/java/com/thlee/stock/market/stockmarket/stock/infrastructure/stock/sec/SecFinancialAdapter.java
   - src/test/java/com/thlee/stock/market/stockmarket/companyreport/application/**
   - src/test/java/com/thlee/stock/market/stockmarket/stock/application/**
@@ -122,6 +123,7 @@ blocked_paths:
 - `DartStockTotqyItem.stlm_dt`를 `StockQuantity` → `StockQuantityResponse`까지 전달.
 
 ### U4 주식총수 사업·반기 전환 (선행 U3)
+- 보고서 선택은 순수 클래스 `ShareReportSelector`(stock/application, 신규)로 분리해 U4b와 공유한다.
 - `KrReportSnapshotAssembler`: 정기공시 목록으로 사업·반기 중 최신 (연도, 보고서 코드) 쌍을 고른다. 공시 조회는 호출 스레드에서 먼저 수행하고 결과만 병렬 태스크에 넘긴다.
 - 실패·후보 없음 → (기준연도, 사업보고서) 폴백.
 - 기존 보통주 우선 유통주식수 계산 함수는 수정하지 않는다.
@@ -180,10 +182,11 @@ blocked_paths:
 - 종목 평가 자동 채움 체감 지연 — 구현 단계 실측.
 
 ## 단위 테스트 계획
-- 테스트 작성: 작성함 (2026-09-28 태형님 결정)
-- 테스트 시나리오: 대화로 협의 중
-- 사용자 승인: 미승인
-- 다음 단계: 시나리오 승인 후 테스트 계획 문서에 반영하고 `test_plan_status: approved`로 전환
+- 테스트 작성: 작성함
+- 테스트 계획 문서: [테스트 계획](./tests/2026-09-27-124-srim-autofill-owners-equity-test-plan.md)
+- 사용자 승인: 테스트 시나리오 승인됨 (2026-09-28)
+- 승인된 테스트 시나리오: 정상 17건, 예외 6건
+- 검증 명령: `./gradlew test --tests "*SnapshotFinancialExtractorTest" --tests "*ShareReportSelectorTest" --tests "*KrReportSnapshotAssemblerTest" --tests "*ValuationMetricServiceTest" --tests "*UsSnapshotFinancialExtractorTest" --tests "*DartFinancialAdapterTest"`
 
 ## 완료 정의
 - REQ-1~22 충족, REQ-23~29는 제외로 유지.

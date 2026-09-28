@@ -13,6 +13,8 @@ public enum UsFinancialConcept {
     OPERATING_INCOME,
     PRETAX_INCOME,
     NET_INCOME,
+    /** 지배주주 귀속 순이익 전용 (폴백 없음) — ROE 지배주주 기준 판정용 */
+    NET_INCOME_TO_PARENT,
 
     // 현금흐름
     OPERATING_CF,
@@ -27,6 +29,8 @@ public enum UsFinancialConcept {
     TOTAL_LIABILITIES,
     CURRENT_LIABILITIES,
     EQUITY,
+    /** 지배주주 귀속 자본 전용 (폴백 없음) — ROE 지배주주 기준 판정용 */
+    EQUITY_OF_PARENT,
     RETAINED_EARNINGS,
     CAPITAL_STOCK,
 

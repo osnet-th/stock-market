@@ -19,6 +19,7 @@ allowed_paths:
   - src/main/java/com/thlee/stock/market/stockmarket/stock/application/ValuationMetricService.java
   - src/main/java/com/thlee/stock/market/stockmarket/stock/application/ShareReportSelector.java
   - src/main/java/com/thlee/stock/market/stockmarket/stock/infrastructure/stock/sec/SecFinancialAdapter.java
+  - src/main/java/com/thlee/stock/market/stockmarket/stock/domain/model/UsFinancialConcept.java
   - src/test/java/com/thlee/stock/market/stockmarket/companyreport/application/**
   - src/test/java/com/thlee/stock/market/stockmarket/stock/application/**
   - src/test/java/com/thlee/stock/market/stockmarket/stock/infrastructure/stock/**
@@ -46,7 +47,7 @@ blocked_paths:
 ## 작업 리스트
 - [x] U1 지배주주지분·비지배지분·지배주주순이익 추출 + 스냅샷 노출 + schemaVersion 3
 - [x] U2 요약 표 행 추가 + ROE 기준 교체 + ROE 기준 전달 + 근거 산식·기준표 문구
-- [ ] U2b 미국 리포트 ROE 기준 표기 + 기준 혼합 방지
+- [x] U2b 미국 리포트 ROE 기준 표기 + 기준 혼합 방지
 - [ ] U3 결산기준일 어댑터 유실 복구
 - [ ] U4 리포트 경로 주식총수 사업·반기 전환 + 폴백
 - [ ] U4b 주가지표 서비스 주식총수 사업·반기 전환 + 챗봇 경로 회귀 확인
@@ -115,9 +116,9 @@ blocked_paths:
 - 수익성 제안 등급 계산 로직과 임계값은 바꾸지 않는다.
 
 ### U2b 미국 리포트 ROE (선행 U2)
-- SEC 순이익·자본 조회에서 어떤 태그가 쓰였는지 연도별로 전달한다 (지배주주 태그 / 비지배 포함 폴백 태그).
-- 두 값 모두 지배주주 태그면 ROE 기준 값 = 지배주주. 한쪽이라도 폴백 태그면 분자·분모를 모두 전체 기준 태그로 맞추거나, 불가하면 ROE를 비우지 않고 전체 기준으로 표기한다.
-- 태그 의미는 구현 전 실제 종목 1~2개로 실측 확인한다.
+- (2026-09-28 재승인) 어댑터의 태그 폴백 병합이 연도별로 태그를 섞어 출처 태그 정보가 남지 않으므로, 태그 전달 대신 `UsFinancialConcept`에 지배주주 전용 개념 2개를 추가한다: `NET_INCOME_TO_PARENT`(`NetIncomeLoss`만), `EQUITY_OF_PARENT`(`StockholdersEquity`만). 기존 `NET_INCOME`/`EQUITY` 폴백 체인은 그대로 둔다.
+- 두 전용 시리즈가 모두 있으면 ROE = 지배주주 순이익 ÷ 지배주주 자본, 기준 값 = 지배주주. 하나라도 없으면 기존 계산 유지, 기준 값 = 전체.
+- SEC 태그 의미 실측은 이 환경 네트워크 정책(data.sec.gov 403)으로 불가 — 검증 단계에서 확인한다.
 
 ### U3 결산기준일 복구 (선행 없음)
 - `DartStockTotqyItem.stlm_dt`를 `StockQuantity` → `StockQuantityResponse`까지 전달.
@@ -177,6 +178,7 @@ blocked_paths:
 
 ## 열린 질문
 - 분기 컬럼의 지배주주지분 값 품질 — U5 착수 전 실측.
+- 미국 SEC 태그 의미(`NetIncomeLoss`·`StockholdersEquity` = 지배주주 귀속) — 현재 환경에서 SEC 접속 불가, 검증 단계에서 실측.
 - 반기보고서가 없는 신규 상장 종목의 폴백 실동작.
 - 합계 행이 없는 종목의 실제 존재 여부.
 - 종목 평가 자동 채움 체감 지연 — 구현 단계 실측.

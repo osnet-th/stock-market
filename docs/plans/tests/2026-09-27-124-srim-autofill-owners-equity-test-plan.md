@@ -58,8 +58,8 @@
 ### E. UsSnapshotFinancialExtractor (fixture)
 | Case | Given | When | Then |
 |---|---|---|---|
-| E1 정상 | 순이익·자본 모두 지배주주 태그 | ROE 계산 | 기준 값=지배주주 |
-| E2 예외 | 자본만 비지배 포함 폴백 태그 | ROE 계산 | 기준 혼합 없이 전체 기준 표기 |
+| E1 정상 | 지배주주 전용 순이익·자본 시리즈가 모두 있음 | ROE 계산 | 지배주주 순이익 ÷ 지배주주 자본, 기준 값=지배주주 |
+| E2 예외 | 지배주주 전용 자본 시리즈가 없음(비지배 포함 태그만) | ROE 계산 | 기준 혼합 없이 기존 계산, 기준 값=전체 |
 
 ### F. DartFinancialAdapter (클라이언트·캐시 Mock)
 | Case | Given | When | Then |

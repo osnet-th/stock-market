@@ -138,6 +138,11 @@ const StockEvalComponent = {
         return this.stockEval.srim;
     },
 
+    // 연도 행 금액 칸 뒤에 표시하는 현재 금액 단위 (종목 평가는 국내 전용 → 원)
+    seSrimUnitLabel() {
+        return ({ '8': '억 원', '12': '조 원' })[this.seSrim().amountScale] || '원';
+    },
+
     seSrimChanged() {
         const s = this.seSrim();
         s._gen += 1;

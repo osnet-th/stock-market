@@ -150,6 +150,12 @@ const CompanyReportComponent = {
         return currency === 'USD' ? '달러(USD)' : '원(KRW)';
     },
 
+    // 금액 단위 표시 (지배주주지분 칸의 단위 선택과 연도 행 금액 칸 뒤 표시에 공용). scale 생략 시 현재 선택 단위
+    crSrimUnitLabel(scale = this.companyReport.srim.amountScale) {
+        const base = this.crSrimCurrency() === 'USD' ? '달러' : '원';
+        return ({ '8': '억 ', '12': '조 ' }[String(scale)] || '') + base;
+    },
+
     crSrimChanged() {
         this._crSrimGeneration = (this._crSrimGeneration || 0) + 1;
         const s = this.companyReport.srim;

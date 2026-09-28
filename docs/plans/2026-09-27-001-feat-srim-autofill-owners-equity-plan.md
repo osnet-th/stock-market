@@ -3,7 +3,7 @@ title: "feat: S-RIM 입력 자동 채움 · 기업 리포트 지배주주지분 
 type: feat
 issue: 124
 issue_url: https://github.com/osnet-th/stock-market/issues/124
-status: draft
+status: active
 date: 2026-09-27
 branch: issue/124-srim-autofill-owners-equity
 worktree: /Users/thlee/Documents/personal/stock-market-issue-124

@@ -381,6 +381,20 @@ const CompanyReportComponent = {
         return value == null ? '—' : this.crSrimNumber(this._crSrimShift(String(value), 2)) + '%';
     },
 
+    crSrimScenarioLabel(valuation, index, scenario) {
+        const result = valuation?.results?.[index];
+        const requiredReturn = valuation?.input?.requiredReturn;
+        if (!result?.[scenario] || result.roe == null || requiredReturn == null) return '';
+        const roe = Number(result.roe);
+        const required = Number(requiredReturn);
+        if (!Number.isFinite(roe) || !Number.isFinite(required)) return '';
+        if (roe === required) return '요구수익 충족 · 초과이익 없음';
+        const shortfall = roe < required;
+        if (scenario === 'perpetual') return shortfall ? '요구수익 대비 부족분이 영구 유지' : '초과이익이 영구 유지';
+        const rate = scenario === 'decline10' ? 10 : 20;
+        return shortfall ? `요구수익 대비 부족분이 매년 ${rate}% 축소` : `초과이익이 매년 ${rate}% 감소`;
+    },
+
     crSrimPrice(scenario, currency) {
         return scenario == null ? '—' : this.crSrimNumber(scenario.price, currency === 'USD' ? 2 : 0) + (currency === 'USD' ? ' 달러' : ' 원');
     },

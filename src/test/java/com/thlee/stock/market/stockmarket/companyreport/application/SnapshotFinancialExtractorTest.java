@@ -124,7 +124,7 @@ class SnapshotFinancialExtractorTest {
 
         SrimBasis basis = extractor.srimBasis(timeline, "2025", List.of(), null);
 
-        assertThat(basis.equity()).isEqualByComparingTo("1100");
+        assertThat(basis.equity()).isEqualTo("1100");
         assertThat(basis.equityDate()).isEqualTo("2026-09-30");
         assertThat(basis.yearEndEquities()).containsOnlyKeys("2025");
     }
@@ -138,7 +138,7 @@ class SnapshotFinancialExtractorTest {
 
         SrimBasis basis = extractor.srimBasis(timeline, "2025", List.of(), null);
 
-        assertThat(basis.equity()).isEqualByComparingTo("1000");
+        assertThat(basis.equity()).isEqualTo("1000");
         assertThat(basis.equityDate()).isEqualTo("2025-12-31");
     }
 
@@ -155,7 +155,7 @@ class SnapshotFinancialExtractorTest {
                 new PeriodicReport(2026, ReportCode.SEMI_ANNUAL));
         BigDecimal marketCap = extractor.priceMetrics(timeline, "2025", valuation, quantities).marketCap();
 
-        assertThat(basis.shares()).isEqualByComparingTo("1000");
+        assertThat(basis.shares()).isEqualTo("1000");
         assertThat(basis.sharesCategory()).isEqualTo("합계");
         assertThat(basis.sharesReport()).isEqualTo("2026 반기보고서");
         assertThat(basis.sharesDate()).isEqualTo("2026-06-30");

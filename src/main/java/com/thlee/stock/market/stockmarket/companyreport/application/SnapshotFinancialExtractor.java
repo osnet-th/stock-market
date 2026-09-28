@@ -546,11 +546,11 @@ public class SnapshotFinancialExtractor {
         TimelineColumn equityColumn = equityColumn(timeline, equities, baseYear);
         StockQuantityResponse total = totalQuantity(quantities);
         return new SrimBasis(
-                equityColumn == null ? null : equities.get(equityColumn.getYear()),
+                equityColumn == null ? null : equities.get(equityColumn.getYear()).toPlainString(),
                 equityColumn == null ? null : periodEndDate(equityColumn.getYear(), equityColumn.getReportCode()),
                 equityColumn == null ? null : equityColumn.getYear() + " " + equityColumn.getReportLabel(),
                 yearEndEquities(timeline, equities),
-                total == null ? null : parse(total.getDistributedStockCount()),
+                total == null ? null : parse(total.getDistributedStockCount()).toPlainString(),
                 total == null ? null : total.getSettlementDate(),
                 shareReport == null ? null : shareReport.year() + " " + shareReport.reportCode().getLabel(),
                 total == null ? null : total.getCategory());
@@ -572,11 +572,11 @@ public class SnapshotFinancialExtractor {
                 .orElse(null);
     }
 
-    private Map<String, BigDecimal> yearEndEquities(FinancialTimelineResponse timeline, Map<String, BigDecimal> equities) {
-        Map<String, BigDecimal> yearEnd = new LinkedHashMap<>();
+    private Map<String, String> yearEndEquities(FinancialTimelineResponse timeline, Map<String, BigDecimal> equities) {
+        Map<String, String> yearEnd = new LinkedHashMap<>();
         timeline.getColumns().stream()
                 .filter(column -> !column.isPartial() && equities.containsKey(column.getYear()))
-                .forEach(column -> yearEnd.put(column.getYear(), equities.get(column.getYear())));
+                .forEach(column -> yearEnd.put(column.getYear(), equities.get(column.getYear()).toPlainString()));
         return yearEnd;
     }
 

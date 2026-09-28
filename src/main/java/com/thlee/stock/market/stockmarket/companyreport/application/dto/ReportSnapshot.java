@@ -51,7 +51,7 @@ public record ReportSnapshot(
     public static final String ROE_BASIS_TOTAL = "TOTAL";
 
     /**
-     * S-RIM 입력 자동 채움 근거. 값이 없는 항목은 null.
+     * S-RIM 입력 자동 채움 근거. 금액·주식수는 브라우저 정밀도 보존을 위해 plain 문자열. 값이 없는 항목은 null.
      *
      * @param equity          지배주주지분 (최신 정기보고서 컬럼 우선, 없으면 기준연도 연간 값)
      * @param equityDate      자본 기준일 (yyyy-MM-dd)
@@ -63,11 +63,11 @@ public record ReportSnapshot(
      * @param sharesCategory  주식수 행 구분 (예: "합계")
      */
     public record SrimBasis(
-            BigDecimal equity,
+            String equity,
             String equityDate,
             String equityReport,
-            Map<String, BigDecimal> yearEndEquities,
-            BigDecimal shares,
+            Map<String, String> yearEndEquities,
+            String shares,
             String sharesDate,
             String sharesReport,
             String sharesCategory

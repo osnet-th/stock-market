@@ -1,7 +1,7 @@
 /** Company Report - 기업분석리포트 (등록/조회). 7단계 위저드 작성 + 임시저장(draft), 정량 스냅샷 자동 산출 */
 const CompanyReportComponent = {
     companyReport: {
-        srim: { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false },
+        srim: { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {} },
         view: 'list',            // list | form(위저드) | detail
 
         // ==== 목록 ====
@@ -110,7 +110,7 @@ const CompanyReportComponent = {
     // S-RIM: 금액은 기본 통화 단위 decimal 문자열로 전송해 큰 정수 정밀도를 보존한다.
     _crSrimEmpty() {
         return { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
-            referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false };
+            referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {} };
     },
 
     crSrimChangeUnit() {
@@ -187,6 +187,91 @@ const CompanyReportComponent = {
         this.crSrimChanged();
     },
 
+    // ==================== S-RIM 재무 데이터 자동 채움 ====================
+    // 스냅샷 srimBasis(국내 연결재무제표)를 버튼 클릭 시에만 채운다. 비어 있거나 직전에 자동으로 채운 값 그대로인 칸만 갱신하고,
+    // 사용자가 직접 고친 칸은 보존한다. 금액 비교는 기본 통화 단위(raw)로 해 단위 변경에도 추적이 유지된다.
+    crSrimBasis() {
+        return this.companyReport.preview?.snapshot?.srimBasis || null;
+    },
+
+    crSrimAutoFillHint() {
+        const snap = this.companyReport.preview?.snapshot;
+        if (!snap || snap.srimBasis) return '';
+        return snap.country === 'KR' ? '재무 새로고침 후 사용 가능' : '';
+    },
+
+    crSrimAutoFill() {
+        const basis = this.crSrimBasis();
+        if (!basis) return;
+        const s = this.companyReport.srim;
+        const scale = Number(s.amountScale);
+        const equitySource = ['지배주주지분', basis.equityReport, basis.equityDate].filter(Boolean).join(' · ');
+        const sharesSource = [(basis.sharesCategory || '') + ' 유통주식수(자기주식 차감)', basis.sharesReport, basis.sharesDate]
+            .filter(Boolean).join(' · ');
+        this._crSrimFill(s, 'equity', basis.equity, v => this._crSrimShift(v, -scale), equitySource);
+        this._crSrimFill(s, 'equityDate', basis.equityDate, v => v, equitySource);
+        this._crSrimFill(s, 'shares', basis.shares, v => v, sharesSource);
+        this._crSrimFill(s, 'sharesDate', basis.sharesDate, v => v, sharesSource);
+        s.years.forEach(row => this._crSrimFillPreviousEquity(row, basis, scale));
+        this.crSrimChanged();
+    },
+
+    _crSrimFill(s, key, raw, toDisplay, source) {
+        if (raw == null || raw === '') return;
+        const current = s[key];
+        const empty = current == null || String(current).trim() === '';
+        if (!empty && !this._crSrimIsAutoValue(s, key, current)) return;
+        const normalized = this._crSrimAmountKey(key) ? this._crSrimShift(String(raw), 0) : String(raw);
+        s[key] = toDisplay(String(raw));
+        s.autoFilled = { ...s.autoFilled, [key]: normalized };
+        s.sources = { ...s.sources, [key]: source };
+    },
+
+    // ROE 계산 모드 행만: Y년 행 ← Y−1년 말 지배주주지분. 값이 없는 연도는 비워 두고, 예상 지분·예상 순이익은 채우지 않는다.
+    _crSrimFillPreviousEquity(row, basis, scale) {
+        if (row.mode !== 'CALCULATED') return;
+        const year = Number(row.year);
+        const raw = Number.isInteger(year) ? basis.yearEndEquities?.[String(year - 1)] : null;
+        if (raw == null) return;
+        const current = String(row.previousEquity ?? '').trim();
+        if (current && !this._crSrimIsAutoRow(row)) return;
+        row.previousEquity = this._crSrimShift(String(raw), -scale);
+        row._autoPrevious = this._crSrimShift(String(raw), 0);
+    },
+
+    _crSrimIsAutoRow(row) {
+        const current = String(row.previousEquity ?? '').trim();
+        if (row._autoPrevious == null || !/^[+-]?\d+(\.\d+)?$/.test(current)) return false;
+        return this._crSrimShift(current, Number(this.companyReport.srim.amountScale)) === row._autoPrevious;
+    },
+
+    crSrimRowSource(row) {
+        return this._crSrimIsAutoRow(row) ? (Number(row.year) - 1) + '년 말 지배주주지분 (사업보고서)' : '';
+    },
+
+    crSrimSource(key) {
+        const s = this.companyReport.srim;
+        return this._crSrimIsAutoValue(s, key, s[key]) ? (s.sources?.[key] || '') : '';
+    },
+
+    _crSrimIsAutoValue(s, key, current) {
+        const raw = s.autoFilled?.[key];
+        if (raw == null || current == null || String(current).trim() === '') return false;
+        return this._crSrimToRaw(key, current) === raw;
+    },
+
+    // 금액 칸은 선택 단위 → 기본 단위로 환산해 비교한다 (숫자가 아니면 수동 입력으로 본다)
+    _crSrimToRaw(key, value) {
+        const text = String(value).trim();
+        if (!this._crSrimAmountKey(key)) return text;
+        if (!/^[+-]?\d+(\.\d+)?$/.test(text)) return null;
+        return this._crSrimShift(text, Number(this.companyReport.srim.amountScale));
+    },
+
+    _crSrimAmountKey(key) {
+        return key === 'equity';
+    },
+
     _crSrimDecimal(value, label, shift = 0) {
         const text = String(value ?? '').trim();
         if (!text) return null;
@@ -212,7 +297,7 @@ const CompanyReportComponent = {
         const currency = this.crSrimCurrency();
         if (!currency) throw new Error('종목을 먼저 선택하세요.');
         return { equity: this._crSrimDecimal(s.equity, '지배주주지분', Number(s.amountScale)), equityDate: s.equityDate || null,
-            shares: decimal(s.shares, '총 주식수'), sharesDate: s.sharesDate || null,
+            shares: decimal(s.shares, '유통주식수'), sharesDate: s.sharesDate || null,
             requiredReturn: this._crSrimDecimal(s.requiredReturn, '요구수익률', -2), currency: currency,
             referencePrice: decimal(s.referencePrice, '비교 주가'), referencePriceDate: s.referencePriceDate || null,
             years: s.years.map(row => this._crSrimYearInput(row)) };

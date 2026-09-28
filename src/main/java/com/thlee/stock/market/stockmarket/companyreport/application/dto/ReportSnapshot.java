@@ -14,6 +14,8 @@ import java.util.Map;
  * KR/KRW/빈 목록으로 해석한다 ({@code ReportSnapshotJsonMapper} 참조).
  * unsupportedSections는 데이터 소스가 구조적으로 제공하지 않는 섹션 키 목록 —
  * "데이터 없음(조회 실패)"과 "미지원(설계)"을 구분해 프론트가 섹션 제거·안내 배너를 렌더한다.
+ *
+ * <p>schemaVersion 3: 재무제표 요약에 지배주주지분·비지배지분·지배주주순이익 행 추가(연결재무제표 종목만).
  */
 public record ReportSnapshot(
         int schemaVersion,
@@ -34,7 +36,7 @@ public record ReportSnapshot(
         RiskSignals riskSignals
 ) {
 
-    public static final int CURRENT_SCHEMA_VERSION = 2;
+    public static final int CURRENT_SCHEMA_VERSION = 3;
 
     public static final String COUNTRY_KR = "KR";
     public static final String COUNTRY_US = "US";

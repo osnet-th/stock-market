@@ -40,6 +40,7 @@ public class SnapshotFinancialExtractor {
     private static final String BS = "BS";
     private static final String CF = "CF";
     private static final String IS = "IS";
+    private static final String CIS = "CIS";
 
     private static final String CURRENT_ASSETS_ID = "ifrs-full_CurrentAssets";
     private static final String NONCURRENT_ASSETS_ID = "ifrs-full_NoncurrentAssets";
@@ -49,6 +50,9 @@ public class SnapshotFinancialExtractor {
     private static final String INVESTING_CF_ID = "ifrs-full_CashFlowsFromUsedInInvestingActivities";
     private static final String FINANCING_CF_ID = "ifrs-full_CashFlowsFromUsedInFinancingActivities";
     private static final String COST_OF_SALES_ID = "ifrs-full_CostOfSales";
+    private static final String OWNERS_EQUITY_ID = "ifrs-full_EquityAttributableToOwnersOfParent";
+    private static final String NON_CONTROLLING_ID = "ifrs-full_NoncontrollingInterests";
+    private static final String OWNERS_NET_INCOME_ID = "ifrs-full_ProfitLossAttributableToOwnersOfParent";
 
     /** 급증 판정: 매출 증가율 대비 초과 허용폭 (%p) */
     private static final BigDecimal SURGE_MARGIN = new BigDecimal("20");
@@ -114,7 +118,7 @@ public class SnapshotFinancialExtractor {
     }
 
     private List<MetricRow> balanceSheetRows(FinancialTimelineResponse timeline) {
-        return List.of(
+        List<MetricRow> rows = new ArrayList<>(List.of(
                 summaryRow(timeline, "bs.currentAssets", "유동자산", "유동자산"),
                 summaryRow(timeline, "bs.nonCurrentAssets", "비유동자산", "비유동자산"),
                 summaryRow(timeline, "bs.totalAssets", "자산총계", "자산총계"),
@@ -123,15 +127,47 @@ public class SnapshotFinancialExtractor {
                 summaryRow(timeline, "bs.totalLiabilities", "부채총계", "부채총계"),
                 summaryRow(timeline, "bs.capitalStock", "자본금", "자본금"),
                 summaryRow(timeline, "bs.retainedEarnings", "이익잉여금", "이익잉여금"),
-                summaryRow(timeline, "bs.totalEquity", "자본총계", "자본총계"));
+                summaryRow(timeline, "bs.totalEquity", "자본총계", "자본총계")));
+        addIfPresent(rows, "bs.ownersEquity", "지배주주지분", ownersEquitySeries(timeline));
+        addIfPresent(rows, "bs.nonControllingInterests", "비지배지분", nonControllingSeries(timeline));
+        return rows;
     }
 
     private List<MetricRow> incomeStatementRows(FinancialTimelineResponse timeline) {
-        return List.of(
+        List<MetricRow> rows = new ArrayList<>(List.of(
                 summaryRow(timeline, "is.revenue", "매출액", "매출액"),
                 summaryRow(timeline, "is.operatingProfit", "영업이익", "영업이익"),
                 summaryRow(timeline, "is.pretaxIncome", "법인세차감전 순이익", "법인세차감전순이익"),
-                summaryRow(timeline, "is.netIncome", "당기순이익", "당기순이익"));
+                summaryRow(timeline, "is.netIncome", "당기순이익", "당기순이익")));
+        addIfPresent(rows, "is.ownersNetIncome", "지배주주순이익", ownersNetIncomeSeries(timeline));
+        return rows;
+    }
+
+    /**
+     * 지배주주 계정 행은 해당 계정이 있는 종목(연결재무제표)에만 추가한다 — 개별재무제표 종목에 빈 행을 만들지 않는다.
+     */
+    private void addIfPresent(List<MetricRow> rows, String key, String name, Map<String, BigDecimal> series) {
+        if (!series.isEmpty()) {
+            rows.add(row(key, name, series));
+        }
+    }
+
+    // === 지배주주 계정 (재무제표 구분 + 계정 ID 단독 매칭 — BS 지배주주지분과 IS 지배주주순이익은 계정명이 같다) ===
+
+    private Map<String, BigDecimal> ownersEquitySeries(FinancialTimelineResponse timeline) {
+        return detailSeries(timeline, BS, OWNERS_EQUITY_ID, null);
+    }
+
+    private Map<String, BigDecimal> nonControllingSeries(FinancialTimelineResponse timeline) {
+        return detailSeries(timeline, BS, NON_CONTROLLING_ID, null);
+    }
+
+    /**
+     * 별도 손익계산서 없이 포괄손익계산서에 손익을 담는 종목이 있어 IS → CIS 순으로 찾는다.
+     */
+    private Map<String, BigDecimal> ownersNetIncomeSeries(FinancialTimelineResponse timeline) {
+        Map<String, BigDecimal> series = detailSeries(timeline, IS, OWNERS_NET_INCOME_ID, null);
+        return series.isEmpty() ? detailSeries(timeline, CIS, OWNERS_NET_INCOME_ID, null) : series;
     }
 
     private List<MetricRow> cashFlowRows(FinancialTimelineResponse timeline) {

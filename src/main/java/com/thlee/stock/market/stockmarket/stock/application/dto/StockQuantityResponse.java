@@ -18,6 +18,7 @@ public class StockQuantityResponse {
     private final String issuedTotalQuantity;
     private final String treasuryStockCount;
     private final String distributedStockCount;
+    private final String settlementDate;
 
     public static StockQuantityResponse from(StockQuantity quantity) {
         return new StockQuantityResponse(
@@ -31,7 +32,8 @@ public class StockQuantityResponse {
                 quantity.other(),
                 quantity.issuedTotalQuantity(),
                 quantity.treasuryStockCount(),
-                quantity.distributedStockCount()
+                quantity.distributedStockCount(),
+                quantity.settlementDate()
         );
     }
 }

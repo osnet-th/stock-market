@@ -724,20 +724,24 @@
                         <input type="checkbox" x-model="companyReport.srim.enabled" /> S-RIM 적정주가 (선택)</label>
                 <p class="text-xs text-gray-500 mt-2">예상 ROE와 요구수익률은 사용자 가정값입니다. 연도별 ROE를 독립 적용하며 감소율은 초과이익의 연간 감소율입니다.</p>
                 <div x-show="companyReport.srim.enabled" class="space-y-4 mt-4">
-                    <label class="block text-xs text-gray-600">자기자본·ROE 근거 금액 단위 <select x-model="companyReport.srim.amountScale" @change.stop="crSrimChangeUnit()" class="border rounded p-1.5">
-                        <option value="0">기본 단위 (원/달러)</option>
-                        <option value="8">억 (원/달러)</option>
-                        <option value="12">조 (원/달러)</option>
-                        </select>
-                        </label>
                     <p class="text-xs text-gray-600">기본 통화는 <strong x-text="crSrimCurrencyLabel()">
-                        </strong>입니다. 자기자본·ROE 근거는 선택한 금액 단위로, 비교 주가는 기본 통화 단위로 입력하세요.</p>
+                        </strong>입니다. 지배주주지분과 ROE 근거 금액은 지배주주지분 칸 옆에서 고른 단위로, 비교 주가는 기본 통화 단위로 입력하세요.</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-<label class="block text-xs text-gray-600">지배주주지분<input type="text" x-model="companyReport.srim.equity" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+<label class="block text-xs text-gray-600">지배주주지분
+                        <span class="flex">
+                        <input type="text" x-model="companyReport.srim.equity" class="flex-1 min-w-0 text-sm border border-gray-300 rounded-l px-2 py-1.5" />
+                        <select aria-label="금액 단위" x-model="companyReport.srim.amountScale" @change.stop="crSrimChangeUnit()" class="text-sm border border-l-0 border-gray-300 rounded-r bg-gray-50 px-1.5">
+                        <option value="0" x-text="crSrimUnitLabel('0')"></option>
+                        <option value="8" x-text="crSrimUnitLabel('8')"></option>
+                        <option value="12" x-text="crSrimUnitLabel('12')"></option>
+                        </select>
+                        </span>
+                        <span class="block text-[11px] text-emerald-700 mt-0.5" x-show="crSrimSource('equity')" x-text="crSrimSource('equity')"></span>
                         </label>
                         <label class="block text-xs text-gray-600">자본 기준일<input type="date" x-model="companyReport.srim.equityDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
                         </label>
-                        <label class="block text-xs text-gray-600">총 주식수 (주)<input type="text" x-model="companyReport.srim.shares" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        <label class="block text-xs text-gray-600">유통주식수 (주)<input type="text" x-model="companyReport.srim.shares" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        <span class="block text-[11px] text-emerald-700 mt-0.5" x-show="crSrimSource('shares')" x-text="crSrimSource('shares')"></span>
                         </label>
                         <label class="block text-xs text-gray-600">주식수 기준일<input type="date" x-model="companyReport.srim.sharesDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
                         </label>
@@ -748,7 +752,12 @@
                         <label class="block text-xs text-gray-600">주가 기준일<input type="date" x-model="companyReport.srim.referencePriceDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
                         </label>
                         </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                    <button type="button" @click="crSrimAutoFill()" :disabled="!crSrimBasis()" class="text-xs text-blue-700 underline disabled:opacity-40">재무 데이터 가져오기</button>
+                    <span class="text-xs text-gray-500" x-show="crSrimAutoFillHint()" x-text="crSrimAutoFillHint()"></span>
                     <button type="button" @click="crSrimUseReference()" :disabled="!companyReport.preview?.snapshot?.priceMetrics?.referencePriceDate" class="text-xs text-blue-700 underline disabled:opacity-40">리포트의 기준 주가 가져오기</button>
+                    </div>
+                    <p class="text-xs text-gray-500">재무 데이터 가져오기는 지배주주지분·유통주식수(보통주+우선주 합계, 자기주식 차감)·기준일과 ROE 계산 행의 전기말 지분을 채웁니다. 직접 수정한 칸은 덮어쓰지 않습니다.</p>
                     <p class="text-xs text-gray-500">비교율은 위 기준 주가 대비이며 실시간 현재가가 아닙니다. ROE 계산용 평균 자본은 공통 자기자본을 바꾸지 않습니다.</p>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left">
@@ -810,11 +819,15 @@
                                         <p class="text-xs text-gray-600 mb-2" x-text="(Number(row.year) - 1) + '년 말 지분과 ' + row.year + '년 말 예상 지분의 평균으로 ROE를 계산합니다.'">
                         </p>
                                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-<label class="block text-xs text-gray-600">전기말 지배주주지분<input type="text" x-model="row.previousEquity" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+<label class="block text-xs text-gray-600">전기말 지배주주지분
+                        <span class="flex items-center gap-1"><input type="text" x-model="row.previousEquity" class="flex-1 min-w-0 text-sm border border-gray-300 rounded px-2 py-1.5" /><span class="whitespace-nowrap text-gray-500" x-text="crSrimUnitLabel()"></span></span>
+                        <span class="block text-[11px] text-emerald-700 mt-0.5" x-show="crSrimRowSource(row)" x-text="crSrimRowSource(row)"></span>
                         </label>
-                        <label class="block text-xs text-gray-600">당기말 예상 지배주주지분<input type="text" x-model="row.expectedEquity" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        <label class="block text-xs text-gray-600">당기말 예상 지배주주지분
+                        <span class="flex items-center gap-1"><input type="text" x-model="row.expectedEquity" class="flex-1 min-w-0 text-sm border border-gray-300 rounded px-2 py-1.5" /><span class="whitespace-nowrap text-gray-500" x-text="crSrimUnitLabel()"></span></span>
                         </label>
-                        <label class="block text-xs text-gray-600">당기 예상 지배주주순이익<input type="text" x-model="row.expectedIncome" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        <label class="block text-xs text-gray-600">당기 예상 지배주주순이익
+                        <span class="flex items-center gap-1"><input type="text" x-model="row.expectedIncome" class="flex-1 min-w-0 text-sm border border-gray-300 rounded px-2 py-1.5" /><span class="whitespace-nowrap text-gray-500" x-text="crSrimUnitLabel()"></span></span>
                         </label>
                         </div>
                                         <p class="text-xs text-gray-500 mt-2">예상 ROE = 예상 지배주주순이익 ÷ ((전기말 지분 + 당기말 예상 지분) ÷ 2) × 100</p>
@@ -1650,7 +1663,7 @@
                         <div class="text-xs text-gray-500" x-text="companyReport.detail.srim.input.equityDate">
                         </div>
                         </div>
-                            <div>총 주식수: <span x-text="crSrimNumber(companyReport.detail.srim.input.shares, 0)">
+                            <div>유통주식수: <span x-text="crSrimNumber(companyReport.detail.srim.input.shares, 0)">
                         </span>주<div class="text-xs text-gray-500" x-text="companyReport.detail.srim.input.sharesDate">
                         </div>
                         </div>

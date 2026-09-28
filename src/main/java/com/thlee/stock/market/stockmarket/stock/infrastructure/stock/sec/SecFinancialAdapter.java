@@ -759,6 +759,7 @@ public class SecFinancialAdapter implements SecFinancialPort {
                     "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments")),
             new ConceptMapping(UsFinancialConcept.NET_INCOME, ConceptSource.USD, List.of(
                     "NetIncomeLoss", "ProfitLoss")),
+            new ConceptMapping(UsFinancialConcept.NET_INCOME_TO_PARENT, ConceptSource.USD, List.of("NetIncomeLoss")),
             new ConceptMapping(UsFinancialConcept.OPERATING_CF, ConceptSource.USD, List.of(
                     "NetCashProvidedByUsedInOperatingActivities",
                     "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations")),
@@ -781,6 +782,7 @@ public class SecFinancialAdapter implements SecFinancialPort {
             new ConceptMapping(UsFinancialConcept.EQUITY, ConceptSource.USD, List.of(
                     "StockholdersEquity",
                     "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest")),
+            new ConceptMapping(UsFinancialConcept.EQUITY_OF_PARENT, ConceptSource.USD, List.of("StockholdersEquity")),
             new ConceptMapping(UsFinancialConcept.RETAINED_EARNINGS, ConceptSource.USD, List.of(
                     "RetainedEarningsAccumulatedDeficit")),
             new ConceptMapping(UsFinancialConcept.CAPITAL_STOCK, ConceptSource.USD, List.of(

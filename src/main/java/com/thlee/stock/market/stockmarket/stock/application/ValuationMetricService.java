@@ -4,6 +4,8 @@ import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialAccount
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockPriceResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockQuantityResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.ValuationMetricResponse;
+import com.thlee.stock.market.stockmarket.stock.domain.model.PeriodicReport;
+import com.thlee.stock.market.stockmarket.stock.domain.model.ReportCode;
 import com.thlee.stock.market.stockmarket.stock.domain.model.Stock;
 import com.thlee.stock.market.stockmarket.stock.domain.service.StockPort;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class ValuationMetricService {
     private final StockFinancialService stockFinancialService;
     private final StockPriceService stockPriceService;
     private final StockPort stockPort;
+    private final ShareReportSelector shareReportSelector;
 
     public ValuationMetricResponse calculate(String stockCode) {
         List<String> warnings = new ArrayList<>();
@@ -103,9 +106,16 @@ public class ValuationMetricService {
         return value;
     }
 
+    /**
+     * 유통주식수는 사업·반기 중 최신 보고서 기준(분기는 값이 비어 제외). 선택 실패 시 재무계정과 같은 연도의 사업보고서.
+     * 반기 기준이면 분자(연간 순이익·자본)와 시점이 달라지므로 기준 보고서·결산기준일을 경고에 남긴다.
+     */
     private BigDecimal fetchDistributedShares(String stockCode, String year, List<String> warnings) {
+        PeriodicReport report = shareReportSelector.latest(stockCode, year);
+        String shareYear = report == null ? year : String.valueOf(report.year());
+        String reportCode = report == null ? REPORT_CODE_ANNUAL : report.reportCode().getCode();
         try {
-            List<StockQuantityResponse> quantities = stockFinancialService.getStockQuantities(stockCode, year, REPORT_CODE_ANNUAL);
+            List<StockQuantityResponse> quantities = stockFinancialService.getStockQuantities(stockCode, shareYear, reportCode);
             BigDecimal shares = quantities.stream()
                 .map(StockQuantityResponse::getDistributedStockCount)
                 .map(ValuationMetricService::parseAmount)
@@ -114,6 +124,9 @@ public class ValuationMetricService {
                 .orElse(null);
             if (shares == null) {
                 warnings.add("유통주식수를 확인하지 못했습니다.");
+            } else if (report != null && report.reportCode() != ReportCode.ANNUAL) {
+                warnings.add("유통주식수는 " + shareYear + " " + report.reportCode().getLabel()
+                        + settlementDateSuffix(quantities) + " 기준입니다.");
             }
             return shares;
         } catch (Exception e) {
@@ -121,6 +134,15 @@ public class ValuationMetricService {
             warnings.add("유통주식수 조회 실패: " + e.getMessage());
             return null;
         }
+    }
+
+    private String settlementDateSuffix(List<StockQuantityResponse> quantities) {
+        return quantities.stream()
+            .map(StockQuantityResponse::getSettlementDate)
+            .filter(date -> date != null && !date.isBlank())
+            .findFirst()
+            .map(date -> "(" + date + ")")
+            .orElse("");
     }
 
     private BigDecimal fetchReferencePrice(String stockCode, List<String> warnings) {

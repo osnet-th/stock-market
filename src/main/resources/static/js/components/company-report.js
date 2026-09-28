@@ -1,7 +1,7 @@
 /** Company Report - 기업분석리포트 (등록/조회). 7단계 위저드 작성 + 임시저장(draft), 정량 스냅샷 자동 산출 */
 const CompanyReportComponent = {
     companyReport: {
-        srim: { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false },
+        srim: { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {} },
         view: 'list',            // list | form(위저드) | detail
 
         // ==== 목록 ====
@@ -110,7 +110,7 @@ const CompanyReportComponent = {
     // S-RIM: 금액은 기본 통화 단위 decimal 문자열로 전송해 큰 정수 정밀도를 보존한다.
     _crSrimEmpty() {
         return { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
-            referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false };
+            referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {} };
     },
 
     crSrimChangeUnit() {
@@ -150,6 +150,12 @@ const CompanyReportComponent = {
         return currency === 'USD' ? '달러(USD)' : '원(KRW)';
     },
 
+    // 금액 단위 표시 (지배주주지분 칸의 단위 선택과 연도 행 금액 칸 뒤 표시에 공용). scale 생략 시 현재 선택 단위
+    crSrimUnitLabel(scale = this.companyReport.srim.amountScale) {
+        const base = this.crSrimCurrency() === 'USD' ? '달러' : '원';
+        return ({ '8': '억 ', '12': '조 ' }[String(scale)] || '') + base;
+    },
+
     crSrimChanged() {
         this._crSrimGeneration = (this._crSrimGeneration || 0) + 1;
         const s = this.companyReport.srim;
@@ -187,6 +193,91 @@ const CompanyReportComponent = {
         this.crSrimChanged();
     },
 
+    // ==================== S-RIM 재무 데이터 자동 채움 ====================
+    // 스냅샷 srimBasis(국내 연결재무제표)를 버튼 클릭 시에만 채운다. 비어 있거나 직전에 자동으로 채운 값 그대로인 칸만 갱신하고,
+    // 사용자가 직접 고친 칸은 보존한다. 금액 비교는 기본 통화 단위(raw)로 해 단위 변경에도 추적이 유지된다.
+    crSrimBasis() {
+        return this.companyReport.preview?.snapshot?.srimBasis || null;
+    },
+
+    crSrimAutoFillHint() {
+        const snap = this.companyReport.preview?.snapshot;
+        if (!snap || snap.srimBasis) return '';
+        return snap.country === 'KR' ? '재무 새로고침 후 사용 가능' : '';
+    },
+
+    crSrimAutoFill() {
+        const basis = this.crSrimBasis();
+        if (!basis) return;
+        const s = this.companyReport.srim;
+        const scale = Number(s.amountScale);
+        const equitySource = ['지배주주지분', basis.equityReport, basis.equityDate].filter(Boolean).join(' · ');
+        const sharesSource = [(basis.sharesCategory || '') + ' 유통주식수(자기주식 차감)', basis.sharesReport, basis.sharesDate]
+            .filter(Boolean).join(' · ');
+        this._crSrimFill(s, 'equity', basis.equity, v => this._crSrimShift(v, -scale), equitySource);
+        this._crSrimFill(s, 'equityDate', basis.equityDate, v => v, equitySource);
+        this._crSrimFill(s, 'shares', basis.shares, v => v, sharesSource);
+        this._crSrimFill(s, 'sharesDate', basis.sharesDate, v => v, sharesSource);
+        s.years.forEach(row => this._crSrimFillPreviousEquity(row, basis, scale));
+        this.crSrimChanged();
+    },
+
+    _crSrimFill(s, key, raw, toDisplay, source) {
+        if (raw == null || raw === '') return;
+        const current = s[key];
+        const empty = current == null || String(current).trim() === '';
+        if (!empty && !this._crSrimIsAutoValue(s, key, current)) return;
+        const normalized = this._crSrimAmountKey(key) ? this._crSrimShift(String(raw), 0) : String(raw);
+        s[key] = toDisplay(String(raw));
+        s.autoFilled = { ...s.autoFilled, [key]: normalized };
+        s.sources = { ...s.sources, [key]: source };
+    },
+
+    // ROE 계산 모드 행만: Y년 행 ← Y−1년 말 지배주주지분. 값이 없는 연도는 비워 두고, 예상 지분·예상 순이익은 채우지 않는다.
+    _crSrimFillPreviousEquity(row, basis, scale) {
+        if (row.mode !== 'CALCULATED') return;
+        const year = Number(row.year);
+        const raw = Number.isInteger(year) ? basis.yearEndEquities?.[String(year - 1)] : null;
+        if (raw == null) return;
+        const current = String(row.previousEquity ?? '').trim();
+        if (current && !this._crSrimIsAutoRow(row)) return;
+        row.previousEquity = this._crSrimShift(String(raw), -scale);
+        row._autoPrevious = this._crSrimShift(String(raw), 0);
+    },
+
+    _crSrimIsAutoRow(row) {
+        const current = String(row.previousEquity ?? '').trim();
+        if (row._autoPrevious == null || !/^[+-]?\d+(\.\d+)?$/.test(current)) return false;
+        return this._crSrimShift(current, Number(this.companyReport.srim.amountScale)) === row._autoPrevious;
+    },
+
+    crSrimRowSource(row) {
+        return this._crSrimIsAutoRow(row) ? (Number(row.year) - 1) + '년 말 지배주주지분 (사업보고서)' : '';
+    },
+
+    crSrimSource(key) {
+        const s = this.companyReport.srim;
+        return this._crSrimIsAutoValue(s, key, s[key]) ? (s.sources?.[key] || '') : '';
+    },
+
+    _crSrimIsAutoValue(s, key, current) {
+        const raw = s.autoFilled?.[key];
+        if (raw == null || current == null || String(current).trim() === '') return false;
+        return this._crSrimToRaw(key, current) === raw;
+    },
+
+    // 금액 칸은 선택 단위 → 기본 단위로 환산해 비교한다 (숫자가 아니면 수동 입력으로 본다)
+    _crSrimToRaw(key, value) {
+        const text = String(value).trim();
+        if (!this._crSrimAmountKey(key)) return text;
+        if (!/^[+-]?\d+(\.\d+)?$/.test(text)) return null;
+        return this._crSrimShift(text, Number(this.companyReport.srim.amountScale));
+    },
+
+    _crSrimAmountKey(key) {
+        return key === 'equity';
+    },
+
     _crSrimDecimal(value, label, shift = 0) {
         const text = String(value ?? '').trim();
         if (!text) return null;
@@ -212,7 +303,7 @@ const CompanyReportComponent = {
         const currency = this.crSrimCurrency();
         if (!currency) throw new Error('종목을 먼저 선택하세요.');
         return { equity: this._crSrimDecimal(s.equity, '지배주주지분', Number(s.amountScale)), equityDate: s.equityDate || null,
-            shares: decimal(s.shares, '총 주식수'), sharesDate: s.sharesDate || null,
+            shares: decimal(s.shares, '유통주식수'), sharesDate: s.sharesDate || null,
             requiredReturn: this._crSrimDecimal(s.requiredReturn, '요구수익률', -2), currency: currency,
             referencePrice: decimal(s.referencePrice, '비교 주가'), referencePriceDate: s.referencePriceDate || null,
             years: s.years.map(row => this._crSrimYearInput(row)) };
@@ -1379,9 +1470,9 @@ const CompanyReportComponent = {
                 { grade: 'B', label: '영업이익률·ROE·ROA 모두 양호' },
                 { grade: 'C', label: '주의 있음 (판정 불가는 주의로 봄)' },
                 { grade: 'D', label: '위험 있음' },
-                { grade: 'E', label: '영업이익률 ≤0%(영업적자, 0 포함) 또는 기준연도 ROE 음수(순적자)' }
+                { grade: 'E', label: '영업이익률 ≤0%(영업적자, 0 포함) 또는 기준연도 ROE 음수(지배주주 기준 순적자)' }
             ],
-            note: '판정 기준 — 영업이익률: 양호 ≥5%·위험 ≤0%, ROE: 양호 ≥10%·위험 ≤5%, ROA: 양호 ≥5%·위험 ≤0%.'
+            note: '판정 기준 — 영업이익률: 양호 ≥5%·위험 ≤0%, ROE: 양호 ≥10%·위험 ≤5%, ROA: 양호 ≥5%·위험 ≤0%. ROE는 지배주주순이익 ÷ 지배주주지분 기준이며, 지배주주 계정이 없는 종목·이전 리포트는 당기순이익 ÷ 자본총계 기준이다.'
         },
         growth: {
             rules: [
@@ -1422,7 +1513,7 @@ const CompanyReportComponent = {
         profitability() {
             return [
                 this._crReasonRatioFormula('영업이익률 = 영업이익 ÷ 매출액', 'is.operatingProfit', 'is.revenue', 'operatingMargin'),
-                this._crReasonRatioFormula('ROE = 당기순이익 ÷ 자본총계', 'is.netIncome', 'bs.totalEquity', 'roe'),
+                this._crReasonRoeFormula(),
                 this._crReasonRatioFormula('ROA = 당기순이익 ÷ 자산총계', 'is.netIncome', 'bs.totalAssets', 'roa')
             ];
         },
@@ -1495,6 +1586,17 @@ const CompanyReportComponent = {
         return formula + '\n= ' + this.crAmt(numer) + ' ÷ ' + this.crAmt(denom) + ' = ' + this.crPct(result);
     },
 
+    // ROE 산출 기준은 스냅샷 roeBasis를 따른다 (없으면 이전 스냅샷 → 전체 기준)
+    _crReasonRoeFormula() {
+        return this._crReasonRoeOwners()
+            ? this._crReasonRatioFormula('ROE = 지배주주순이익 ÷ 지배주주지분', 'is.ownersNetIncome', 'bs.ownersEquity', 'roe')
+            : this._crReasonRatioFormula('ROE = 당기순이익 ÷ 자본총계', 'is.netIncome', 'bs.totalEquity', 'roe');
+    },
+
+    _crReasonRoeOwners() {
+        return this._crReasonSource()?.snapshot?.roeBasis === 'OWNERS';
+    },
+
     _crReasonNetCashFormula() {
         const vi = this._crReasonSource()?.snapshot?.valuationInputs;
         if (!vi || vi.netCash == null) return null;
@@ -1526,7 +1628,7 @@ const CompanyReportComponent = {
             ratios: ['equityRatio', 'currentRatio', 'debtRatio']
         },
         profitability: {
-            statements: ['is.revenue', 'is.operatingProfit', 'is.netIncome'],
+            statements: ['is.revenue', 'is.operatingProfit', 'is.netIncome', 'is.ownersNetIncome', 'bs.ownersEquity'],
             ratios: ['operatingMargin', 'roe', 'roa']
         },
         growth: {
@@ -1542,7 +1644,9 @@ const CompanyReportComponent = {
     // kind: 'statements' | 'ratios'
     crReasonRows(kind) {
         const snap = this._crReasonSource()?.snapshot;
-        const keys = this.crReasonSourceConfig[this.crReason.key]?.[kind] || [];
+        const ownersKeys = ['is.ownersNetIncome', 'bs.ownersEquity'];
+        const keys = (this.crReasonSourceConfig[this.crReason.key]?.[kind] || [])
+            .filter(k => this._crReasonRoeOwners() || !ownersKeys.includes(k)); // 지배주주 행은 ROE가 지배주주 기준일 때만
         return keys.map(k => (snap?.[kind] || []).find(r => r.key === k)).filter(Boolean);
     },
 

@@ -48,6 +48,10 @@ services:
     depends_on:
       - nginx
     command: tunnel --config /etc/cloudflared/config.yml run
+    # 배포 훅 리스너는 컨테이너가 아니라 호스트(systemd)에서 돈다.
+    # host-gateway 는 기본 브리지(docker0) IP 로 해석되며, 배포 훅 ingress 가 이 이름을 쓴다.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
       - /home/thlee/.cloudflared/f865f55e-4fe3-474f-859d-a0d2cd562fc0.json:/etc/cloudflared/f865f55e-4fe3-474f-859d-a0d2cd562fc0.json:ro

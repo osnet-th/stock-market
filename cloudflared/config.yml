@@ -6,4 +6,9 @@ ingress:
     service: http://nginx:80
   - hostname: www.hubth.com
     service: http://nginx:80
+  # 배포 훅. nginx 를 경유하지 않는다 — nginx 도 재배포 시 재생성 대상이라
+  # 경유하면 배포 중 상태 조회가 끊긴다. 호스트(systemd) 리스너로 직결한다.
+  # host.docker.internal 은 compose 의 extra_hosts 로 기본 브리지 IP 로 해석된다.
+  - hostname: deploy.hubth.com
+    service: http://host.docker.internal:9000
   - service: http_status:404

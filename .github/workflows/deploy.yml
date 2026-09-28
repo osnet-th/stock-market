@@ -1,4 +1,11 @@
-name: Deploy to Home Server
+# 이 워크플로는 더 이상 배포하지 않는다.
+#
+# 내부 서버는 인바운드 포트 개방이 없어 GitHub 클라우드 러너에서 SSH 로 접속할 수 없다.
+# 기존에 있던 appleboy/ssh-action 배포 단계는 구조상 성공할 수 없었으므로 제거했다.
+# 배포는 Cloudflare Tunnel 을 거치는 배포 훅 API 로 트리거한다(scripts/deploy-hook-listener.py).
+#
+# 여기서는 main 에 빌드가 깨진 코드가 올라가는 것을 막는 검증만 수행한다.
+name: Build check
 
 on:
   push:
@@ -6,7 +13,7 @@ on:
       - main
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,18 +27,3 @@ jobs:
       - run: chmod +x ./gradlew
 
       - run: ./gradlew clean build -x test
-
-      - name: Deploy
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          port: ${{ secrets.SERVER_PORT }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            cd /home/thlee/hubth-server
-            git pull origin main
-            chmod +x ./gradlew
-            ./gradlew clean build -x test
-            docker compose up -d --build
-            docker image prune -f

@@ -629,8 +629,8 @@
                                         <th class="px-3 py-2">입력 방식</th>
                                         <th class="px-3 py-2">예상 ROE</th>
                                         <th class="px-3 py-2">영구 유지</th>
-                                        <th class="px-3 py-2">매년 10% 감소</th>
-                                        <th class="px-3 py-2">매년 20% 감소</th>
+                                        <th class="px-3 py-2">10% 시나리오</th>
+                                        <th class="px-3 py-2">20% 시나리오</th>
                                         <th>삭제</th>
                                     </tr>
                                 </thead>
@@ -650,6 +650,7 @@
                                             </td>
                                             <template x-for="key in ['perpetual', 'decline10', 'decline20']" :key="key">
                                                 <td class="px-3 py-2 text-right whitespace-nowrap">
+                                                    <div class="text-xs text-gray-600 whitespace-normal mb-1" x-text="crSrimScenarioLabel(seSrim().result, idx, key)"></div>
                                                     <div x-text="crSrimPrice(seSrim().result?.results?.[idx]?.[key], 'KRW')"></div>
                                                     <div class="text-xs text-gray-500" x-text="crSrimDifference(seSrim().result?.results?.[idx]?.[key])"></div>
                                                     <span class="text-xs text-amber-700" x-show="Number(seSrim().result?.results?.[idx]?.[key]?.price) &lt; 0">음수 산출값 · 해석 주의</span>

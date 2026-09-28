@@ -767,8 +767,8 @@
                         <th class="px-3 py-2">입력 방식</th>
                         <th class="px-3 py-2">예상 ROE</th>
                         <th class="px-3 py-2">영구 유지</th>
-                        <th class="px-3 py-2">매년 10% 감소</th>
-                        <th class="px-3 py-2">매년 20% 감소</th>
+                        <th class="px-3 py-2">10% 시나리오</th>
+                        <th class="px-3 py-2">20% 시나리오</th>
                         <th>삭제</th>
                         </tr>
                         </thead>
@@ -790,6 +790,7 @@
                         </span>
                         </td>
 <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div class="text-xs text-gray-600 whitespace-normal mb-1" x-text="crSrimScenarioLabel(companyReport.srim.result, idx, 'perpetual')"></div>
                         <div x-text="crSrimPrice(companyReport.srim.result?.results?.[idx]?.perpetual, crSrimCurrency())">
                         </div>
                         <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.srim.result?.results?.[idx]?.perpetual)">
@@ -797,6 +798,7 @@
                         <span class="text-xs text-amber-700" x-show="Number(companyReport.srim.result?.results?.[idx]?.perpetual?.price) &lt; 0">음수 산출값 · 해석 주의</span>
                         </td>
                         <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div class="text-xs text-gray-600 whitespace-normal mb-1" x-text="crSrimScenarioLabel(companyReport.srim.result, idx, 'decline10')"></div>
                         <div x-text="crSrimPrice(companyReport.srim.result?.results?.[idx]?.decline10, crSrimCurrency())">
                         </div>
                         <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.srim.result?.results?.[idx]?.decline10)">
@@ -804,6 +806,7 @@
                         <span class="text-xs text-amber-700" x-show="Number(companyReport.srim.result?.results?.[idx]?.decline10?.price) &lt; 0">음수 산출값 · 해석 주의</span>
                         </td>
                         <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div class="text-xs text-gray-600 whitespace-normal mb-1" x-text="crSrimScenarioLabel(companyReport.srim.result, idx, 'decline20')"></div>
                         <div x-text="crSrimPrice(companyReport.srim.result?.results?.[idx]?.decline20, crSrimCurrency())">
                         </div>
                         <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.srim.result?.results?.[idx]?.decline20)">
@@ -1681,8 +1684,8 @@
                         <th class="px-3 py-2">입력 방식</th>
                         <th class="px-3 py-2">예상 ROE</th>
                         <th class="px-3 py-2">영구 유지</th>
-                        <th class="px-3 py-2">매년 10% 감소</th>
-                        <th class="px-3 py-2">매년 20% 감소</th>
+                        <th class="px-3 py-2">10% 시나리오</th>
+                        <th class="px-3 py-2">20% 시나리오</th>
                         </tr>
                         </thead>
                             <template x-for="(row, idx) in companyReport.detail.srim.input.years" :key="idx">
@@ -1695,6 +1698,7 @@
                                     <td class="px-3 py-2" x-text="crSrimPercent(companyReport.detail.srim.results[idx]?.roe)">
                         </td>
 <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div class="text-xs text-gray-600 whitespace-normal mb-1" x-text="crSrimScenarioLabel(companyReport.detail.srim, idx, 'perpetual')"></div>
                         <div x-text="crSrimPrice(companyReport.detail.srim.results[idx]?.perpetual, companyReport.detail.srim.input.currency)">
                         </div>
                         <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.detail.srim.results[idx]?.perpetual)">
@@ -1702,6 +1706,7 @@
                         <span class="text-xs text-amber-700" x-show="Number(companyReport.detail.srim.results[idx]?.perpetual?.price) &lt; 0">음수 산출값 · 해석 주의</span>
                         </td>
                         <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div class="text-xs text-gray-600 whitespace-normal mb-1" x-text="crSrimScenarioLabel(companyReport.detail.srim, idx, 'decline10')"></div>
                         <div x-text="crSrimPrice(companyReport.detail.srim.results[idx]?.decline10, companyReport.detail.srim.input.currency)">
                         </div>
                         <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.detail.srim.results[idx]?.decline10)">
@@ -1709,6 +1714,7 @@
                         <span class="text-xs text-amber-700" x-show="Number(companyReport.detail.srim.results[idx]?.decline10?.price) &lt; 0">음수 산출값 · 해석 주의</span>
                         </td>
                         <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <div class="text-xs text-gray-600 whitespace-normal mb-1" x-text="crSrimScenarioLabel(companyReport.detail.srim, idx, 'decline20')"></div>
                         <div x-text="crSrimPrice(companyReport.detail.srim.results[idx]?.decline20, companyReport.detail.srim.input.currency)">
                         </div>
                         <div class="text-xs text-gray-500" x-text="crSrimDifference(companyReport.detail.srim.results[idx]?.decline20)">

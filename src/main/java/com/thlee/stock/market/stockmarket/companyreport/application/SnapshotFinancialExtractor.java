@@ -1,11 +1,13 @@
 package com.thlee.stock.market.stockmarket.companyreport.application;
 
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.BreakdownTerm;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.MetricBreakdown;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.MetricRow;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.PriceMetrics;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.RatioRow;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.RiskSignals;
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.SrimBasis;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.UnclassifiedLine;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.ValuationInputs;
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse;
@@ -15,6 +17,8 @@ import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelin
 import com.thlee.stock.market.stockmarket.stock.application.dto.FinancialTimelineResponse.TimelineRow;
 import com.thlee.stock.market.stockmarket.stock.application.dto.StockQuantityResponse;
 import com.thlee.stock.market.stockmarket.stock.application.dto.ValuationMetricResponse;
+import com.thlee.stock.market.stockmarket.stock.domain.model.PeriodicReport;
+import com.thlee.stock.market.stockmarket.stock.domain.model.ReportCode;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -40,6 +44,7 @@ public class SnapshotFinancialExtractor {
     private static final String BS = "BS";
     private static final String CF = "CF";
     private static final String IS = "IS";
+    private static final String CIS = "CIS";
 
     private static final String CURRENT_ASSETS_ID = "ifrs-full_CurrentAssets";
     private static final String NONCURRENT_ASSETS_ID = "ifrs-full_NoncurrentAssets";
@@ -49,6 +54,9 @@ public class SnapshotFinancialExtractor {
     private static final String INVESTING_CF_ID = "ifrs-full_CashFlowsFromUsedInInvestingActivities";
     private static final String FINANCING_CF_ID = "ifrs-full_CashFlowsFromUsedInFinancingActivities";
     private static final String COST_OF_SALES_ID = "ifrs-full_CostOfSales";
+    private static final String OWNERS_EQUITY_ID = "ifrs-full_EquityAttributableToOwnersOfParent";
+    private static final String NON_CONTROLLING_ID = "ifrs-full_NoncontrollingInterests";
+    private static final String OWNERS_NET_INCOME_ID = "ifrs-full_ProfitLossAttributableToOwnersOfParent";
 
     /** 급증 판정: 매출 증가율 대비 초과 허용폭 (%p) */
     private static final BigDecimal SURGE_MARGIN = new BigDecimal("20");
@@ -114,7 +122,7 @@ public class SnapshotFinancialExtractor {
     }
 
     private List<MetricRow> balanceSheetRows(FinancialTimelineResponse timeline) {
-        return List.of(
+        List<MetricRow> rows = new ArrayList<>(List.of(
                 summaryRow(timeline, "bs.currentAssets", "유동자산", "유동자산"),
                 summaryRow(timeline, "bs.nonCurrentAssets", "비유동자산", "비유동자산"),
                 summaryRow(timeline, "bs.totalAssets", "자산총계", "자산총계"),
@@ -123,15 +131,47 @@ public class SnapshotFinancialExtractor {
                 summaryRow(timeline, "bs.totalLiabilities", "부채총계", "부채총계"),
                 summaryRow(timeline, "bs.capitalStock", "자본금", "자본금"),
                 summaryRow(timeline, "bs.retainedEarnings", "이익잉여금", "이익잉여금"),
-                summaryRow(timeline, "bs.totalEquity", "자본총계", "자본총계"));
+                summaryRow(timeline, "bs.totalEquity", "자본총계", "자본총계")));
+        addIfPresent(rows, "bs.ownersEquity", "지배주주지분", ownersEquitySeries(timeline));
+        addIfPresent(rows, "bs.nonControllingInterests", "비지배지분", nonControllingSeries(timeline));
+        return rows;
     }
 
     private List<MetricRow> incomeStatementRows(FinancialTimelineResponse timeline) {
-        return List.of(
+        List<MetricRow> rows = new ArrayList<>(List.of(
                 summaryRow(timeline, "is.revenue", "매출액", "매출액"),
                 summaryRow(timeline, "is.operatingProfit", "영업이익", "영업이익"),
                 summaryRow(timeline, "is.pretaxIncome", "법인세차감전 순이익", "법인세차감전순이익"),
-                summaryRow(timeline, "is.netIncome", "당기순이익", "당기순이익"));
+                summaryRow(timeline, "is.netIncome", "당기순이익", "당기순이익")));
+        addIfPresent(rows, "is.ownersNetIncome", "지배주주순이익", ownersNetIncomeSeries(timeline));
+        return rows;
+    }
+
+    /**
+     * 지배주주 계정 행은 해당 계정이 있는 종목(연결재무제표)에만 추가한다 — 개별재무제표 종목에 빈 행을 만들지 않는다.
+     */
+    private void addIfPresent(List<MetricRow> rows, String key, String name, Map<String, BigDecimal> series) {
+        if (!series.isEmpty()) {
+            rows.add(row(key, name, series));
+        }
+    }
+
+    // === 지배주주 계정 (재무제표 구분 + 계정 ID 단독 매칭 — BS 지배주주지분과 IS 지배주주순이익은 계정명이 같다) ===
+
+    private Map<String, BigDecimal> ownersEquitySeries(FinancialTimelineResponse timeline) {
+        return detailSeries(timeline, BS, OWNERS_EQUITY_ID, null);
+    }
+
+    private Map<String, BigDecimal> nonControllingSeries(FinancialTimelineResponse timeline) {
+        return detailSeries(timeline, BS, NON_CONTROLLING_ID, null);
+    }
+
+    /**
+     * 별도 손익계산서 없이 포괄손익계산서에 손익을 담는 종목이 있어 IS → CIS 순으로 찾는다.
+     */
+    private Map<String, BigDecimal> ownersNetIncomeSeries(FinancialTimelineResponse timeline) {
+        Map<String, BigDecimal> series = detailSeries(timeline, IS, OWNERS_NET_INCOME_ID, null);
+        return series.isEmpty() ? detailSeries(timeline, CIS, OWNERS_NET_INCOME_ID, null) : series;
     }
 
     private List<MetricRow> cashFlowRows(FinancialTimelineResponse timeline) {
@@ -171,12 +211,15 @@ public class SnapshotFinancialExtractor {
         Map<String, BigDecimal> revenue = summarySeries(timeline, "매출액");
         Map<String, BigDecimal> net = summarySeries(timeline, "당기순이익");
         Map<String, BigDecimal> operatingMargin = percentSeries(summarySeries(timeline, "영업이익"), revenue);
-        Map<String, BigDecimal> roe = percentSeries(net, summarySeries(timeline, "자본총계"));
+        boolean ownersBasis = ReportSnapshot.ROE_BASIS_OWNERS.equals(roeBasis(timeline));
+        Map<String, BigDecimal> roe = ownersBasis
+                ? percentSeries(ownersNetIncomeSeries(timeline), ownersEquitySeries(timeline))
+                : percentSeries(net, summarySeries(timeline, "자본총계"));
         Map<String, BigDecimal> roa = percentSeries(net, summarySeries(timeline, "자산총계"));
         return List.of(
                 ratioRow("operatingMargin", "영업이익률(%)", "profitability", operatingMargin,
                         judge(operatingMargin.get(baseYear), new BigDecimal("5"), BigDecimal.ZERO)),
-                ratioRow("roe", "ROE(%)", "profitability", roe,
+                ratioRow("roe", ownersBasis ? "ROE(지배주주, %)" : "ROE(%)", "profitability", roe,
                         judge(roe.get(baseYear), new BigDecimal("10"), new BigDecimal("5"))),
                 ratioRow("roa", "ROA(%)", "profitability", roa,
                         judge(roa.get(baseYear), new BigDecimal("5"), BigDecimal.ZERO)));
@@ -190,6 +233,15 @@ public class SnapshotFinancialExtractor {
                         judge(revenueGrowth.get(baseYear), new BigDecimal("10"), BigDecimal.ZERO)),
                 ratioRow("operatingProfitGrowth", "영업이익 성장률(%)", "growth", operatingGrowth,
                         judge(operatingGrowth.get(baseYear), new BigDecimal("10"), BigDecimal.ZERO)));
+    }
+
+    /**
+     * ROE 산출 기준. 지배주주지분·지배주주순이익이 모두 있으면 OWNERS, 하나라도 없으면 TOTAL(당기순이익 ÷ 자본총계).
+     * 분자·분모 기준을 섞지 않기 위해 연도별이 아니라 종목 단위로 한 기준만 쓴다.
+     */
+    public String roeBasis(FinancialTimelineResponse timeline) {
+        boolean hasOwners = !ownersEquitySeries(timeline).isEmpty() && !ownersNetIncomeSeries(timeline).isEmpty();
+        return hasOwners ? ReportSnapshot.ROE_BASIS_OWNERS : ReportSnapshot.ROE_BASIS_TOTAL;
     }
 
     /**
@@ -480,6 +532,79 @@ public class SnapshotFinancialExtractor {
         return net.subtract(operatingCf)
                 .divide(totalAssets, 4, RoundingMode.HALF_UP)
                 .multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    // === S-RIM 자동 채움 근거 ===
+
+    /**
+     * 지배주주지분은 최신 정기보고서 컬럼(분기·반기 포함) 값을 우선하고, 없으면 기준연도 연간 값을 쓴다.
+     * 주식수는 합계 행의 유통주식수(자기주식 차감)만 쓰며, 합계 행이 없으면 비운다 — 보통주로 대체하지 않는다.
+     */
+    public SrimBasis srimBasis(FinancialTimelineResponse timeline, String baseYear,
+            List<StockQuantityResponse> quantities, PeriodicReport shareReport) {
+        Map<String, BigDecimal> equities = ownersEquitySeries(timeline);
+        TimelineColumn equityColumn = equityColumn(timeline, equities, baseYear);
+        StockQuantityResponse total = totalQuantity(quantities);
+        return new SrimBasis(
+                equityColumn == null ? null : equities.get(equityColumn.getYear()).toPlainString(),
+                equityColumn == null ? null : periodEndDate(equityColumn.getYear(), equityColumn.getReportCode()),
+                equityColumn == null ? null : equityColumn.getYear() + " " + equityColumn.getReportLabel(),
+                yearEndEquities(timeline, equities),
+                total == null ? null : parse(total.getDistributedStockCount()).toPlainString(),
+                total == null ? null : total.getSettlementDate(),
+                shareReport == null ? null : shareReport.year() + " " + shareReport.reportCode().getLabel(),
+                total == null ? null : total.getCategory());
+    }
+
+    private TimelineColumn equityColumn(FinancialTimelineResponse timeline, Map<String, BigDecimal> equities,
+            String baseYear) {
+        List<TimelineColumn> columns = timeline.getColumns();
+        TimelineColumn latest = columns.stream()
+                .max(Comparator.comparing(TimelineColumn::getYear))
+                .orElse(null);
+        if (latest != null && equities.containsKey(latest.getYear())) {
+            return latest;
+        }
+        return columns.stream()
+                .filter(column -> column.getYear().equals(baseYear) && !column.isPartial())
+                .filter(column -> equities.containsKey(column.getYear()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Map<String, String> yearEndEquities(FinancialTimelineResponse timeline, Map<String, BigDecimal> equities) {
+        Map<String, String> yearEnd = new LinkedHashMap<>();
+        timeline.getColumns().stream()
+                .filter(column -> !column.isPartial() && equities.containsKey(column.getYear()))
+                .forEach(column -> yearEnd.put(column.getYear(), equities.get(column.getYear()).toPlainString()));
+        return yearEnd;
+    }
+
+    private StockQuantityResponse totalQuantity(List<StockQuantityResponse> quantities) {
+        if (quantities == null) {
+            return null;
+        }
+        return quantities.stream()
+                .filter(quantity -> quantity.getCategory() != null && quantity.getCategory().contains("합계"))
+                .filter(quantity -> parse(quantity.getDistributedStockCount()) != null)
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * 보고서 기간 종료일 (12월 결산 기준 — 정기보고서 파싱 규칙과 동일)
+     */
+    private String periodEndDate(String year, String reportCode) {
+        if (ReportCode.Q1.getCode().equals(reportCode)) {
+            return year + "-03-31";
+        }
+        if (ReportCode.SEMI_ANNUAL.getCode().equals(reportCode)) {
+            return year + "-06-30";
+        }
+        if (ReportCode.Q3.getCode().equals(reportCode)) {
+            return year + "-09-30";
+        }
+        return year + "-12-31";
     }
 
     // === 가치평가 입력 (청산가치/DCF 원시 데이터) ===

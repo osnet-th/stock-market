@@ -14,6 +14,11 @@ import java.util.Map;
  * KR/KRW/빈 목록으로 해석한다 ({@code ReportSnapshotJsonMapper} 참조).
  * unsupportedSections는 데이터 소스가 구조적으로 제공하지 않는 섹션 키 목록 —
  * "데이터 없음(조회 실패)"과 "미지원(설계)"을 구분해 프론트가 섹션 제거·안내 배너를 렌더한다.
+ *
+ * <p>schemaVersion 3: 재무제표 요약에 지배주주지분·비지배지분·지배주주순이익 행 추가(연결재무제표 종목만),
+ * roeBasis 추가 — ROE 산출 기준(OWNERS: 지배주주순이익 ÷ 지배주주지분, TOTAL: 당기순이익 ÷ 자본총계).
+ * roeBasis가 없는 v2 이하 스냅샷은 TOTAL로 해석한다.
+ * srimBasis 추가 — S-RIM 입력 자동 채움 근거(국내 연결재무제표 종목만, 그 외 null).
  */
 public record ReportSnapshot(
         int schemaVersion,
@@ -31,15 +36,42 @@ public record ReportSnapshot(
         PriceMetrics priceMetrics,
         ValuationInputs valuationInputs,
         Shareholders shareholders,
-        RiskSignals riskSignals
+        RiskSignals riskSignals,
+        String roeBasis,
+        SrimBasis srimBasis
 ) {
 
-    public static final int CURRENT_SCHEMA_VERSION = 2;
+    public static final int CURRENT_SCHEMA_VERSION = 3;
 
     public static final String COUNTRY_KR = "KR";
     public static final String COUNTRY_US = "US";
     public static final String CURRENCY_KRW = "KRW";
     public static final String CURRENCY_USD = "USD";
+    public static final String ROE_BASIS_OWNERS = "OWNERS";
+    public static final String ROE_BASIS_TOTAL = "TOTAL";
+
+    /**
+     * S-RIM 입력 자동 채움 근거. 금액·주식수는 브라우저 정밀도 보존을 위해 plain 문자열. 값이 없는 항목은 null.
+     *
+     * @param equity          지배주주지분 (최신 정기보고서 컬럼 우선, 없으면 기준연도 연간 값)
+     * @param equityDate      자본 기준일 (yyyy-MM-dd)
+     * @param equityReport    자본 출처 보고서 (예: "2026 3분기보고서")
+     * @param yearEndEquities 연도 → 기말 지배주주지분 (연간 컬럼만, 연도 행 전기말 지분 채움용)
+     * @param shares          합계 유통주식수 (자기주식 차감, 보통주+우선주)
+     * @param sharesDate      주식수 기준일 (DART 결산기준일)
+     * @param sharesReport    주식수 출처 보고서 (예: "2026 반기보고서")
+     * @param sharesCategory  주식수 행 구분 (예: "합계")
+     */
+    public record SrimBasis(
+            String equity,
+            String equityDate,
+            String equityReport,
+            Map<String, String> yearEndEquities,
+            String shares,
+            String sharesDate,
+            String sharesReport,
+            String sharesCategory
+    ) {}
 
     public record ColumnMeta(String year, String reportLabel, boolean partial) {}
 

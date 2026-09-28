@@ -1,5 +1,6 @@
 package com.thlee.stock.market.stockmarket.companyreport.application;
 
+import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.BreakdownTerm;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.ColumnMeta;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot.DividendRow;
@@ -106,6 +107,15 @@ public class UsSnapshotFinancialExtractor {
 
     // === 재무지표 (기준치 판정 — KR과 동일 임계값) ===
 
+    /**
+     * ROE 산출 기준. 지배주주 전용 순이익·자본 시리즈가 모두 있으면 OWNERS, 하나라도 없으면 TOTAL(기존 폴백 체인 값).
+     */
+    public String roeBasis(UsCompanyFacts facts) {
+        boolean hasOwners = !facts.series(UsFinancialConcept.NET_INCOME_TO_PARENT).isEmpty()
+                && !facts.series(UsFinancialConcept.EQUITY_OF_PARENT).isEmpty();
+        return hasOwners ? ReportSnapshot.ROE_BASIS_OWNERS : ReportSnapshot.ROE_BASIS_TOTAL;
+    }
+
     public List<RatioRow> ratioRows(UsCompanyFacts facts, String baseYear) {
         Map<String, BigDecimal> revenue = facts.series(UsFinancialConcept.REVENUE);
         Map<String, BigDecimal> net = facts.series(UsFinancialConcept.NET_INCOME);
@@ -119,7 +129,11 @@ public class UsSnapshotFinancialExtractor {
                 facts.series(UsFinancialConcept.TOTAL_LIABILITIES), equity);
         Map<String, BigDecimal> operatingMargin = percentSeries(
                 facts.series(UsFinancialConcept.OPERATING_INCOME), revenue);
-        Map<String, BigDecimal> roe = percentSeries(net, equity);
+        boolean ownersBasis = ReportSnapshot.ROE_BASIS_OWNERS.equals(roeBasis(facts));
+        Map<String, BigDecimal> roe = ownersBasis
+                ? percentSeries(facts.series(UsFinancialConcept.NET_INCOME_TO_PARENT),
+                        facts.series(UsFinancialConcept.EQUITY_OF_PARENT))
+                : percentSeries(net, equity);
         Map<String, BigDecimal> roa = percentSeries(net, totalAssets);
         Map<String, BigDecimal> revenueGrowth = growthSeries(revenue);
         Map<String, BigDecimal> operatingGrowth = growthSeries(facts.series(UsFinancialConcept.OPERATING_INCOME));
@@ -133,7 +147,7 @@ public class UsSnapshotFinancialExtractor {
                         judgeInverse(debtRatio.get(baseYear), new BigDecimal("200"), new BigDecimal("300"))),
                 ratioRow("operatingMargin", "영업이익률(%)", "profitability", operatingMargin,
                         judge(operatingMargin.get(baseYear), new BigDecimal("5"), BigDecimal.ZERO)),
-                ratioRow("roe", "ROE(%)", "profitability", roe,
+                ratioRow("roe", ownersBasis ? "ROE(지배주주, %)" : "ROE(%)", "profitability", roe,
                         judge(roe.get(baseYear), new BigDecimal("10"), new BigDecimal("5"))),
                 ratioRow("roa", "ROA(%)", "profitability", roa,
                         judge(roa.get(baseYear), new BigDecimal("5"), BigDecimal.ZERO)),

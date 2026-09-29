@@ -3,11 +3,10 @@ title: "feat: 기업 리포트 S-RIM 항상 표시·주가 추이 아래 배치 
 type: feat
 issue: 132
 issue_url: https://github.com/osnet-th/stock-market/issues/132
-status: blocked
-blocked_reason: "CP3 가드 리뷰가 찾은 기존 결함 2건을 R3로 추가해 plan 재승인 대기 (2026-09-29)"
+status: active
 date: 2026-09-29
 approved: "2026-09-29 태형님 승인 (S-RIM 항상 표시·주가 추이 아래 배치·입력 시에만 저장·종목 변경 초기화·USD 경고 제거)"
-reapproved: "2026-09-29 태형님 재승인 (리뷰 반영 R1: No.1·2·3·5와 서버 SrimValidator 검사 문구. 서버 문구는 단위 테스트 없이 스크래치 실행으로 확인) / 2026-09-29 태형님 재승인 (R2: CP2 가드 리뷰 기존 결함 2건 — 저장 중 나가기 잠금, 작성 화면을 떠날 때 자동 산출 조회 무효화)"
+reapproved: "2026-09-29 태형님 재승인 (리뷰 반영 R1: No.1·2·3·5와 서버 SrimValidator 검사 문구. 서버 문구는 단위 테스트 없이 스크래치 실행으로 확인) / 2026-09-29 태형님 재승인 (R2: CP2 가드 리뷰 기존 결함 2건 — 저장 중 나가기 잠금, 작성 화면을 떠날 때 자동 산출 조회 무효화) / 2026-09-29 태형님 재승인 (R3: CP3 가드 리뷰 기존 결함 2건 — 상세 불러오기 중 이전 상세 숨김·늦은 응답 무시, 상세를 떠난 뒤 늦은 새로고침 응답 무시)"
 branch: claude/inspiring-wright-rljbsn
 branch_exception: "클라우드 세션은 지정 브랜치에만 push할 수 있어 issue/132-{slug} 대신 세션 브랜치를 쓴다 (2026-09-29 태형님 확인, #131과 동일). validate-plan.sh의 branch 형식 검사 1건은 이 예외로 실패한다."
 worktree: /home/user/stock-market-issue-132

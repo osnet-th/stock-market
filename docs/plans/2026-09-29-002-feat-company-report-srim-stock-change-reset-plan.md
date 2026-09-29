@@ -3,10 +3,10 @@ title: "feat: 기업 리포트 S-RIM 항상 표시·주가 추이 아래 배치 
 type: feat
 issue: 132
 issue_url: https://github.com/osnet-th/stock-market/issues/132
-status: blocked
-blocked_reason: "리뷰 반영(R1)에 서버 S-RIM 검사 문구 수정(SrimValidator)이 추가되어 plan 재승인 대기 (2026-09-29)"
+status: active
 date: 2026-09-29
 approved: "2026-09-29 태형님 승인 (S-RIM 항상 표시·주가 추이 아래 배치·입력 시에만 저장·종목 변경 초기화·USD 경고 제거)"
+reapproved: "2026-09-29 태형님 재승인 (리뷰 반영 R1: No.1·2·3·5와 서버 SrimValidator 검사 문구. 서버 문구는 단위 테스트 없이 스크래치 실행으로 확인)"
 branch: claude/inspiring-wright-rljbsn
 branch_exception: "클라우드 세션은 지정 브랜치에만 push할 수 있어 issue/132-{slug} 대신 세션 브랜치를 쓴다 (2026-09-29 태형님 확인, #131과 동일). validate-plan.sh의 branch 형식 검사 1건은 이 예외로 실패한다."
 worktree: /home/user/stock-market-issue-132
@@ -212,7 +212,7 @@ blocked_paths:
 
 - **요구사항 확인 결정:**
   1. 선택 칸(비교 기준 주가·주가 기준일)만 채워도 S-RIM 입력으로 본다: 지금대로 둔다. "하나라도 입력하면 함께 저장" 결정과 같다.
-  2. 서버 검사 문구 "총 주식수을 입력하세요."(화면 라벨은 "유통주식수", 조사도 틀림): 이번에 같이 고친다(REQ-19). 서버 파일이 수정 금지 범위였으므로 plan 범위를 넓히고 재승인을 받는다.
+  2. 서버 검사 문구 "총 주식수을 입력하세요."(화면 라벨은 "유통주식수", 조사도 틀림): 이번에 같이 고친다(REQ-19). 서버 파일이 수정 금지 범위였으므로 plan 범위를 넓혀 재승인을 받았다(2026-09-29). 단위 테스트는 작성하지 않는다.
 - **보류:** No.4는 태형님이 이번 범위에서 고르지 않았다.
 
 ## 위험과 완화

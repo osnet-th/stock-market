@@ -1,7 +1,7 @@
 /** Company Report - 기업분석리포트 (등록/조회). 7단계 위저드 작성 + 임시저장(draft), 정량 스냅샷 자동 산출 */
 const CompanyReportComponent = {
     companyReport: {
-        srim: { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {},
+        srim: { amountScale: '0', appliedScale: '0', equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {},
             rate: { date: '', loading: false, error: '', data: null, type: '', grade: '', maturity: '', applied: null, _gen: 0 } },
         view: 'list',            // list | form(위저드) | detail
 
@@ -110,7 +110,7 @@ const CompanyReportComponent = {
 
     // S-RIM: 금액은 기본 통화 단위 decimal 문자열로 전송해 큰 정수 정밀도를 보존한다.
     _crSrimEmpty() {
-        return { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
+        return { amountScale: '0', appliedScale: '0', equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
             referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {},
             rate: this._srimRateEmpty() };
     },
@@ -438,6 +438,14 @@ const CompanyReportComponent = {
         return (negative && Number(clean) !== 0 ? '-' : '') + clean;
     },
 
+    // S-RIM은 항상 보이며, 칸에 입력이 있거나 연도 행이 있을 때만 리포트에 저장한다 (금액 단위·금리 조회만으로는 입력이 아니다)
+    _crSrimHasInput() {
+        const s = this.companyReport.srim;
+        const filled = ['equity', 'equityDate', 'shares', 'sharesDate', 'requiredReturn', 'referencePrice', 'referencePriceDate']
+            .some(key => String(s[key] ?? '').trim() !== '');
+        return filled || s.years.length > 0;
+    },
+
     _crSrimInput() {
         const s = this.companyReport.srim;
         const decimal = (v, label) => this._crSrimDecimal(v, label);
@@ -478,7 +486,6 @@ const CompanyReportComponent = {
     _crSrimPopulate(saved) {
         const s = this.companyReport.srim;
         if (!saved?.input) return;
-        s.enabled = true;
         const i = saved.input;
         ['equity', 'equityDate', 'shares', 'sharesDate', 'referencePrice', 'referencePriceDate']
             .forEach(key => { s[key] = i[key] == null ? '' : String(i[key]); });
@@ -1127,6 +1134,7 @@ const CompanyReportComponent = {
 
     _crBuildBody(draft, draftStep) {
         const f = this.companyReport.form;
+        const hasSrim = this._crSrimHasInput();
         const note = v => (v && v.trim()) ? v.trim() : null;
         const grade = v => v || null;
         const pct = v => {
@@ -1157,8 +1165,8 @@ const CompanyReportComponent = {
                     otherCurrent: pct(f.params.ratios.otherCurrent)
                 }
             },
-            srim: this.companyReport.srim.enabled ? this._crSrimInput() : null,
-            clearSrim: !this.companyReport.srim.enabled,
+            srim: hasSrim ? this._crSrimInput() : null,
+            clearSrim: !hasSrim,
             draft: draft,
             draftStep: draftStep
         };

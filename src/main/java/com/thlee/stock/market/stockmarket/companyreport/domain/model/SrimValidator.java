@@ -8,6 +8,11 @@ import java.util.Set;
 
 /** 누락은 임시저장에서 허용하되 입력된 값의 형식/범위는 항상 검증한다. */
 public final class SrimValidator {
+    /** 한글 음절 범위와 종성 수. 라벨 끝 글자의 받침으로 조사를 고른다. */
+    private static final char HANGUL_SYLLABLE_FIRST = '가';
+    private static final char HANGUL_SYLLABLE_LAST = '힣';
+    private static final int FINAL_CONSONANT_COUNT = 28;
+
     private SrimValidator() {}
 
     public static void validate(SrimInput input, boolean draft) {
@@ -20,7 +25,7 @@ public final class SrimValidator {
 
     private static void validateCommon(SrimInput i, boolean draft) {
         positive(i.equity(), "지배주주지분", draft);
-        positive(i.shares(), "총 주식수", draft);
+        positive(i.shares(), "유통주식수", draft);
         validateShares(i.shares());
         positiveRate(i.requiredReturn(), draft);
         validateDates(i, draft);
@@ -39,7 +44,7 @@ public final class SrimValidator {
     }
 
     private static void validateShares(BigDecimal value) {
-        if (value != null && value.stripTrailingZeros().scale() > 0) fail("총 주식수는 정수여야 합니다.");
+        if (value != null && value.stripTrailingZeros().scale() > 0) fail("유통주식수는 정수여야 합니다.");
     }
 
     private static void positiveRate(BigDecimal value, boolean draft) {
@@ -89,8 +94,8 @@ public final class SrimValidator {
 
     private static void positive(BigDecimal value, String label, boolean optional) {
         number(value, label, 24, 8);
-        if (value == null && !optional) fail(label + "을 입력하세요.");
-        if (value != null && value.signum() <= 0) fail(label + "은 0보다 커야 합니다.");
+        if (value == null && !optional) fail(withParticle(label, "을", "를") + " 입력하세요.");
+        if (value != null && value.signum() <= 0) fail(withParticle(label, "은", "는") + " 0보다 커야 합니다.");
     }
 
     private static void number(BigDecimal value, String label, int integerDigits, int fractionDigits) {
@@ -102,7 +107,7 @@ public final class SrimValidator {
 
     private static void date(String value, String label, boolean optional) {
         if (value == null || value.isBlank()) {
-            if (!optional) fail(label + "을 입력하세요.");
+            if (!optional) fail(withParticle(label, "을", "를") + " 입력하세요.");
             return;
         }
         parseDate(value, label);
@@ -110,11 +115,19 @@ public final class SrimValidator {
 
     private static void parseDate(String value, String label) {
         try {
-            if (!value.matches("\\d{4}-\\d{2}-\\d{2}")) fail(label + "은 YYYY-MM-DD 형식이어야 합니다.");
+            if (!value.matches("\\d{4}-\\d{2}-\\d{2}")) fail(withParticle(label, "은", "는") + " YYYY-MM-DD 형식이어야 합니다.");
             LocalDate.parse(value);
         } catch (DateTimeParseException e) {
-            fail(label + "이 올바르지 않습니다.");
+            fail(withParticle(label, "이", "가") + " 올바르지 않습니다.");
         }
+    }
+
+    /** 라벨 끝 글자에 받침이 있으면 withFinal, 없으면 withoutFinal을 붙인다 (예: 지배주주지분을, 유통주식수를). */
+    private static String withParticle(String label, String withFinal, String withoutFinal) {
+        char last = label.charAt(label.length() - 1);
+        boolean hasFinal = last >= HANGUL_SYLLABLE_FIRST && last <= HANGUL_SYLLABLE_LAST
+                && (last - HANGUL_SYLLABLE_FIRST) % FINAL_CONSONANT_COUNT != 0;
+        return label + (hasFinal ? withFinal : withoutFinal);
     }
 
     private static void fail(String message) { throw new IllegalArgumentException(message); }

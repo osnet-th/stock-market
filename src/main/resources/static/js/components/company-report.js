@@ -1,7 +1,7 @@
 /** Company Report - 기업분석리포트 (등록/조회). 7단계 위저드 작성 + 임시저장(draft), 정량 스냅샷 자동 산출 */
 const CompanyReportComponent = {
     companyReport: {
-        srim: { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {},
+        srim: { amountScale: '0', appliedScale: '0', equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {},
             rate: { date: '', loading: false, error: '', data: null, type: '', grade: '', maturity: '', applied: null, _gen: 0 } },
         view: 'list',            // list | form(위저드) | detail
 
@@ -69,6 +69,7 @@ const CompanyReportComponent = {
         detailLoading: false,
         detailError: null,
         refreshing: false,
+        _detailGen: 0,
 
         // ==== DART 정기보고서 바로가기 (최근 10년) ====
         disclosures: { open: false, loading: false, error: null, stockCode: null, items: [] },
@@ -110,9 +111,15 @@ const CompanyReportComponent = {
 
     // S-RIM: 금액은 기본 통화 단위 decimal 문자열로 전송해 큰 정수 정밀도를 보존한다.
     _crSrimEmpty() {
-        return { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
+        return { amountScale: '0', appliedScale: '0', equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
             referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {},
             rate: this._srimRateEmpty() };
+    },
+
+    // 종목이 바뀌면 이전 종목 기준의 S-RIM 입력·금리 선택·계산 결과를 비운다. 진행 중이던 계산 결과는 세대 번호로 버린다
+    _crSrimResetForStockChange() {
+        this._crSrimGeneration = (this._crSrimGeneration || 0) + 1;
+        this.companyReport.srim = this._crSrimEmpty();
     },
 
     crSrimChangeUnit() {
@@ -311,13 +318,6 @@ const CompanyReportComponent = {
         return this.crSrimCurrency() === 'KRW';
     },
 
-    // 원화 금리를 적용한 뒤 종목이 외화로 바뀌었는데 값이 그대로면 근거 대신 경고를 보인다
-    crSrimRateAppliedNote() {
-        const note = this.srimRateAppliedNote(this.companyReport.srim);
-        if (!note || this.crSrimRateEnabled()) return note;
-        return '원화 채권금리로 채운 값이라 외화 S-RIM에 맞지 않습니다. 요구수익률을 직접 입력하세요.';
-    },
-
     crSrimRateFetch() {
         if (!this.crSrimRateEnabled()) return;
         return this._srimRateFetch(this.companyReport.srim.rate);
@@ -432,6 +432,14 @@ const CompanyReportComponent = {
         return (negative && Number(clean) !== 0 ? '-' : '') + clean;
     },
 
+    // S-RIM은 항상 보이며, 칸에 입력이 있거나 연도 행이 있을 때만 리포트에 저장한다 (금액 단위·금리 조회만으로는 입력이 아니다)
+    _crSrimHasInput() {
+        const s = this.companyReport.srim;
+        const filled = ['equity', 'equityDate', 'shares', 'sharesDate', 'requiredReturn', 'referencePrice', 'referencePriceDate']
+            .some(key => String(s[key] ?? '').trim() !== '');
+        return filled || s.years.length > 0;
+    },
+
     _crSrimInput() {
         const s = this.companyReport.srim;
         const decimal = (v, label) => this._crSrimDecimal(v, label);
@@ -463,7 +471,7 @@ const CompanyReportComponent = {
             const result = await API.calculateCompanyReportSrim(this._crSrimInput());
             if (generation === this._crSrimGeneration) s.result = result;
         } catch (e) {
-            if (generation === this._crSrimGeneration) s.error = e?.message || 'S-RIM 계산에 실패했습니다.';
+            if (generation === this._crSrimGeneration) s.error = e?.userMessage || e?.message || 'S-RIM 계산에 실패했습니다.';
         } finally {
             if (generation === this._crSrimGeneration) s.loading = false;
         }
@@ -472,7 +480,6 @@ const CompanyReportComponent = {
     _crSrimPopulate(saved) {
         const s = this.companyReport.srim;
         if (!saved?.input) return;
-        s.enabled = true;
         const i = saved.input;
         ['equity', 'equityDate', 'shares', 'sharesDate', 'referencePrice', 'referencePriceDate']
             .forEach(key => { s[key] = i[key] == null ? '' : String(i[key]); });
@@ -582,13 +589,16 @@ const CompanyReportComponent = {
 
     companyReportBackToList() {
         this._crDestroyCharts();
+        this._crCancelPreviewLoad();
+        this._crCancelDetailLoad();
         this.companyReport.view = 'list';
         this.companyReport.detail = null;
         this.companyReportLoad();
     },
 
-    // 위저드 나가기 (임시저장 안 된 변경분 유실 안내)
+    // 위저드 나가기 (임시저장 안 된 변경분 유실 안내). 저장 중에는 응답이 다른 리포트 화면에 적용되지 않도록 막는다
     companyReportExitWizard() {
+        if (this.companyReport.saving) return;
         if (!confirm('작성 화면을 나갈까요? 임시저장하지 않은 변경 내용은 사라집니다.')) return;
         this.companyReportBackToList();
     },
@@ -632,6 +642,7 @@ const CompanyReportComponent = {
 
     async companyReportSelectStock(stock) {
         const cr = this.companyReport;
+        if (cr.selected?.stockCode !== stock.stockCode) this._crSrimResetForStockChange();
         cr.selected = stock;
         cr.searchResults = [];
         cr.searchQuery = '';
@@ -661,6 +672,13 @@ const CompanyReportComponent = {
         } finally {
             if (gen === cr._previewGen) cr.previewLoading = false;
         }
+    },
+
+    // 작성 화면에 들어오거나 떠날 때 진행 중이던 조회를 무효로 한다 (늦은 응답이 다른 리포트 화면을 덮어쓰지 않게)
+    _crCancelPreviewLoad() {
+        const cr = this.companyReport;
+        cr._previewGen++;
+        cr.previewLoading = false;
     },
 
     // ==================== DART 정기보고서 바로가기 (최근 10년) ====================
@@ -785,7 +803,7 @@ const CompanyReportComponent = {
     companyReportGoStep(n) {
         const cr = this.companyReport;
         if (n < 1 || n > 7) return;
-        if (n === 1 && cr.mode === 'edit') return;      // 수정/재개 시 종목 변경 불가
+        if (n === 1 && (cr.mode === 'edit' || cr.saving)) return;  // 수정/재개·저장 중에는 종목 변경 불가
         if (n > 1 && !cr.selected) return;              // 종목 선택 전에는 이동 불가
         cr.step = n;
         this._crRenderStepChart();
@@ -905,6 +923,7 @@ const CompanyReportComponent = {
     companyReportOpenCreate() {
         const cr = this.companyReport;
         this._crDestroyCharts();
+        this._crCancelPreviewLoad();
         cr.view = 'form';
         cr.mode = 'create';
         cr.isDraftFlow = true;
@@ -944,6 +963,8 @@ const CompanyReportComponent = {
     _crEnterWizardFrom(detail, isDraftFlow, step) {
         const cr = this.companyReport;
         this._crDestroyCharts();
+        this._crCancelPreviewLoad();
+        this._crCancelDetailLoad();
         cr.view = 'form';
         cr.mode = 'edit';
         cr.isDraftFlow = isDraftFlow;
@@ -984,7 +1005,7 @@ const CompanyReportComponent = {
             const body = this._crBuildBody(draft, draftStep);
             await this._crPersist(body, draft);
         } catch (e) {
-            cr.formError = e?.message || '저장에 실패했습니다.';
+            cr.formError = e?.userMessage || e?.message || '저장에 실패했습니다.';
         } finally {
             cr.saving = false;
         }
@@ -1016,40 +1037,58 @@ const CompanyReportComponent = {
     },
 
     // ==================== 상세 ====================
+    // 상세를 새로 열거나 떠날 때 진행 중이던 상세 조회·새로고침을 무효로 한다 (늦은 응답이 다른 화면을 바꾸지 않게)
+    _crCancelDetailLoad() {
+        const cr = this.companyReport;
+        cr._detailGen++;
+        cr.detailLoading = false;
+        cr.refreshing = false;
+    },
+
     async companyReportOpenDetail(id) {
         const cr = this.companyReport;
+        this._crCancelDetailLoad();
+        const gen = cr._detailGen;
         cr.view = 'detail';
+        cr.detail = null; // 불러오는 동안 이전 상세(저장 전 내용·다른 리포트)와 수정 버튼을 보이지 않는다
         cr.detailLoading = true;
         cr.detailError = null;
         this._crDestroyCharts();
+        this._crCancelPreviewLoad();
         this._crResetDisclosures();
         try {
-            cr.detail = await API.getCompanyReport(id);
+            const detail = await API.getCompanyReport(id);
+            if (gen !== cr._detailGen) return;
+            cr.detail = detail;
             this.companyReportLoadDisclosures(cr.detail?.stockCode);
             this._crLoadPriceHistory(cr.detail?.stockCode);
             this.$nextTick(() => this._crRenderPerfChart(cr.detail?.snapshot, 'report-detail-perf', cr.detail?.manual));
         } catch (e) {
+            if (gen !== cr._detailGen) return;
             cr.detailError = e?.message || '리포트 조회에 실패했습니다.';
         } finally {
-            cr.detailLoading = false;
+            if (gen === cr._detailGen) cr.detailLoading = false;
         }
     },
 
     async companyReportRefresh() {
         const cr = this.companyReport;
         if (!cr.detail || cr.refreshing) return;
+        const gen = cr._detailGen;
         cr.refreshing = true;
         cr.detailError = null;
         try {
             const refreshed = await API.refreshCompanyReport(cr.detail.id);
+            if (gen !== cr._detailGen) return;
             this._crDestroyCharts();
             cr.detail = refreshed;
             this._crLoadPriceHistory(cr.detail?.stockCode);
             this.$nextTick(() => this._crRenderPerfChart(cr.detail?.snapshot, 'report-detail-perf', cr.detail?.manual));
         } catch (e) {
+            if (gen !== cr._detailGen) return;
             cr.detailError = e?.message || '데이터 새로고침에 실패했습니다.';
         } finally {
-            cr.refreshing = false;
+            if (gen === cr._detailGen) cr.refreshing = false;
         }
     },
 
@@ -1120,6 +1159,7 @@ const CompanyReportComponent = {
 
     _crBuildBody(draft, draftStep) {
         const f = this.companyReport.form;
+        const hasSrim = this._crSrimHasInput();
         const note = v => (v && v.trim()) ? v.trim() : null;
         const grade = v => v || null;
         const pct = v => {
@@ -1150,8 +1190,8 @@ const CompanyReportComponent = {
                     otherCurrent: pct(f.params.ratios.otherCurrent)
                 }
             },
-            srim: this.companyReport.srim.enabled ? this._crSrimInput() : null,
-            clearSrim: !this.companyReport.srim.enabled,
+            srim: hasSrim ? this._crSrimInput() : null,
+            clearSrim: !hasSrim,
             draft: draft,
             draftStep: draftStep
         };

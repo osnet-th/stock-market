@@ -69,6 +69,7 @@ const CompanyReportComponent = {
         detailLoading: false,
         detailError: null,
         refreshing: false,
+        _detailGen: 0,
 
         // ==== DART 정기보고서 바로가기 (최근 10년) ====
         disclosures: { open: false, loading: false, error: null, stockCode: null, items: [] },
@@ -589,6 +590,7 @@ const CompanyReportComponent = {
     companyReportBackToList() {
         this._crDestroyCharts();
         this._crCancelPreviewLoad();
+        this._crCancelDetailLoad();
         this.companyReport.view = 'list';
         this.companyReport.detail = null;
         this.companyReportLoad();
@@ -962,6 +964,7 @@ const CompanyReportComponent = {
         const cr = this.companyReport;
         this._crDestroyCharts();
         this._crCancelPreviewLoad();
+        this._crCancelDetailLoad();
         cr.view = 'form';
         cr.mode = 'edit';
         cr.isDraftFlow = isDraftFlow;
@@ -1034,41 +1037,58 @@ const CompanyReportComponent = {
     },
 
     // ==================== 상세 ====================
+    // 상세를 새로 열거나 떠날 때 진행 중이던 상세 조회·새로고침을 무효로 한다 (늦은 응답이 다른 화면을 바꾸지 않게)
+    _crCancelDetailLoad() {
+        const cr = this.companyReport;
+        cr._detailGen++;
+        cr.detailLoading = false;
+        cr.refreshing = false;
+    },
+
     async companyReportOpenDetail(id) {
         const cr = this.companyReport;
+        this._crCancelDetailLoad();
+        const gen = cr._detailGen;
         cr.view = 'detail';
+        cr.detail = null; // 불러오는 동안 이전 상세(저장 전 내용·다른 리포트)와 수정 버튼을 보이지 않는다
         cr.detailLoading = true;
         cr.detailError = null;
         this._crDestroyCharts();
         this._crCancelPreviewLoad();
         this._crResetDisclosures();
         try {
-            cr.detail = await API.getCompanyReport(id);
+            const detail = await API.getCompanyReport(id);
+            if (gen !== cr._detailGen) return;
+            cr.detail = detail;
             this.companyReportLoadDisclosures(cr.detail?.stockCode);
             this._crLoadPriceHistory(cr.detail?.stockCode);
             this.$nextTick(() => this._crRenderPerfChart(cr.detail?.snapshot, 'report-detail-perf', cr.detail?.manual));
         } catch (e) {
+            if (gen !== cr._detailGen) return;
             cr.detailError = e?.message || '리포트 조회에 실패했습니다.';
         } finally {
-            cr.detailLoading = false;
+            if (gen === cr._detailGen) cr.detailLoading = false;
         }
     },
 
     async companyReportRefresh() {
         const cr = this.companyReport;
         if (!cr.detail || cr.refreshing) return;
+        const gen = cr._detailGen;
         cr.refreshing = true;
         cr.detailError = null;
         try {
             const refreshed = await API.refreshCompanyReport(cr.detail.id);
+            if (gen !== cr._detailGen) return;
             this._crDestroyCharts();
             cr.detail = refreshed;
             this._crLoadPriceHistory(cr.detail?.stockCode);
             this.$nextTick(() => this._crRenderPerfChart(cr.detail?.snapshot, 'report-detail-perf', cr.detail?.manual));
         } catch (e) {
+            if (gen !== cr._detailGen) return;
             cr.detailError = e?.message || '데이터 새로고침에 실패했습니다.';
         } finally {
-            cr.refreshing = false;
+            if (gen === cr._detailGen) cr.refreshing = false;
         }
     },
 

@@ -3,7 +3,8 @@ title: "feat: 기업 리포트 S-RIM 항상 표시·주가 추이 아래 배치 
 type: feat
 issue: 132
 issue_url: https://github.com/osnet-th/stock-market/issues/132
-status: active
+status: blocked
+blocked_reason: "리뷰 반영(R1)에 서버 S-RIM 검사 문구 수정(SrimValidator)이 추가되어 plan 재승인 대기 (2026-09-29)"
 date: 2026-09-29
 approved: "2026-09-29 태형님 승인 (S-RIM 항상 표시·주가 추이 아래 배치·입력 시에만 저장·종목 변경 초기화·USD 경고 제거)"
 branch: claude/inspiring-wright-rljbsn
@@ -17,11 +18,16 @@ schema_plan_status: none
 allowed_paths:
   - src/main/resources/static/js/components/company-report.js
   - src/main/resources/static/partials/company-report.html
+  - src/main/java/com/thlee/stock/market/stockmarket/companyreport/domain/model/SrimValidator.java
   - docs/plans/2026-09-29-002-feat-company-report-srim-stock-change-reset-plan.md
   - docs/brainstorms/2026-09-29-company-report-stock-change-srim-reset-brainstorm.md
   - .claude/issues/132/**
 blocked_paths:
-  - src/main/java/**
+  - src/main/java/com/thlee/stock/market/stockmarket/companyreport/application/**
+  - src/main/java/com/thlee/stock/market/stockmarket/companyreport/infrastructure/**
+  - src/main/java/com/thlee/stock/market/stockmarket/companyreport/presentation/**
+  - src/main/java/com/thlee/stock/market/stockmarket/companyreport/domain/model/SrimCalculator.java
+  - src/main/java/com/thlee/stock/market/stockmarket/companyreport/domain/model/SrimInput.java
   - src/main/resources/application.yml
   - src/main/resources/application-dev.yml
   - src/main/resources/application-prod.yml
@@ -40,7 +46,8 @@ blocked_paths:
 - 새 리포트 작성 중 1단계에서 다른 종목을 고르면 S-RIM 입력과 채권 기준수익률 선택 상태를 비운다. 같은 종목을 다시 고르거나 수정·재개 모드일 때는 그대로 둔다.
 - S-RIM을 체크로 켜는 선택 섹션이 아니라 항상 보이는 섹션으로 바꾸고, 작성 5단계에서 주가 추이 바로 아래로 옮긴다(태형님 추가 요청). 저장은 S-RIM 입력이 있을 때만 한다.
 - #131에서 넣은 USD 전환 경고는 더 이상 뜰 수 없으므로 제거한다.
-- 바뀌지 않는 것: 서버, 저장 구조, S-RIM 계산식, 상세 화면, 종목 평가 화면
+- 리뷰 반영(R1, 2026-09-29 태형님 선택): 첫 임시저장 중 종목 변경 차단, 작성 화면에 들어갈 때 이전 자동 산출 응답 무시, 저장·계산 오류 문구 정리, S-RIM 제목 모양 맞춤, 서버 S-RIM 검사 문구(라벨·조사) 수정
+- 바뀌지 않는 것: 서버 로직, 저장 구조, S-RIM 계산식, 상세 화면, 종목 평가 화면 코드. 서버는 S-RIM 검사 문구만 바뀌며, 같은 검사를 쓰는 종목 평가 화면에도 새 문구가 보인다.
 
 ## 작업 리스트
 - [x] U1 종목 변경 시 S-RIM 초기화
@@ -48,6 +55,7 @@ blocked_paths:
 - [x] U3 S-RIM 섹션을 주가 추이 아래로 이동
 - [x] U4 #131 USD 전환 경고 제거
 - [x] 브라우저 하네스 확인 → 체크포인트 CP1
+- [ ] R1 리뷰 선택 이슈 수정 (No.1·2·3·5, 서버 검사 문구) → 체크포인트 CP2
 - [ ] 검증 (태형님 선택 방식)
 
 ## 배경 / 현재 상태
@@ -68,21 +76,28 @@ blocked_paths:
 | REQ-4 | 다른 종목으로 바꾸면 S-RIM 단계에 이전 종목의 입력값과 적용 근거가 남지 않는다 | 이슈 완료조건 1 | 포함 | U1 |
 | REQ-5 | 같은 종목을 다시 고르면 기존 입력을 유지한다 | 이슈 완료조건 2 | 포함 | U1 종목 코드 비교 |
 | REQ-6 | 수정·재개 모드에서는 기존 입력을 유지한다 | 이슈 완료조건 2 | 포함 | 수정·재개 흐름은 바꾸지 않는다(1단계 잠금 유지) |
-| REQ-7 | 저장된 리포트의 S-RIM 데이터와 계산식은 바뀌지 않는다 | 이슈 완료조건 3 | 포함 | 서버·저장 구조는 바꾸지 않는다. 불러오기 경로 유지 |
+| REQ-7 | 저장된 리포트의 S-RIM 데이터와 계산식은 바뀌지 않는다 | 이슈 완료조건 3 | 포함 | 서버 로직·저장 구조는 바꾸지 않는다(검사 문구만 R1에서 수정). 불러오기 경로 유지 |
 | REQ-8 | S-RIM을 선택(체크)이 아니라 항상 보이게 한다 | 2026-09-29 태형님 추가 요청 | 포함 | U2 |
-| REQ-9 | S-RIM은 입력했을 때만 저장한다. 비어 있으면 S-RIM 없이 저장·작성 완료할 수 있다 | 2026-09-29 태형님 결정 | 포함 | U2 |
-| REQ-10 | S-RIM 섹션을 작성 5단계의 주가 추이(월봉) 바로 아래, 주가지표 위에 둔다 | 2026-09-29 태형님 추가 요청 | 포함 | U3 |
+| REQ-9 | S-RIM은 입력했을 때만 저장한다. 비어 있으면 S-RIM 없이 저장·작성 완료할 수 있다 | 2026-09-29 태형님 결정 | 포함 | U2. 선택 칸(비교 기준 주가·주가 기준일)만 채워도 입력으로 본다(리뷰 확인 1, 현행 유지) |
+| REQ-10 | S-RIM 섹션을 작성 5단계의 주가 추이(월봉) 바로 아래, 주가지표 위에 둔다 | 2026-09-29 태형님 추가 요청 | 포함 | U3. 제목 모양은 위아래 블록 제목과 맞춘다(R1, 리뷰 No.5) |
 | REQ-11 | 초기화는 알림 없이 한다 | 2026-09-29 태형님 결정 | 포함 | U1 |
 | REQ-12 | #131의 USD 전환 경고를 제거한다 | 2026-09-29 태형님 결정 | 포함 | U4 |
 | REQ-13 | S-RIM 외 기업 리포트 입력(수기 입력·등급·파라미터)의 종목 변경 초기화 | brainstorm 제외 범위 | 제외 | 이슈 범위 밖 |
 | REQ-14 | 상세 화면 섹션 순서 변경 | 2026-09-29 태형님 결정 | 제외 | 작성 화면만 옮긴다 |
 | REQ-15 | 종목 평가 화면 변경 | brainstorm 제외 범위 | 제외 | 이미 종목 전환 시 초기화한다 |
+| REQ-16 | 첫 임시저장 응답 전(저장 중)에는 1단계로 이동해 종목을 바꿀 수 없다 | 2026-09-29 리뷰 No.1 (태형님 선택) | 포함 | R1, KTD1 |
+| REQ-17 | 작성 화면에 들어가면(새 작성·재개·수정) 그 전에 요청한 자동 산출 데이터의 늦은 응답이 화면에 들어오지 않는다 | 2026-09-29 리뷰 No.2 (태형님 선택) | 포함 | R1 |
+| REQ-18 | 저장·S-RIM 계산 오류는 서버가 준 문구로 보인다(JSON 원문을 보이지 않는다) | 2026-09-29 리뷰 No.3 (태형님 선택) | 포함 | R1 |
+| REQ-19 | 서버 S-RIM 검사 문구는 화면 라벨과 같은 용어("유통주식수")를 쓰고, 라벨 뒤 조사가 맞는다 | 2026-09-29 리뷰 요구사항 확인 2 (태형님 "같이 수정해") | 포함 | R1 |
 
 ## 핵심 기술 결정
 **KTD1 — 초기화 지점은 종목 선택 한 곳이다.**
 - `companyReportSelectStock`에서 새 종목 코드가 현재 `selected.stockCode`와 다를 때만 초기화한다. 같은 코드면 아무것도 하지 않는다.
 - 이 함수가 종목을 바꾸는 유일한 경로다. 수정·재개 모드는 1단계가 잠겨 있다.
 - 첫 선택(`selected` 없음)도 "다름"으로 보지만, 그때 S-RIM은 새 작성 시작(`_crResetForm`)으로 이미 비어 있어 결과가 같다.
+- 첫 임시저장 응답 전(저장 중)에도 1단계 이동을 막는다(리뷰 No.1).
+  - 저장 중에는 아직 새 작성 모드라 1단계로 가서 종목을 바꿀 수 있었다. 그러면 응답 뒤 이전 종목 리포트에 다른 종목 화면이 붙었다.
+  - 저장이 끝나면 수정 모드가 되어 어차피 1단계가 잠긴다. 잠금 시작만 저장 시작으로 당긴다.
 
 **KTD2 — S-RIM 전용 초기화 헬퍼를 둔다: `_crSrimResetForStockChange()`**
 - 계산 세대 번호(`_crSrimGeneration`)를 올려 진행 중인 S-RIM 계산 결과를 버린다.
@@ -130,10 +145,28 @@ blocked_paths:
 ### U4 #131 USD 전환 경고 제거
 - KTD5대로 헬퍼와 partial을 되돌린다.
 
+### R1 리뷰 반영 (2026-09-29 태형님 선택, 선행 U1~U4)
+- **No.1 저장 중 1단계 잠금** (`company-report.js`, `company-report.html`)
+  - `companyReportGoStep`의 1단계 가드를 `mode === 'edit'`에서 `mode === 'edit' || saving`으로 넓힌다.
+  - 단계 표시의 1단계 버튼 비활성 조건에 저장 중을 더한다. 2단계의 '← 이전' 버튼도 저장 중에는 끈다.
+- **No.2 작성 화면 진입 시 이전 자동 산출 응답 무시** (`company-report.js`)
+  - 진행 중인 자동 산출 조회를 무효로 하는 헬퍼 `_crCancelPreviewLoad()`를 둔다. `_previewGen`을 올리고 로딩 표시를 끈다.
+  - 새 작성 시작(`companyReportOpenCreate`)과 재개·수정 진입(`_crEnterWizardFrom`)에서 부른다.
+- **No.3 오류 문구** (`company-report.js`)
+  - 저장(`_crSave`)과 S-RIM 계산(`crSrimCalculate`)의 오류 표시에서 `e.userMessage`(서버 문구)를 먼저 쓴다. 금리 조회 오류 표시와 같은 방식이다.
+- **No.5 S-RIM 제목** (`company-report.html`)
+  - 제목 클래스를 위아래 블록 제목과 같은 `text-sm font-semibold text-gray-700`으로 바꾼다.
+- **서버 검사 문구** (`SrimValidator.java`, 문구만)
+  - 주식수 라벨 "총 주식수"를 화면 라벨 "유통주식수"로 바꾼다. 정수 검사 문구도 같이 바꾼다.
+  - 라벨로 문구를 만드는 곳(`positive`, `date`)은 라벨 끝 글자의 받침에 따라 조사(을/를, 은/는, 이/가)를 고른다. 예: "유통주식수를 입력하세요.", "비교 기준 주가는 0보다 커야 합니다."
+  - 검사 규칙(필수 여부·범위·형식)은 바꾸지 않는다.
+
 ## 단위 테스트 계획
 - 테스트 작성: 작성하지 않는다(`test_plan_status: none`).
-- 사유: 프론트엔드(JS·partial)만 바뀌고, 저장소에 JS 단위 테스트 도구가 없으며, 서버 변경이 없다.
-- 대신 저장소 밖 브라우저 하네스로 확인한다. 실제 `company-report.js`와 partial을 쓰고 API만 가짜 응답으로 바꾼다(2026-09-29 태형님 확인).
+- 사유: 프론트엔드는 저장소에 JS 단위 테스트 도구가 없다. 서버는 S-RIM 검사 문구(라벨·조사)만 바뀌고 검사 규칙은 그대로다.
+- 대신 저장소 밖에서 확인한다(2026-09-29 태형님 확인).
+  - 화면: 브라우저 하네스. 실제 `company-report.js`와 partial을 쓰고 API만 가짜 응답으로 바꾼다.
+  - 서버 문구: 컴파일한 `SrimValidator`를 스크래치 코드로 실행해 문구를 확인한다.
 
 ## 검증
 - **하네스 확인 항목 (CP1):**
@@ -143,6 +176,13 @@ blocked_paths:
   4. 저장 요청 본문: S-RIM이 비어 있으면 `srim: null`, `clearSrim: true`다. 입력이 있으면 `srim`이 담기고 `clearSrim: false`다.
   5. 수정·재개로 불러오면 저장된 S-RIM이 채워지고, 1단계 이동은 여전히 막혀 있다.
   6. 원화 금리 적용 근거는 초록 글씨로 보이고, USD 전환 경고 문구는 없다.
+- **하네스 확인 항목 (CP2, R1):**
+  7. 첫 임시저장 중에는 1단계 버튼과 2단계의 '← 이전'이 꺼지고, 1단계로 이동하지 않는다. 저장이 끝난 뒤 선택 종목과 S-RIM이 그대로다.
+  8. 새 작성에서 자동 산출 조회 중에 다른 리포트를 재개·수정하거나 새 작성을 다시 시작하면, 늦게 온 응답이 화면을 바꾸지 않고 로딩 표시가 꺼진다.
+  9. 저장·S-RIM 계산이 서버 400으로 실패하면 서버 문구만 보인다.
+  10. S-RIM 제목이 위아래 블록 제목과 같은 클래스다.
+  11. CP1 항목 1~6이 계속 통과한다.
+- **서버 문구 확인 (CP2):** `./gradlew compileJava`가 통과한다. 스크래치 실행으로 "유통주식수를 입력하세요.", "지배주주지분을 입력하세요.", "비교 기준 주가는 0보다 커야 합니다.", "유통주식수는 정수여야 합니다."와 기준일 문구를 확인한다.
 - **verify 단계:** 검증 방식은 태형님이 고른다. 후보는 정적/문서 검증, bootRun 후 실제 화면 확인 등이다.
 
 ## 체크포인트
@@ -155,19 +195,40 @@ blocked_paths:
     - 옮긴 블록의 원래 위치 앞 빈 줄 1줄이 없어졌다. 새 위치의 5단계 블록들도 빈 줄 없이 이어져 있어 주변 형식과 맞다.
   - 블록 이동: 옮긴 S-RIM 블록을 원본과 비교하면 제목, 표시 조건 제거, 적용 근거 줄 세 곳만 바뀌었다.
   - 하네스: 확인 항목 1~6이 27/27 통과했고, 콘솔 오류는 없다.
+- **CP2 (R1 후):** `checkpoint-guard.sh`로 경로를 검사하고, read-only 가드 리뷰와 하네스·서버 문구 확인 결과를 브리핑한다.
+
+## 리뷰 결과 (2026-09-29)
+- **방법:** 프론트엔드 read-only 리뷰 1건을 돌리고, 모든 finding을 코드와 재현으로 다시 확인했다. No.1은 버튼 클릭만으로 재현했다.
+- **결과:** P1(계층 위반) 없음, P2 3건, P3 2건
+- **태형님 선택:** No.1·2·3·5 수정, No.4 보류. 요구사항 확인 2건은 아래와 같이 정했다.
+
+| No | 심각도 | 내용 | 처리 |
+|---|---|---|---|
+| 1 | P2 | 첫 임시저장 응답 전에 1단계로 가서 종목을 바꿀 수 있다. 응답 뒤 이전 종목 리포트에 다른 종목 화면이 붙어, 다음 저장 때 S-RIM이 지워지거나 다른 종목 값이 저장된다. 기존 경합인데 이번 변경으로 결과가 바뀌었다 (REQ-6, KTD1) | 수정 (REQ-16) |
+| 2 | P2 | 새 작성의 자동 산출 조회 중에 다른 리포트를 재개·수정하면 늦은 응답이 그 화면을 덮어쓰고, S-RIM 자동 채움에 다른 종목 값이 들어간다. 기존 결함 | 수정 (REQ-17) |
+| 3 | P2 | 작성 완료 때 S-RIM 필수 검사 오류가 JSON 원문으로 보인다 (REQ-9, 위험 표 1행) | 수정 (REQ-18) |
+| 4 | P3 | S-RIM 칸 목록과 초기화 코드가 여러 곳에 중복된다 | 보류 |
+| 5 | P3 | S-RIM 제목이 위아래 블록 제목보다 크고 진하다 (REQ-10) | 수정 |
+
+- **요구사항 확인 결정:**
+  1. 선택 칸(비교 기준 주가·주가 기준일)만 채워도 S-RIM 입력으로 본다: 지금대로 둔다. "하나라도 입력하면 함께 저장" 결정과 같다.
+  2. 서버 검사 문구 "총 주식수을 입력하세요."(화면 라벨은 "유통주식수", 조사도 틀림): 이번에 같이 고친다(REQ-19). 서버 파일이 수정 금지 범위였으므로 plan 범위를 넓히고 재승인을 받는다.
+- **보류:** No.4는 태형님이 이번 범위에서 고르지 않았다.
 
 ## 위험과 완화
 | 위험 | 완화 |
 |---|---|
-| S-RIM을 쓰지 않으려 했는데 재무 데이터 가져오기나 연도 추가로 입력이 생겨, 작성 완료 때 필수 검사에 걸림 | 서버 오류 문구로 빠진 항목이 보인다. 칸을 비우면 S-RIM 없이 저장된다 |
+| S-RIM을 쓰지 않으려 했는데 재무 데이터 가져오기나 연도 추가로 입력이 생겨, 작성 완료 때 필수 검사에 걸림 | 서버 오류 문구로 빠진 항목이 보인다(R1에서 JSON 원문 대신 문구만 보이게 함). 칸을 비우면 S-RIM 없이 저장된다 |
 | 수정 중 S-RIM 칸을 모두 비우면 저장된 S-RIM이 삭제됨 | 지금의 체크 해제와 같은 동작이고, 칸을 직접 비워야만 생긴다 |
 | 나중에 종목을 바꾸는 경로가 새로 생기면 초기화가 빠짐 | 초기화 헬퍼를 분리해 두고 유지보수 포인트로 기록한다 |
+| 저장 중 1단계 잠금으로 첫 임시저장 응답까지 종목을 바꿀 수 없음 | 저장이 끝나면 수정 모드라 원래도 바꿀 수 없다. 잠금 시작만 앞당긴다 |
+| 서버 문구 변경이 종목 평가 화면의 오류 문구에도 반영됨 | 같은 검사를 쓰는 의도된 변경이다. 두 화면 라벨이 모두 "유통주식수"라 오히려 맞아진다 |
 
 ## 수정 범위
-- **수정 가능:** allowed_paths (`company-report.js`, `company-report.html`, 이 plan·brainstorm, 이슈 폴더)
-- **수정 금지:** blocked_paths (서버, 설정, 종목 평가 화면, `api.js`, `index.html`·`app.js`, `build.gradle`)
+- **수정 가능:** allowed_paths (`company-report.js`, `company-report.html`, `SrimValidator.java`(검사 문구만), 이 plan·brainstorm, 이슈 폴더)
+- **수정 금지:** blocked_paths (기업 리포트 서버의 application·infrastructure·presentation, 계산식 `SrimCalculator`, 입력 구조 `SrimInput`, 설정, 종목 평가 화면, `api.js`, `index.html`·`app.js`, `build.gradle`). 그 밖의 서버 파일도 allowed_paths 밖이라 경로 검사에서 걸린다.
 
 ## 완료 정의
-- REQ-1~12를 충족하고, REQ-13~15는 제외로 유지한다.
-- 하네스 확인 항목 1~6이 통과한다.
-- 서버·저장 구조·계산식·상세 화면·종목 평가 화면은 바뀌지 않는다.
+- REQ-1~12와 REQ-16~19를 충족하고, REQ-13~15는 제외로 유지한다.
+- 하네스 확인 항목 1~11과 서버 문구 확인이 통과한다.
+- 서버 로직·저장 구조·계산식·상세 화면·종목 평가 화면 코드는 바뀌지 않는다. 서버는 S-RIM 검사 문구만 바뀐다.

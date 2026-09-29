@@ -3,14 +3,16 @@ title: "feat: 한국자산평가 채권금리 날짜별 조회·캐싱 및 S-RIM
 type: feat
 issue: 131
 issue_url: https://github.com/osnet-th/stock-market/issues/131
-status: draft
+status: active
 date: 2026-09-29
+approved: "2026-09-29 태형님 승인 (기능 plan + KTD11 구조 분리 + 단위 테스트 시나리오)"
+workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning-gate·briefing·review 게이트 절차를 수동 적용한다 (2026-09-29 태형님 승인)"
 branch: claude/inspiring-wright-rljbsn
 branch_exception: "클라우드 세션은 지정 브랜치에만 push할 수 있어 issue/131-{slug} 대신 세션 브랜치를 쓴다 (2026-09-29 태형님 승인). validate-plan.sh의 branch 형식 검사 1건은 이 예외로 실패한다."
 worktree: /home/user/stock-market-issue-131
 worktree_note: "/home/user/stock-market을 가리키는 심볼릭 링크. checkpoint-guard.sh가 경로에서 이슈 번호를 읽기 때문에 둔다."
 brainstorm: docs/brainstorms/2026-09-28-bond-yield-srim-required-return-brainstorm.md
-test_plan_status: pending
+test_plan_status: approved
 schema_plan_status: none
 allowed_paths:
   - src/main/java/com/thlee/stock/market/stockmarket/economics/domain/model/BondYield*.java
@@ -28,6 +30,10 @@ allowed_paths:
   - src/main/resources/static/js/components/stock-eval.js
   - src/main/resources/static/partials/company-report.html
   - src/main/resources/static/partials/stock-eval.html
+  - src/test/java/com/thlee/stock/market/stockmarket/economics/application/BondYieldQueryServiceTest.java
+  - src/test/java/com/thlee/stock/market/stockmarket/economics/infrastructure/korea/koreaap/KoreaApBondRateParserTest.java
+  - src/test/resources/koreaap/**
+  - docs/plans/tests/2026-09-29-131-bond-yield-srim-required-return-test-plan.md
   - docs/plans/2026-09-29-001-feat-bond-yield-srim-required-return-plan.md
   - docs/brainstorms/2026-09-28-bond-yield-srim-required-return-brainstorm.md
   - .claude/issues/131/**
@@ -63,7 +69,7 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 - [ ] U4 금리 조회 API → 체크포인트 CP2
 - [ ] U5 기업 리포트 S-RIM 금리 선택 UI
 - [ ] U6 종목 평가 S-RIM 금리 선택 UI → 체크포인트 CP3
-- [ ] 단위 테스트 (작성 여부 확정 후, 승인된 시나리오 기준)
+- [ ] 단위 테스트 — 서비스 S1~S15는 U1·U3 구현 전에, 파서 P1~P7은 M0 후 U2 구현 전에 작성 (승인된 시나리오)
 - [ ] 검증 (태형님 선택 방식)
 
 ## 배경 / 현재 상태
@@ -356,10 +362,21 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 - 이용 조건 위험 수용 여부. plan 승인 때 태형님이 확인한다.
 
 ## 단위 테스트 계획
-- 테스트 작성: 작성함 (2026-09-29 태형님 결정)
-- 테스트 시나리오: 대화로 합의 중
-- 사용자 승인: 미승인
-- 다음 단계: 시나리오가 승인되면 테스트 계획 문서를 만들고 plan에 반영한다. 이때 테스트·fixture 경로를 allowed_paths에 추가하고 `test_plan_status: approved`로 바꾼다.
+- 테스트 작성: 작성함
+- 테스트 계획 문서: [테스트 계획](./tests/2026-09-29-131-bond-yield-srim-required-return-test-plan.md)
+- 사용자 승인: 테스트 시나리오 승인됨 (2026-09-29)
+- 승인된 테스트 시나리오: 정상 13건, 예외 9건 (파서 P1~P7, 조회 서비스 S1~S15)
+- 검증 명령: `./gradlew test --tests "*KoreaApBondRateParserTest" --tests "*BondYieldQueryServiceTest"`
+- 작성 순서: 서비스 테스트는 U1·U3 구현 전에 작성하고, 파서 테스트는 M0 fixture 확보 후 U2 구현 전에 작성한다.
+
+## 작업 진행 방식 (워크플로우 예외)
+이 세션에는 compound-engineering(`/ce:work`·`/ce:review`)이 없다. 그래서 같은 절차를 수동으로 적용한다(2026-09-29 승인).
+- **구현:** 작업 리스트 순서대로 한 단위씩 진행한다.
+  - 단위마다 변경 파일이 allowed_paths 안이고 blocked_paths 밖인지 확인한다.
+  - 테스트 대상 단위는 테스트를 먼저 작성하고 실패를 확인한다.
+  - 각 단위를 마치면 태형님께 다음 진행 여부를 확인한다.
+- **체크포인트:** CP마다 `checkpoint-guard.sh`로 경로를 검사하고, read-only 가드 리뷰를 수행한다.
+- **리뷰:** 리뷰 게이트 문서 기준으로 finding 표를 만들고, 태형님이 고른 이슈만 수정한다.
 
 ## 검증
 검증 방식은 verify 단계에서 태형님이 고른다. 후보와 이 세션의 제약:

@@ -11,6 +11,7 @@ import java.time.Duration;
 
 /**
  * 한국자산평가 전용 RestClient. 기본 restClient 빈에는 타임아웃이 없어 별도로 둔다.
+ * JDK HttpClient 기본값(HTTP/2)으로는 이 사이트 요청이 응답 없이 타임아웃되고 HTTP/1.1은 정상 응답해 HTTP/1.1로 고정한다.
  */
 @Configuration
 public class KoreaApRestClientConfig {
@@ -18,6 +19,7 @@ public class KoreaApRestClientConfig {
     @Bean("koreaApRestClient")
     public RestClient koreaApRestClient(KoreaApProperties properties) {
         HttpClient httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofMillis(properties.getConnectTimeoutMs()))
                 .build();
 

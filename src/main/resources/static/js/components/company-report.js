@@ -470,7 +470,7 @@ const CompanyReportComponent = {
             const result = await API.calculateCompanyReportSrim(this._crSrimInput());
             if (generation === this._crSrimGeneration) s.result = result;
         } catch (e) {
-            if (generation === this._crSrimGeneration) s.error = e?.message || 'S-RIM 계산에 실패했습니다.';
+            if (generation === this._crSrimGeneration) s.error = e?.userMessage || e?.message || 'S-RIM 계산에 실패했습니다.';
         } finally {
             if (generation === this._crSrimGeneration) s.loading = false;
         }
@@ -670,6 +670,13 @@ const CompanyReportComponent = {
         }
     },
 
+    // 작성 화면에 새로 들어올 때 진행 중이던 조회를 무효로 한다 (늦은 응답이 다른 리포트 화면을 덮어쓰지 않게)
+    _crCancelPreviewLoad() {
+        const cr = this.companyReport;
+        cr._previewGen++;
+        cr.previewLoading = false;
+    },
+
     // ==================== DART 정기보고서 바로가기 (최근 10년) ====================
     // preview(최대 1분)와 별개의 가벼운 호출. 정기공시(A)만 조회 후 사업/반기/분기만 필터.
     _crResetDisclosures() {
@@ -792,7 +799,7 @@ const CompanyReportComponent = {
     companyReportGoStep(n) {
         const cr = this.companyReport;
         if (n < 1 || n > 7) return;
-        if (n === 1 && cr.mode === 'edit') return;      // 수정/재개 시 종목 변경 불가
+        if (n === 1 && (cr.mode === 'edit' || cr.saving)) return;  // 수정/재개·저장 중에는 종목 변경 불가
         if (n > 1 && !cr.selected) return;              // 종목 선택 전에는 이동 불가
         cr.step = n;
         this._crRenderStepChart();
@@ -912,6 +919,7 @@ const CompanyReportComponent = {
     companyReportOpenCreate() {
         const cr = this.companyReport;
         this._crDestroyCharts();
+        this._crCancelPreviewLoad();
         cr.view = 'form';
         cr.mode = 'create';
         cr.isDraftFlow = true;
@@ -951,6 +959,7 @@ const CompanyReportComponent = {
     _crEnterWizardFrom(detail, isDraftFlow, step) {
         const cr = this.companyReport;
         this._crDestroyCharts();
+        this._crCancelPreviewLoad();
         cr.view = 'form';
         cr.mode = 'edit';
         cr.isDraftFlow = isDraftFlow;
@@ -991,7 +1000,7 @@ const CompanyReportComponent = {
             const body = this._crBuildBody(draft, draftStep);
             await this._crPersist(body, draft);
         } catch (e) {
-            cr.formError = e?.message || '저장에 실패했습니다.';
+            cr.formError = e?.userMessage || e?.message || '저장에 실패했습니다.';
         } finally {
             cr.saving = false;
         }

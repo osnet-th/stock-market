@@ -66,7 +66,8 @@ const StockEvalComponent = {
         // S-RIM 즉석 계산기 (저장 없음). 화면 요소는 기업 리포트 S-RIM을 복제하고, 숫자 파싱·표시 헬퍼(_crSrim*)만 재사용한다.
         srim: { amountScale: '0', appliedScale: '0', equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
             referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false,
-            fetchLoading: false, fetchError: '', basis: null, priceMetrics: null, autoFilled: {}, sources: {}, _gen: 0, _fetchGen: 0 },
+            fetchLoading: false, fetchError: '', basis: null, priceMetrics: null, autoFilled: {}, sources: {}, _gen: 0, _fetchGen: 0,
+            rate: { date: '', loading: false, error: '', data: null, type: '', grade: '', maturity: '', applied: null, _gen: 0 } },
     },
 
     // ==================== 검색 / 선택 ====================
@@ -131,7 +132,8 @@ const StockEvalComponent = {
     _seSrimEmpty() {
         return { amountScale: '0', appliedScale: '0', equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
             referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false,
-            fetchLoading: false, fetchError: '', basis: null, priceMetrics: null, autoFilled: {}, sources: {}, _gen: 0, _fetchGen: 0 };
+            fetchLoading: false, fetchError: '', basis: null, priceMetrics: null, autoFilled: {}, sources: {}, _gen: 0, _fetchGen: 0,
+            rate: this._srimRateEmpty() };
     },
 
     seSrim() {
@@ -149,6 +151,15 @@ const StockEvalComponent = {
         s.result = null;
         s.error = '';
         s.loading = false;
+    },
+
+    // 채권 기준수익률 선택 — 기업 리포트의 공용 헬퍼(_srimRate*, srimRate*)를 재사용한다. 종목 평가는 국내 전용(원화)이라 통화 제한이 없다
+    seSrimRateFetch() {
+        return this._srimRateFetch(this.seSrim().rate);
+    },
+
+    seSrimRateApply() {
+        if (this._srimRateApply(this.seSrim(), this.seSrim().rate)) this.seSrimChanged();
     },
 
     seSrimChangeUnit() {

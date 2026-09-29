@@ -588,13 +588,15 @@ const CompanyReportComponent = {
 
     companyReportBackToList() {
         this._crDestroyCharts();
+        this._crCancelPreviewLoad();
         this.companyReport.view = 'list';
         this.companyReport.detail = null;
         this.companyReportLoad();
     },
 
-    // 위저드 나가기 (임시저장 안 된 변경분 유실 안내)
+    // 위저드 나가기 (임시저장 안 된 변경분 유실 안내). 저장 중에는 응답이 다른 리포트 화면에 적용되지 않도록 막는다
     companyReportExitWizard() {
+        if (this.companyReport.saving) return;
         if (!confirm('작성 화면을 나갈까요? 임시저장하지 않은 변경 내용은 사라집니다.')) return;
         this.companyReportBackToList();
     },
@@ -670,7 +672,7 @@ const CompanyReportComponent = {
         }
     },
 
-    // 작성 화면에 새로 들어올 때 진행 중이던 조회를 무효로 한다 (늦은 응답이 다른 리포트 화면을 덮어쓰지 않게)
+    // 작성 화면에 들어오거나 떠날 때 진행 중이던 조회를 무효로 한다 (늦은 응답이 다른 리포트 화면을 덮어쓰지 않게)
     _crCancelPreviewLoad() {
         const cr = this.companyReport;
         cr._previewGen++;
@@ -1038,6 +1040,7 @@ const CompanyReportComponent = {
         cr.detailLoading = true;
         cr.detailError = null;
         this._crDestroyCharts();
+        this._crCancelPreviewLoad();
         this._crResetDisclosures();
         try {
             cr.detail = await API.getCompanyReport(id);

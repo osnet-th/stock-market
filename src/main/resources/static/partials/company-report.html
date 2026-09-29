@@ -90,7 +90,8 @@
     <div x-show="companyReport.view === 'form'">
         <div class="flex flex-wrap items-center gap-3 mb-3">
             <button @click="companyReportExitWizard()"
-                    class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50">← 나가기</button>
+                    :disabled="companyReport.saving"
+                    class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">← 나가기</button>
             <h3 class="text-lg font-bold text-gray-800"
                 x-text="companyReport.mode === 'create' ? '새 리포트 작성' : (companyReport.isDraftFlow ? '이어서 작성' : '리포트 수정')"></h3>
             <span x-show="companyReport.selected" class="px-2 py-0.5 text-xs font-medium rounded bg-blue-50 text-blue-700"

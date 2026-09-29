@@ -3,8 +3,9 @@ title: "feat: 기업 리포트 S-RIM 항상 표시·주가 추이 아래 배치 
 type: feat
 issue: 132
 issue_url: https://github.com/osnet-th/stock-market/issues/132
-status: draft
+status: active
 date: 2026-09-29
+approved: "2026-09-29 태형님 승인 (S-RIM 항상 표시·주가 추이 아래 배치·입력 시에만 저장·종목 변경 초기화·USD 경고 제거)"
 branch: claude/inspiring-wright-rljbsn
 branch_exception: "클라우드 세션은 지정 브랜치에만 push할 수 있어 issue/132-{slug} 대신 세션 브랜치를 쓴다 (2026-09-29 태형님 확인, #131과 동일). validate-plan.sh의 branch 형식 검사 1건은 이 예외로 실패한다."
 worktree: /home/user/stock-market-issue-132

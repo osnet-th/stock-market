@@ -3,7 +3,7 @@ title: "feat: 한국자산평가 채권금리 날짜별 조회·캐싱 및 S-RIM
 type: feat
 issue: 131
 issue_url: https://github.com/osnet-th/stock-market/issues/131
-status: active
+status: done
 date: 2026-09-29
 approved: "2026-09-29 태형님 승인 (기능 plan + KTD11 구조 분리 + 단위 테스트 시나리오)"
 workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning-gate·briefing·review 게이트 절차를 수동 적용한다 (2026-09-29 태형님 승인)"

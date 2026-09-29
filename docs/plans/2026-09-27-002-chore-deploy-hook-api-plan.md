@@ -1,6 +1,6 @@
 ---
 issue: TBD
-status: active
+status: done
 branch: chore/deploy-hook-auto
 worktree: /Users/tang/Documents/workspace/stock-market
 test_plan_status: none

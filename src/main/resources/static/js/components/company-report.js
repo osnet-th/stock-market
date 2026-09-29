@@ -1,7 +1,8 @@
 /** Company Report - 기업분석리포트 (등록/조회). 7단계 위저드 작성 + 임시저장(draft), 정량 스냅샷 자동 산출 */
 const CompanyReportComponent = {
     companyReport: {
-        srim: { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {} },
+        srim: { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '', referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {},
+            rate: { date: '', loading: false, error: '', data: null, type: '', grade: '', maturity: '', applied: null, _gen: 0 } },
         view: 'list',            // list | form(위저드) | detail
 
         // ==== 목록 ====
@@ -110,7 +111,8 @@ const CompanyReportComponent = {
     // S-RIM: 금액은 기본 통화 단위 decimal 문자열로 전송해 큰 정수 정밀도를 보존한다.
     _crSrimEmpty() {
         return { amountScale: '0', appliedScale: '0', enabled: false, equity: '', equityDate: '', shares: '', sharesDate: '', requiredReturn: '',
-            referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {} };
+            referencePrice: '', referencePriceDate: '', years: [], result: null, error: '', loading: false, autoFilled: {}, sources: {},
+            rate: this._srimRateEmpty() };
     },
 
     crSrimChangeUnit() {
@@ -191,6 +193,139 @@ const CompanyReportComponent = {
         this.companyReport.srim.referencePrice = String(p.referencePrice);
         this.companyReport.srim.referencePriceDate = p.referencePriceDate;
         this.crSrimChanged();
+    },
+
+    // ==================== S-RIM 채권 기준수익률 선택 (기업 리포트·종목 평가 공용) ====================
+    // 날짜별 기준수익률(%)을 조회해 종류·등급·만기를 고른 뒤 적용 버튼으로 요구수익률 칸을 채운다.
+    // 조회 결과(기준일 하루치 전체)는 화면 상태에 두고 등급·만기 변경은 다시 조회하지 않는다. 선택 근거는 저장하지 않는다.
+    _srimRateEmpty() {
+        return { date: this._srimTodayKst(), loading: false, error: '', data: null, type: '', grade: '', maturity: '', applied: null, _gen: 0 };
+    },
+
+    // 서버의 오늘(KST)과 같은 기준으로 기본 날짜를 정한다 (en-CA 형식 = YYYY-MM-DD)
+    _srimTodayKst() {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+    },
+
+    async _srimRateFetch(r) {
+        const generation = ++r._gen;
+        r.loading = true;
+        r.error = '';
+        try {
+            const data = await API.getBondYields(r.date);
+            if (generation !== r._gen) return;
+            r.data = data;
+            r.date = data.requestedDate;
+        } catch (e) {
+            if (generation === r._gen) {
+                r.data = null;
+                r.error = e?.userMessage || e?.message || '금리 조회에 실패했습니다.';
+            }
+        } finally {
+            if (generation === r._gen) r.loading = false;
+        }
+    },
+
+    srimRateTypes() {
+        return [{ value: 'TREASURY', label: '국고채' }, { value: 'CORPORATE_PUBLIC_UNSECURED', label: '회사채 (공모 무보증)' }];
+    },
+
+    srimRateTypeChanged(r) {
+        r.grade = '';
+        r.maturity = '';
+    },
+
+    // 등급 선택이 필요한 종류인지 (화면의 등급 칸 표시 조건도 이 헬퍼로 판단한다)
+    srimRateIsCorporate(r) {
+        return r.type === 'CORPORATE_PUBLIC_UNSECURED';
+    },
+
+    srimRateGrades(r) {
+        if (!r.data || !this.srimRateIsCorporate(r)) return [];
+        return [...new Set(r.data.yields.filter(y => y.type === r.type).map(y => y.grade))];
+    },
+
+    _srimRateRows(r) {
+        if (!r.data || !r.type || (this.srimRateIsCorporate(r) && !r.grade)) return [];
+        return r.data.yields.filter(y => y.type === r.type && (!this.srimRateIsCorporate(r) || y.grade === r.grade));
+    },
+
+    srimRateMaturities(r) {
+        return this._srimRateRows(r).map(y => ({ value: String(y.maturityMonths), label: this.srimRateMaturityLabel(y.maturityMonths), provided: y.rate != null }));
+    },
+
+    // 개월 → "3개월" / "1.5년" / "50년"
+    srimRateMaturityLabel(months) {
+        const m = Number(months);
+        return m < 12 ? m + '개월' : (m / 12) + '년';
+    },
+
+    srimRateSelected(r) {
+        if (!r.maturity) return null;
+        return this._srimRateRows(r).find(y => String(y.maturityMonths) === r.maturity) || null;
+    },
+
+    srimRateSelectedText(r) {
+        const item = this.srimRateSelected(r);
+        if (!item) return '';
+        return item.rate == null ? '미제공 (적용 불가)' : item.rate + '%';
+    },
+
+    // 출처·요청일·실제 기준일 안내. 폴백이면 이전 공시일 금리임을 밝힌다
+    srimRateInfo(r) {
+        const d = r.data;
+        if (!d) return '';
+        if (d.status === 'NOT_FOUND') {
+            return '출처 ' + d.source + ' · 요청일 ' + d.requestedDate + ' 포함 ' + (d.maxFallbackDays + 1)
+                + '일 동안 공시된 금리가 없습니다. 요구수익률을 직접 입력하세요.';
+        }
+        const base = '출처 ' + d.source + ' · 요청일 ' + d.requestedDate + ' · 기준일 ' + d.baseDate;
+        return d.status === 'FALLBACK' ? base + ' (요청일 금리가 없어 이전 공시일 금리)' : base;
+    },
+
+    // 요청일을 바꾸고 다시 조회하지 않았으면 화면의 금리는 이전 요청일 것이므로 적용하지 않는다
+    srimRateStale(r) {
+        return !!r.data && r.date !== r.data.requestedDate;
+    },
+
+    // 선택한 금리를 요구수익률 칸에 넣는다. 미제공이거나 요청일이 바뀌었으면 넣지 않는다. 결과 초기화는 호출한 화면이 한다
+    _srimRateApply(s, r) {
+        const item = this.srimRateSelected(r);
+        if (!item || item.rate == null || this.srimRateStale(r)) return false;
+        s.requiredReturn = String(item.rate);
+        const typeLabel = this.srimRateTypes().find(t => t.value === r.type).label;
+        const name = item.grade ? typeLabel + ' ' + item.grade : typeLabel;
+        r.applied = { value: s.requiredReturn,
+            label: name + ' ' + this.srimRateMaturityLabel(item.maturityMonths) + ' · 기준일 ' + r.data.baseDate + ' · ' + r.data.source };
+        return true;
+    },
+
+    // 적용한 값 그대로일 때만 근거를 보인다 (직접 고치면 사라짐)
+    srimRateAppliedNote(s) {
+        const applied = s.rate?.applied;
+        return applied && String(s.requiredReturn ?? '').trim() === applied.value ? '적용: ' + applied.label : '';
+    },
+
+    // 원화 S-RIM에서만 국내 채권금리를 쓴다
+    crSrimRateEnabled() {
+        return this.crSrimCurrency() === 'KRW';
+    },
+
+    // 원화 금리를 적용한 뒤 종목이 외화로 바뀌었는데 값이 그대로면 근거 대신 경고를 보인다
+    crSrimRateAppliedNote() {
+        const note = this.srimRateAppliedNote(this.companyReport.srim);
+        if (!note || this.crSrimRateEnabled()) return note;
+        return '원화 채권금리로 채운 값이라 외화 S-RIM에 맞지 않습니다. 요구수익률을 직접 입력하세요.';
+    },
+
+    crSrimRateFetch() {
+        if (!this.crSrimRateEnabled()) return;
+        return this._srimRateFetch(this.companyReport.srim.rate);
+    },
+
+    crSrimRateApply() {
+        if (!this.crSrimRateEnabled()) return;
+        if (this._srimRateApply(this.companyReport.srim, this.companyReport.srim.rate)) this.crSrimChanged();
     },
 
     // ==================== S-RIM 재무 데이터 자동 채움 ====================

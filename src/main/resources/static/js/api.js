@@ -150,6 +150,12 @@ const API = {
         return this.request('GET', `/api/economics/indicators/history?category=${category}`);
     },
 
+    // 채권 기준수익률 (S-RIM 요구수익률 선택). 날짜 폴백으로 여러 날짜를 조회할 수 있어(서버 상한 20초) 타임아웃을 넉넉히 준다
+    getBondYields(date) {
+        const query = date ? `?date=${encodeURIComponent(date)}` : '';
+        return this.request('GET', `/api/economics/bond-yields${query}`, null, { timeoutMs: 40000 });
+    },
+
     // Derived Indicators (사용자 커스텀 파생지표) — 토큰 기반, userId 미부착
     getDerivedIndicators() {
         return this.request('GET', '/api/economics/derived-indicators');

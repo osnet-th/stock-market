@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static com.thlee.stock.market.stockmarket.economics.domain.model.BondYieldType.CORPORATE_PUBLIC_UNSECURED;
 import static com.thlee.stock.market.stockmarket.economics.domain.model.BondYieldType.TREASURY;
@@ -115,6 +116,35 @@ class KoreaApBondRateParserTest {
     void 수익률_칸이_숫자가_아니면_파싱_오류다() throws IOException {
         ArrayNode rows = rows("bond-rates-20260928.json");
         row(rows, "A101").put("M036", "abc");
+
+        assertThatThrownBy(() -> parser.parse(WEEKDAY, objectMapper.writeValueAsString(rows)))
+                .isInstanceOf(BondYieldParseException.class);
+    }
+
+    // P8
+    @Test
+    void 대상_행은_있지만_값이_전부_미제공이면_빈_날짜로_판정한다() throws IOException {
+        ArrayNode rows = rows("bond-rates-20260928.json");
+        for (JsonNode row : rows) {
+            ObjectNode node = (ObjectNode) row;
+            List<String> maturityKeys = node.properties().stream()
+                    .map(Map.Entry::getKey)
+                    .filter(key -> key.matches("M\\d{3}"))
+                    .toList();
+            maturityKeys.forEach(key -> node.put(key, "-"));
+        }
+
+        BondYieldSnapshot snapshot = parser.parse(WEEKDAY, objectMapper.writeValueAsString(rows));
+
+        assertThat(snapshot.isEmpty()).isTrue();
+        assertThat(snapshot.yields()).hasSize(6 + 10 * 15);
+    }
+
+    // P9
+    @Test
+    void 만기_항목이_빠지면_파싱_오류다() throws IOException {
+        ArrayNode rows = rows("bond-rates-20260928.json");
+        row(rows, "A101").remove("M036");
 
         assertThatThrownBy(() -> parser.parse(WEEKDAY, objectMapper.writeValueAsString(rows)))
                 .isInstanceOf(BondYieldParseException.class);

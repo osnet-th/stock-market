@@ -183,16 +183,19 @@ class BondYieldQueryServiceTest {
 
     // S10
     @Test
-    void 과거_기준일_캐시는_24시간이_지나면_다시_조회한다() {
+    void 과거_기준일_캐시는_24시간_유지되고_지나면_다시_조회한다() {
         LocalDate date = LocalDate.of(2026, 9, 25);
         port.respond(date, call -> snapshot(date, "3.10" + call));
         BondYieldLookup first = service.lookup(date);
 
-        time.advance(Duration.ofHours(24).plusMinutes(1));
-        BondYieldLookup second = service.lookup(date);
+        time.advance(Duration.ofHours(23).plusMinutes(59));
+        BondYieldLookup before24Hours = service.lookup(date);
+        time.advance(Duration.ofMinutes(2));
+        BondYieldLookup after24Hours = service.lookup(date);
 
         assertThat(treasury3y(first)).isEqualByComparingTo("3.101");
-        assertThat(treasury3y(second)).isEqualByComparingTo("3.102");
+        assertThat(treasury3y(before24Hours)).isEqualByComparingTo("3.101");
+        assertThat(treasury3y(after24Hours)).isEqualByComparingTo("3.102");
     }
 
     // S11
@@ -273,6 +276,85 @@ class BondYieldQueryServiceTest {
             release.countDown();
             executor.shutdownNow();
         }
+    }
+
+    // S16
+    @Test
+    void 과거_요청일의_폴백_연결은_10분_뒤_다시_해석해_늦은_공시를_반영한다() {
+        LocalDate yesterday = TODAY.minusDays(1);
+        LocalDate friday = LocalDate.of(2026, 9, 25);
+        port.respond(yesterday, call -> call == 1 ? BondYieldSnapshot.empty(yesterday) : snapshot(yesterday, "3.200"));
+        port.data(friday, "3.100");
+        BondYieldLookup beforePublish = service.lookup(yesterday);
+
+        time.advance(Duration.ofMinutes(9));
+        BondYieldLookup after9Minutes = service.lookup(yesterday);
+        time.advance(Duration.ofMinutes(2));
+        BondYieldLookup after11Minutes = service.lookup(yesterday);
+
+        assertThat(beforePublish.status()).isEqualTo(FALLBACK);
+        assertThat(beforePublish.baseDate()).isEqualTo(friday);
+        assertThat(after9Minutes.status()).isEqualTo(FALLBACK);
+        assertThat(after9Minutes.baseDate()).isEqualTo(friday);
+        assertThat(after11Minutes.status()).isEqualTo(FOUND);
+        assertThat(after11Minutes.baseDate()).isEqualTo(yesterday);
+        assertThat(treasury3y(after11Minutes)).isEqualByComparingTo("3.200");
+    }
+
+    // S17
+    @Test
+    void 한도_초과_결과는_10분_뒤_다시_해석한다() {
+        LocalDate requested = LocalDate.of(2026, 9, 20);
+        LocalDate published = requested.minusDays(3);
+        port.respond(published, call -> call == 1 ? BondYieldSnapshot.empty(published) : snapshot(published, "3.300"));
+        BondYieldLookup first = service.lookup(requested);
+
+        time.advance(Duration.ofMinutes(9));
+        BondYieldLookup after9Minutes = service.lookup(requested);
+        time.advance(Duration.ofMinutes(2));
+        BondYieldLookup after11Minutes = service.lookup(requested);
+
+        assertThat(first.status()).isEqualTo(NOT_FOUND);
+        assertThat(after9Minutes.status()).isEqualTo(NOT_FOUND);
+        assertThat(after11Minutes.status()).isEqualTo(FALLBACK);
+        assertThat(after11Minutes.baseDate()).isEqualTo(published);
+    }
+
+    // S18
+    @Test
+    void 연결은_살아_있는데_적용일_금리를_다시_불러온_결과가_비면_한_번_다시_해석한다() {
+        LocalDate sunday = LocalDate.of(2026, 9, 27);
+        LocalDate friday = LocalDate.of(2026, 9, 25);
+        LocalDate thursday = LocalDate.of(2026, 9, 24);
+        port.respond(friday, call -> call == 1 ? snapshot(friday, "3.100") : BondYieldSnapshot.empty(friday));
+        port.data(thursday, "3.050");
+        // 폴백으로 금요일 금리가 먼저 캐시되고, 23시간 50분 뒤에 만든 금요일 연결은 그때부터 24시간 유지된다
+        service.lookup(sunday);
+        time.advance(Duration.ofHours(23).plusMinutes(50));
+        BondYieldLookup linked = service.lookup(friday);
+
+        time.advance(Duration.ofMinutes(20));
+        BondYieldLookup result = service.lookup(friday);
+
+        assertThat(linked.status()).isEqualTo(FOUND);
+        assertThat(result.status()).isEqualTo(FALLBACK);
+        assertThat(result.baseDate()).isEqualTo(thursday);
+        assertThat(treasury3y(result)).isEqualByComparingTo("3.050");
+    }
+
+    // S19
+    @Test
+    void 금리가_모두_미제공인_날짜는_빈_날짜로_보고_폴백한다() {
+        LocalDate date = LocalDate.of(2026, 9, 25);
+        port.respond(date, call -> new BondYieldSnapshot(date, List.of(
+                new BondYield(TREASURY, null, 36, null),
+                new BondYield(CORPORATE_PUBLIC_UNSECURED, BondCreditGrade.BBB_MINUS, 36, null))));
+        port.data(date.minusDays(1), "3.100");
+
+        BondYieldLookup result = service.lookup(date);
+
+        assertThat(result.status()).isEqualTo(FALLBACK);
+        assertThat(result.baseDate()).isEqualTo(date.minusDays(1));
     }
 
     private static BondYieldSnapshot snapshot(LocalDate date, String rate) {

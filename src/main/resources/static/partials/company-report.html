@@ -746,12 +746,54 @@
                         <label class="block text-xs text-gray-600">주식수 기준일<input type="date" x-model="companyReport.srim.sharesDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
                         </label>
                         <label class="block text-xs text-gray-600">요구수익률 (%)<input type="text" x-model="companyReport.srim.requiredReturn" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+                        <span class="block text-[11px] text-emerald-700 mt-0.5" x-show="srimRateAppliedNote(companyReport.srim)" x-text="srimRateAppliedNote(companyReport.srim)"></span>
                         </label>
                         <label class="block text-xs text-gray-600">비교 기준 주가 (선택)<input type="text" x-model="companyReport.srim.referencePrice" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
                         </label>
                         <label class="block text-xs text-gray-600">주가 기준일<input type="date" x-model="companyReport.srim.referencePriceDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
                         </label>
                         </div>
+                    <!-- 채권 기준수익률 선택: 조회·선택은 계산 결과를 지우지 않도록 이벤트를 막고, 적용 버튼만 결과를 초기화한다 -->
+                    <div class="rounded border border-gray-200 bg-gray-50 p-3 space-y-2" @input.stop @change.stop>
+                        <p class="text-xs font-semibold text-gray-700">채권 기준수익률로 요구수익률 채우기</p>
+                        <p class="text-xs text-gray-500" x-show="!crSrimRateEnabled()">원화(KRW) S-RIM에서만 사용할 수 있습니다.</p>
+                        <div x-show="crSrimRateEnabled()" class="space-y-2">
+                            <div class="flex flex-wrap items-end gap-2">
+                                <label class="block text-xs text-gray-600">기준일
+                                    <input type="date" x-model="companyReport.srim.rate.date" class="block text-sm border border-gray-300 rounded px-2 py-1.5" />
+                                </label>
+                                <button type="button" @click="crSrimRateFetch()" :disabled="companyReport.srim.rate.loading" class="px-3 py-1.5 text-sm border border-blue-600 text-blue-700 rounded disabled:opacity-40"
+                                        x-text="companyReport.srim.rate.loading ? '조회 중…' : '금리 조회'"></button>
+                            </div>
+                            <p class="text-xs text-red-600" x-show="companyReport.srim.rate.error" x-text="companyReport.srim.rate.error"></p>
+                            <p class="text-xs" :class="companyReport.srim.rate.data?.status === 'FOUND' ? 'text-gray-600' : 'text-amber-700'"
+                               x-show="companyReport.srim.rate.data" x-text="srimRateInfo(companyReport.srim.rate)"></p>
+                            <div class="flex flex-wrap items-end gap-2" x-show="companyReport.srim.rate.data && companyReport.srim.rate.data.status !== 'NOT_FOUND'">
+                                <label class="block text-xs text-gray-600">종류
+                                    <select x-model="companyReport.srim.rate.type" @change="srimRateTypeChanged(companyReport.srim.rate)" class="block text-sm border border-gray-300 rounded px-2 py-1.5">
+                                        <option value="">선택</option>
+                                        <template x-for="t in srimRateTypes()" :key="t.value"><option :value="t.value" x-text="t.label"></option></template>
+                                    </select>
+                                </label>
+                                <label class="block text-xs text-gray-600" x-show="companyReport.srim.rate.type === 'CORPORATE_PUBLIC_UNSECURED'">등급
+                                    <select x-model="companyReport.srim.rate.grade" class="block text-sm border border-gray-300 rounded px-2 py-1.5">
+                                        <option value="">선택</option>
+                                        <template x-for="g in srimRateGrades(companyReport.srim.rate)" :key="g"><option :value="g" x-text="g"></option></template>
+                                    </select>
+                                </label>
+                                <label class="block text-xs text-gray-600">만기
+                                    <select x-model="companyReport.srim.rate.maturity" class="block text-sm border border-gray-300 rounded px-2 py-1.5">
+                                        <option value="">선택</option>
+                                        <template x-for="m in srimRateMaturities(companyReport.srim.rate)" :key="m.value"><option :value="m.value" x-text="m.label + (m.provided ? '' : ' (미제공)')"></option></template>
+                                    </select>
+                                </label>
+                                <span class="text-sm text-gray-800 pb-1.5" x-text="srimRateSelectedText(companyReport.srim.rate)"></span>
+                                <button type="button" @click="crSrimRateApply()" :disabled="srimRateSelected(companyReport.srim.rate)?.rate == null"
+                                        class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded disabled:opacity-40">적용</button>
+                            </div>
+                            <p class="text-[11px] text-gray-500">시장 기준수익률이며 기업 신용등급 판정이 아닙니다. 적용 후 계산하기를 다시 눌러 주세요. 선택 근거는 저장되지 않습니다.</p>
+                        </div>
+                    </div>
                     <div class="flex flex-wrap items-center gap-3">
                     <button type="button" @click="crSrimAutoFill()" :disabled="!crSrimBasis()" class="text-xs text-blue-700 underline disabled:opacity-40">재무 데이터 가져오기</button>
                     <span class="text-xs text-gray-500" x-show="crSrimAutoFillHint()" x-text="crSrimAutoFillHint()"></span>

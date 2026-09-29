@@ -12,11 +12,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/economics/bond-yields")
 @RequiredArgsConstructor
 public class BondYieldController {
+
+    /** 부호 없는 4자리 연도만 받는다. LocalDate.parse는 "-0001-01-01" 같은 부호 있는 연도도 통과시킨다. */
+    private static final Pattern DATE_FORMAT = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
+    /** 0000년은 폴백 중 음수 연도가 되어 조회 형식(yyyyMMdd)으로 바꿀 수 없다. */
+    private static final int MIN_YEAR = 1;
 
     private final BondYieldQueryService bondYieldQueryService;
 
@@ -37,10 +43,23 @@ public class BondYieldController {
         if (date == null || date.isBlank()) {
             return null;
         }
-        try {
-            return LocalDate.parse(date.strip());
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("날짜는 YYYY-MM-DD 형식이어야 합니다: " + date);
+        String text = date.strip();
+        if (!DATE_FORMAT.matcher(text).matches()) {
+            throw invalidDate(date);
         }
+        LocalDate parsed;
+        try {
+            parsed = LocalDate.parse(text);
+        } catch (DateTimeParseException e) {
+            throw invalidDate(date);
+        }
+        if (parsed.getYear() < MIN_YEAR) {
+            throw invalidDate(date);
+        }
+        return parsed;
+    }
+
+    private static IllegalArgumentException invalidDate(String date) {
+        return new IllegalArgumentException("날짜는 YYYY-MM-DD 형식이어야 합니다: " + date);
     }
 }

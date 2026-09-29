@@ -30,6 +30,13 @@ import java.util.regex.Pattern;
 @Component
 public class KoreaApBondRateParser {
 
+    /** 행 분류 필드: 코드, 분류(예: 회사채(공모)), 보증 구분, 등급 */
+    private static final String CODE_FIELD = "GMRI_CODE";
+    private static final String TYPE_FIELD = "GMRI_TYPE";
+    private static final String SUBTYPE_FIELD = "GMRI_SUBTYPE";
+    private static final String GRADE_FIELD = "GMRI_BOND";
+    /** 만기 키 형식: 개월 수 3자리 (M036 = 36개월) */
+    private static final String MATURITY_KEY_FORMAT = "M%03d";
     private static final String TREASURY_CODE = "A101";
     private static final String PUBLIC_CORPORATE_TYPE = "회사채(공모)";
     private static final String UNSECURED_SUBTYPE = "무보증";
@@ -64,7 +71,7 @@ public class KoreaApBondRateParser {
                     yields.add(new BondYield(BondYieldType.TREASURY, null, maturityMonths, rate(row, maturityMonths)));
                 }
             } else if (isPublicUnsecuredCorporate(row)) {
-                Optional<BondCreditGrade> grade = BondCreditGrade.fromLabel(row.path("GMRI_BOND").asText());
+                Optional<BondCreditGrade> grade = BondCreditGrade.fromLabel(row.path(GRADE_FIELD).asText());
                 if (grade.isEmpty()) {
                     continue;
                 }
@@ -91,6 +98,7 @@ public class KoreaApBondRateParser {
         try {
             root = objectMapper.readTree(body);
         } catch (JsonProcessingException e) {
+            log.warn("한국자산평가 응답 JSON 해석 실패: length={}, cause={}", body.length(), e.getOriginalMessage());
             throw new BondYieldParseException("한국자산평가 응답 형식을 해석하지 못했습니다.", e);
         }
         if (!root.isArray()) {
@@ -100,12 +108,12 @@ public class KoreaApBondRateParser {
     }
 
     private static boolean isTreasury(JsonNode row) {
-        return TREASURY_CODE.equals(row.path("GMRI_CODE").asText());
+        return TREASURY_CODE.equals(row.path(CODE_FIELD).asText());
     }
 
     private static boolean isPublicUnsecuredCorporate(JsonNode row) {
-        return PUBLIC_CORPORATE_TYPE.equals(withoutTagsAndSpaces(row.path("GMRI_TYPE").asText()))
-                && UNSECURED_SUBTYPE.equals(row.path("GMRI_SUBTYPE").asText().strip());
+        return PUBLIC_CORPORATE_TYPE.equals(withoutTagsAndSpaces(row.path(TYPE_FIELD).asText()))
+                && UNSECURED_SUBTYPE.equals(row.path(SUBTYPE_FIELD).asText().strip());
     }
 
     /** 표시용 줄바꿈 태그(<br/>)와 공백을 지운다. 예: "회사채<br/>(공모)" → "회사채(공모)" */
@@ -115,7 +123,7 @@ public class KoreaApBondRateParser {
 
     /** 만기 키(M036 = 36개월)의 수익률(%). "-"·공백은 미제공(null)이다. */
     private static BigDecimal rate(JsonNode row, int maturityMonths) {
-        String key = String.format("M%03d", maturityMonths);
+        String key = String.format(MATURITY_KEY_FORMAT, maturityMonths);
         JsonNode value = row.get(key);
         if (value == null) {
             log.warn("한국자산평가 응답 만기 항목 누락: key={}", key);

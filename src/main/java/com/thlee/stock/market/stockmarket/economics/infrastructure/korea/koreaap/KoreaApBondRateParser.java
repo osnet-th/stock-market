@@ -8,6 +8,7 @@ import com.thlee.stock.market.stockmarket.economics.domain.model.BondCreditGrade
 import com.thlee.stock.market.stockmarket.economics.domain.model.BondYield;
 import com.thlee.stock.market.stockmarket.economics.domain.model.BondYieldSnapshot;
 import com.thlee.stock.market.stockmarket.economics.domain.model.BondYieldType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -23,7 +24,9 @@ import java.util.regex.Pattern;
  * 한국자산평가 응답(JSON 배열)을 도메인 스냅샷으로 바꾼다.
  * 국고채는 GMRI_CODE로, 공모 무보증 회사채는 분류(GMRI_TYPE)·보증 구분(GMRI_SUBTYPE)·등급(GMRI_BOND) 조합으로 고른다.
  * 같은 등급 문자열이 사모 회사채·금융채에도 있으므로 등급만으로 매핑하지 않는다.
+ * 오류 메시지는 화면에 그대로 나가므로 출처의 필드명·원문 값은 넣지 않고 로그로만 남긴다.
  */
+@Slf4j
 @Component
 public class KoreaApBondRateParser {
 
@@ -115,7 +118,8 @@ public class KoreaApBondRateParser {
         String key = String.format("M%03d", maturityMonths);
         JsonNode value = row.get(key);
         if (value == null) {
-            throw new BondYieldParseException("한국자산평가 응답에 만기 항목이 없습니다: " + key);
+            log.warn("한국자산평가 응답 만기 항목 누락: key={}", key);
+            throw new BondYieldParseException("한국자산평가 응답에 필요한 만기 항목이 없습니다. 응답 구조가 바뀌었을 수 있습니다.");
         }
         if (value.isNull()) {
             return null;
@@ -127,7 +131,8 @@ public class KoreaApBondRateParser {
         try {
             return new BigDecimal(text);
         } catch (NumberFormatException e) {
-            throw new BondYieldParseException("한국자산평가 응답의 수익률 값을 해석하지 못했습니다: " + key + "=" + text, e);
+            log.warn("한국자산평가 수익률 값 해석 실패: key={}, value={}", key, text);
+            throw new BondYieldParseException("한국자산평가 응답의 수익률 값을 해석하지 못했습니다.", e);
         }
     }
 }

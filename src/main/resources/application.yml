@@ -267,6 +267,12 @@ economics:
         api-key: ${ECOS_API_KEY}
         start-count: 1
         end-count: 200
+      # 한국자산평가 채권금리 기준수익률 (공개 화면 조회, 인증 없음)
+      koreaap:
+        base-url: https://www.koreaap.com
+        connect-timeout-ms: 3000
+        read-timeout-ms: 7000
+        user-agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     global:
       fred:
         # 향후 FRED API 설정 위치
@@ -274,6 +280,13 @@ economics:
         base-url: https://ko.tradingeconomics.com
         timeout: 5000
         user-agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  # 채권 기준수익률 조회 캐시·폴백 정책 (출처와 무관)
+  bond-yield:
+    cache:
+      ttl-hours: 24
+      short-ttl-minutes: 10
+      max-size: 100
+      lookup-timeout-seconds: 20
 
 # Actuator
 management:

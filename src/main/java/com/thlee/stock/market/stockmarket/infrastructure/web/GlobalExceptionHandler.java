@@ -1,5 +1,7 @@
 package com.thlee.stock.market.stockmarket.infrastructure.web;
 
+import com.thlee.stock.market.stockmarket.economics.domain.exception.BondYieldFetchException;
+import com.thlee.stock.market.stockmarket.economics.domain.exception.BondYieldParseException;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradingeconomics.exception.TradingEconomicsFetchException;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.global.tradingeconomics.exception.TradingEconomicsParseException;
 import com.thlee.stock.market.stockmarket.economics.infrastructure.korea.ecos.exception.EcosApiException;
@@ -175,7 +177,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 외부 API 예외 (KIS, ECOS, News, DataGoKr, TradingEconomics)
+     * 외부 API 예외 (KIS, ECOS, News, DataGoKr, TradingEconomics, 채권 기준수익률)
      */
     @ExceptionHandler({
             KisApiException.class,
@@ -183,7 +185,9 @@ public class GlobalExceptionHandler {
             NewsApiException.class,
             DataGoKrApiException.class,
             TradingEconomicsFetchException.class,
-            TradingEconomicsParseException.class
+            TradingEconomicsParseException.class,
+            BondYieldFetchException.class,
+            BondYieldParseException.class
     })
     public ResponseEntity<Map<String, Object>> handleExternalApi(RuntimeException e) {
         publishError(e);

@@ -551,7 +551,7 @@
                         <label class="block text-xs text-gray-600">주식수 기준일<input type="date" x-model="companyReport.srim.sharesDate" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
                         </label>
                         <label class="block text-xs text-gray-600">요구수익률 (%)<input type="text" x-model="companyReport.srim.requiredReturn" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
-                        <span class="block text-[11px] mt-0.5" :class="crSrimRateEnabled() ? 'text-emerald-700' : 'text-amber-700'" x-show="crSrimRateAppliedNote()" x-text="crSrimRateAppliedNote()"></span>
+                        <span class="block text-[11px] text-emerald-700 mt-0.5" x-show="srimRateAppliedNote(companyReport.srim)" x-text="srimRateAppliedNote(companyReport.srim)"></span>
                         </label>
                         <label class="block text-xs text-gray-600">비교 기준 주가 (선택)<input type="text" x-model="companyReport.srim.referencePrice" class="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
                         </label>

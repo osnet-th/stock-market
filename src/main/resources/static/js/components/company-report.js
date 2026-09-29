@@ -317,13 +317,6 @@ const CompanyReportComponent = {
         return this.crSrimCurrency() === 'KRW';
     },
 
-    // 원화 금리를 적용한 뒤 종목이 외화로 바뀌었는데 값이 그대로면 근거 대신 경고를 보인다
-    crSrimRateAppliedNote() {
-        const note = this.srimRateAppliedNote(this.companyReport.srim);
-        if (!note || this.crSrimRateEnabled()) return note;
-        return '원화 채권금리로 채운 값이라 외화 S-RIM에 맞지 않습니다. 요구수익률을 직접 입력하세요.';
-    },
-
     crSrimRateFetch() {
         if (!this.crSrimRateEnabled()) return;
         return this._srimRateFetch(this.companyReport.srim.rate);

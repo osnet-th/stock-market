@@ -16,8 +16,8 @@ allowed_paths:
   - src/main/java/com/thlee/stock/market/stockmarket/economics/domain/model/BondYield*.java
   - src/main/java/com/thlee/stock/market/stockmarket/economics/domain/model/BondCreditGrade.java
   - src/main/java/com/thlee/stock/market/stockmarket/economics/domain/service/BondYieldPort.java
+  - src/main/java/com/thlee/stock/market/stockmarket/economics/domain/exception/BondYield*.java
   - src/main/java/com/thlee/stock/market/stockmarket/economics/application/BondYieldQueryService.java
-  - src/main/java/com/thlee/stock/market/stockmarket/economics/application/exception/BondYieldLookupTimeoutException.java
   - src/main/java/com/thlee/stock/market/stockmarket/economics/infrastructure/korea/koreaap/**
   - src/main/java/com/thlee/stock/market/stockmarket/economics/presentation/BondYieldController.java
   - src/main/java/com/thlee/stock/market/stockmarket/economics/presentation/dto/BondYieldResponse.java
@@ -53,10 +53,11 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 - **캐시와 폴백:** 요청할 때만 외부를 조회한다. 결과는 기준일 단위로 메모리에 캐싱한다. 날짜 전체 데이터가 없으면 최대 10일 전까지 거슬러 올라간다.
 - **화면:** 기업 리포트와 종목 평가의 S-RIM에 금리 선택 영역을 붙인다. 종류·등급·만기를 고르고 적용 버튼을 누르면 요구수익률이 채워진다.
 - **바뀌지 않는 것:** S-RIM 계산, 저장 구조, 기존 API
+- **출처 분리:** 금리 조회는 도메인 포트(interface)로 분리하고, 외부 요청은 infrastructure 어댑터가 전담한다. 출처 API를 바꿔도 서비스·API·화면은 바뀌지 않는다.
 
 ## 작업 리스트
 - [ ] M0 한국자산평가 응답 실측 — 세션 네트워크 허용 후. U2 착수 전 필수
-- [ ] U1 도메인 모델·포트
+- [ ] U1 도메인 모델·금리 조회 포트·출처 무관 예외
 - [ ] U2 한국자산평가 어댑터 + 설정 + 예외 등록 → 체크포인트 CP1
 - [ ] U3 날짜 폴백·이중 캐시 조회 서비스
 - [ ] U4 금리 조회 API → 체크포인트 CP2
@@ -117,6 +118,7 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 | REQ-22 | S-RIM 공식 변경 및 보류한 수익 상태 컬럼 재설계 | 이슈 제외 범위 | 제외 | 이슈 제외 |
 | REQ-23 | 종목 신용등급 자동 판정 | brainstorm 제외 범위 | 제외 | 선택은 사용자 몫 |
 | REQ-24 | Excel 파일 수집 | brainstorm 후보 3 | 제외 | 파일 구조 미검증, 우선 구현 대상 아님 |
+| REQ-25 | 금리 조회 interface를 분리하고 외부 요청은 infrastructure가 전담해, 출처 API를 바꿔도 서비스 로직에 영향이 없게 한다 | 2026-09-29 태형님 요청 (plan 승인 조건) | 포함 | U1 포트·도메인 예외, U2 어댑터, U3는 포트에만 의존 (KTD11) |
 
 ## 핵심 기술 결정
 **KTD1 — `economics` 도메인에 둔다.**
@@ -174,7 +176,7 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 **KTD6 — 폴백 중 오류가 나면 즉시 실패한다.**
 - 통신·파싱 오류가 나면 다음 날짜로 건너뛰지 않는다.
 - 전체 해석에 벽시계 상한 20초를 둔다. 다음 날짜를 조회하기 전에 상한을 넘겼으면 조회 시간 초과로 실패한다.
-- 이 경우 application 예외 `BondYieldLookupTimeoutException`을 쓴다.
+- 이 경우 통신 실패와 같은 도메인 예외 `BondYieldFetchException`을 쓰고, 메시지로 시간 초과를 알린다(KTD11).
 
 **KTD7 — 요청일 규칙.**
 - 생략하면 오늘(KST)로 본다.
@@ -183,10 +185,9 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 
 **KTD8 — 오류 응답.**
 - 통신 실패와 파싱 실패는 모두 502 `EXTERNAL_API_ERROR`로 응답하고, 메시지로 구분한다. 한도 초과는 200 NOT_FOUND다(API 계약 참고).
-- 예외 3종을 `GlobalExceptionHandler`의 외부 API 그룹에 등록한다.
-  - `KoreaApFetchException`
-  - `KoreaApParseException`
-  - `BondYieldLookupTimeoutException`
+- 출처와 무관한 도메인 예외 2종을 `GlobalExceptionHandler`의 외부 API 그룹에 등록한다(KTD11).
+  - `BondYieldFetchException`: 연결·타임아웃·HTTP 오류, 조회 시간 초과
+  - `BondYieldParseException`: 응답 해석 실패
 - 예외 메시지는 사용자용 문구로 쓰고, 세부 원인은 cause와 로그로 남긴다.
 
 **KTD9 — 프론트는 두 화면에 복제하고, 공용 헬퍼는 company-report.js에 둔다.**
@@ -198,6 +199,20 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 - 적용 근거(종류·등급·만기·기준일)는 요구수익률 값이 적용한 값 그대로일 때만 입력 화면에 표시한다.
 - 직접 수정하면 표시가 사라진다.
 
+**KTD11 — 금리 조회 포트로 출처를 격리한다.** (2026-09-29 태형님 요청)
+- 금리 정보 조회 interface는 도메인 포트 `BondYieldPort`다. 서비스(`BondYieldQueryService`)는 이 포트에만 의존한다.
+  - 포트 계약: 기준일 하루치를 도메인 스냅샷으로 돌려준다. 데이터가 없으면 빈 스냅샷, 실패하면 도메인 예외다. 출처 이름도 포트가 제공한다.
+- 외부 요청과 응답 해석은 infrastructure 어댑터(`economics.infrastructure.korea.koreaap`)가 전담한다.
+  - 어댑터 밖으로 나가지 않는 것: HTTP 호출, 요청 파라미터·헤더, JSON 필드(`GMRI_*`), 만기 키(`M036` 등)
+  - 어댑터는 자기 오류를 도메인 예외(`BondYieldFetchException` / `BondYieldParseException`)로 바꿔 던진다. 출처별 예외 클래스는 두지 않는다.
+- 도메인 모델(종류·등급·만기 개월·수익률 %)과 조회 대상(국고채 6개 만기, 공모 무보증 10개 등급)은 출처와 무관한 도메인 개념이다.
+- 설정을 나눈다.
+  - 출처 접속 설정: `economics.api.korea.koreaap.*`
+  - 캐시·폴백 정책: 출처 무관 `economics.bond-yield.*`
+- 응답의 `source`는 포트가 준 출처 이름을 쓴다. 서비스·API·화면에는 출처 이름을 하드코딩하지 않는다.
+- 출처 교체 시 할 일: 포트를 구현한 새 어댑터를 추가하고 한국자산평가 어댑터를 빼는 것뿐이다. 서비스·캐시·폴백·API·화면·예외 매핑은 바뀌지 않는다.
+- 출처 선택 설정(여러 어댑터 전환)은 지금 두지 않는다(YAGNI).
+
 ## API 계약
 `GET /api/economics/bond-yields?date=YYYY-MM-DD` — 로그인 필요(기존 보안 설정 그대로)
 
@@ -205,7 +220,7 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 
 | 필드 | 값 |
 |---|---|
-| `source` | `한국자산평가` |
+| `source` | 포트가 제공한 출처 이름 (현재 `한국자산평가`) |
 | `requestedDate` | 요청일. 생략했으면 오늘(KST) |
 | `baseDate` | 실제 적용 기준일. NOT_FOUND면 null |
 | `status` | `FOUND`(요청일 데이터) / `FALLBACK`(이전 날짜 적용) / `NOT_FOUND`(한도 초과) |
@@ -234,32 +249,39 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
   - 대상 행 개수(국고채 1, 공모 무보증 10)
 - 가정과 다르면 중단하고 plan을 갱신해 재승인받는다. 예: 휴일에 이전 날짜 데이터를 돌려주는 경우
 
-### U1 도메인 모델·포트 (선행 없음)
+### U1 도메인 모델·금리 조회 포트·출처 무관 예외 (선행 없음)
 - `economics.domain.model` (순수 Java):
-  - `BondYieldType`: 국고채 / 공모 무보증 회사채
+  - `BondYieldType`: 국고채 / 공모 무보증 회사채. 국고채 조회 대상 만기(12·36·60·120·240·360개월)를 도메인 상수로 둔다.
   - `BondCreditGrade`: AAA~BBB- 10개, 표시 문자열 포함
   - `BondYield`: 종류, 등급, 만기 개월, 수익률 %(nullable)
   - `BondYieldSnapshot`: 기준일, 금리 목록, 빈 날짜 판정
-  - `BondYieldLookup`: 요청일, 적용일, 상태, 스냅샷
-- `economics.domain.service.BondYieldPort`
+  - `BondYieldLookup`: 요청일, 적용일, 상태, 출처 이름, 스냅샷
+- `economics.domain.service.BondYieldPort` (금리 정보 조회 interface, KTD11)
   - 기준일 하루치를 조회한다.
   - 데이터가 없으면 빈 스냅샷을 돌려준다.
-  - 통신·파싱 실패는 예외로 알린다.
+  - 통신·파싱 실패는 도메인 예외로 알린다.
+  - 출처 이름을 제공한다.
+- `economics.domain.exception`:
+  - `BondYieldFetchException`
+  - `BondYieldParseException`
 
 ### U2 한국자산평가 어댑터 (선행 M0, U1)
 - `koreaap/config`:
   - Properties: base-url, connect/read timeout, user-agent, M0에서 필요하다고 확인된 헤더
   - 전용 RestClient 설정
 - `koreaap` 클래스:
-  - 클라이언트: 날짜 → 응답 본문. `RestClientException`은 `KoreaApFetchException`으로 바꾼다.
-  - 파서: 본문 → 스냅샷. KTD3·KTD4 규칙을 따르고, 실패 시 `KoreaApParseException`을 던진다.
-  - 어댑터: 포트 구현
-- `koreaap/exception`: 예외 2종
-- application.yml에 `economics.api.korea.koreaap` 섹션을 추가한다. 접속 설정과 cache(ttl-hours 24, short-ttl-minutes 10, max-size 100, lookup-timeout-seconds 20)를 담는다.
-- `GlobalExceptionHandler` 외부 API 그룹에 예외 3종을 등록한다(KTD8).
+  - 클라이언트: 날짜 → 응답 본문. `RestClientException`은 도메인 `BondYieldFetchException`으로 바꾼다.
+  - 파서: 본문 → 도메인 스냅샷. KTD3·KTD4 규칙을 따르고, 실패 시 도메인 `BondYieldParseException`을 던진다.
+  - 어댑터: `BondYieldPort` 구현, 출처 이름 `한국자산평가`
+- 출처별 예외 클래스는 만들지 않는다(KTD11).
+- application.yml 설정을 두 섹션으로 나눈다(KTD11).
+  - `economics.api.korea.koreaap`: 접속 설정
+  - `economics.bond-yield.cache`: ttl-hours 24, short-ttl-minutes 10, max-size 100, lookup-timeout-seconds 20
+- `GlobalExceptionHandler` 외부 API 그룹에 도메인 예외 2종을 등록한다(KTD8).
 
 ### U3 조회 서비스 (선행 U1)
 - `BondYieldQueryService.lookup(요청일)`: KTD5·KTD6·KTD7을 따른다.
+- `BondYieldPort`에만 의존하고, infrastructure 클래스는 참조하지 않는다(KTD11).
 - 해석 순서:
   1. 연결 캐시를 먼저 본다.
   2. 없으면 요청일부터 D-10까지 금리 캐시를 거쳐 하루씩 조회한다.
@@ -309,12 +331,14 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 - 기존 S-RIM 계산·저장·리포트 API·JSONB는 바뀌지 않는다. DB 스키마 변경 없음.
 - 두 S-RIM 화면에 입력 영역이 추가된다.
 - 결과 초기화 규칙은 그대로다. 적용 시에만 결과를 초기화한다.
-- `GlobalExceptionHandler` 외부 API 그룹에 예외 3종이 추가된다. 기존 매핑은 바뀌지 않는다.
+- `GlobalExceptionHandler` 외부 API 그룹에 도메인 예외 2종이 추가된다. 기존 매핑은 바뀌지 않는다.
+- 출처를 교체할 때는 어댑터만 바꾼다(KTD11).
 
 ## 위험과 완화
 | 위험 | 완화 |
 |---|---|
 | 비공식 endpoint 변경·차단(WAF) | 어댑터로 격리, 파싱 오류로 명확히 실패, 직접 입력 유지 |
+| 출처 교체 시 서비스까지 수정이 번짐 | KTD11 포트·도메인 예외·설정 분리, 어댑터 교체만으로 전환 |
 | 이용 조건 미확인 (자동 조회·재게시 허가) | 태형님 위험 수용 여부 확인 (plan 승인 시), 캐시로 호출 최소화 |
 | 휴일 응답이 빈 응답이 아님 (직전 영업일 값 반환 등) | M0 실측, 다르면 중단 후 plan 갱신 |
 | 응답 envelope·만기 키 미확인 | M0 실측 후 파서 확정 |
@@ -332,10 +356,10 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 - 이용 조건 위험 수용 여부. plan 승인 때 태형님이 확인한다.
 
 ## 단위 테스트 계획
-- 테스트 작성: 확인 필요
-- 테스트 시나리오: 미작성
+- 테스트 작성: 작성함 (2026-09-29 태형님 결정)
+- 테스트 시나리오: 대화로 합의 중
 - 사용자 승인: 미승인
-- 다음 단계: 기능 계획 승인 후 테스트 작성 여부를 확인한다. 작성하기로 하면 대화로 시나리오를 합의한 뒤 plan에 반영한다. 이때 테스트·fixture 경로를 allowed_paths에 추가한다.
+- 다음 단계: 시나리오가 승인되면 테스트 계획 문서를 만들고 plan에 반영한다. 이때 테스트·fixture 경로를 allowed_paths에 추가하고 `test_plan_status: approved`로 바꾼다.
 
 ## 검증
 검증 방식은 verify 단계에서 태형님이 고른다. 후보와 이 세션의 제약:
@@ -355,7 +379,7 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
 
 ## 수정 범위
 - **수정 가능:** 위 allowed_paths 범위
-  - economics 신규 클래스(도메인·서비스·어댑터·API)
+  - economics 신규 클래스(도메인 모델·포트·예외, 서비스, 어댑터, API)
   - `GlobalExceptionHandler` 외부 API 그룹 등록
   - application.yml 신규 섹션
   - 두 S-RIM 화면과 `api.js`
@@ -366,7 +390,7 @@ S-RIM 요구수익률을 채울 수 있도록 한국자산평가 기준수익률
   - `index.html`·`app.js`·`build.gradle`
 
 ## 완료 정의
-- REQ-1~20을 충족하고, REQ-21~24는 제외로 유지한다.
+- REQ-1~20과 REQ-25를 충족하고, REQ-21~24는 제외로 유지한다.
 - 휴일·미발표 날짜가 최대 10일 폴백되고, 요청일과 실제 기준일이 함께 표시된다. 11개 날짜 모두 비면 안내와 직접 입력이 유지된다.
 - 통신·파싱 오류가 "데이터 없음"과 다른 응답·안내로 드러나고, 캐시에 남지 않는다.
 - 두 화면에서 금리 선택·적용·직접 입력·재계산이 동작하고, 계산식과 저장 구조는 바뀌지 않는다.

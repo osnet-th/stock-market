@@ -115,6 +115,12 @@ const CompanyReportComponent = {
             rate: this._srimRateEmpty() };
     },
 
+    // 종목이 바뀌면 이전 종목 기준의 S-RIM 입력·금리 선택·계산 결과를 비운다. 진행 중이던 계산 결과는 세대 번호로 버린다
+    _crSrimResetForStockChange() {
+        this._crSrimGeneration = (this._crSrimGeneration || 0) + 1;
+        this.companyReport.srim = this._crSrimEmpty();
+    },
+
     crSrimChangeUnit() {
         const s = this.companyReport.srim;
         this.crSrimChanged();
@@ -632,6 +638,7 @@ const CompanyReportComponent = {
 
     async companyReportSelectStock(stock) {
         const cr = this.companyReport;
+        if (cr.selected?.stockCode !== stock.stockCode) this._crSrimResetForStockChange();
         cr.selected = stock;
         cr.searchResults = [];
         cr.searchQuery = '';

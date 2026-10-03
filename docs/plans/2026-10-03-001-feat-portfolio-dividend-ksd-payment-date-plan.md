@@ -3,7 +3,7 @@ title: "feat: 포트폴리오 배당 집계를 KSD 실지급일 기준으로 전
 type: feat
 issue: 113
 issue_url: https://github.com/osnet-th/stock-market/issues/113
-status: active
+status: done
 date: 2026-10-03
 approved: "2026-10-03 태형님 승인 (기능 plan + stockevaluation domain/service 패키지·포트·어댑터 추가 + basis 값 ACTUAL_PAYMENT_DATE 추가 + 단위 테스트 시나리오 A1~A6·S1~S11). '끝까지 다 진행해'로 PR·병합까지 진행을 지시함"
 workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning·briefing·review 게이트 절차를 수동 적용한다 (#131·#132와 동일)"

@@ -1,0 +1,243 @@
+---
+title: "feat: 포트폴리오 배당 집계를 KSD 실지급일 기준으로 전환"
+type: feat
+issue: 113
+issue_url: https://github.com/osnet-th/stock-market/issues/113
+status: draft
+date: 2026-10-03
+workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning·briefing·review 게이트 절차를 수동 적용한다 (#131·#132와 동일)"
+branch: claude/inspiring-wright-rljbsn
+branch_exception: "클라우드 세션은 지정 브랜치에만 push할 수 있어 issue/113-{slug} 대신 세션 브랜치를 쓴다 (2026-10-03 태형님 확인, brainstorm 확인 7). validate-plan.sh의 branch 형식 검사 1건은 이 예외로 실패한다."
+worktree: /home/user/stock-market-issue-113
+worktree_note: "/home/user/stock-market을 가리키는 심볼릭 링크. checkpoint-guard.sh가 경로에서 이슈 번호를 읽기 때문에 둔다."
+brainstorm: docs/brainstorms/2026-10-03-portfolio-dividend-ksd-payment-date-brainstorm.md
+test_plan_status: pending
+schema_plan_status: none
+allowed_paths:
+  - src/main/java/com/thlee/stock/market/stockmarket/stockevaluation/domain/model/DividendSchedule.java
+  - src/main/java/com/thlee/stock/market/stockmarket/stockevaluation/domain/service/DividendSchedulePort.java
+  - src/main/java/com/thlee/stock/market/stockmarket/stockevaluation/infrastructure/kis/KisDividendScheduleAdapter.java
+  - src/main/java/com/thlee/stock/market/stockmarket/portfolio/application/PortfolioIncomeService.java
+  - src/main/java/com/thlee/stock/market/stockmarket/portfolio/application/dto/PortfolioIncomeResponse.java
+  - src/main/resources/static/js/components/portfolio.js
+  - src/main/resources/static/partials/portfolio-holdings.html
+  - src/test/java/com/thlee/stock/market/stockmarket/portfolio/application/PortfolioIncomeServiceTest.java
+  - src/test/java/com/thlee/stock/market/stockmarket/stockevaluation/infrastructure/kis/KisDividendScheduleAdapterTest.java
+  - docs/plans/tests/2026-10-03-113-portfolio-dividend-ksd-payment-date-test-plan.md
+  - docs/plans/2026-10-03-001-feat-portfolio-dividend-ksd-payment-date-plan.md
+  - docs/brainstorms/2026-10-03-portfolio-dividend-ksd-payment-date-brainstorm.md
+  - .claude/issues/113/**
+blocked_paths:
+  - src/main/java/com/thlee/stock/market/stockmarket/stockevaluation/infrastructure/kis/KisKsdScheduleClient.java
+  - src/main/java/com/thlee/stock/market/stockmarket/stockevaluation/infrastructure/kis/dto/**
+  - src/main/java/com/thlee/stock/market/stockmarket/stockevaluation/domain/model/KsdScheduleType.java
+  - src/main/java/com/thlee/stock/market/stockmarket/stockevaluation/application/**
+  - src/main/java/com/thlee/stock/market/stockmarket/stockevaluation/presentation/**
+  - src/main/java/com/thlee/stock/market/stockmarket/stock/**
+  - src/main/java/com/thlee/stock/market/stockmarket/portfolio/domain/**
+  - src/main/java/com/thlee/stock/market/stockmarket/portfolio/infrastructure/**
+  - src/main/java/com/thlee/stock/market/stockmarket/portfolio/presentation/**
+  - src/main/java/com/thlee/stock/market/stockmarket/portfolio/application/PortfolioSummaryService.java
+  - src/main/java/com/thlee/stock/market/stockmarket/portfolio/application/PortfolioEvaluationService.java
+  - src/main/resources/application.yml
+  - src/main/resources/db/**
+  - src/main/resources/static/js/api.js
+  - src/main/resources/static/index.html
+  - src/main/resources/static/js/app.js
+  - build.gradle
+---
+
+# 포트폴리오 배당 집계 KSD 실지급일 기준 전환 (#113)
+
+## 요약
+- 포트폴리오 상단 "이달 배당 · 이자"에서 국내 주식(개별 종목·ETF) 배당을 KSD 배당일정의 지급일 기준으로 바꾼다. 이달 금액은 지급일이 이번 달(KST)인 주당 현금배당 × 현재 보유 수량의 합이다.
+- 국내 주식 연 예상은 이번 달을 포함한 최근 12개월 실지급 배당 × 현재 수량으로 바꾼다. 시가배당률도 이 연 예상으로 계산한다.
+- 해외 주식 배당, KSD에 배당 기록이 없는 ETF, 예적금·채권 이자는 지금처럼 연 예상 ÷ 12로 이달 금액에 더한다.
+- KSD 조회는 종목 단위로 12시간 캐시한다. 국내 종목 조회가 하나라도 실패하면 국내 배당 전체를 지금 방식으로 계산하고 기존 basis(`ESTIMATED_MONTHLY_AVERAGE`)를 돌려준다. 요약 API는 실패하지 않는다.
+- 응답 필드는 그대로 두고 basis 값 `ACTUAL_PAYMENT_DATE`를 추가한다. KPI 카드 캡션은 basis에 따라 항상 기준을 보인다.
+- 바뀌지 않는 것: DB, 요약 API 경로·필드, 이자 산출식, 연금 제외, 종목 평가 화면과 기존 KSD 조회 클라이언트
+
+## 작업 리스트
+- [ ] U1 배당 일정 도메인 모델·조회 포트 (stockevaluation)
+- [ ] U2 KIS 배당 일정 어댑터·캐시 (테스트 A를 먼저 작성) → 체크포인트 CP1
+- [ ] U3 배당·이자 집계 전환과 basis 추가 (테스트 S를 먼저 작성) → 체크포인트 CP2
+- [ ] U4 KPI 캡션 → 체크포인트 CP3
+- [ ] 단위 테스트 — 승인된 시나리오만, 대상 단위 구현 전에 작성하고 실패를 확인한다
+- [ ] 검증 (태형님 선택 방식)
+
+## 배경 / 현재 상태
+- **집계:** `PortfolioIncomeService.summarize`(`PortfolioIncomeService.java:40`)는 주식을 국내·해외 구분 없이 `dividendYield × 평가액`으로 계산하고(`:51-59`), 이달 금액을 (연 배당 + 연 이자) ÷ 12로 낸다(`:75`). basis는 `ESTIMATED_MONTHLY_AVERAGE` 하나다.
+- **노출:** `PortfolioSummaryService.getSummary`가 항목·평가 결과를 넘겨 호출하고(`PortfolioSummaryService.java:130`), `GET /api/portfolio/summary`의 `income`으로 나간다. 다른 호출처는 없다.
+- **화면:** `portfolio-holdings.html:42-54`. 기준 캡션은 미입력 항목이 있을 때만 보인다(`:52-54`).
+- **KSD 조회:** `KisKsdScheduleClient.fetch`(`KisKsdScheduleClient.java:35`)는 종목 평가 일정 탭만 쓰고, 캐시 없이 첫 페이지만 받는다. 배당일정 응답에 배당금지급일(`divi_pay_dt`)과 주당 현금배당금(`per_sto_divi_amt`)이 있다(`KsdScheduleType.java:16-21`).
+- **문서로 확인되지 않은 것:** 기간 필터가 기준일·지급일 중 무엇인지, 지급일·금액 문자열 형식, ETF 분배금 포함 여부. 이 환경에는 KIS 키가 없다.
+- **선례:**
+  - #121: 포트폴리오 application이 stock 도메인 포트(`MarketCalendarPort`)를 쓰고, 조회 실패 시 경고 로그 후 대체 동작을 한다.
+  - #131: Caffeine 캐시를 직접 만들고, 테스트용 생성자로 `Clock`을 주입한다.
+
+## 요구사항 원장
+| ID | 요구사항 | 출처 | 이번 범위 | 근거 / 담당 |
+|---|---|---|---|---|
+| REQ-1 | 국내 주식은 KSD 배당일정의 배당금지급일·현금배당금을 조회해 보유 수량과 곱한 이달 지급 예정액을 산출한다 | 이슈 하고 싶은 것 1 | 포함 | U1~U3, KTD2·KTD5 |
+| REQ-2 | KSD 조회 결과를 캐시해 화면 진입마다 외부 호출이 나가지 않게 한다 | 이슈 하고 싶은 것 2 | 포함 | U2, KTD4 |
+| REQ-3 | 연 예상 기준을 정한다: 국내 주식은 최근 1년 실지급 배당 × 현재 수량 | 이슈 하고 싶은 것 3, brainstorm 확인 2 | 포함 | U3, KTD2·KTD5 |
+| REQ-4 | 해외 주식 배당 처리를 정한다: 대응 소스가 없어 입력 배당률 방식(월 평균)을 유지한다 | 이슈 하고 싶은 것 4, brainstorm 확인 1 | 포함 | U3, KTD5. 새 소스 도입은 하지 않는다 |
+| REQ-5 | KSD 조회 실패 시 입력 배당률 방식으로 폴백하고 basis로 구분한다 | 이슈 하고 싶은 것 5 | 포함 | U3, KTD5 |
+| REQ-6 | basis 코드를 확장하고 화면 캡션에 반영한다 | 이슈 하고 싶은 것 6 | 포함 | U3·U4, KTD5·KTD6 |
+| REQ-7 | 포트폴리오 화면 레이아웃 변경 | 이슈 범위 밖 | 제외 | 이슈 범위 밖. KPI 카드 안 캡션 문구만 바꾼다 |
+| REQ-8 | 배당 알림/스케줄러 | 이슈 범위 밖 | 제외 | 이슈 범위 밖 |
+| REQ-9 | 이달 금액 = 국내 주식 지급일 기준 배당 + 해외 주식 배당·이자의 월 평균 | brainstorm 확인 1 | 포함 | U3, KTD5 |
+| REQ-10 | 국내 종목 중 하나라도 조회에 실패하면 국내 배당 전체를 입력 배당률 방식으로 계산하고, 실패는 캐시하지 않는다 | brainstorm 확인 3 | 포함 | U2·U3, KTD4·KTD5 |
+| REQ-11 | 배당 금액은 현재 보유 수량으로 계산한다 | brainstorm 확인 4 | 포함 | U3 |
+| REQ-12 | 응답 필드는 그대로 두고 basis 값만 추가한다 | brainstorm 확인 5 | 포함 | U3, API 계약 |
+| REQ-13 | KSD에 배당 기록이 없는 ETF는 입력 배당률 방식으로 계산한다 | brainstorm 확인 6 | 포함 | U3, KTD5 |
+| REQ-14 | KSD 조회에 실패해도 요약 API는 실패하지 않는다 | brainstorm 목표 | 포함 | U3 |
+| REQ-15 | "이달"과 최근 12개월은 KST 기준으로 계산한다 | brainstorm 현재 코드 확인(시간대) | 포함 | U3, KTD2 |
+| REQ-16 | KPI 캡션이 미입력 항목 유무와 관계없이 항상 집계 기준을 보인다 | brainstorm 문제 정의 3 | 포함 | U4, KTD6 |
+| REQ-17 | 기준일 시점 보유 수량 계산(매수·매도 이력 기반) | brainstorm 확인 4 대안 | 제외 | 태형님 결정(현재 수량 사용) |
+| REQ-18 | 예적금·CMA·채권 이자 산출식 변경 | brainstorm 제외 범위 | 제외 | 이슈 대상은 배당이다. 산출식은 그대로 두고 월 평균으로 더한다 |
+
+## 핵심 기술 결정
+**KTD1 — 배당 일정은 stockevaluation 도메인 포트로 조회한다.**
+- `stockevaluation.domain.service.DividendSchedulePort`(신규 패키지)와 모델 `DividendSchedule`을 두고, `KisDividendScheduleAdapter`가 기존 `KisKsdScheduleClient`로 구현한다.
+- 포트폴리오 application은 포트만 의존한다(#121 `MarketCalendarPort` 선례). application의 직접 외부 호출 금지 규칙을 지킨다.
+- `KisKsdScheduleClient`, `KsdScheduleType`, `StockEvaluationService`, 종목 평가 API는 바꾸지 않는다.
+
+**KTD2 — 넓게 조회하고 지급일로 거른다(KST 기준).**
+- 기준 달은 `YearMonth.now(clock)`이고, clock은 `Asia/Seoul`이다.
+- 조회 기간: 기준 달 1일의 17개월 전 1일 ~ 기준 달 말일
+- 이달: 지급일이 기준 달 1일 ~ 말일
+- 연 예상: 지급일이 기준 달 1일의 11개월 전 1일 ~ 기준 달 말일(이번 달 포함 12개월)
+- 기간 필터가 지급일이면 조회 기간이 연 예상 기간을 덮는다. 기준일이면 지급이 기준일보다 6개월까지 늦어도 덮는다(결산배당은 기준일 뒤 4개월 안팎).
+- 지급일이 없는 일정은 어느 집계에도 넣지 않는다.
+
+**KTD3 — 응답 변환은 행 단위로 관대하게 하고, 조회 실패와 구분한다.**
+- 지급일: 숫자만 남겨 8자리면 `yyyyMMdd`로 읽는다. 그 외에는 지급일 없음으로 둔다.
+- 현금배당금: 콤마·공백을 지우고 숫자로 읽는다. 비었거나 숫자가 아니거나 0 이하면 그 행을 뺀다(주식배당 등).
+- 응답 목록이 null이면 빈 목록이다.
+- 통신 실패와 응답 실패 코드(`KisApiException`)는 그대로 던진다. 변환에서 빠진 행은 실패가 아니다.
+
+**KTD4 — 캐시는 어댑터 안 Caffeine 캐시로 둔다(#131 방식).**
+- 키는 종목코드 + 조회 시작일 + 종료일, 값은 변환된 배당 일정 목록(빈 목록 포함)이다.
+- 쓰기 후 12시간 만료, 최대 500개
+- `cache.get(key, 로더)`를 쓴다. 로더가 예외를 던지면 캐시에 남지 않고 호출자에게 전달된다.
+- 설정 파일은 바꾸지 않고 상수로 둔다.
+
+**KTD5 — 집계 규칙**
+- **국내 판정:** `StockDetail.market`을 `MarketType`으로 바꿔 `isDomestic()`으로 판정한다. 시장 값이 없거나 해석할 수 없으면 해외와 같이 계산한다.
+- **조회:** 국내 주식 종목코드(중복 제거)마다 포트를 차례로 호출한다. 하나라도 예외가 나면 경고 로그를 남기고 남은 조회를 멈춘 뒤 폴백한다.
+- **조회 성공 시 국내 주식:**
+  - 이달 += Σ(이달 지급 현금배당 × 수량), 연 배당 += Σ(12개월 지급 현금배당 × 수량). 수량이 없으면 0이다.
+  - KSD에 배당이 없는 개별 종목은 0이고 `excludedCount`에 세지 않는다.
+  - KSD 배당 목록이 빈 ETF는 입력 배당률 방식으로 계산한다.
+  - basis는 `ACTUAL_PAYMENT_DATE`다.
+- **입력 배당률 방식(해외 주식, 빈 ETF, 폴백 시 국내 주식):** 연 배당 += 평가액 × 배당률 ÷ 100이고, 그 값을 12로 나눠 이달에 더한다. 배당률이 없거나 0 이하면 `excludedCount` +1(현행).
+- **폴백:** 국내 주식 전부를 입력 배당률 방식으로 계산하고 basis는 `ESTIMATED_MONTHLY_AVERAGE`다.
+- **이자:** 현행(원금 × 금리)과 같고, 12로 나눠 이달에 더한다.
+- **결과:**
+  - monthAmount = 이달 지급 배당 + (입력 배당률 방식 연 배당 + 연 이자) ÷ 12
+  - yearEstimate = 연 배당 + 연 이자
+  - dividendYield = 연 배당 × 100 ÷ (연 배당이 0보다 큰 주식 항목의 평가액 합)
+  - 반올림은 현행처럼 소수 둘째 자리 HALF_UP
+- 연금·부동산 등은 현행대로 집계하지 않는다.
+
+**KTD6 — 캡션**
+- `portfolio.js`에 basis별 캡션을 돌려주는 헬퍼를 두고, KPI 카드에 항상 보이는 기준 줄을 추가한다.
+  - `ACTUAL_PAYMENT_DATE`: "국내 배당 지급일 기준 · 그 외 배당·이자 월 평균"
+  - 그 밖(`ESTIMATED_MONTHLY_AVERAGE`): "배당 일정 조회 실패 · 월 평균 환산 기준"
+- 미입력 줄은 "배당률·금리 미입력 N건 제외"만 남긴다. 기준 문구는 위 기준 줄로 옮긴다.
+
+## API 계약
+`GET /api/portfolio/summary`의 경로·인증·필드는 그대로다. `income` 필드의 의미만 아래처럼 바뀐다.
+
+| 필드 | 값 |
+|---|---|
+| `monthAmount` | 국내 이달 지급 배당 + (해외·빈 ETF 배당 + 이자) ÷ 12. 폴백이면 (연 배당 + 연 이자) ÷ 12 |
+| `yearEstimate` | 국내 12개월 실지급 + 해외·빈 ETF 입력 배당률 기준 + 연 이자. 폴백이면 현행 |
+| `dividendYield` | 연 배당 ÷ 배당이 있는 주식 평가액 합 × 100. 대상이 없으면 null |
+| `basis` | `ACTUAL_PAYMENT_DATE`(신규) / `ESTIMATED_MONTHLY_AVERAGE`(폴백) |
+| `excludedCount` | 배당률·금리가 없어 빠진 항목 수. KSD로 계산한 국내 주식은 세지 않는다 |
+
+## 구현 단위
+### U1 배당 일정 도메인 모델·조회 포트
+- `stockevaluation/domain/model/DividendSchedule.java`(record): `paymentDate`(null 가능), `cashPerShare`(0보다 커야 하며 생성 시 검사)
+  - `isPaidBetween(from, to)`: 지급일이 있고 기간 안이면 true
+  - `amountFor(quantity)`: 현금배당 × 수량
+- `stockevaluation/domain/service/DividendSchedulePort.java`: `List<DividendSchedule> findCashDividends(String stockCode, LocalDate from, LocalDate to)`
+  - 빈 목록은 "배당 일정 없음"이고, 조회 실패는 예외다(`MarketCalendarPort`와 같은 구분).
+
+### U2 KIS 배당 일정 어댑터·캐시 (선행 U1)
+- `stockevaluation/infrastructure/kis/KisDividendScheduleAdapter.java`: KTD3 변환, KTD4 캐시
+- 승인된 테스트 A를 먼저 작성하고 실패를 확인한다.
+
+### U3 배당·이자 집계 전환 (선행 U1, U2)
+- `PortfolioIncomeService`
+  - 포트와 Clock을 주입한다. `@Autowired` 공개 생성자는 `Clock.system(Asia/Seoul)`을 쓰고, 테스트용 패키지 생성자를 둔다.
+  - KTD2·KTD5 규칙, `@Slf4j` 경고 로그
+- `PortfolioIncomeResponse`: 필드는 그대로 두고 Javadoc에 basis 값 설명을 추가한다.
+- `PortfolioSummaryService`의 호출부(`summarize(items, evaluation)`)는 그대로다.
+- 승인된 테스트 S를 먼저 작성하고 실패를 확인한다.
+
+### U4 KPI 캡션 (선행 U3)
+- `portfolio.js`: 캡션 헬퍼 1개
+- `portfolio-holdings.html:46-54`: 기준 줄 추가, 미입력 줄 문구 정리
+
+## 시스템 전반 영향
+- 요약 API가 캐시가 비었을 때 국내 보유 종목마다 KSD를 조회한다. 캐시는 사용자 간에 공유된다.
+- 외부 호출은 기존 요약의 읽기 전용 트랜잭션 안에서 일어난다. 시세 조회와 같은 구조다.
+- 요약 API 경로·필드와 DB는 바뀌지 않는다. basis 값을 쓰는 화면 코드는 KPI 카드뿐이고 이번에 함께 바꾼다.
+- 종목 평가 일정 탭은 지금처럼 캐시 없이 조회한다.
+
+## 위험과 완화
+| 위험 | 완화 |
+|---|---|
+| 실응답 형식이 예상과 달라 지급일이 모두 비면 국내 배당이 조용히 0이 된다 | 변환을 관대하게 두고, 운영 반영 후 종목 평가 일정 탭 값과 KPI를 대조한다(검증 절) |
+| 기간 필터 기준을 모른다 | KTD2 넓은 조회 + 지급일 필터로 어느 쪽이어도 결과가 같다 |
+| ETF 분배금 포함 여부를 모른다 | KSD 배당 목록이 빈 ETF는 입력 배당률 방식(REQ-13) |
+| 캐시가 비면 국내 종목 수만큼 순차 호출해 첫 요약이 느려진다 | 12시간 캐시를 사용자 간에 공유하고, 첫 실패에서 조회를 멈춘다 |
+| 한 종목의 18개월 행이 첫 페이지를 넘으면 일부가 빠진다 | 분기배당도 6건 안팎이라 가능성이 낮다. 연속조회는 이번에 넣지 않는다 |
+| 기준일 뒤에 사고판 경우 실제 지급액과 다르다 | 태형님 결정(REQ-11). 캡션에 기준을 보인다 |
+| 신규 배당 공시가 최대 12시간 늦게 반영된다 | 배당 일정 특성상 수용한다 |
+
+## 단위 테스트 계획
+- 테스트 작성: 작성함 (2026-10-03 태형님 확인, brainstorm 확인 7)
+- 테스트 시나리오: 미승인. 기능 plan 승인 요청 때 대화로 설명하고, 승인된 시나리오만 테스트 계획 문서에 반영한다.
+- 사용자 승인: 미승인
+- 다음 단계: 시나리오 승인 → 테스트 계획 문서 작성 → `test_plan_status: approved` → plan `active`
+
+## 작업 진행 방식 (워크플로우 예외)
+이 세션에는 compound-engineering(`/ce:work`·`/ce:review`)이 없어 같은 절차를 수동으로 적용한다(#131·#132와 동일).
+- **구현:** 작업 리스트 순서대로 한 단위씩 진행한다.
+  - 단위마다 변경 파일이 allowed_paths 안이고 blocked_paths 밖인지 확인한다.
+  - 테스트 대상 단위는 테스트를 먼저 작성하고 실패를 확인한다.
+  - 각 단위를 마치면 태형님께 다음 진행 여부를 확인한다.
+- **체크포인트:** CP마다 `checkpoint-guard.sh`로 경로를 검사하고 read-only 가드 리뷰를 수행한다.
+- **리뷰:** 리뷰 게이트 문서 기준으로 finding 표를 만들고, 태형님이 고른 이슈만 수정한다.
+
+## 체크포인트
+- CP1 (U2 후): 어댑터 변환·캐시, 테스트 A 통과
+- CP2 (U3 후): 집계 규칙·폴백·basis, 테스트 S 통과
+- CP3 (U4 후): 캡션. 저장소 밖 브라우저 하네스(실제 JS·partial 사용)로 basis 두 값과 미입력 건수에 따른 문구를 확인한다.
+
+## 검증
+검증 방식은 verify 단계에서 태형님이 고른다. 후보와 이 세션의 제약:
+- `./gradlew compileJava`, `./gradlew test`: 이 세션에서 실행할 수 있다.
+- `bootRun` + curl: 로컬 Postgres로 기동할 수 있지만 KIS 키가 없어 KSD 조회는 실패한다. 폴백 경로(basis `ESTIMATED_MONTHLY_AVERAGE`)와 요약 API 정상 응답만 확인할 수 있다.
+- 운영 반영 후 확인(태형님): 국내 배당주를 보유한 계정에서 KPI 이달 금액·캡션을 종목 평가 일정 탭의 지급일·현금배당금과 대조한다.
+
+## 수정 범위
+- **수정 가능:** 위 allowed_paths 범위
+  - stockevaluation 신규 3종(모델·포트·어댑터)
+  - `PortfolioIncomeService`, `PortfolioIncomeResponse`(Javadoc)
+  - `portfolio.js`, `portfolio-holdings.html`
+  - 단위 테스트 2종과 테스트 계획 문서
+- **수정 금지:** 위 blocked_paths 범위
+  - 기존 KSD 클라이언트·응답 DTO·일정 종류, 종목 평가 application·presentation
+  - stock 도메인, 포트폴리오 domain·infrastructure·presentation, `PortfolioSummaryService`·`PortfolioEvaluationService`
+  - 설정 파일, DB 리소스, `api.js`·`index.html`·`app.js`·`build.gradle`
+
+## 완료 정의
+- REQ-1~6과 REQ-9~16을 충족하고, REQ-7·8·17·18은 제외로 유지한다.
+- 국내 배당주가 있는 포트폴리오에서 이달 금액이 지급일 기준으로 계산되고, 캡션이 기준을 보인다.
+- KSD 조회가 실패해도 요약 API가 정상 응답하고, basis로 폴백이 구분된다.
+- 승인된 단위 테스트가 통과하고, 요약 API 경로·필드와 DB는 바뀌지 않는다.

@@ -79,7 +79,7 @@ public class KisDividendScheduleAdapter implements DividendSchedulePort {
         if (value == null) {
             return null;
         }
-        String cleaned = value.replaceAll("[,\\s]", "");
+        String cleaned = value.replaceAll("[,\\s\\p{Z}]", "");
         if (cleaned.isEmpty()) {
             return null;
         }

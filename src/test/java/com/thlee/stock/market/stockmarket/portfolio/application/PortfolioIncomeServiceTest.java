@@ -62,8 +62,8 @@ class PortfolioIncomeServiceTest {
 
         PortfolioIncomeResponse result = summarize(OCT_15, samsung);
 
-        assertThat(result.getMonthAmount()).isEqualByComparingTo("3610");
-        assertThat(result.getYearEstimate()).isEqualByComparingTo("7220");
+        assertThat(result.getMonthAmount()).isEqualTo(new BigDecimal("3610.00"));
+        assertThat(result.getYearEstimate()).isEqualTo(new BigDecimal("7220.00"));
         assertThat(result.getDividendYield()).isEqualByComparingTo("1.03");
         assertThat(result.getExcludedCount()).isZero();
         assertThat(result.getBasis()).isEqualTo(ACTUAL);
@@ -208,6 +208,31 @@ class PortfolioIncomeServiceTest {
 
         assertThat(result.getMonthAmount()).isEqualByComparingTo("0");
         assertThat(result.getYearEstimate()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("S12 KSD 배당 기록이 있는 ETF 는 입력 배당률을 쓰지 않고 지급일 기준으로 계산한다")
+    void etfWithKsdRecordsUsesPaymentDate() {
+        PortfolioItem kodex = stock(StockSubType.ETF, "069500", "KOSPI", 10, "1000000", "3.00");
+        givenSchedules("069500", paid("2026-10-20", "300"));
+
+        PortfolioIncomeResponse result = summarize(OCT_15, kodex);
+
+        assertThat(result.getMonthAmount()).isEqualByComparingTo("3000");
+        assertThat(result.getYearEstimate()).isEqualByComparingTo("3000");
+        assertThat(result.getBasis()).isEqualTo(ACTUAL);
+    }
+
+    @Test
+    @DisplayName("S13 종목코드가 비어 있는 국내 주식은 KSD 로 조회하지 않고 입력 배당률로 계산한다")
+    void blankStockCodeUsesDividendYield() {
+        PortfolioItem noCode = stock(StockSubType.INDIVIDUAL, " ", "KOSPI", 10, "1200000", "2.00");
+
+        PortfolioIncomeResponse result = summarize(OCT_15, noCode);
+
+        assertThat(result.getMonthAmount()).isEqualByComparingTo("2000");
+        assertThat(result.getYearEstimate()).isEqualByComparingTo("24000");
+        assertThat(result.getBasis()).isEqualTo(ACTUAL);
     }
 
     private PortfolioIncomeResponse summarize(Clock clock, PortfolioItem... items) {

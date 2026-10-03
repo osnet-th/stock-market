@@ -49,6 +49,7 @@ public class PortfolioIncomeService {
     private static final String BASIS_MONTHLY_AVERAGE = "ESTIMATED_MONTHLY_AVERAGE";
     private static final BigDecimal MONTHS_PER_YEAR = BigDecimal.valueOf(12);
     private static final BigDecimal PERCENT = BigDecimal.valueOf(100);
+    private static final int AMOUNT_SCALE = 2;
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     /** 연 예상에 넣는 지급 기간(이번 달 포함, 개월) */
     private static final int YEAR_PERIOD_MONTHS = 12;
@@ -79,28 +80,14 @@ public class PortfolioIncomeService {
         Map<Long, BigDecimal> evaluatedById = evaluatedAmountsById(evaluation);
         IncomePeriod period = IncomePeriod.of(YearMonth.now(clock));
         DomesticSchedules schedules = loadDomesticSchedules(items, period);
-        Totals totals = new Totals();
 
+        IncomeTotals totals = IncomeTotals.NONE;
         for (PortfolioItem item : items) {
             BigDecimal evaluated = evaluatedById.getOrDefault(item.getId(), item.getInvestedAmount());
-
-            if (item.getAssetType() == AssetType.STOCK && item.getStockDetail() != null) {
-                addStockDividend(item, evaluated, schedules, period, totals);
-                continue;
-            }
-
-            BigDecimal rate = resolveInterestRate(item);
-            if (rate == null) {
-                continue;
-            }
-            if (isPositive(rate)) {
-                totals.addInterest(item.getInvestedAmount().multiply(rate).divide(PERCENT, 2, RoundingMode.HALF_UP));
-            } else {
-                totals.exclude();
-            }
+            totals = totals.plus(incomeOf(item, evaluated, schedules, period));
         }
 
-        return totals.toResponse(schedules.failed() ? BASIS_MONTHLY_AVERAGE : BASIS_ACTUAL_PAYMENT_DATE);
+        return toResponse(totals, schedules.failed() ? BASIS_MONTHLY_AVERAGE : BASIS_ACTUAL_PAYMENT_DATE);
     }
 
     /**
@@ -119,39 +106,56 @@ public class PortfolioIncomeService {
                 byStockCode.put(detail.getStockCode(), dividendSchedulePort.findCashDividends(
                         detail.getStockCode(), period.queryFrom(), period.monthEnd()));
             } catch (Exception e) {
-                log.warn("배당 일정 조회에 실패해 국내 주식 배당을 입력 배당률 기준으로 계산합니다: stockCode={}",
-                        detail.getStockCode(), e);
+                // 실패는 캐시하지 않아 요약을 열 때마다 다시 조회한다. 같은 실패가 이어질 수 있어 메시지만 남긴다
+                log.warn("배당 일정 조회에 실패해 국내 주식 배당을 입력 배당률 기준으로 계산합니다: stockCode={}, reason={}",
+                        detail.getStockCode(), e.getMessage());
                 return DomesticSchedules.failure();
             }
         }
         return new DomesticSchedules(byStockCode, false);
     }
 
+    private IncomeTotals incomeOf(PortfolioItem item, BigDecimal evaluated, DomesticSchedules schedules,
+                                  IncomePeriod period) {
+        if (item.getAssetType() == AssetType.STOCK && item.getStockDetail() != null) {
+            return stockDividendOf(item, evaluated, schedules, period);
+        }
+
+        BigDecimal rate = resolveInterestRate(item);
+        if (rate == null) {
+            return IncomeTotals.NONE;
+        }
+        if (isPositive(rate)) {
+            return IncomeTotals.interest(
+                    item.getInvestedAmount().multiply(rate).divide(PERCENT, AMOUNT_SCALE, RoundingMode.HALF_UP));
+        }
+        return IncomeTotals.EXCLUDED;
+    }
+
     /**
-     * 지급일 기준으로 계산할 수 있으면 실지급 배당을, 아니면 입력 배당률 기준 배당을 더한다.
+     * 지급일 기준으로 계산할 수 있으면 실지급 배당을, 아니면 입력 배당률 기준 배당을 돌려준다.
      * KSD 배당 기록이 없는 ETF 는 분배금이 KSD 에 나오지 않을 수 있어 입력 배당률 기준으로 계산한다.
      */
-    private void addStockDividend(PortfolioItem item, BigDecimal evaluated, DomesticSchedules schedules,
-                                  IncomePeriod period, Totals totals) {
+    private IncomeTotals stockDividendOf(PortfolioItem item, BigDecimal evaluated, DomesticSchedules schedules,
+                                         IncomePeriod period) {
         StockDetail detail = item.getStockDetail();
         List<DividendSchedule> paid = domesticStockDetail(item) != null ? schedules.of(detail.getStockCode()) : null;
         boolean etfWithoutRecords = paid != null && paid.isEmpty() && detail.getSubType() == StockSubType.ETF;
 
         if (paid != null && !etfWithoutRecords) {
             int quantity = detail.getQuantity() != null ? detail.getQuantity() : 0;
-            totals.addPaidDividend(
+            return IncomeTotals.paidDividend(
                     sumPaid(paid, quantity, period.monthStart(), period.monthEnd()),
                     sumPaid(paid, quantity, period.yearStart(), period.monthEnd()),
                     evaluated);
-            return;
         }
 
         BigDecimal yield = detail.getDividendYield();
         if (isPositive(yield)) {
-            totals.addEstimatedDividend(evaluated.multiply(yield).divide(PERCENT, 2, RoundingMode.HALF_UP), evaluated);
-        } else {
-            totals.exclude();
+            return IncomeTotals.estimatedDividend(
+                    evaluated.multiply(yield).divide(PERCENT, AMOUNT_SCALE, RoundingMode.HALF_UP), evaluated);
         }
+        return IncomeTotals.EXCLUDED;
     }
 
     private BigDecimal sumPaid(List<DividendSchedule> schedules, int quantity, LocalDate from, LocalDate to) {
@@ -159,6 +163,22 @@ public class PortfolioIncomeService {
                 .filter(schedule -> schedule.isPaidBetween(from, to))
                 .map(schedule -> schedule.amountFor(quantity))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * 지급일 기준 배당은 이달 금액을 그대로 쓰고, 입력 배당률 기준 배당과 이자는 연 금액을 12로 나눠 이달에 더한다.
+     */
+    private PortfolioIncomeResponse toResponse(IncomeTotals totals, String basis) {
+        BigDecimal yearDividend = totals.yearPaidDividend().add(totals.yearEstimatedDividend());
+        BigDecimal yearEstimate = yearDividend.add(totals.yearInterest()).setScale(AMOUNT_SCALE, RoundingMode.HALF_UP);
+        BigDecimal monthAverage = totals.yearEstimatedDividend().add(totals.yearInterest())
+                .divide(MONTHS_PER_YEAR, AMOUNT_SCALE, RoundingMode.HALF_UP);
+        BigDecimal monthAmount = totals.monthPaidDividend().add(monthAverage)
+                .setScale(AMOUNT_SCALE, RoundingMode.HALF_UP);
+        BigDecimal dividendYield = totals.dividendBase().compareTo(BigDecimal.ZERO) > 0
+                ? yearDividend.multiply(PERCENT).divide(totals.dividendBase(), AMOUNT_SCALE, RoundingMode.HALF_UP)
+                : null;
+        return new PortfolioIncomeResponse(monthAmount, yearEstimate, dividendYield, basis, totals.excludedCount());
     }
 
     /**
@@ -247,49 +267,45 @@ public class PortfolioIncomeService {
     }
 
     /**
-     * 집계 중간값. 지급일 기준 배당은 이달 금액을 그대로 쓰고,
-     * 입력 배당률 기준 배당과 이자는 연 금액을 12로 나눠 이달에 더한다.
+     * 항목별 배당·이자를 더해 가는 합계 값.
+     *
+     * @param monthPaidDividend     지급일 기준 이달 배당
+     * @param yearPaidDividend      지급일 기준 최근 12개월 배당
+     * @param yearEstimatedDividend 입력 배당률 기준 연 배당
+     * @param yearInterest          연 이자
+     * @param dividendBase          연 배당이 0보다 큰 주식 항목의 평가액 합 (시가배당률 분모)
+     * @param excludedCount         배당률·금리가 없어 빠진 항목 수
      */
-    private static final class Totals {
-        private BigDecimal monthPaidDividend = BigDecimal.ZERO;
-        private BigDecimal yearPaidDividend = BigDecimal.ZERO;
-        private BigDecimal yearEstimatedDividend = BigDecimal.ZERO;
-        private BigDecimal yearInterest = BigDecimal.ZERO;
-        /** 연 배당이 0보다 큰 주식 항목의 평가액 합 (시가배당률 분모) */
-        private BigDecimal dividendBase = BigDecimal.ZERO;
-        private int excluded;
+    private record IncomeTotals(BigDecimal monthPaidDividend, BigDecimal yearPaidDividend,
+                                BigDecimal yearEstimatedDividend, BigDecimal yearInterest,
+                                BigDecimal dividendBase, int excludedCount) {
 
-        void addPaidDividend(BigDecimal month, BigDecimal year, BigDecimal evaluated) {
-            monthPaidDividend = monthPaidDividend.add(month);
-            yearPaidDividend = yearPaidDividend.add(year);
-            if (isPositive(year)) {
-                dividendBase = dividendBase.add(evaluated);
-            }
+        static final IncomeTotals NONE = new IncomeTotals(
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0);
+        static final IncomeTotals EXCLUDED = new IncomeTotals(
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 1);
+
+        static IncomeTotals paidDividend(BigDecimal month, BigDecimal year, BigDecimal evaluated) {
+            return new IncomeTotals(month, year, BigDecimal.ZERO, BigDecimal.ZERO,
+                    isPositive(year) ? evaluated : BigDecimal.ZERO, 0);
         }
 
-        void addEstimatedDividend(BigDecimal year, BigDecimal evaluated) {
-            yearEstimatedDividend = yearEstimatedDividend.add(year);
-            dividendBase = dividendBase.add(evaluated);
+        static IncomeTotals estimatedDividend(BigDecimal year, BigDecimal evaluated) {
+            return new IncomeTotals(BigDecimal.ZERO, BigDecimal.ZERO, year, BigDecimal.ZERO, evaluated, 0);
         }
 
-        void addInterest(BigDecimal year) {
-            yearInterest = yearInterest.add(year);
+        static IncomeTotals interest(BigDecimal year) {
+            return new IncomeTotals(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, year, BigDecimal.ZERO, 0);
         }
 
-        void exclude() {
-            excluded++;
-        }
-
-        PortfolioIncomeResponse toResponse(String basis) {
-            BigDecimal yearDividend = yearPaidDividend.add(yearEstimatedDividend);
-            BigDecimal yearEstimate = yearDividend.add(yearInterest);
-            BigDecimal monthAverage = yearEstimatedDividend.add(yearInterest)
-                    .divide(MONTHS_PER_YEAR, 2, RoundingMode.HALF_UP);
-            BigDecimal monthAmount = monthPaidDividend.add(monthAverage).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal dividendYield = dividendBase.compareTo(BigDecimal.ZERO) > 0
-                    ? yearDividend.multiply(PERCENT).divide(dividendBase, 2, RoundingMode.HALF_UP)
-                    : null;
-            return new PortfolioIncomeResponse(monthAmount, yearEstimate, dividendYield, basis, excluded);
+        IncomeTotals plus(IncomeTotals other) {
+            return new IncomeTotals(
+                    monthPaidDividend.add(other.monthPaidDividend),
+                    yearPaidDividend.add(other.yearPaidDividend),
+                    yearEstimatedDividend.add(other.yearEstimatedDividend),
+                    yearInterest.add(other.yearInterest),
+                    dividendBase.add(other.dividendBase),
+                    excludedCount + other.excludedCount);
         }
     }
 }

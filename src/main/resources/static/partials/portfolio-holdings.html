@@ -49,9 +49,12 @@
                                     + (portfolio.income.dividendYield !== null && portfolio.income.dividendYield !== undefined
                                         ? ' · 시가배당 ' + Number(portfolio.income.dividendYield).toFixed(2) + '%' : '')
                                 : '연 예상 —'"></p>
+                        <p x-show="portfolio.income"
+                            class="text-[10px] text-gray-400 mt-0.5"
+                            x-text="getIncomeBasisCaption()"></p>
                         <p x-show="portfolio.income && portfolio.income.excludedCount > 0"
                             class="text-[10px] text-gray-400 mt-0.5"
-                            x-text="'배당률·금리 미입력 ' + (portfolio.income ? portfolio.income.excludedCount : 0) + '건 제외 · 월 평균 환산 기준'"></p>
+                            x-text="'배당률·금리 미입력 ' + (portfolio.income ? portfolio.income.excludedCount : 0) + '건 제외'"></p>
                     </div>
                 </div>
 

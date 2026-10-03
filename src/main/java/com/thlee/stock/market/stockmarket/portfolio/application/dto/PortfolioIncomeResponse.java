@@ -9,8 +9,11 @@ import java.math.BigDecimal;
  * 배당 · 이자 집계 (#110)
  *
  * basis 는 집계 기준을 화면에 그대로 노출하기 위한 코드다.
- * `ESTIMATED_MONTHLY_AVERAGE` = 연 예상액을 12로 나눈 월 평균 환산치이며,
- * 실제 배당 지급일 기준 금액이 아니다.
+ * - `ACTUAL_PAYMENT_DATE` = 국내 주식 배당은 KSD 배당일정의 지급일 기준 금액이고,
+ *   해외 주식(시장 값이 없거나 해석할 수 없는 주식, 종목코드가 없는 주식 포함)·KSD 배당 기록이 없는 ETF 배당과 이자는
+ *   연 금액을 12로 나눈 월 평균이다.
+ * - `ESTIMATED_MONTHLY_AVERAGE` = 배당일정 조회에 실패해 모든 배당·이자를 연 예상액의 월 평균으로
+ *   환산한 값이며, 실제 배당 지급일 기준 금액이 아니다.
  */
 @Getter
 @RequiredArgsConstructor

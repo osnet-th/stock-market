@@ -213,6 +213,15 @@ const PortfolioComponent = {
         }
     },
 
+    // 이달 배당·이자 카드의 집계 기준 캡션. 배당 일정 조회에 실패하면 서버가 월 평균 기준(ESTIMATED_MONTHLY_AVERAGE)으로 돌려준다
+    getIncomeBasisCaption() {
+        const income = this.portfolio.income;
+        if (!income) return '';
+        return income.basis === 'ACTUAL_PAYMENT_DATE'
+            ? '국내 배당 지급일 기준 · 그 외 배당·이자 월 평균'
+            : '배당 일정 조회 실패 · 월 평균 환산 기준';
+    },
+
     async loadSnapshots() {
         try {
             this.portfolio.snapshots = await API.getPortfolioSnapshots(this.auth.userId, 12) || [];

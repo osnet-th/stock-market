@@ -3,15 +3,16 @@ title: "feat: 포트폴리오 배당 집계를 KSD 실지급일 기준으로 전
 type: feat
 issue: 113
 issue_url: https://github.com/osnet-th/stock-market/issues/113
-status: draft
+status: active
 date: 2026-10-03
+approved: "2026-10-03 태형님 승인 (기능 plan + stockevaluation domain/service 패키지·포트·어댑터 추가 + basis 값 ACTUAL_PAYMENT_DATE 추가 + 단위 테스트 시나리오 A1~A6·S1~S11). '끝까지 다 진행해'로 PR·병합까지 진행을 지시함"
 workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning·briefing·review 게이트 절차를 수동 적용한다 (#131·#132와 동일)"
 branch: claude/inspiring-wright-rljbsn
 branch_exception: "클라우드 세션은 지정 브랜치에만 push할 수 있어 issue/113-{slug} 대신 세션 브랜치를 쓴다 (2026-10-03 태형님 확인, brainstorm 확인 7). validate-plan.sh의 branch 형식 검사 1건은 이 예외로 실패한다."
 worktree: /home/user/stock-market-issue-113
 worktree_note: "/home/user/stock-market을 가리키는 심볼릭 링크. checkpoint-guard.sh가 경로에서 이슈 번호를 읽기 때문에 둔다."
 brainstorm: docs/brainstorms/2026-10-03-portfolio-dividend-ksd-payment-date-brainstorm.md
-test_plan_status: pending
+test_plan_status: approved
 schema_plan_status: none
 allowed_paths:
   - src/main/java/com/thlee/stock/market/stockmarket/stockevaluation/domain/model/DividendSchedule.java
@@ -201,9 +202,11 @@ blocked_paths:
 
 ## 단위 테스트 계획
 - 테스트 작성: 작성함 (2026-10-03 태형님 확인, brainstorm 확인 7)
-- 테스트 시나리오: 미승인. 기능 plan 승인 요청 때 대화로 설명하고, 승인된 시나리오만 테스트 계획 문서에 반영한다.
-- 사용자 승인: 미승인
-- 다음 단계: 시나리오 승인 → 테스트 계획 문서 작성 → `test_plan_status: approved` → plan `active`
+- 테스트 계획 문서: [테스트 계획](./tests/2026-10-03-113-portfolio-dividend-ksd-payment-date-test-plan.md)
+- 사용자 승인: 테스트 시나리오 승인됨 (2026-10-03)
+- 승인된 테스트 시나리오: 정상 7건, 예외·경계 10건 (어댑터 A1~A6, 집계 S1~S11)
+- 검증 명령: `./gradlew test --tests "*KisDividendScheduleAdapterTest" --tests "*PortfolioIncomeServiceTest"`
+- 작성 순서: 어댑터 테스트는 U1 후 U2 구현 전에, 집계 테스트는 U2 후 U3 구현 전에 작성하고 실패를 확인한다.
 
 ## 작업 진행 방식 (워크플로우 예외)
 이 세션에는 compound-engineering(`/ce:work`·`/ce:review`)이 없어 같은 절차를 수동으로 적용한다(#131·#132와 동일).

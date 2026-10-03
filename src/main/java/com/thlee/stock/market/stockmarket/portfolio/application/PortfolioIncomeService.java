@@ -108,7 +108,7 @@ public class PortfolioIncomeService {
             } catch (Exception e) {
                 // 실패는 캐시하지 않아 요약을 열 때마다 다시 조회한다. 같은 실패가 이어질 수 있어 메시지만 남긴다
                 log.warn("배당 일정 조회에 실패해 국내 주식 배당을 입력 배당률 기준으로 계산합니다: stockCode={}, reason={}",
-                        detail.getStockCode(), e.getMessage());
+                        detail.getStockCode(), e.toString());
                 return DomesticSchedules.failure();
             }
         }

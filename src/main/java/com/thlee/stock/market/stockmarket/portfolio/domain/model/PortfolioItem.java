@@ -9,13 +9,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.regex.Pattern;
 
 @Getter
 public class PortfolioItem {
     private static final int INSTITUTION_MAX_LENGTH = 50;
-    // 앞뒤 공백 — 일반 공백·탭·줄바꿈과 유니코드 공백(전각 공백, 줄바꿈 없는 공백 등)
-    private static final Pattern SURROUNDING_SPACES = Pattern.compile("^[\\s\\p{Z}]+|[\\s\\p{Z}]+$");
 
     private Long id;
     private Long userId;
@@ -534,12 +531,27 @@ public class PortfolioItem {
         }
     }
 
+    /**
+     * 앞뒤 공백을 지운다. 일반 공백·탭·줄바꿈과 유니코드 공백(전각 공백, 줄바꿈 없는 공백 등)을 공백으로 본다.
+     * 긴 입력에서도 길이에 비례해 끝나도록 정규식 대신 양 끝에서 훑는다.
+     */
     private static String normalizeInstitution(String institution) {
         if (institution == null) {
             return null;
         }
-        String trimmed = SURROUNDING_SPACES.matcher(institution).replaceAll("");
-        return trimmed.isEmpty() ? null : trimmed;
+        int start = 0;
+        int end = institution.length();
+        while (start < end && isSpace(institution.charAt(start))) {
+            start++;
+        }
+        while (end > start && isSpace(institution.charAt(end - 1))) {
+            end--;
+        }
+        return start == end ? null : institution.substring(start, end);
+    }
+
+    private static boolean isSpace(char ch) {
+        return Character.isWhitespace(ch) || Character.isSpaceChar(ch);
     }
 
     private static void validateDetail(Object detail, String detailName) {

@@ -35,6 +35,7 @@ public class FundItemEntity extends PortfolioItemEntity {
                           boolean newsEnabled,
                           String region,
                           String memo,
+                          String institution,
                           PortfolioItemStatus status,
                           Long version,
                           LocalDateTime createdAt,
@@ -43,7 +44,7 @@ public class FundItemEntity extends PortfolioItemEntity {
                           BigDecimal managementFee,
                           BigDecimal monthlyDepositAmount,
                           Integer depositDay) {
-        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, version, createdAt, updatedAt);
+        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, institution, status, version, createdAt, updatedAt);
         this.subType = subType;
         this.managementFee = managementFee;
         this.monthlyDepositAmount = monthlyDepositAmount;

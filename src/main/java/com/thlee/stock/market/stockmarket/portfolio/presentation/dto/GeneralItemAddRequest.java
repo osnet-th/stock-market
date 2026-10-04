@@ -11,5 +11,6 @@ public class GeneralItemAddRequest {
     private BigDecimal investedAmount;
     private String region;
     private String memo;
+    private String institution;
     private BigDecimal quantityGrams;
 }

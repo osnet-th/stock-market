@@ -12,6 +12,8 @@ import java.util.List;
 
 @Getter
 public class PortfolioItem {
+    private static final int INSTITUTION_MAX_LENGTH = 50;
+
     private Long id;
     private Long userId;
     private String itemName;
@@ -20,6 +22,7 @@ public class PortfolioItem {
     private boolean newsEnabled;
     private Region region;
     private String memo;
+    private String institution;
     private PortfolioItemStatus status;
     private Long version;
     private LocalDateTime createdAt;
@@ -44,6 +47,7 @@ public class PortfolioItem {
                          boolean newsEnabled,
                          Region region,
                          String memo,
+                         String institution,
                          PortfolioItemStatus status,
                          Long version,
                          LocalDateTime createdAt,
@@ -63,6 +67,7 @@ public class PortfolioItem {
         this.newsEnabled = newsEnabled;
         this.region = region;
         this.memo = memo;
+        this.institution = institution;
         this.status = status;
         this.version = version;
         this.createdAt = createdAt;
@@ -245,6 +250,19 @@ public class PortfolioItem {
 
     public void updateMemo(String memo) {
         this.memo = memo;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 금융기관 갱신. 앞뒤 공백을 지우고, 빈 값은 미지정(null)으로 둔다.
+     * 지운 뒤 50자를 넘으면 값을 바꾸지 않고 거부한다.
+     */
+    public void updateInstitution(String institution) {
+        String normalized = normalizeInstitution(institution);
+        if (normalized != null && normalized.codePointCount(0, normalized.length()) > INSTITUTION_MAX_LENGTH) {
+            throw new IllegalArgumentException("금융기관은 " + INSTITUTION_MAX_LENGTH + "자 이하로 입력해 주세요.");
+        }
+        this.institution = normalized;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -511,6 +529,29 @@ public class PortfolioItem {
         if (region == null) {
             throw new IllegalArgumentException("region은 필수입니다.");
         }
+    }
+
+    /**
+     * 앞뒤 공백을 지운다. 일반 공백·탭·줄바꿈과 유니코드 공백(전각 공백, 줄바꿈 없는 공백 등)을 공백으로 본다.
+     * 긴 입력에서도 길이에 비례해 끝나도록 정규식 대신 양 끝에서 훑는다.
+     */
+    private static String normalizeInstitution(String institution) {
+        if (institution == null) {
+            return null;
+        }
+        int start = 0;
+        int end = institution.length();
+        while (start < end && isSpace(institution.charAt(start))) {
+            start++;
+        }
+        while (end > start && isSpace(institution.charAt(end - 1))) {
+            end--;
+        }
+        return start == end ? null : institution.substring(start, end);
+    }
+
+    private static boolean isSpace(char ch) {
+        return Character.isWhitespace(ch) || Character.isSpaceChar(ch);
     }
 
     private static void validateDetail(Object detail, String detailName) {

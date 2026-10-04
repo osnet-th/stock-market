@@ -102,7 +102,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addStockItem(
                 userId, request.getItemName(),
-                request.getRegion(), request.getMemo(),
+                request.getRegion(), request.getMemo(), request.getInstitution(),
                 request.getSubType(), request.getStockCode(), request.getMarket(),
                 request.getExchangeCode(), request.getCountry(),
                 request.getQuantity(), request.getPurchasePrice(), request.getDividendYield(),
@@ -122,7 +122,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addBondItem(
                 userId, request.getItemName(), request.getInvestedAmount(),
-                request.getRegion(), request.getMemo(),
+                request.getRegion(), request.getMemo(), request.getInstitution(),
                 request.getSubType(), request.getMaturityDate(),
                 request.getCouponRate(), request.getCreditRating());
         return ResponseEntity.ok(response);
@@ -139,7 +139,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addRealEstateItem(
                 userId, request.getItemName(), request.getInvestedAmount(),
-                request.getRegion(), request.getMemo(),
+                request.getRegion(), request.getMemo(), request.getInstitution(),
                 request.getSubType(), request.getAddress(), request.getArea());
         return ResponseEntity.ok(response);
     }
@@ -155,7 +155,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addFundItem(
                 userId, request.getItemName(), request.getInvestedAmount(),
-                request.getRegion(), request.getMemo(),
+                request.getRegion(), request.getMemo(), request.getInstitution(),
                 request.getSubType(), request.getManagementFee(),
                 request.getMonthlyDepositAmount(), request.getDepositDay());
         return ResponseEntity.ok(response);
@@ -172,7 +172,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addPensionItem(
                 userId, request.getItemName(), request.getInvestedAmount(),
-                request.getRegion(), request.getMemo(),
+                request.getRegion(), request.getMemo(), request.getInstitution(),
                 request.getSubType(), request.getProvider(), request.getEvaluatedAmount(),
                 request.getMonthlyDepositAmount(), request.getDepositDay());
         return ResponseEntity.ok(response);
@@ -189,7 +189,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addCashItem(
                 userId, request.getItemName(), request.getInvestedAmount(),
-                request.getRegion(), request.getMemo(),
+                request.getRegion(), request.getMemo(), request.getInstitution(),
                 request.getCashType(), request.getInterestRate(),
                 request.getStartDate(), request.getMaturityDate(),
                 request.getTaxType(),
@@ -208,7 +208,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.addGeneralItem(
                 userId, request.getAssetType(), request.getItemName(),
-                request.getInvestedAmount(), request.getRegion(), request.getMemo(),
+                request.getInvestedAmount(), request.getRegion(), request.getMemo(), request.getInstitution(),
                 request.getQuantityGrams());
         return ResponseEntity.ok(response);
     }
@@ -237,7 +237,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateStockItem(
                 userId, itemId,
-                request.getItemName(), request.getMemo(),
+                request.getItemName(), request.getMemo(), request.getInstitution(),
                 request.getSubType(), request.getStockCode(), request.getMarket(),
                 request.getExchangeCode(), request.getCountry(),
                 request.getQuantity(), request.getPurchasePrice(), request.getDividendYield(),
@@ -258,7 +258,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateBondItem(
                 userId, itemId,
-                request.getItemName(), request.getInvestedAmount(), request.getMemo(),
+                request.getItemName(), request.getInvestedAmount(), request.getMemo(), request.getInstitution(),
                 request.getSubType(), request.getMaturityDate(),
                 request.getCouponRate(), request.getCreditRating());
         return ResponseEntity.ok(response);
@@ -276,7 +276,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateRealEstateItem(
                 userId, itemId,
-                request.getItemName(), request.getInvestedAmount(), request.getMemo(),
+                request.getItemName(), request.getInvestedAmount(), request.getMemo(), request.getInstitution(),
                 request.getSubType(), request.getAddress(), request.getArea());
         return ResponseEntity.ok(response);
     }
@@ -293,7 +293,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateFundItem(
                 userId, itemId,
-                request.getItemName(), request.getInvestedAmount(), request.getMemo(),
+                request.getItemName(), request.getInvestedAmount(), request.getMemo(), request.getInstitution(),
                 request.getSubType(), request.getManagementFee(),
                 request.getMonthlyDepositAmount(), request.getDepositDay());
         return ResponseEntity.ok(response);
@@ -311,7 +311,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updatePensionItem(
                 userId, itemId,
-                request.getItemName(), request.getInvestedAmount(), request.getMemo(),
+                request.getItemName(), request.getInvestedAmount(), request.getMemo(), request.getInstitution(),
                 request.getSubType(), request.getProvider(), request.getEvaluatedAmount(),
                 request.getMonthlyDepositAmount(), request.getDepositDay());
         return ResponseEntity.ok(response);
@@ -329,7 +329,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateCashItem(
                 userId, itemId,
-                request.getItemName(), request.getInvestedAmount(), request.getMemo(),
+                request.getItemName(), request.getInvestedAmount(), request.getMemo(), request.getInstitution(),
                 request.getInterestRate(), request.getStartDate(),
                 request.getMaturityDate(), request.getTaxType(),
                 request.getMonthlyDepositAmount(), request.getDepositDay());
@@ -348,7 +348,7 @@ public class PortfolioController {
         assertUserMatches(jwtUserId, userId);
         PortfolioItemResponse response = portfolioService.updateGeneralItem(
                 userId, itemId,
-                request.getItemName(), request.getInvestedAmount(), request.getMemo(),
+                request.getItemName(), request.getInvestedAmount(), request.getMemo(), request.getInstitution(),
                 request.getQuantityGrams());
         return ResponseEntity.ok(response);
     }

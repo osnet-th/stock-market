@@ -32,6 +32,7 @@ public class RealEstateItemEntity extends PortfolioItemEntity {
                                 boolean newsEnabled,
                                 String region,
                                 String memo,
+                                String institution,
                                 PortfolioItemStatus status,
                                 Long version,
                                 LocalDateTime createdAt,
@@ -39,7 +40,7 @@ public class RealEstateItemEntity extends PortfolioItemEntity {
                                 String subType,
                                 String address,
                                 BigDecimal area) {
-        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, version, createdAt, updatedAt);
+        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, institution, status, version, createdAt, updatedAt);
         this.subType = subType;
         this.address = address;
         this.area = area;

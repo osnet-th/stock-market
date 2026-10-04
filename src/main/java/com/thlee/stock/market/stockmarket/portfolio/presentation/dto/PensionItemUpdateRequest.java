@@ -9,6 +9,7 @@ public class PensionItemUpdateRequest {
     private String itemName;
     private BigDecimal investedAmount;
     private String memo;
+    private String institution;
     private String subType;
     private String provider;
     private BigDecimal evaluatedAmount;

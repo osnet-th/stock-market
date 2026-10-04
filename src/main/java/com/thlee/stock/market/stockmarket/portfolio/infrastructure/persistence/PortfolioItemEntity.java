@@ -48,6 +48,9 @@ public abstract class PortfolioItemEntity {
     @Column(name = "memo", length = 500)
     private String memo;
 
+    @Column(name = "institution", length = 50)
+    private String institution;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20,
             columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'")
@@ -74,6 +77,7 @@ public abstract class PortfolioItemEntity {
                                   boolean newsEnabled,
                                   String region,
                                   String memo,
+                                  String institution,
                                   PortfolioItemStatus status,
                                   Long version,
                                   LocalDateTime createdAt,
@@ -85,6 +89,7 @@ public abstract class PortfolioItemEntity {
         this.newsEnabled = newsEnabled;
         this.region = region;
         this.memo = memo;
+        this.institution = institution;
         this.status = status;
         this.version = version;
         this.createdAt = createdAt;

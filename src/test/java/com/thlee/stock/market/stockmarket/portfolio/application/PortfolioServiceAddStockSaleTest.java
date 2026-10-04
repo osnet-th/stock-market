@@ -97,7 +97,7 @@ class PortfolioServiceAddStockSaleTest {
                 BigDecimal.valueOf(3.5), TODAY, null, null, null, null);
         return new PortfolioItem(
                 CASH_ITEM_ID, USER_ID, "CMA", AssetType.CASH,
-                amount, false, Region.DOMESTIC, null,
+                amount, false, Region.DOMESTIC, null, null,
                 PortfolioItemStatus.ACTIVE, 0L,
                 LocalDateTime.now(), LocalDateTime.now(),
                 null, null, null, null, cashDetail, null, null
@@ -108,7 +108,7 @@ class PortfolioServiceAddStockSaleTest {
         return new PortfolioItem(
                 id, origin.getUserId(), origin.getItemName(), origin.getAssetType(),
                 origin.getInvestedAmount(), origin.isNewsEnabled(), origin.getRegion(),
-                origin.getMemo(), origin.getStatus(), origin.getVersion(),
+                origin.getMemo(), origin.getInstitution(), origin.getStatus(), origin.getVersion(),
                 origin.getCreatedAt(), origin.getUpdatedAt(),
                 origin.getStockDetail(), origin.getBondDetail(), origin.getRealEstateDetail(),
                 origin.getFundDetail(), origin.getCashDetail(), origin.getGoldDetail(), null

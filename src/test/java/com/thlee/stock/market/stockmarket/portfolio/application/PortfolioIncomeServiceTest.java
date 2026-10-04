@@ -275,7 +275,7 @@ class PortfolioIncomeServiceTest {
 
     private PortfolioItem item(long id, AssetType assetType, BigDecimal invested,
                                StockDetail stockDetail, CashDetail cashDetail) {
-        return new PortfolioItem(id, 1L, "항목" + id, assetType, invested, false, Region.DOMESTIC, null,
+        return new PortfolioItem(id, 1L, "항목" + id, assetType, invested, false, Region.DOMESTIC, null, null,
                 PortfolioItemStatus.ACTIVE, 0L, CREATED_AT, CREATED_AT,
                 stockDetail, null, null, null, cashDetail, null, null);
     }

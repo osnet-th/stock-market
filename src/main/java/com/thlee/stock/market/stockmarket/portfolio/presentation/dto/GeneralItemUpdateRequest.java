@@ -9,5 +9,6 @@ public class GeneralItemUpdateRequest {
     private String itemName;
     private BigDecimal investedAmount;
     private String memo;
+    private String institution;
     private BigDecimal quantityGrams;
 }

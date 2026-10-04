@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 public class StockItemUpdateRequest {
     private String itemName;
     private String memo;
+    private String institution;
     private String subType;
     private String stockCode;
     private String market;

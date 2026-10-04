@@ -10,6 +10,7 @@ public class PensionItemAddRequest {
     private BigDecimal investedAmount;
     private String region;
     private String memo;
+    private String institution;
     private String subType;
     private String provider;
     private BigDecimal evaluatedAmount;

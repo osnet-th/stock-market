@@ -9,6 +9,7 @@ public class StockItemAddRequest {
     private String itemName;
     private String region;
     private String memo;
+    private String institution;
     private String subType;
     private String stockCode;
     private String market;

@@ -87,7 +87,7 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse addStockItem(Long userId, String itemName,
-                                               String region, String memo,
+                                               String region, String memo, String institution,
                                                String subType, String stockCode, String market,
                                                String exchangeCode, String country,
                                                Integer quantity, BigDecimal purchasePrice, BigDecimal dividendYield,
@@ -104,6 +104,7 @@ public class PortfolioService {
         if (memo != null) {
             item.updateMemo(memo);
         }
+        item.updateInstitution(institution);
         validateDuplicate(userId, item);
 
         // CASH 연결 시 잔액 검증을 먼저 수행
@@ -139,7 +140,7 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse addBondItem(Long userId, String itemName, BigDecimal investedAmount,
-                                              String region, String memo,
+                                              String region, String memo, String institution,
                                               String subType, LocalDate maturityDate,
                                               BigDecimal couponRate, String creditRating) {
         BondDetail detail = new BondDetail(
@@ -151,6 +152,7 @@ public class PortfolioService {
         if (memo != null) {
             item.updateMemo(memo);
         }
+        item.updateInstitution(institution);
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
         publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
@@ -162,7 +164,7 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse addRealEstateItem(Long userId, String itemName, BigDecimal investedAmount,
-                                                    String region, String memo,
+                                                    String region, String memo, String institution,
                                                     String subType, String address, BigDecimal area) {
         RealEstateDetail detail = new RealEstateDetail(
                 subType != null ? RealEstateSubType.valueOf(subType) : null,
@@ -173,6 +175,7 @@ public class PortfolioService {
         if (memo != null) {
             item.updateMemo(memo);
         }
+        item.updateInstitution(institution);
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
         publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
@@ -184,7 +187,7 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse addFundItem(Long userId, String itemName, BigDecimal investedAmount,
-                                              String region, String memo,
+                                              String region, String memo, String institution,
                                               String subType, BigDecimal managementFee,
                                               BigDecimal monthlyDepositAmount, Integer depositDay) {
         FundDetail detail = new FundDetail(
@@ -198,6 +201,7 @@ public class PortfolioService {
         if (memo != null) {
             item.updateMemo(memo);
         }
+        item.updateInstitution(institution);
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
         publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
@@ -210,7 +214,7 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse addPensionItem(Long userId, String itemName, BigDecimal investedAmount,
-                                                 String region, String memo,
+                                                 String region, String memo, String institution,
                                                  String subType, String provider, BigDecimal evaluatedAmount,
                                                  BigDecimal monthlyDepositAmount, Integer depositDay) {
         PensionDetail detail = new PensionDetail(
@@ -225,6 +229,7 @@ public class PortfolioService {
         if (memo != null) {
             item.updateMemo(memo);
         }
+        item.updateInstitution(institution);
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
         publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
@@ -236,7 +241,7 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse addCashItem(Long userId, String itemName, BigDecimal investedAmount,
-                                              String region, String memo,
+                                              String region, String memo, String institution,
                                               String cashType, BigDecimal interestRate,
                                               LocalDate startDate, LocalDate maturityDate,
                                               String taxType,
@@ -255,6 +260,7 @@ public class PortfolioService {
         if (memo != null) {
             item.updateMemo(memo);
         }
+        item.updateInstitution(institution);
         validateDuplicate(userId, item);
         PortfolioItem saved = portfolioItemRepository.save(item);
         publishItemEvent("PORTFOLIO_ITEM_CREATED", userId, saved);
@@ -266,7 +272,7 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse updateCashItem(Long userId, Long itemId,
-                                                 String itemName, BigDecimal investedAmount, String memo,
+                                                 String itemName, BigDecimal investedAmount, String memo, String institution,
                                                  BigDecimal interestRate, LocalDate startDate,
                                                  LocalDate maturityDate, String taxType,
                                                  BigDecimal monthlyDepositAmount, Integer depositDay) {
@@ -274,6 +280,7 @@ public class PortfolioService {
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
         item.updateMemo(memo);
+        item.updateInstitution(institution);
 
         CashSubType subType = item.getCashDetail() != null
                 ? item.getCashDetail().getSubType()
@@ -300,7 +307,7 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse addGeneralItem(Long userId, String assetType, String itemName,
-                                                 BigDecimal investedAmount, String region, String memo,
+                                                 BigDecimal investedAmount, String region, String memo, String institution,
                                                  BigDecimal quantityGrams) {
         AssetType type = AssetType.valueOf(assetType);
         if (type == AssetType.CASH) {
@@ -311,6 +318,7 @@ public class PortfolioService {
         if (memo != null) {
             item.updateMemo(memo);
         }
+        item.updateInstitution(institution);
         if (type == AssetType.GOLD && quantityGrams != null) {
             item.updateGoldDetail(new GoldDetail(quantityGrams));
         }
@@ -406,7 +414,7 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse updateStockItem(Long userId, Long itemId,
-                                                  String itemName, String memo,
+                                                  String itemName, String memo, String institution,
                                                   String subType, String stockCode, String market,
                                                   String exchangeCode, String country,
                                                   Integer quantity, BigDecimal purchasePrice, BigDecimal dividendYield,
@@ -421,6 +429,7 @@ public class PortfolioService {
 
         item.updateItemName(itemName);
         item.updateMemo(memo);
+        item.updateInstitution(institution);
         StockDetail detail = new StockDetail(
                 subType != null ? StockSubType.valueOf(subType) : null,
                 stockCode, market, exchangeCode, country, quantity, purchasePrice, dividendYield,
@@ -485,13 +494,14 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse updateBondItem(Long userId, Long itemId,
-                                                 String itemName, BigDecimal investedAmount, String memo,
+                                                 String itemName, BigDecimal investedAmount, String memo, String institution,
                                                  String subType, LocalDate maturityDate,
                                                  BigDecimal couponRate, String creditRating) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
         item.updateMemo(memo);
+        item.updateInstitution(institution);
         BondDetail detail = new BondDetail(
                 subType != null ? BondSubType.valueOf(subType) : null,
                 maturityDate, couponRate, creditRating
@@ -507,12 +517,13 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse updateRealEstateItem(Long userId, Long itemId,
-                                                       String itemName, BigDecimal investedAmount, String memo,
+                                                       String itemName, BigDecimal investedAmount, String memo, String institution,
                                                        String subType, String address, BigDecimal area) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
         item.updateMemo(memo);
+        item.updateInstitution(institution);
         RealEstateDetail detail = new RealEstateDetail(
                 subType != null ? RealEstateSubType.valueOf(subType) : null,
                 address, area
@@ -528,13 +539,14 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse updateFundItem(Long userId, Long itemId,
-                                                 String itemName, BigDecimal investedAmount, String memo,
+                                                 String itemName, BigDecimal investedAmount, String memo, String institution,
                                                  String subType, BigDecimal managementFee,
                                                  BigDecimal monthlyDepositAmount, Integer depositDay) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
         item.updateMemo(memo);
+        item.updateInstitution(institution);
         FundDetail detail = new FundDetail(
                 subType != null ? FundSubType.valueOf(subType) : null,
                 managementFee,
@@ -552,13 +564,14 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse updatePensionItem(Long userId, Long itemId,
-                                                    String itemName, BigDecimal investedAmount, String memo,
+                                                    String itemName, BigDecimal investedAmount, String memo, String institution,
                                                     String subType, String provider, BigDecimal evaluatedAmount,
                                                     BigDecimal monthlyDepositAmount, Integer depositDay) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
         item.updateMemo(memo);
+        item.updateInstitution(institution);
         PensionDetail detail = new PensionDetail(
                 subType != null ? PensionSubType.valueOf(subType) : null,
                 provider,
@@ -577,13 +590,14 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioItemResponse updateGeneralItem(Long userId, Long itemId,
-                                                    String itemName, BigDecimal investedAmount, String memo,
+                                                    String itemName, BigDecimal investedAmount, String memo, String institution,
                                                     BigDecimal quantityGrams) {
         PortfolioItem item = findUserItem(userId, itemId);
         validateQuantityGramsUsage(item.getAssetType(), quantityGrams);
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
         item.updateMemo(memo);
+        item.updateInstitution(institution);
         if (item.getAssetType() == AssetType.GOLD) {
             item.updateGoldDetail(quantityGrams != null ? new GoldDetail(quantityGrams) : null);
         }

@@ -9,6 +9,7 @@ public class RealEstateItemUpdateRequest {
     private String itemName;
     private BigDecimal investedAmount;
     private String memo;
+    private String institution;
     private String subType;
     private String address;
     private BigDecimal area;

@@ -11,6 +11,7 @@ public class CashItemAddRequest {
     private BigDecimal investedAmount;
     private String region;
     private String memo;
+    private String institution;
     private String cashType;
     private BigDecimal interestRate;
     private LocalDate startDate;

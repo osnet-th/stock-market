@@ -11,6 +11,7 @@ public class BondItemAddRequest {
     private BigDecimal investedAmount;
     private String region;
     private String memo;
+    private String institution;
     private String subType;
     private LocalDate maturityDate;
     private BigDecimal couponRate;

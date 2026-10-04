@@ -21,10 +21,11 @@ public class CryptoItemEntity extends PortfolioItemEntity {
                             boolean newsEnabled,
                             String region,
                             String memo,
+                            String institution,
                             PortfolioItemStatus status,
                             Long version,
                             LocalDateTime createdAt,
                             LocalDateTime updatedAt) {
-        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, version, createdAt, updatedAt);
+        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, institution, status, version, createdAt, updatedAt);
     }
 }

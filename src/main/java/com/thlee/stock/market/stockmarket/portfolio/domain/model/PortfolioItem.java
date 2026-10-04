@@ -9,9 +9,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Getter
 public class PortfolioItem {
+    private static final int INSTITUTION_MAX_LENGTH = 50;
+    // 앞뒤 공백 — 일반 공백·탭·줄바꿈과 유니코드 공백(전각 공백, 줄바꿈 없는 공백 등)
+    private static final Pattern SURROUNDING_SPACES = Pattern.compile("^[\\s\\p{Z}]+|[\\s\\p{Z}]+$");
+
     private Long id;
     private Long userId;
     private String itemName;
@@ -20,6 +25,7 @@ public class PortfolioItem {
     private boolean newsEnabled;
     private Region region;
     private String memo;
+    private String institution;
     private PortfolioItemStatus status;
     private Long version;
     private LocalDateTime createdAt;
@@ -44,6 +50,7 @@ public class PortfolioItem {
                          boolean newsEnabled,
                          Region region,
                          String memo,
+                         String institution,
                          PortfolioItemStatus status,
                          Long version,
                          LocalDateTime createdAt,
@@ -63,6 +70,7 @@ public class PortfolioItem {
         this.newsEnabled = newsEnabled;
         this.region = region;
         this.memo = memo;
+        this.institution = institution;
         this.status = status;
         this.version = version;
         this.createdAt = createdAt;
@@ -245,6 +253,19 @@ public class PortfolioItem {
 
     public void updateMemo(String memo) {
         this.memo = memo;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 금융기관 갱신. 앞뒤 공백을 지우고, 빈 값은 미지정(null)으로 둔다.
+     * 지운 뒤 50자를 넘으면 값을 바꾸지 않고 거부한다.
+     */
+    public void updateInstitution(String institution) {
+        String normalized = normalizeInstitution(institution);
+        if (normalized != null && normalized.codePointCount(0, normalized.length()) > INSTITUTION_MAX_LENGTH) {
+            throw new IllegalArgumentException("금융기관은 50자 이하로 입력해 주세요.");
+        }
+        this.institution = normalized;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -511,6 +532,14 @@ public class PortfolioItem {
         if (region == null) {
             throw new IllegalArgumentException("region은 필수입니다.");
         }
+    }
+
+    private static String normalizeInstitution(String institution) {
+        if (institution == null) {
+            return null;
+        }
+        String trimmed = SURROUNDING_SPACES.matcher(institution).replaceAll("");
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private static void validateDetail(Object detail, String detailName) {

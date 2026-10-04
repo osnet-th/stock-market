@@ -78,7 +78,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
         return new PortfolioItem(
                 STOCK_ITEM_ID, USER_ID, "삼성전자", AssetType.STOCK,
                 BigDecimal.valueOf(70_000).multiply(BigDecimal.valueOf(Math.max(quantity, 0))),
-                false, Region.DOMESTIC, null,
+                false, Region.DOMESTIC, null, null,
                 status, 0L, LocalDateTime.now(), LocalDateTime.now(),
                 detail, null, null, null, null, null, null
         );
@@ -89,7 +89,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
                 BigDecimal.valueOf(3.5), TODAY, null, null, null, null);
         return new PortfolioItem(
                 CASH_ITEM_ID, USER_ID, "CMA", AssetType.CASH,
-                amount, false, Region.DOMESTIC, null,
+                amount, false, Region.DOMESTIC, null, null,
                 PortfolioItemStatus.ACTIVE, 0L,
                 LocalDateTime.now(), LocalDateTime.now(),
                 null, null, null, null, cashDetail, null, null
@@ -307,7 +307,7 @@ class PortfolioServiceUpdateSaleHistoryTest {
         PortfolioItem stockOfOtherUser = new PortfolioItem(
                 STOCK_ITEM_ID, 999L, stock.getItemName(), stock.getAssetType(),
                 stock.getInvestedAmount(), stock.isNewsEnabled(), stock.getRegion(),
-                stock.getMemo(), stock.getStatus(), stock.getVersion(),
+                stock.getMemo(), stock.getInstitution(), stock.getStatus(), stock.getVersion(),
                 stock.getCreatedAt(), stock.getUpdatedAt(),
                 stock.getStockDetail(), null, null, null, null, null, null
         );

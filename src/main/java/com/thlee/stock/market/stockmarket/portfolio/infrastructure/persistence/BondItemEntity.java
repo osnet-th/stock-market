@@ -36,6 +36,7 @@ public class BondItemEntity extends PortfolioItemEntity {
                           boolean newsEnabled,
                           String region,
                           String memo,
+                          String institution,
                           PortfolioItemStatus status,
                           Long version,
                           LocalDateTime createdAt,
@@ -44,7 +45,7 @@ public class BondItemEntity extends PortfolioItemEntity {
                           LocalDate maturityDate,
                           BigDecimal couponRate,
                           String creditRating) {
-        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, status, version, createdAt, updatedAt);
+        super(id, userId, itemName, investedAmount, newsEnabled, region, memo, institution, status, version, createdAt, updatedAt);
         this.subType = subType;
         this.maturityDate = maturityDate;
         this.couponRate = couponRate;

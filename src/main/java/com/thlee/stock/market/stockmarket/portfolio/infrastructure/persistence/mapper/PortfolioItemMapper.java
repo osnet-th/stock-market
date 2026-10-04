@@ -98,6 +98,7 @@ public class PortfolioItemMapper {
                 entity.isNewsEnabled(),
                 Region.valueOf(entity.getRegion()),
                 entity.getMemo(),
+                entity.getInstitution(),
                 entity.getStatus(),
                 entity.getVersion(),
                 entity.getCreatedAt(),
@@ -124,7 +125,7 @@ public class PortfolioItemMapper {
                 yield new StockItemEntity(
                         item.getId(), item.getUserId(), item.getItemName(),
                         item.getInvestedAmount(), item.isNewsEnabled(), region,
-                        item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
+                        item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
                         detail.getSubType() != null ? detail.getSubType().name() : null,
                         detail.getStockCode(), detail.getMarket(), detail.getExchangeCode(),
                         detail.getCountry(), detail.getQuantity(),
@@ -138,7 +139,7 @@ public class PortfolioItemMapper {
                 yield new BondItemEntity(
                         item.getId(), item.getUserId(), item.getItemName(),
                         item.getInvestedAmount(), item.isNewsEnabled(), region,
-                        item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
+                        item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
                         detail.getSubType() != null ? detail.getSubType().name() : null,
                         detail.getMaturityDate(), detail.getCouponRate(), detail.getCreditRating()
                 );
@@ -148,7 +149,7 @@ public class PortfolioItemMapper {
                 yield new RealEstateItemEntity(
                         item.getId(), item.getUserId(), item.getItemName(),
                         item.getInvestedAmount(), item.isNewsEnabled(), region,
-                        item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
+                        item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
                         detail.getSubType() != null ? detail.getSubType().name() : null,
                         detail.getAddress(), detail.getArea()
                 );
@@ -158,7 +159,7 @@ public class PortfolioItemMapper {
                 yield new FundItemEntity(
                         item.getId(), item.getUserId(), item.getItemName(),
                         item.getInvestedAmount(), item.isNewsEnabled(), region,
-                        item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
+                        item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
                         detail.getSubType() != null ? detail.getSubType().name() : null,
                         detail.getManagementFee(),
                         detail.getMonthlyDepositAmount(),
@@ -168,25 +169,25 @@ public class PortfolioItemMapper {
             case CRYPTO -> new CryptoItemEntity(
                     item.getId(), item.getUserId(), item.getItemName(),
                     item.getInvestedAmount(), item.isNewsEnabled(), region,
-                    item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt()
+                    item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt()
             );
             case GOLD -> new GoldItemEntity(
                     item.getId(), item.getUserId(), item.getItemName(),
                     item.getInvestedAmount(), item.isNewsEnabled(), region,
-                    item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
+                    item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
                     item.getGoldDetail() != null ? item.getGoldDetail().getQuantityGrams() : null
             );
             case COMMODITY -> new CommodityItemEntity(
                     item.getId(), item.getUserId(), item.getItemName(),
                     item.getInvestedAmount(), item.isNewsEnabled(), region,
-                    item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt()
+                    item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt()
             );
             case CASH -> {
                 CashDetail cashDtl = item.getCashDetail();
                 yield new CashItemEntity(
                         item.getId(), item.getUserId(), item.getItemName(),
                         item.getInvestedAmount(), item.isNewsEnabled(), region,
-                        item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
+                        item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
                         cashDtl != null ? cashDtl.getSubType().name() : null,
                         cashDtl != null ? cashDtl.getInterestRate() : null,
                         cashDtl != null ? cashDtl.getStartDate() : null,
@@ -201,7 +202,7 @@ public class PortfolioItemMapper {
                 yield new PensionItemEntity(
                         item.getId(), item.getUserId(), item.getItemName(),
                         item.getInvestedAmount(), item.isNewsEnabled(), region,
-                        item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
+                        item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt(),
                         detail.getSubType() != null ? detail.getSubType().name() : null,
                         detail.getProvider(),
                         detail.getEvaluatedAmount(),
@@ -212,7 +213,7 @@ public class PortfolioItemMapper {
             case OTHER -> new OtherItemEntity(
                     item.getId(), item.getUserId(), item.getItemName(),
                     item.getInvestedAmount(), item.isNewsEnabled(), region,
-                    item.getMemo(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt()
+                    item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(), item.getCreatedAt(), item.getUpdatedAt()
             );
         };
     }

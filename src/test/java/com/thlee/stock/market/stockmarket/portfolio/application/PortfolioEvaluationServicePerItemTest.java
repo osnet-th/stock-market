@@ -61,7 +61,7 @@ class PortfolioEvaluationServicePerItemTest {
         return new PortfolioItem(
                 itemId, item.getUserId(), item.getItemName(), item.getAssetType(),
                 item.getInvestedAmount(), item.isNewsEnabled(), item.getRegion(),
-                item.getMemo(), item.getStatus(), item.getVersion(),
+                item.getMemo(), item.getInstitution(), item.getStatus(), item.getVersion(),
                 item.getCreatedAt(), item.getUpdatedAt(),
                 item.getStockDetail(), null, null, null, null, null, null
         );
@@ -147,7 +147,7 @@ class PortfolioEvaluationServicePerItemTest {
         PortfolioItem reconstructed = new PortfolioItem(
                 200L, cash.getUserId(), cash.getItemName(), cash.getAssetType(),
                 cash.getInvestedAmount(), cash.isNewsEnabled(), cash.getRegion(),
-                cash.getMemo(), cash.getStatus(), cash.getVersion(),
+                cash.getMemo(), cash.getInstitution(), cash.getStatus(), cash.getVersion(),
                 cash.getCreatedAt(), cash.getUpdatedAt(),
                 null, null, null, null, null, null, null
         );
@@ -174,7 +174,7 @@ class PortfolioEvaluationServicePerItemTest {
         PortfolioItem cash = new PortfolioItem(
                 101L, 1L, "예금", AssetType.CASH,
                 BigDecimal.valueOf(500_000), false, Region.DOMESTIC,
-                null, com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus.ACTIVE,
+                null, null, com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus.ACTIVE,
                 0L,
                 java.time.LocalDateTime.now(), java.time.LocalDateTime.now(),
                 null, null, null, null, null, null, null

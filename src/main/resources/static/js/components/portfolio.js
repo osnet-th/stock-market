@@ -863,6 +863,36 @@ const PortfolioComponent = {
         this.portfolio._holdingGroupsCache = null;
     },
 
+    // 금융기관별 합계 (평가액 기준) — 금액 큰 순, 같으면 이름순, 미지정은 금액과 관계없이 마지막.
+    // 비중 반올림은 자산군 구성(getEvalAllocation)과 같다.
+    getInstitutionTotals() {
+        const totalEval = this.getTotalEvalAmount();
+        const groups = new Map();
+        this.portfolio.items.forEach((item) => {
+            const name = item.institution || '';
+            if (!groups.has(name)) {
+                groups.set(name, {
+                    key: name ? 'name:' + name : 'unassigned',
+                    name: name || '미지정',
+                    unassigned: !name,
+                    count: 0,
+                    evaluated: 0
+                });
+            }
+            const group = groups.get(name);
+            group.count += 1;
+            group.evaluated += this.getEvalAmount(item);
+        });
+        return Array.from(groups.values()).map((group) => {
+            group.percentage = totalEval > 0 ? Math.round(group.evaluated / totalEval * 1000) / 10 : 0;
+            return group;
+        }).sort((a, b) => {
+            if (a.unassigned !== b.unassigned) return a.unassigned ? 1 : -1;
+            if (b.evaluated !== a.evaluated) return b.evaluated - a.evaluated;
+            return a.name.localeCompare(b.name, 'ko');
+        });
+    },
+
     getDaysUntil(dateStr) {
         if (!dateStr) return null;
         const target = new Date(dateStr + 'T00:00:00');
@@ -1267,6 +1297,15 @@ const PortfolioComponent = {
         return cash ? cash.itemName : null;
     },
 
+    // 금융기관 자동 완성 목록 — 보유 항목에 이미 입력한 이름 (중복 제거, 가나다순)
+    getInstitutionNames() {
+        const names = new Set();
+        this.portfolio.items.forEach((item) => {
+            if (item.institution) names.add(item.institution);
+        });
+        return Array.from(names).sort((a, b) => a.localeCompare(b, 'ko'));
+    },
+
     getCurrencyByExchangeCode(exchangeCode) {
         const mapping = {
             KRX: 'KRW',
@@ -1329,6 +1368,7 @@ const PortfolioComponent = {
                 case 'STOCK':
                     await API.addStockItem(userId, {
                         itemName: form.itemName, region: form.region, memo: form.memo || null,
+                        institution: form.institution || null,
                         subType: form.subType || 'INDIVIDUAL', stockCode: form.ticker, market: form.exchange,
                         exchangeCode: form.exchangeCode, country: this.getCountryByExchangeCode(form.exchangeCode),
                         quantity: Number(form.quantity), purchasePrice: Number(form.purchasePrice),
@@ -1342,6 +1382,7 @@ const PortfolioComponent = {
                     await API.addBondItem(userId, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount), region: form.region,
                         memo: form.memo || null, subType: form.subType || 'GOVERNMENT',
+                        institution: form.institution || null,
                         maturityDate: form.maturityDate || null,
                         couponRate: form.couponRate ? Number(form.couponRate) : null,
                         creditRating: form.creditRating || null
@@ -1351,6 +1392,7 @@ const PortfolioComponent = {
                     await API.addRealEstateItem(userId, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount), region: form.region,
                         memo: form.memo || null, subType: form.subType || 'APARTMENT',
+                        institution: form.institution || null,
                         address: form.address || null, area: form.area ? Number(form.area) : null
                     });
                     break;
@@ -1358,6 +1400,7 @@ const PortfolioComponent = {
                     await API.addFundItem(userId, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount), region: form.region,
                         memo: form.memo || null, subType: form.subType || 'EQUITY_FUND',
+                        institution: form.institution || null,
                         managementFee: form.managementFee ? Number(form.managementFee) : null,
                         monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
                         depositDay: form.depositDay ? Number(form.depositDay) : null
@@ -1367,6 +1410,7 @@ const PortfolioComponent = {
                     await API.addPensionItem(userId, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount), region: form.region,
                         memo: form.memo || null, subType: form.subType || 'IRP',
+                        institution: form.institution || null,
                         provider: form.provider || null,
                         evaluatedAmount: form.evaluatedAmount ? Number(form.evaluatedAmount) : null,
                         monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
@@ -1377,6 +1421,7 @@ const PortfolioComponent = {
                     await API.addCashItem(userId, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount), region: form.region,
                         memo: form.memo || null, cashType: form.cashType,
+                        institution: form.institution || null,
                         interestRate: form.interestRate ? Number(form.interestRate) : null,
                         startDate: form.startDate || null,
                         maturityDate: form.cashType !== 'CMA' ? (form.maturityDate || null) : null,
@@ -1389,6 +1434,7 @@ const PortfolioComponent = {
                     await API.addGeneralItem(userId, {
                         assetType: form.assetType, itemName: form.itemName,
                         investedAmount: Number(form.investedAmount), region: form.region, memo: form.memo || null,
+                        institution: form.institution || null,
                         quantityGrams: form.assetType === 'GOLD' && form.quantityGrams
                             ? Number(form.quantityGrams) : null
                     });
@@ -1923,7 +1969,8 @@ const PortfolioComponent = {
             itemName: item.itemName,
             investedAmount: item.investedAmount,
             region: item.region || 'DOMESTIC',
-            memo: item.memo || ''
+            memo: item.memo || '',
+            institution: item.institution || ''
         };
 
         switch (item.assetType) {
@@ -2064,6 +2111,7 @@ const PortfolioComponent = {
 
                     await API.updateStockItem(userId, item.id, {
                         itemName: form.itemName, memo: form.memo || null,
+                        institution: form.institution || null,
                         subType: form.subType || 'INDIVIDUAL',
                         stockCode: stockDetail.stockCode, market: stockDetail.market,
                         exchangeCode: stockDetail.exchangeCode, country: stockDetail.country,
@@ -2078,6 +2126,7 @@ const PortfolioComponent = {
                     await API.updateBondItem(userId, item.id, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount),
                         memo: form.memo || null, subType: form.subType || 'GOVERNMENT',
+                        institution: form.institution || null,
                         maturityDate: form.maturityDate || null,
                         couponRate: form.couponRate ? Number(form.couponRate) : null,
                         creditRating: form.creditRating || null
@@ -2087,6 +2136,7 @@ const PortfolioComponent = {
                     await API.updateRealEstateItem(userId, item.id, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount),
                         memo: form.memo || null, subType: form.subType || 'APARTMENT',
+                        institution: form.institution || null,
                         address: form.address || null, area: form.area ? Number(form.area) : null
                     });
                     break;
@@ -2094,6 +2144,7 @@ const PortfolioComponent = {
                     await API.updateFundItem(userId, item.id, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount),
                         memo: form.memo || null, subType: form.subType || 'EQUITY_FUND',
+                        institution: form.institution || null,
                         managementFee: form.managementFee ? Number(form.managementFee) : null,
                         monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
                         depositDay: form.depositDay ? Number(form.depositDay) : null
@@ -2103,6 +2154,7 @@ const PortfolioComponent = {
                     await API.updateCashItem(userId, item.id, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount),
                         memo: form.memo || null,
+                        institution: form.institution || null,
                         interestRate: form.interestRate ? Number(form.interestRate) : null,
                         startDate: form.startDate || null,
                         maturityDate: form.cashType !== 'CMA' ? (form.maturityDate || null) : null,
@@ -2115,6 +2167,7 @@ const PortfolioComponent = {
                     await API.updatePensionItem(userId, item.id, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount),
                         memo: form.memo || null, subType: form.subType || 'IRP',
+                        institution: form.institution || null,
                         provider: form.provider || null,
                         evaluatedAmount: form.evaluatedAmount ? Number(form.evaluatedAmount) : null,
                         monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
@@ -2125,6 +2178,7 @@ const PortfolioComponent = {
                     await API.updateGeneralItem(userId, item.id, {
                         itemName: form.itemName, investedAmount: Number(form.investedAmount),
                         memo: form.memo || null,
+                        institution: form.institution || null,
                         quantityGrams: item.assetType === 'GOLD' && form.quantityGrams
                             ? Number(form.quantityGrams) : null
                     });

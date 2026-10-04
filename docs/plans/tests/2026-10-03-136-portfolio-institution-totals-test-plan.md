@@ -17,7 +17,7 @@
 - 제외: 컨트롤러(요청 DTO → 서비스 인자 전달), JPA·DDL(컬럼 생성), 전역 예외 처리기의 400 변환, 화면(CP3 브라우저 하네스로 확인)
 
 ## Mock 대상
-- Repository: `PortfolioItemRepository`(저장은 받은 항목을 그대로 돌려준다), `StockPurchaseHistoryRepository`, `StockSaleHistoryRepository`, `DepositHistoryRepository`, `CashStockLinkRepository`
+- Repository: `PortfolioItemRepository`(저장은 받은 항목을 돌려준다. id가 없는 새 항목은 저장소처럼 id를 붙인 사본을 돌려준다. 주식-현금 연결 생성에 id가 필요하다), `StockPurchaseHistoryRepository`, `StockSaleHistoryRepository`, `DepositHistoryRepository`, `CashStockLinkRepository`
 - 외부 API: `ExchangeRatePort`
 - 기타 외부 의존성: `PortfolioEvaluationService`, `KeywordService`, `KeywordRepository`, `UserKeywordRepository`, `DomainEventLogger`
 - 도메인·매퍼 테스트는 Mock 없이 실제 객체로 확인한다.

@@ -119,6 +119,38 @@
                     </div>
                 </div>
 
+                <!-- 금융기관별 합계 (평가액 기준) -->
+                <div x-show="portfolio.items.length > 0" class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+                    <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+                        <h3 class="text-sm font-bold text-gray-700">금융기관별 합계</h3>
+                        <span class="text-xs text-gray-400">평가액 기준</span>
+                    </div>
+                    <p x-show="!portfolio.items.some((item) => item.institution)" class="text-xs text-gray-400 mb-3">
+                        자산 수정에서 금융기관을 입력하면 기관별로 묶어 보여 줍니다.
+                    </p>
+                    <div class="space-y-3">
+                        <template x-for="group in getInstitutionTotals()" :key="'institution-' + group.key">
+                            <div>
+                                <div class="flex items-baseline gap-2 text-sm">
+                                    <span class="flex-1 min-w-0 truncate"
+                                        :class="group.unassigned ? 'text-gray-400' : 'text-gray-700'"
+                                        x-text="group.name"></span>
+                                    <span class="shrink-0 text-xs text-gray-400" x-text="group.count + '건'"></span>
+                                    <span class="shrink-0 w-28 sm:w-36 text-right font-mono text-gray-800"
+                                        x-text="Format.number(group.evaluated, 0)"></span>
+                                    <span class="shrink-0 w-12 text-right font-mono text-xs text-gray-500"
+                                        x-text="group.percentage + '%'"></span>
+                                </div>
+                                <div class="mt-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                                    <div class="h-full rounded-full"
+                                        :class="group.unassigned ? 'bg-gray-300' : 'bg-blue-500'"
+                                        :style="'width: ' + group.percentage + '%'"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
                 <!-- 보유 자산 테이블 -->
                 <div class="bg-white rounded-xl border border-gray-200 p-5">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -207,6 +239,8 @@
                                                                 <div class="flex-1 min-w-[220px] min-w-0">
                                                                     <div class="flex flex-wrap items-center gap-1.5">
                                                                         <span class="text-sm text-gray-800" x-text="item.itemName"></span>
+                                                                        <span x-show="item.institution" class="text-[11px] text-gray-400"
+                                                                            x-text="item.institution"></span>
                                                                         <span x-show="item.depositOverdue"
                                                                             class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">미납</span>
                                                                     </div>
@@ -252,6 +286,8 @@
                                                         <div class="flex-1 min-w-[220px] min-w-0">
                                                             <div class="flex flex-wrap items-center gap-1.5">
                                                                 <span class="text-sm text-gray-800" x-text="item.itemName"></span>
+                                                                <span x-show="item.institution" class="text-[11px] text-gray-400"
+                                                                    x-text="item.institution"></span>
                                                                 <span x-show="item.assetType === 'STOCK'"
                                                                     class="text-[10px] px-1.5 py-0.5 rounded border"
                                                                     :class="item.linkedCashItemId ? 'border-amber-200 text-amber-600' : 'border-red-200 text-red-500'"

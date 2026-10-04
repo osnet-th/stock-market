@@ -291,8 +291,8 @@
                                 </div>
                             </template>
                             <div>
-                                <label class="block text-sm text-gray-600 mb-1">금융기관</label>
-                                <input type="text" x-model="portfolio.editForm.institution" list="portfolioInstitutionOptionsEdit"
+                                <label for="portfolioInstitutionEdit" class="block text-sm text-gray-600 mb-1">금융기관</label>
+                                <input type="text" id="portfolioInstitutionEdit" x-model="portfolio.editForm.institution" list="portfolioInstitutionOptionsEdit"
                                     maxlength="50" placeholder="예: 국민은행, 키움증권, 업비트 (선택)"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <datalist id="portfolioInstitutionOptionsEdit">

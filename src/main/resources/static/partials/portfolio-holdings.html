@@ -134,6 +134,7 @@
                                 <div class="flex items-baseline gap-2 text-sm">
                                     <span class="flex-1 min-w-0 truncate"
                                         :class="group.unassigned ? 'text-gray-400' : 'text-gray-700'"
+                                        :title="group.name"
                                         x-text="group.name"></span>
                                     <span class="shrink-0 text-xs text-gray-400" x-text="group.count + '건'"></span>
                                     <span class="shrink-0 w-28 sm:w-36 text-right font-mono text-gray-800"

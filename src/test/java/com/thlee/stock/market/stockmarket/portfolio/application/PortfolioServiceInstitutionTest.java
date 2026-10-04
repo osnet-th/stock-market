@@ -178,8 +178,8 @@ class PortfolioServiceInstitutionTest {
     @Test
     @DisplayName("S6 연결한 현금 자산의 금융기관을 이어받지 않고, 차감 뒤에도 현금 자산의 값은 그대로다")
     void addStock_linkedCash_doesNotInheritInstitution() {
-        PortfolioItem cma = PortfolioItem.createWithCash(USER_ID, "CMA", BigDecimal.valueOf(10_000_000), Region.DOMESTIC,
-                new CashDetail(CashSubType.CMA, BigDecimal.valueOf(3), null, null, null));
+        PortfolioItem cma = withId(PortfolioItem.createWithCash(USER_ID, "CMA", BigDecimal.valueOf(10_000_000), Region.DOMESTIC,
+                new CashDetail(CashSubType.CMA, BigDecimal.valueOf(3), null, null, null)), CMA_ID);
         cma.updateInstitution("국민은행");
         given(portfolioItemRepository.findById(CMA_ID)).willReturn(Optional.of(cma));
 
@@ -193,8 +193,9 @@ class PortfolioServiceInstitutionTest {
     }
 
     private void givenExisting(Long id, PortfolioItem item) {
-        item.updateInstitution("국민은행");
-        given(portfolioItemRepository.findById(id)).willReturn(Optional.of(item));
+        PortfolioItem existing = withId(item, id);
+        existing.updateInstitution("국민은행");
+        given(portfolioItemRepository.findById(id)).willReturn(Optional.of(existing));
     }
 
     private static PortfolioItem stockItem() {

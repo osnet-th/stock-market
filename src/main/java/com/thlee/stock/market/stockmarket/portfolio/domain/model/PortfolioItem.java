@@ -260,7 +260,7 @@ public class PortfolioItem {
     public void updateInstitution(String institution) {
         String normalized = normalizeInstitution(institution);
         if (normalized != null && normalized.codePointCount(0, normalized.length()) > INSTITUTION_MAX_LENGTH) {
-            throw new IllegalArgumentException("금융기관은 50자 이하로 입력해 주세요.");
+            throw new IllegalArgumentException("금융기관은 " + INSTITUTION_MAX_LENGTH + "자 이하로 입력해 주세요.");
         }
         this.institution = normalized;
         this.updatedAt = LocalDateTime.now();

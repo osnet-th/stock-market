@@ -1397,7 +1397,8 @@ const PortfolioComponent = {
                 case 'STOCK':
                     await API.addStockItem(userId, {
                         itemName: form.itemName, region: form.region, memo: form.memo || null,
-                        institution: form.institution || null,
+                        // 금융기관이 있는 현금 자산에 연결하면 그 금융기관을 따르므로 주식 값은 비운다
+                        institution: this.getCashInstitution(form.cashItemId) ? null : (form.institution || null),
                         subType: form.subType || 'INDIVIDUAL', stockCode: form.ticker, market: form.exchange,
                         exchangeCode: form.exchangeCode, country: this.getCountryByExchangeCode(form.exchangeCode),
                         quantity: Number(form.quantity), purchasePrice: Number(form.purchasePrice),
@@ -2154,7 +2155,8 @@ const PortfolioComponent = {
 
                     await API.updateStockItem(userId, item.id, {
                         itemName: form.itemName, memo: form.memo || null,
-                        institution: form.institution || null,
+                        // 연결 현금 자산의 금융기관을 따르는 동안은 주식에서 바꿀 수 없어 저장된 값을 그대로 보낸다
+                        institution: this.getCashInstitution(form.cashItemId) ? (item.institution || null) : (form.institution || null),
                         subType: form.subType || 'INDIVIDUAL',
                         stockCode: stockDetail.stockCode, market: stockDetail.market,
                         exchangeCode: stockDetail.exchangeCode, country: stockDetail.country,

@@ -1,10 +1,12 @@
 # 적금 자동납입 처리 방식 단위 테스트 계획 (#138)
 
-2026-10-06 태형님 승인("끝까지 한번에 진행해"). 승인된 시나리오 19건(D1~D7, M3~M4, S1~S7, B1~B3)만 작성한다.
+2026-10-06 태형님 승인("끝까지 한번에 진행해"). 승인된 시나리오만 작성한다.
+- 처음 승인: 19건(D1~D7, M3~M4, S1~S7, B1~B3)
+- 리뷰 선택 T로 추가 승인("권장대로 해", 2026-10-06): D8, S8. 시작한 달을 건너뛰는 규칙(리뷰 A) 때문에 D7의 "시작일 10-25 → true" 1건을 "시작일 09-25 → true"로 바꾼다.
 
 ## 테스트 대상
 - 대상 클래스/메서드
-  - `DepositMode.from`, `CashDetail`(생성자 기본값, `validateDepositMode`, `isAutoDepositDueOn`)
+  - `DepositMode.from`, `CashDetail`(생성자 기본값, `validateDepositMode`, `isAutoDepositDueOn` — 시작한 달 건너뛰기 포함)
   - `PortfolioItemMapper` CASH 변환
   - `PortfolioService.addCashItem`·`updateCashItem`·`recordAutoDeposit`
   - `PortfolioAutoDepositBatchService.recordDueAutoDeposits`
@@ -32,7 +34,8 @@
 | D4 검증 거부 | AUTO에 (월 납입액 없음, 25일), (0원, 25일), (300,000원, 납입일 없음), (300,000원, 0일), (300,000원, 32일) | `validateDepositMode()` | 모두 `IllegalArgumentException`("자동 납입은 월 납입액과 납입일(1~31일)을 입력해야 합니다.") |
 | D5 납입일 판정 | AUTO 25일 / NOTIFY 25일 | `isAutoDepositDueOn` 10-25, 10-24 | AUTO: 10-25 true, 10-24 false / NOTIFY: 10-25 false |
 | D6 말일 보정 | AUTO 31일 | `isAutoDepositDueOn` 2026-02-28, 2026-02-27, 2026-04-30 | true, false, true |
-| D7 기간 | AUTO 25일, 시작일·만기일 조합 | `isAutoDepositDueOn(10-25)` | 시작일 10-25 → true, 시작일 11-01 → false, 만기일 10-25 → false, 만기일 10-20 → false, 만기일 10-26 → true, 날짜 없음 → true |
+| D7 기간 | AUTO 25일, 시작일·만기일 조합 | `isAutoDepositDueOn(10-25)` | 시작일 09-25 → true, 시작일 11-01 → false, 만기일 10-25 → false, 만기일 10-20 → false, 만기일 10-26 → true, 날짜 없음 → true |
+| D8 시작한 달 건너뛰기 | AUTO 25일, 시작일 10-05 / 시작일 10-25 | `isAutoDepositDueOn` 10-25, 11-25 | 시작일 10-05: 10-25 false, 11-25 true / 시작일 10-25: 10-25 false |
 
 ### 매핑 — `PortfolioItemMapperTest`(기존 파일에 추가)
 | Case | Given | When | Then |
@@ -50,6 +53,7 @@
 | S5 이번 달 기록 있음 | 같은 항목, 10-03 납입 이력 | `recordAutoDeposit(id, 10-25)` | false, 저장된 납입 이력·항목 없음, 원금 1,000,000원 |
 | S6 지난달 기록만 있음 | 같은 항목, 09-25 납입 이력 | `recordAutoDeposit(id, 10-25)` | true, 저장된 납입 이력 1건 |
 | S7 건너뛰기 | NOTIFY 적금(10-25) / AUTO 적금(10-24) / CLOSED AUTO 적금(10-25) | `recordAutoDeposit` | 모두 false, 저장된 납입 이력 없음 |
+| S8 수정 시 자동 반영 저장 | 기존 NOTIFY 적금 | `updateCashItem`에 AUTO + 300,000원 + 25일 | 응답 "AUTO" |
 
 ### 배치 — `PortfolioAutoDepositBatchServiceTest`
 | Case | Given | When | Then |

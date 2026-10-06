@@ -186,7 +186,7 @@ class PortfolioServiceAutoDepositTest {
 
     @Test
     @DisplayName("S8 수정 요청에 자동 반영을 보내면 자동 반영으로 저장한다")
-    void update_withAuto_keepsAuto() {
+    void update_withAuto_becomesAuto() {
         givenItem(savings(PortfolioItemStatus.ACTIVE, DepositMode.NOTIFY));
 
         PortfolioItemResponse response = portfolioService.updateCashItem(USER_ID, ITEM_ID, "적금", PRINCIPAL,

@@ -3,8 +3,9 @@ title: "feat: 연결 현금 자산 기준 주식 금융기관 적용"
 type: feat
 issue: 142
 issue_url: https://github.com/osnet-th/stock-market/issues/142
-status: draft
+status: active
 date: 2026-10-06
+approved: "2026-10-06 태형님 승인('권장대로 끝까지 한번에 진행해'): plan과 세부 사항(보조 문구, 다시 연결 때 기존 값 유지). 단위 테스트는 작성하지 않는다. 리뷰 수정 선택·GAP 결정·검증 방식도 권장안대로 진행하도록 지시함. PR 생성·병합은 별도 지시를 받는다"
 workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning·briefing·review 게이트 절차를 수동 적용한다 (#113·#136·#138·#140과 동일)"
 branch: claude/inspiring-wright-rljbsn
 branch_exception: "클라우드 세션은 지정 브랜치에만 push할 수 있어 issue/142-{slug} 대신 세션 브랜치를 쓴다 (#136·#138·#140과 동일). validate-plan.sh의 branch 형식 검사 1건은 이 예외로 실패한다."
@@ -133,6 +134,7 @@ blocked_paths:
 ## 작업 진행 방식 (워크플로우 예외)
 이 세션에는 compound-engineering(`/ce:work`·`/ce:review`)이 없어 같은 절차를 수동으로 적용한다(#113·#136·#138·#140과 동일).
 - **구현:** 작업 리스트 순서대로 진행한다. 단위마다 변경 파일이 allowed_paths 안이고 blocked_paths 밖인지 확인한다.
+  - 2026-10-06 태형님의 "권장대로 끝까지 한번에 진행해" 지시로 단위별 확인 없이 이어서 진행한다. 리뷰 수정 선택·GAP 결정·검증 방식은 권장안대로 하고 결과를 마지막에 함께 보고한다. 경로 위반이나 범위 밖 변경(SCOPE_CREEP)이 나오면 즉시 멈추고 보고한다. PR 생성·병합은 별도 지시를 받는다.
 - **체크포인트:** CP마다 `checkpoint-guard.sh`로 경로를 검사하고 read-only 가드 리뷰를 수행한다.
 - **리뷰:** 리뷰 게이트 문서 기준으로 finding 표를 만들고, 태형님이 고른 이슈만 수정한다.
 

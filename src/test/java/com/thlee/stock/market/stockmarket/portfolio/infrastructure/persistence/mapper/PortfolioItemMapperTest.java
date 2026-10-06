@@ -11,6 +11,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.StockDetail;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.CashSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.DepositMode;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PensionSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
@@ -18,6 +19,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PriceCurr
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.RealEstateSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.StockSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.TaxType;
+import com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence.CashItemEntity;
 import com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence.OtherItemEntity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,7 +32,7 @@ import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("PortfolioItemMapper — 금융기관 저장·조회 변환")
+@DisplayName("PortfolioItemMapper — 금융기관·납입 처리 방식 저장·조회 변환")
 class PortfolioItemMapperTest {
 
     private static final Long USER_ID = 1L;
@@ -60,6 +62,35 @@ class PortfolioItemMapperTest {
         PortfolioItem item = PortfolioItemMapper.toDomain(legacy);
 
         assertThat(item.getInstitution()).isNull();
+    }
+
+    @Test
+    @DisplayName("M3 납입 처리 방식(자동 반영)이 엔티티를 거쳐 그대로 돌아온다")
+    void keepsDepositModeThroughRoundTrip() {
+        PortfolioItem item = PortfolioItem.createWithCash(USER_ID, "적금", AMOUNT, Region.DOMESTIC,
+                new CashDetail(CashSubType.SAVINGS, BigDecimal.valueOf(3), null, null, TaxType.GENERAL,
+                        BigDecimal.valueOf(300_000), 25, DepositMode.AUTO));
+
+        CashItemEntity entity = (CashItemEntity) PortfolioItemMapper.toEntity(item);
+        PortfolioItem restored = PortfolioItemMapper.toDomain(entity);
+
+        assertThat(entity.getDepositMode()).isEqualTo("AUTO");
+        assertThat(restored.getCashDetail().getDepositMode()).isEqualTo(DepositMode.AUTO);
+    }
+
+    @Test
+    @DisplayName("M4 처리 방식 컬럼이 비어 있는 기존 행은 알림 확인으로 읽는다")
+    void readsLegacyCashRowAsNotify() {
+        LocalDateTime now = LocalDateTime.now();
+        CashItemEntity legacy = new CashItemEntity(
+                11L, USER_ID, "적금", AMOUNT, false, "DOMESTIC", null, null,
+                PortfolioItemStatus.ACTIVE, 0L, now, now,
+                "SAVINGS", BigDecimal.valueOf(3), null, null, "GENERAL",
+                BigDecimal.valueOf(300_000), 25, null);
+
+        PortfolioItem item = PortfolioItemMapper.toDomain(legacy);
+
+        assertThat(item.getCashDetail().getDepositMode()).isEqualTo(DepositMode.NOTIFY);
     }
 
     private static PortfolioItem itemOf(AssetType assetType) {

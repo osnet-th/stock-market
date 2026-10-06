@@ -193,7 +193,7 @@ public class PortfolioController {
                 request.getCashType(), request.getInterestRate(),
                 request.getStartDate(), request.getMaturityDate(),
                 request.getTaxType(),
-                request.getMonthlyDepositAmount(), request.getDepositDay());
+                request.getMonthlyDepositAmount(), request.getDepositDay(), request.getDepositMode());
         return ResponseEntity.ok(response);
     }
 
@@ -332,7 +332,7 @@ public class PortfolioController {
                 request.getItemName(), request.getInvestedAmount(), request.getMemo(), request.getInstitution(),
                 request.getInterestRate(), request.getStartDate(),
                 request.getMaturityDate(), request.getTaxType(),
-                request.getMonthlyDepositAmount(), request.getDepositDay());
+                request.getMonthlyDepositAmount(), request.getDepositDay(), request.getDepositMode());
         return ResponseEntity.ok(response);
     }
 

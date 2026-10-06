@@ -18,6 +18,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.CashSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.DepositMode;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PensionSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
@@ -40,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,6 +55,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PortfolioService {
+
+    /** 자동 납입 배치가 남기는 납입 이력 메모 */
+    private static final String AUTO_DEPOSIT_MEMO = "자동 납입";
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final PortfolioItemRepository portfolioItemRepository;
     private final StockPurchaseHistoryRepository purchaseHistoryRepository;
@@ -245,7 +251,8 @@ public class PortfolioService {
                                               String cashType, BigDecimal interestRate,
                                               LocalDate startDate, LocalDate maturityDate,
                                               String taxType,
-                                              BigDecimal monthlyDepositAmount, Integer depositDay) {
+                                              BigDecimal monthlyDepositAmount, Integer depositDay,
+                                              String depositMode) {
         CashDetail detail = new CashDetail(
                 CashSubType.valueOf(cashType),
                 interestRate,
@@ -253,7 +260,8 @@ public class PortfolioService {
                 maturityDate,
                 taxType != null ? TaxType.valueOf(taxType) : null,
                 monthlyDepositAmount,
-                depositDay
+                depositDay,
+                DepositMode.from(depositMode)
         );
         PortfolioItem item = PortfolioItem.createWithCash(
                 userId, itemName, investedAmount, Region.valueOf(region), detail);
@@ -275,7 +283,8 @@ public class PortfolioService {
                                                  String itemName, BigDecimal investedAmount, String memo, String institution,
                                                  BigDecimal interestRate, LocalDate startDate,
                                                  LocalDate maturityDate, String taxType,
-                                                 BigDecimal monthlyDepositAmount, Integer depositDay) {
+                                                 BigDecimal monthlyDepositAmount, Integer depositDay,
+                                                 String depositMode) {
         PortfolioItem item = findUserItem(userId, itemId);
         item.updateItemName(itemName);
         item.updateAmount(investedAmount);
@@ -292,7 +301,8 @@ public class PortfolioService {
                 maturityDate,
                 taxType != null ? TaxType.valueOf(taxType) : null,
                 monthlyDepositAmount,
-                depositDay
+                depositDay,
+                DepositMode.from(depositMode)
         );
         item.updateCashDetail(detail);
         PortfolioItem saved = portfolioItemRepository.save(item);
@@ -370,7 +380,8 @@ public class PortfolioService {
         }
 
         Map<Long, List<DepositHistory>> finalDepositMap = depositMap;
-        LocalDate today = LocalDate.now();
+        // 납입 창과 자동 납입이 KST 날짜로 기록하므로 판정 기준일도 KST로 맞춘다 (서버 기본 시간대는 UTC일 수 있다)
+        LocalDate today = LocalDate.now(KST);
         return items.stream()
                 .map(item -> {
                     Long linkedId = finalLinkMap.get(item.getId());
@@ -1121,6 +1132,37 @@ public class PortfolioService {
 
         publishDepositEvent("PORTFOLIO_DEPOSIT_ADDED", userId, itemId, saved.getId(), amount);
         return DepositHistoryResponse.from(saved);
+    }
+
+    /**
+     * 자동 납입 1건 기록 (자동 납입 배치가 항목마다 호출)
+     *
+     * <p>항목을 다시 읽어 ACTIVE 현금성 항목이고 그 날이 자동 납입일인지 확인하고, 이번 달 납입 기록이 이미 있으면
+     * 건너뛴다. 기록은 월 납입액을 그 날짜로 남기고 원금을 늘린다(납입 추가와 같다). 같은 항목을 동시에 저장하면
+     * 항목의 낙관적 잠금 충돌로 한쪽이 롤백된다.</p>
+     *
+     * @return 기록했으면 true
+     */
+    @Transactional
+    public boolean recordAutoDeposit(Long itemId, LocalDate date) {
+        PortfolioItem item = portfolioItemRepository.findById(itemId).orElse(null);
+        if (item == null || item.getStatus() != PortfolioItemStatus.ACTIVE
+                || item.getAssetType() != AssetType.CASH || item.getCashDetail() == null
+                || !item.getCashDetail().isAutoDepositDueOn(date)) {
+            return false;
+        }
+        if (!hasNoDepositThisMonth(depositHistoryRepository.findByPortfolioItemId(itemId), date)) {
+            return false;
+        }
+
+        BigDecimal amount = item.getCashDetail().getMonthlyDepositAmount();
+        DepositHistory saved = depositHistoryRepository.save(
+                DepositHistory.create(itemId, date, amount, null, AUTO_DEPOSIT_MEMO));
+        item.restoreAmount(amount);
+        portfolioItemRepository.save(item);
+
+        publishDepositEvent("PORTFOLIO_DEPOSIT_AUTO_ADDED", item.getUserId(), itemId, saved.getId(), amount);
+        return true;
     }
 
     /**

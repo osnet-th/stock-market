@@ -5,6 +5,7 @@ import com.thlee.stock.market.stockmarket.portfolio.domain.model.*;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.BondSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.CashSubType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.DepositMode;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.FundSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PensionSubType;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PriceCurrency;
@@ -72,7 +73,8 @@ public class PortfolioItemMapper {
                         cash.getMaturityDate(),
                         cash.getTaxType() != null ? TaxType.valueOf(cash.getTaxType()) : null,
                         cash.getMonthlyDepositAmount(),
-                        cash.getDepositDay()
+                        cash.getDepositDay(),
+                        DepositMode.from(cash.getDepositMode())
                 );
             }
         } else if (entity instanceof GoldItemEntity gold) {
@@ -194,7 +196,8 @@ public class PortfolioItemMapper {
                         cashDtl != null ? cashDtl.getMaturityDate() : null,
                         cashDtl != null && cashDtl.getTaxType() != null ? cashDtl.getTaxType().name() : null,
                         cashDtl != null ? cashDtl.getMonthlyDepositAmount() : null,
-                        cashDtl != null ? cashDtl.getDepositDay() : null
+                        cashDtl != null ? cashDtl.getDepositDay() : null,
+                        cashDtl != null ? cashDtl.getDepositMode().name() : null
                 );
             }
             case PENSION -> {

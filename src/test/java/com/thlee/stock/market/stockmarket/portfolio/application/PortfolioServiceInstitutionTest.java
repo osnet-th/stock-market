@@ -101,7 +101,7 @@ class PortfolioServiceInstitutionTest {
                 portfolioService.addPensionItem(USER_ID, "IRP", AMOUNT, REGION, null, requested,
                         "IRP", "미래에셋", null, null, null),
                 portfolioService.addCashItem(USER_ID, "정기예금", AMOUNT, REGION, null, requested,
-                        "DEPOSIT", BigDecimal.valueOf(3), null, null, "GENERAL", null, null),
+                        "DEPOSIT", BigDecimal.valueOf(3), null, null, "GENERAL", null, null, null),
                 portfolioService.addGeneralItem(USER_ID, "CRYPTO", "비트코인", AMOUNT, REGION, null, requested,
                         null));
 
@@ -147,7 +147,7 @@ class PortfolioServiceInstitutionTest {
                 portfolioService.updatePensionItem(USER_ID, 5L, "IRP", AMOUNT, null, "신한은행",
                         "IRP", "미래에셋", null, null, null),
                 portfolioService.updateCashItem(USER_ID, 6L, "정기예금", AMOUNT, null, "신한은행",
-                        BigDecimal.valueOf(3), null, null, "GENERAL", null, null),
+                        BigDecimal.valueOf(3), null, null, "GENERAL", null, null, null),
                 portfolioService.updateGeneralItem(USER_ID, 7L, "비트코인", AMOUNT, null, "신한은행", null));
 
         assertThat(responses).hasSize(7)
@@ -161,7 +161,7 @@ class PortfolioServiceInstitutionTest {
         givenExisting(6L, depositItem());
 
         PortfolioItemResponse response = portfolioService.updateCashItem(USER_ID, 6L, "정기예금", AMOUNT, null, null,
-                BigDecimal.valueOf(3), null, null, "GENERAL", null, null);
+                BigDecimal.valueOf(3), null, null, "GENERAL", null, null, null);
 
         assertThat(response.getInstitution()).isNull();
     }
@@ -170,7 +170,7 @@ class PortfolioServiceInstitutionTest {
     @DisplayName("S5 등록 시 금융기관이 50자를 넘으면 거부한다")
     void add_overFiftyCharacters_throws() {
         assertThatThrownBy(() -> portfolioService.addCashItem(USER_ID, "정기예금", AMOUNT, REGION, null, "가".repeat(51),
-                "DEPOSIT", BigDecimal.valueOf(3), null, null, "GENERAL", null, null))
+                "DEPOSIT", BigDecimal.valueOf(3), null, null, "GENERAL", null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("금융기관은 50자 이하로 입력해 주세요.");
     }

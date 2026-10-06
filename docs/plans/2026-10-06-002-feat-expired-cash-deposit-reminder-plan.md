@@ -3,7 +3,7 @@ title: "feat: 만기 지난 현금성 항목의 납입 알림·자동 납입 표
 type: feat
 issue: 140
 issue_url: https://github.com/osnet-th/stock-market/issues/140
-status: active
+status: done
 date: 2026-10-06
 approved: "2026-10-06 태형님 승인('권장대로 끝까지 한번에 진행해'): plan과 단위 테스트 시나리오 E1~E2·R1~R5. 리뷰 수정 선택·GAP 결정·검증 방식도 권장안대로 진행하도록 지시함. PR 생성·병합은 별도 지시를 받는다"
 workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning·briefing·review 게이트 절차를 수동 적용한다 (#113·#136·#138과 동일)"

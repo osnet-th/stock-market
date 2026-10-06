@@ -902,6 +902,12 @@ const PortfolioComponent = {
         return Math.round((target - today) / 86400000);
     },
 
+    // 만기일 당일부터 만기로 본다(서버의 납입 알림·자동 납입 판정과 같은 기준, 날짜는 현지 기준)
+    isMaturityReached(maturityDate) {
+        const days = this.getDaysUntil(maturityDate);
+        return days !== null && days <= 0;
+    },
+
     getRowQuantity(item) {
         if (item.assetType === 'STOCK' && item.stockDetail?.quantity) {
             return Format.number(item.stockDetail.quantity, 0) + '주';
@@ -1129,8 +1135,8 @@ const PortfolioComponent = {
                 const cashParts = [];
                 const cashSubTypes = { DEPOSIT: '예금', SAVINGS: '적금', CMA: 'CMA' };
                 cashParts.push(cashSubTypes[item.cashDetail.subType] || item.cashDetail.subType);
-                // 설명 줄은 한 줄 말줄임이라 앞쪽에 둬야 좁은 화면에서도 보인다
-                if (item.cashDetail.depositMode === 'AUTO') cashParts.push('자동 납입');
+                // 설명 줄은 한 줄 말줄임이라 앞쪽에 둬야 좁은 화면에서도 보인다. 만기된 항목은 자동 납입이 기록되지 않아 붙이지 않는다
+                if (item.cashDetail.depositMode === 'AUTO' && !this.isMaturityReached(item.cashDetail.maturityDate)) cashParts.push('자동 납입');
                 if (item.cashDetail.interestRate) cashParts.push(item.cashDetail.interestRate + '%');
                 if (item.cashDetail.maturityDate) cashParts.push('만기 ' + item.cashDetail.maturityDate);
                 if (item.cashDetail.monthlyDepositAmount) cashParts.push('월 ' + Format.number(item.cashDetail.monthlyDepositAmount, 0) + '원');

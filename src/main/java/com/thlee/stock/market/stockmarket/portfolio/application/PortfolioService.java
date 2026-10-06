@@ -1241,9 +1241,12 @@ public class PortfolioService {
 
     /**
      * 미납 여부 판정
-     * 자동납입 설정이 있고, 기준일 기준 당월 납입일이 지났는데 당월 납입 기록이 없으면 미납
+     * 자동납입 설정이 있고, 기준일 기준 당월 납입일이 지났는데 당월 납입 기록이 없으면 미납. 만기된 현금성 항목은 제외
      */
     public boolean isDepositOverdue(PortfolioItem item, List<DepositHistory> histories, LocalDate referenceDate) {
+        if (isMaturedCash(item, referenceDate)) {
+            return false;
+        }
         Integer depositDay = resolveDepositDay(item);
         if (depositDay == null) {
             return false;
@@ -1261,9 +1264,13 @@ public class PortfolioService {
 
     /**
      * 납입일 당일 여부 판정 (#111)
-     * 자동납입 설정이 있고, 기준일이 당월 납입일 당일인데 당월 납입 기록이 없으면 true — 리마인더 팝업 당일 안내용
+     * 자동납입 설정이 있고, 기준일이 당월 납입일 당일인데 당월 납입 기록이 없으면 true — 리마인더 팝업 당일 안내용.
+     * 만기된 현금성 항목은 제외
      */
     public boolean isDepositDueToday(PortfolioItem item, List<DepositHistory> histories, LocalDate referenceDate) {
+        if (isMaturedCash(item, referenceDate)) {
+            return false;
+        }
         Integer depositDay = resolveDepositDay(item);
         if (depositDay == null) {
             return false;
@@ -1274,6 +1281,12 @@ public class PortfolioService {
         }
 
         return hasNoDepositThisMonth(histories, referenceDate);
+    }
+
+    // 만기된 현금성 항목은 더 납입하지 않으므로 납입일 알림 대상이 아니다
+    private boolean isMaturedCash(PortfolioItem item, LocalDate referenceDate) {
+        return item.getAssetType() == AssetType.CASH && item.getCashDetail() != null
+                && item.getCashDetail().isMaturedOn(referenceDate);
     }
 
     private Integer resolveDepositDay(PortfolioItem item) {

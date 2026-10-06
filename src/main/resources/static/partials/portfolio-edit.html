@@ -276,6 +276,9 @@
                                         <p x-show="portfolio.editForm.depositMode === 'AUTO'" class="text-xs text-gray-400 mt-1">
                                             납입일 0시 10분에 월 납입액을 납입 이력에 기록하고 원금에 더합니다. 이번 달에 이미 기록했거나, 시작한 달이거나, 만기일부터는 건너뜁니다.
                                         </p>
+                                        <p x-show="portfolio.editForm.depositMode === 'AUTO' && isMaturityReached(portfolio.editForm.maturityDate)" class="text-xs text-amber-600 mt-1">
+                                            만기된 항목이라 자동 납입이 기록되지 않습니다.
+                                        </p>
                                     </div>
                                 </div>
                             </template>

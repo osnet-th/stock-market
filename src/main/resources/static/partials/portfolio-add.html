@@ -326,6 +326,18 @@
                                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                             </div>
                                         </div>
+                                        <!-- 납입 처리 방식 -->
+                                        <div>
+                                            <label for="portfolioDepositModeAdd" class="block text-sm text-gray-600 mb-1">납입 처리</label>
+                                            <select id="portfolioDepositModeAdd" x-model="portfolio.addForm.depositMode"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="NOTIFY">알림 받고 직접 납입</option>
+                                                <option value="AUTO">납입일에 자동 납입</option>
+                                            </select>
+                                            <p x-show="portfolio.addForm.depositMode === 'AUTO'" class="text-xs text-gray-400 mt-1">
+                                                납입일 0시 10분에 월 납입액을 납입 이력에 기록하고 원금에 더합니다.
+                                            </p>
+                                        </div>
                                     </div>
                                 </template>
 

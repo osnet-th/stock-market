@@ -1132,6 +1132,7 @@ const PortfolioComponent = {
                 if (item.cashDetail.interestRate) cashParts.push(item.cashDetail.interestRate + '%');
                 if (item.cashDetail.maturityDate) cashParts.push('만기 ' + item.cashDetail.maturityDate);
                 if (item.cashDetail.monthlyDepositAmount) cashParts.push('월 ' + Format.number(item.cashDetail.monthlyDepositAmount, 0) + '원');
+                if (item.cashDetail.depositMode === 'AUTO') cashParts.push('자동 납입');
                 if (item.depositOverdue) cashParts.push('⚠ 미납');
                 if (item.expectedMaturityAmount) {
                     cashParts.push('만기 예상 ' + Format.number(item.expectedMaturityAmount, 0) + '원');
@@ -1253,6 +1254,7 @@ const PortfolioComponent = {
         if (type === 'CASH') {
             this.portfolio.addForm.cashType = 'DEPOSIT';
             this.portfolio.addForm.taxType = 'GENERAL';
+            this.portfolio.addForm.depositMode = 'NOTIFY';
         }
         if (type === 'GENERAL') {
             this.portfolio.addForm.assetType = 'CRYPTO';
@@ -1362,6 +1364,10 @@ const PortfolioComponent = {
                 return;
             }
         }
+        if (type === 'CASH' && this.isAutoDepositSettingIncomplete(form)) {
+            alert('자동 납입은 월 납입액과 납입일(1~31일)을 입력해야 합니다.');
+            return;
+        }
 
         try {
             switch (type) {
@@ -1427,7 +1433,8 @@ const PortfolioComponent = {
                         maturityDate: form.cashType !== 'CMA' ? (form.maturityDate || null) : null,
                         taxType: form.cashType !== 'CMA' ? (form.taxType || null) : null,
                         monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
-                        depositDay: form.depositDay ? Number(form.depositDay) : null
+                        depositDay: form.depositDay ? Number(form.depositDay) : null,
+                        depositMode: form.depositMode || 'NOTIFY'
                     });
                     break;
                 case 'GENERAL':
@@ -2021,6 +2028,7 @@ const PortfolioComponent = {
                     form.taxType = item.cashDetail.taxType;
                     form.monthlyDepositAmount = item.cashDetail.monthlyDepositAmount;
                     form.depositDay = item.cashDetail.depositDay;
+                    form.depositMode = item.cashDetail.depositMode || 'NOTIFY';
                 }
                 break;
             case 'PENSION':
@@ -2089,6 +2097,10 @@ const PortfolioComponent = {
                 alert('투자 금액은 0보다 커야 합니다.');
                 return;
             }
+        }
+        if (item.assetType === 'CASH' && this.isAutoDepositSettingIncomplete(form)) {
+            alert('자동 납입은 월 납입액과 납입일(1~31일)을 입력해야 합니다.');
+            return;
         }
 
         try {
@@ -2160,7 +2172,8 @@ const PortfolioComponent = {
                         maturityDate: form.cashType !== 'CMA' ? (form.maturityDate || null) : null,
                         taxType: form.cashType !== 'CMA' ? (form.taxType || null) : null,
                         monthlyDepositAmount: form.monthlyDepositAmount ? Number(form.monthlyDepositAmount) : null,
-                        depositDay: form.depositDay ? Number(form.depositDay) : null
+                        depositDay: form.depositDay ? Number(form.depositDay) : null,
+                        depositMode: form.depositMode || 'NOTIFY'
                     });
                     break;
                 case 'PENSION':
@@ -2201,9 +2214,17 @@ const PortfolioComponent = {
         return item && (item.assetType === 'CASH' || item.assetType === 'FUND' || item.assetType === 'PENSION');
     },
 
+    // 자동 납입은 월 납입액과 납입일(1~31일)이 있어야 한다 (서버 검증과 같은 규칙)
+    isAutoDepositSettingIncomplete(form) {
+        if (form.depositMode !== 'AUTO') return false;
+        const amount = Number(form.monthlyDepositAmount);
+        const day = Number(form.depositDay);
+        return !(amount > 0) || !Number.isInteger(day) || day < 1 || day > 31;
+    },
+
     async openDepositModal(item) {
         this.portfolio.depositItem = item;
-        this.portfolio.depositForm = { depositDate: new Date().toISOString().split('T')[0], amount: '', units: '', memo: '' };
+        this.portfolio.depositForm = { depositDate: this._depositReminderToday(), amount: '', units: '', memo: '' };
         this.portfolio.depositHistories = [];
         this.portfolio.editingDeposit = null;
         this.portfolio.showDepositModal = true;
@@ -2276,6 +2297,13 @@ const PortfolioComponent = {
             await this.navigateTo('portfolio');
         }
         await this.openDepositModal(item);
+        // 알림에서 연 납입 창은 월 납입액을 미리 채워 '납입 추가'만 누르면 되게 한다
+        const detail = item.assetType === 'FUND' ? item.fundDetail
+            : item.assetType === 'CASH' ? item.cashDetail
+                : item.assetType === 'PENSION' ? item.pensionDetail : null;
+        if (detail && detail.monthlyDepositAmount) {
+            this.portfolio.depositForm.amount = detail.monthlyDepositAmount;
+        }
     },
 
     closeDepositReminder() {
@@ -2303,7 +2331,7 @@ const PortfolioComponent = {
                 units: form.units ? Number(form.units) : null,
                 memo: form.memo || null
             });
-            this.portfolio.depositForm = { depositDate: new Date().toISOString().split('T')[0], amount: '', units: '', memo: '' };
+            this.portfolio.depositForm = { depositDate: this._depositReminderToday(), amount: '', units: '', memo: '' };
             await this.loadDepositHistories(item.id);
             await this.loadPortfolio();
             this.refreshDepositItem();

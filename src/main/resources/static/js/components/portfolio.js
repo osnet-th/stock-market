@@ -864,12 +864,12 @@ const PortfolioComponent = {
     },
 
     // 금융기관별 합계 (평가액 기준) — 금액 큰 순, 같으면 이름순, 미지정은 금액과 관계없이 마지막.
-    // 비중 반올림은 자산군 구성(getEvalAllocation)과 같다.
+    // 비중 반올림은 자산군 구성(getEvalAllocation)과 같다. 주식은 연결 현금 자산의 금융기관을 따른다(getItemInstitution).
     getInstitutionTotals() {
         const totalEval = this.getTotalEvalAmount();
         const groups = new Map();
         this.portfolio.items.forEach((item) => {
-            const name = item.institution || '';
+            const name = this.getItemInstitution(item);
             if (!groups.has(name)) {
                 groups.set(name, {
                     key: name ? 'name:' + name : 'unassigned',
@@ -1315,6 +1315,22 @@ const PortfolioComponent = {
         return Array.from(names).sort((a, b) => a.localeCompare(b, 'ko'));
     },
 
+    // 현금 자산의 금융기관 (없으면 null) — 폼 값(문자열 id)과 응답의 linkedCashItemId(숫자)를 모두 받는다
+    getCashInstitution(cashItemId) {
+        if (!cashItemId) return null;
+        const cash = this.portfolio.items.find((i) => i.id === Number(cashItemId) && i.assetType === 'CASH');
+        return cash && cash.institution ? cash.institution : null;
+    },
+
+    // 화면에 쓰는 금융기관 — 연결 현금 자산에 금융기관이 있는 주식은 그 값을 따르고, 주식에 저장된 값은 쓰지 않는다
+    getItemInstitution(item) {
+        if (item.assetType === 'STOCK') {
+            const linked = this.getCashInstitution(item.linkedCashItemId);
+            if (linked) return linked;
+        }
+        return item.institution || '';
+    },
+
     getCurrencyByExchangeCode(exchangeCode) {
         const mapping = {
             KRX: 'KRW',
@@ -1381,7 +1397,8 @@ const PortfolioComponent = {
                 case 'STOCK':
                     await API.addStockItem(userId, {
                         itemName: form.itemName, region: form.region, memo: form.memo || null,
-                        institution: form.institution || null,
+                        // 금융기관이 있는 현금 자산에 연결하면 그 금융기관을 따르므로 주식 값은 비운다
+                        institution: this.getCashInstitution(form.cashItemId) ? null : (form.institution || null),
                         subType: form.subType || 'INDIVIDUAL', stockCode: form.ticker, market: form.exchange,
                         exchangeCode: form.exchangeCode, country: this.getCountryByExchangeCode(form.exchangeCode),
                         quantity: Number(form.quantity), purchasePrice: Number(form.purchasePrice),
@@ -2138,7 +2155,8 @@ const PortfolioComponent = {
 
                     await API.updateStockItem(userId, item.id, {
                         itemName: form.itemName, memo: form.memo || null,
-                        institution: form.institution || null,
+                        // 연결 현금 자산의 금융기관을 따르는 동안은 주식에서 바꿀 수 없어 저장된 값을 그대로 보낸다
+                        institution: this.getCashInstitution(form.cashItemId) ? (item.institution || null) : (form.institution || null),
                         subType: form.subType || 'INDIVIDUAL',
                         stockCode: stockDetail.stockCode, market: stockDetail.market,
                         exchangeCode: stockDetail.exchangeCode, country: stockDetail.country,

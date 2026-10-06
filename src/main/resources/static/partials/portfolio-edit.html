@@ -307,7 +307,13 @@
                             </template>
                             <div>
                                 <label for="portfolioInstitutionEdit" class="block text-sm text-gray-600 mb-1">금융기관</label>
+                                <!-- 금융기관이 있는 현금 자산에 연결한 주식은 그 금융기관을 따르고 여기서 바꿀 수 없다 -->
+                                <div x-show="portfolio.editingItem.assetType === 'STOCK' && getCashInstitution(portfolio.editForm.cashItemId)">
+                                    <p class="text-sm text-gray-800" x-text="'연결 계좌 기준: ' + (getCashInstitution(portfolio.editForm.cashItemId) || '')"></p>
+                                    <p class="text-xs text-gray-400 mt-1">연결한 현금 자산의 금융기관을 따릅니다. 바꾸려면 현금 자산을 수정하세요.</p>
+                                </div>
                                 <input type="text" id="portfolioInstitutionEdit" x-model="portfolio.editForm.institution" list="portfolioInstitutionOptionsEdit"
+                                    x-show="!(portfolio.editingItem.assetType === 'STOCK' && getCashInstitution(portfolio.editForm.cashItemId))"
                                     maxlength="50" placeholder="예: 국민은행, 키움증권, 업비트 (선택)"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <datalist id="portfolioInstitutionOptionsEdit">

@@ -287,8 +287,8 @@
                                                         <div class="flex-1 min-w-[220px] min-w-0">
                                                             <div class="flex flex-wrap items-center gap-1.5">
                                                                 <span class="text-sm text-gray-800" x-text="item.itemName"></span>
-                                                                <span x-show="item.institution" class="text-[11px] text-gray-400"
-                                                                    x-text="item.institution"></span>
+                                                                <span x-show="getItemInstitution(item)" class="text-[11px] text-gray-400"
+                                                                    x-text="getItemInstitution(item)"></span>
                                                                 <span x-show="item.assetType === 'STOCK'"
                                                                     class="text-[10px] px-1.5 py-0.5 rounded border"
                                                                     :class="item.linkedCashItemId ? 'border-amber-200 text-amber-600' : 'border-red-200 text-red-500'"

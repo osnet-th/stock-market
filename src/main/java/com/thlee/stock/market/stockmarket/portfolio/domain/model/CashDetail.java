@@ -92,9 +92,17 @@ public class CashDetail {
         if (startDate != null && !YearMonth.from(date).isAfter(YearMonth.from(startDate))) {
             return false;
         }
-        if (maturityDate != null && !date.isBefore(maturityDate)) {
+        if (isMaturedOn(date)) {
             return false;
         }
         return date.getDayOfMonth() == Math.min(depositDay, date.lengthOfMonth());
+    }
+
+    /**
+     * 주어진 날짜에 만기가 되었는지 판정한다. 만기일 당일부터 만기로 본다. 만기일이 없으면 만기가 아니다.
+     * 만기된 항목은 더 납입하지 않으므로 자동 납입과 납입일 알림에서 뺀다.
+     */
+    public boolean isMaturedOn(LocalDate date) {
+        return maturityDate != null && !date.isBefore(maturityDate);
     }
 }

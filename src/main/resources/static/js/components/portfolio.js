@@ -864,12 +864,12 @@ const PortfolioComponent = {
     },
 
     // 금융기관별 합계 (평가액 기준) — 금액 큰 순, 같으면 이름순, 미지정은 금액과 관계없이 마지막.
-    // 비중 반올림은 자산군 구성(getEvalAllocation)과 같다.
+    // 비중 반올림은 자산군 구성(getEvalAllocation)과 같다. 주식은 연결 현금 자산의 금융기관을 따른다(getItemInstitution).
     getInstitutionTotals() {
         const totalEval = this.getTotalEvalAmount();
         const groups = new Map();
         this.portfolio.items.forEach((item) => {
-            const name = item.institution || '';
+            const name = this.getItemInstitution(item);
             if (!groups.has(name)) {
                 groups.set(name, {
                     key: name ? 'name:' + name : 'unassigned',
@@ -1313,6 +1313,22 @@ const PortfolioComponent = {
             if (item.institution) names.add(item.institution);
         });
         return Array.from(names).sort((a, b) => a.localeCompare(b, 'ko'));
+    },
+
+    // 현금 자산의 금융기관 (없으면 null) — 폼 값(문자열 id)과 응답의 linkedCashItemId(숫자)를 모두 받는다
+    getCashInstitution(cashItemId) {
+        if (!cashItemId) return null;
+        const cash = this.portfolio.items.find((i) => i.id === Number(cashItemId) && i.assetType === 'CASH');
+        return cash && cash.institution ? cash.institution : null;
+    },
+
+    // 화면에 쓰는 금융기관 — 연결 현금 자산에 금융기관이 있는 주식은 그 값을 따르고, 주식에 저장된 값은 쓰지 않는다
+    getItemInstitution(item) {
+        if (item.assetType === 'STOCK') {
+            const linked = this.getCashInstitution(item.linkedCashItemId);
+            if (linked) return linked;
+        }
+        return item.institution || '';
     },
 
     getCurrencyByExchangeCode(exchangeCode) {

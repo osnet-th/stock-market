@@ -3,7 +3,7 @@ title: "feat: 적금 자동납입 처리 방식 선택(알림 확인 / 자동 �
 type: feat
 issue: 138
 issue_url: https://github.com/osnet-th/stock-market/issues/138
-status: active
+status: done
 date: 2026-10-06
 approved: "2026-10-06 태형님 승인 (기능 plan + 추가 결정 a~d + DB 스키마 설계 cash_detail.deposit_mode VARCHAR(20) NULL + 단위 테스트 시나리오 D1~D7·M3~M4·S1~S7·B1~B3). '끝까지 한번에 진행해'로 단위별 확인 없이 구현을 이어가도록 지시함"
 workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning·briefing·review 게이트 절차를 수동 적용한다 (#113·#136과 동일)"

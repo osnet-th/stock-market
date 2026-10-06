@@ -3,16 +3,17 @@ title: "feat: 적금 자동납입 처리 방식 선택(알림 확인 / 자동 �
 type: feat
 issue: 138
 issue_url: https://github.com/osnet-th/stock-market/issues/138
-status: draft
+status: active
 date: 2026-10-06
+approved: "2026-10-06 태형님 승인 (기능 plan + 추가 결정 a~d + DB 스키마 설계 cash_detail.deposit_mode VARCHAR(20) NULL + 단위 테스트 시나리오 D1~D7·M3~M4·S1~S7·B1~B3). '끝까지 한번에 진행해'로 단위별 확인 없이 구현을 이어가도록 지시함"
 workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning·briefing·review 게이트 절차를 수동 적용한다 (#113·#136과 동일)"
 branch: claude/inspiring-wright-rljbsn
 branch_exception: "클라우드 세션은 지정 브랜치에만 push할 수 있어 issue/138-{slug} 대신 세션 브랜치를 쓴다 (#136과 동일). validate-plan.sh의 branch 형식 검사 1건은 이 예외로 실패한다."
 worktree: /home/user/stock-market-issue-138
 worktree_note: "/home/user/stock-market을 가리키는 심볼릭 링크. checkpoint-guard.sh가 경로에서 이슈 번호를 읽기 때문에 둔다."
 brainstorm: docs/brainstorms/2026-10-05-savings-auto-deposit-mode-brainstorm.md
-test_plan_status: pending
-schema_plan_status: pending
+test_plan_status: approved
+schema_plan_status: approved
 allowed_paths:
   - src/main/java/com/thlee/stock/market/stockmarket/portfolio/domain/model/CashDetail.java
   - src/main/java/com/thlee/stock/market/stockmarket/portfolio/domain/model/PortfolioItem.java
@@ -169,7 +170,7 @@ blocked_paths:
 
 경로·인증과 다른 자산군·납입 이력·요약 API는 그대로다.
 
-## DB 스키마 리뷰 (승인 대기)
+## DB 스키마 리뷰 (2026-10-06 승인)
 | 항목 | 설계 |
 |---|---|
 | table | `cash_detail` (기존, 현금성 항목 자식 테이블). 목적: 자동납입 처리 방식 |
@@ -221,9 +222,11 @@ blocked_paths:
 
 ## 단위 테스트 계획
 - 테스트 작성: 작성함 (2026-10-06 태형님 확인, brainstorm 확인 7)
-- 테스트 시나리오: 대화로 제안했고 승인 대기
-- 사용자 승인: 미승인
-- 다음 단계: 시나리오 승인 후 테스트 계획 문서를 만들고 이 절에 반영한다. 승인 전에는 구현을 시작하지 않는다
+- 테스트 계획 문서: [테스트 계획](./tests/2026-10-06-138-savings-auto-deposit-mode-test-plan.md)
+- 사용자 승인: 테스트 시나리오 승인됨 (2026-10-06)
+- 승인된 테스트 시나리오: 19건 (도메인 D1~D7, 매핑 M3~M4, 서비스 S1~S7, 배치 B1~B3)
+- 검증 명령: `./gradlew test --tests "*CashDetailDepositModeTest" --tests "*PortfolioItemMapperTest" --tests "*PortfolioServiceAutoDepositTest" --tests "*PortfolioAutoDepositBatchServiceTest"`
+- 작성 순서: 도메인·매핑 테스트는 U1 구현 전에, 서비스·배치 테스트는 U2·U3 구현 전에 작성하고 실패를 확인한다.
 
 ## 작업 진행 방식 (워크플로우 예외)
 이 세션에는 compound-engineering(`/ce:work`·`/ce:review`)이 없어 같은 절차를 수동으로 적용한다(#113·#136과 동일).
@@ -231,6 +234,7 @@ blocked_paths:
   - 단위마다 변경 파일이 allowed_paths 안이고 blocked_paths 밖인지 확인한다.
   - 테스트 대상 단위는 테스트를 먼저 작성하고 실패를 확인한다.
   - 각 단위를 마치면 태형님께 다음 진행 여부를 확인한다.
+  - 2026-10-06 태형님의 "끝까지 한번에 진행해" 지시로 단위별 확인 없이 이어서 진행하고, 체크포인트 결과는 마지막에 함께 보고한다. 경로 위반이나 범위 밖 변경(SCOPE_CREEP)이 나오면 즉시 멈추고 보고한다.
 - **체크포인트:** CP마다 `checkpoint-guard.sh`로 경로를 검사하고 read-only 가드 리뷰를 수행한다.
 - **리뷰:** 리뷰 게이트 문서 기준으로 finding 표를 만들고, 태형님이 고른 이슈만 수정한다.
 

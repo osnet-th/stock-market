@@ -30,4 +30,8 @@ public interface PortfolioItemJpaRepository extends JpaRepository<PortfolioItemE
 
     @Query("select distinct i.userId from PortfolioItemEntity i where i.status = :status")
     List<Long> findDistinctUserIdsByStatus(@Param("status") PortfolioItemStatus status);
+
+    @Query("select c from CashItemEntity c where c.status = :status and c.depositMode = :depositMode")
+    List<CashItemEntity> findCashItemsByStatusAndDepositMode(@Param("status") PortfolioItemStatus status,
+                                                            @Param("depositMode") String depositMode);
 }

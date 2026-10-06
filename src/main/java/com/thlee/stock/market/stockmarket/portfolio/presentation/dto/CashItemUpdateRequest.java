@@ -17,4 +17,5 @@ public class CashItemUpdateRequest {
     private String taxType;
     private BigDecimal monthlyDepositAmount;
     private Integer depositDay;
+    private String depositMode;
 }

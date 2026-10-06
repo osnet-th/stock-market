@@ -56,6 +56,11 @@ public interface PortfolioItemRepository {
     List<Long> findUserIdsWithActiveItems();
 
     /**
+     * 납입 처리 방식이 자동 반영(AUTO)인 ACTIVE 현금성 항목 (자동 납입 배치 대상)
+     */
+    List<PortfolioItem> findActiveAutoDepositCashItems();
+
+    /**
      * 포트폴리오 항목 삭제
      */
     void delete(PortfolioItem item);

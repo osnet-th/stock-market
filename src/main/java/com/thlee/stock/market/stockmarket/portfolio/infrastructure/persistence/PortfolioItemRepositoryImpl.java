@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.portfolio.infrastructure.persistence;
 
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.AssetType;
+import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.DepositMode;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.enums.PortfolioItemStatus;
 import com.thlee.stock.market.stockmarket.portfolio.domain.model.PortfolioItem;
 import com.thlee.stock.market.stockmarket.portfolio.domain.repository.PortfolioItemRepository;
@@ -76,6 +77,15 @@ public class PortfolioItemRepositoryImpl implements PortfolioItemRepository {
     @Override
     public List<Long> findUserIdsWithActiveItems() {
         return portfolioItemJpaRepository.findDistinctUserIdsByStatus(PortfolioItemStatus.ACTIVE);
+    }
+
+    @Override
+    public List<PortfolioItem> findActiveAutoDepositCashItems() {
+        return portfolioItemJpaRepository.findCashItemsByStatusAndDepositMode(
+                        PortfolioItemStatus.ACTIVE, DepositMode.AUTO.name())
+                .stream()
+                .map(PortfolioItemMapper::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override

@@ -15,11 +15,13 @@ public class CashDetailResponse {
     private final String taxType;
     private final BigDecimal monthlyDepositAmount;
     private final Integer depositDay;
+    private final String depositMode;
 
     private CashDetailResponse(String subType, BigDecimal interestRate,
                                LocalDate startDate, LocalDate maturityDate,
                                String taxType,
-                               BigDecimal monthlyDepositAmount, Integer depositDay) {
+                               BigDecimal monthlyDepositAmount, Integer depositDay,
+                               String depositMode) {
         this.subType = subType;
         this.interestRate = interestRate;
         this.startDate = startDate;
@@ -27,6 +29,7 @@ public class CashDetailResponse {
         this.taxType = taxType;
         this.monthlyDepositAmount = monthlyDepositAmount;
         this.depositDay = depositDay;
+        this.depositMode = depositMode;
     }
 
     public static CashDetailResponse from(CashDetail detail) {
@@ -37,7 +40,8 @@ public class CashDetailResponse {
                 detail.getMaturityDate(),
                 detail.getTaxType() != null ? detail.getTaxType().name() : null,
                 detail.getMonthlyDepositAmount(),
-                detail.getDepositDay()
+                detail.getDepositDay(),
+                detail.getDepositMode().name()
         );
     }
 }

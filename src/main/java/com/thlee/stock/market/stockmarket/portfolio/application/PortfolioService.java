@@ -41,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -57,6 +58,7 @@ public class PortfolioService {
 
     /** 자동 납입 배치가 남기는 납입 이력 메모 */
     private static final String AUTO_DEPOSIT_MEMO = "자동 납입";
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final PortfolioItemRepository portfolioItemRepository;
     private final StockPurchaseHistoryRepository purchaseHistoryRepository;
@@ -378,7 +380,8 @@ public class PortfolioService {
         }
 
         Map<Long, List<DepositHistory>> finalDepositMap = depositMap;
-        LocalDate today = LocalDate.now();
+        // 납입 창과 자동 납입이 KST 날짜로 기록하므로 판정 기준일도 KST로 맞춘다 (서버 기본 시간대는 UTC일 수 있다)
+        LocalDate today = LocalDate.now(KST);
         return items.stream()
                 .map(item -> {
                     Long linkedId = finalLinkMap.get(item.getId());

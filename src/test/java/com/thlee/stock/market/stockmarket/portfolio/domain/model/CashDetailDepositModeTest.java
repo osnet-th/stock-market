@@ -116,12 +116,23 @@ class CashDetailDepositModeTest {
 
     static Stream<Arguments> periods() {
         return Stream.of(
-                Arguments.of(LocalDate.of(2026, 10, 25), null, true),
+                Arguments.of(LocalDate.of(2026, 9, 25), null, true),
                 Arguments.of(LocalDate.of(2026, 11, 1), null, false),
                 Arguments.of(null, LocalDate.of(2026, 10, 25), false),
                 Arguments.of(null, LocalDate.of(2026, 10, 20), false),
                 Arguments.of(null, LocalDate.of(2026, 10, 26), true),
                 Arguments.of(null, null, true));
+    }
+
+    @Test
+    @DisplayName("D8 시작일이 속한 달에는 대상이 아니고, 다음 달 납입일부터 대상이다")
+    void skipsStartMonth() {
+        CashDetail startedEarlyInMonth = savings(MONTHLY, 25, DepositMode.AUTO, LocalDate.of(2026, 10, 5), null);
+        CashDetail startedOnDepositDay = savings(MONTHLY, 25, DepositMode.AUTO, LocalDate.of(2026, 10, 25), null);
+
+        assertThat(startedEarlyInMonth.isAutoDepositDueOn(LocalDate.of(2026, 10, 25))).isFalse();
+        assertThat(startedEarlyInMonth.isAutoDepositDueOn(LocalDate.of(2026, 11, 25))).isTrue();
+        assertThat(startedOnDepositDay.isAutoDepositDueOn(LocalDate.of(2026, 10, 25))).isFalse();
     }
 
     private static CashDetail savings(BigDecimal monthly, Integer day, DepositMode mode,

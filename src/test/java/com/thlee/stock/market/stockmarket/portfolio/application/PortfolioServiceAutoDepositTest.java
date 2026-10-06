@@ -184,6 +184,17 @@ class PortfolioServiceAutoDepositTest {
         assertThat(savedDeposits).isEmpty();
     }
 
+    @Test
+    @DisplayName("S8 수정 요청에 자동 반영을 보내면 자동 반영으로 저장한다")
+    void update_withAuto_keepsAuto() {
+        givenItem(savings(PortfolioItemStatus.ACTIVE, DepositMode.NOTIFY));
+
+        PortfolioItemResponse response = portfolioService.updateCashItem(USER_ID, ITEM_ID, "적금", PRINCIPAL,
+                null, null, BigDecimal.valueOf(3), null, null, "GENERAL", MONTHLY, DEPOSIT_DAY, "AUTO");
+
+        assertThat(response.getCashDetail().getDepositMode()).isEqualTo("AUTO");
+    }
+
     static Stream<Arguments> skippedCases() {
         return Stream.of(
                 Arguments.of("알림 확인 항목", PortfolioItemStatus.ACTIVE, DepositMode.NOTIFY, LocalDate.of(2026, 10, 25)),

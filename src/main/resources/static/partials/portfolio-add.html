@@ -316,7 +316,7 @@
                                             <div class="w-2/3">
                                                 <label class="block text-sm text-gray-600 mb-1">월 납입액</label>
                                                 <input type="number" x-model="portfolio.addForm.monthlyDepositAmount"
-                                                    placeholder="월 자동납입 금액" min="0"
+                                                    placeholder="월 납입 금액" min="0"
                                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                             </div>
                                             <div class="w-1/3">
@@ -335,7 +335,7 @@
                                                 <option value="AUTO">납입일에 자동 납입</option>
                                             </select>
                                             <p x-show="portfolio.addForm.depositMode === 'AUTO'" class="text-xs text-gray-400 mt-1">
-                                                납입일 0시 10분에 월 납입액을 납입 이력에 기록하고 원금에 더합니다.
+                                                납입일 0시 10분에 월 납입액을 납입 이력에 기록하고 원금에 더합니다. 이번 달에 이미 기록했거나, 시작한 달이거나, 만기일부터는 건너뜁니다.
                                             </p>
                                         </div>
                                     </div>

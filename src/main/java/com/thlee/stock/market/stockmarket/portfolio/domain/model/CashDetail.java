@@ -7,6 +7,7 @@ import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 
 @Getter
 public class CashDetail {
@@ -79,7 +80,8 @@ public class CashDetail {
 
     /**
      * 주어진 날짜가 자동 납입을 기록할 날인지 판정한다.
-     * 자동 반영이고 월 납입액·납입일이 있으며, 시작일 전이 아니고 만기일 전이며, 그 날이 이번 달 납입일이면 true 다.
+     * 자동 반영이고 월 납입액·납입일이 있으며, 시작일이 속한 달보다 뒤의 달이고 만기일 전이며, 그 날이 이번 달 납입일이면 true 다.
+     * 시작일이 속한 달은 등록 원금에 첫 회차가 들어 있을 수 있어 건너뛴다.
      * 비어 있는 시작일·만기일은 조건에서 뺀다. 납입일이 그달 일수보다 크면 말일로 당긴다(리마인더 판정과 같은 규칙).
      */
     public boolean isAutoDepositDueOn(LocalDate date) {
@@ -87,7 +89,7 @@ public class CashDetail {
                 || monthlyDepositAmount.signum() <= 0 || depositDay == null) {
             return false;
         }
-        if (startDate != null && date.isBefore(startDate)) {
+        if (startDate != null && !YearMonth.from(date).isAfter(YearMonth.from(startDate))) {
             return false;
         }
         if (maturityDate != null && !date.isBefore(maturityDate)) {

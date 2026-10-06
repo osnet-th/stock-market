@@ -53,11 +53,13 @@ public class PortfolioAutoDepositBatchService {
         LocalDate today = LocalDate.now(clock);
         List<PortfolioItem> targets = portfolioItemRepository.findActiveAutoDepositCashItems();
 
+        int dueCount = 0;
         int recordedCount = 0;
         for (PortfolioItem item : targets) {
             if (item.getCashDetail() == null || !item.getCashDetail().isAutoDepositDueOn(today)) {
                 continue;
             }
+            dueCount++;
             try {
                 if (portfolioService.recordAutoDeposit(item.getId(), today)) {
                     recordedCount++;
@@ -67,7 +69,8 @@ public class PortfolioAutoDepositBatchService {
             }
         }
 
-        log.info("자동 납입 기록 완료: 기록={}/대상={}, date={}", recordedCount, targets.size(), today);
+        log.info("자동 납입 기록 완료: 기록={}/오늘 납입일={}/자동 반영 전체={}, date={}",
+                recordedCount, dueCount, targets.size(), today);
         return recordedCount;
     }
 }

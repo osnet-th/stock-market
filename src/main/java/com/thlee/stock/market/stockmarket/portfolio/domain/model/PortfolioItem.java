@@ -175,6 +175,7 @@ public class PortfolioItem {
                                                Region region,
                                                CashDetail cashDetail) {
         validateDetail(cashDetail, "cashDetail");
+        cashDetail.validateDepositMode();
         PortfolioItem item = new PortfolioItem(userId, itemName, AssetType.CASH, investedAmount, region);
         item.cashDetail = cashDetail;
         return item;
@@ -386,6 +387,7 @@ public class PortfolioItem {
         if (this.assetType != AssetType.CASH) {
             throw new IllegalArgumentException("현금성 자산 항목이 아닙니다.");
         }
+        cashDetail.validateDepositMode();
         this.cashDetail = cashDetail;
         this.updatedAt = LocalDateTime.now();
     }

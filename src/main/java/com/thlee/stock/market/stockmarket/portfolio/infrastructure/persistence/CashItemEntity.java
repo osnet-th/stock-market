@@ -35,6 +35,9 @@ public class CashItemEntity extends PortfolioItemEntity {
     @Column(name = "deposit_day")
     private Integer depositDay;
 
+    @Column(name = "deposit_mode", length = 20)
+    private String depositMode;
+
     protected CashItemEntity() {
     }
 
@@ -56,7 +59,8 @@ public class CashItemEntity extends PortfolioItemEntity {
                           LocalDate maturityDate,
                           String taxType,
                           BigDecimal monthlyDepositAmount,
-                          Integer depositDay) {
+                          Integer depositDay,
+                          String depositMode) {
         super(id, userId, itemName, investedAmount, newsEnabled, region, memo, institution, status, version, createdAt, updatedAt);
         this.cashType = cashType;
         this.interestRate = interestRate;
@@ -65,5 +69,6 @@ public class CashItemEntity extends PortfolioItemEntity {
         this.taxType = taxType;
         this.monthlyDepositAmount = monthlyDepositAmount;
         this.depositDay = depositDay;
+        this.depositMode = depositMode;
     }
 }

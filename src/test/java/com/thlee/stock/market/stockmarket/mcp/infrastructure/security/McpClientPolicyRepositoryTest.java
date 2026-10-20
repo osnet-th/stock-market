@@ -73,6 +73,24 @@ class McpClientPolicyRepositoryTest {
         assertThat(repository.findById("unknown")).isNull();
     }
 
+    @Test
+    @DisplayName("P4: 외부 키 주소를 받아 오는 클라이언트 인증(private_key_jwt·client_secret_jwt)은 뺀다")
+    void jwtClientAuthenticationRemoved() {
+        // given
+        FakeRepository fake = new FakeRepository();
+        fake.add(RegisteredClient.from(client("dcr-1", "dcr-jwt"))
+                .clientAuthenticationMethod(ClientAuthenticationMethod.PRIVATE_KEY_JWT)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_JWT)
+                .build());
+        McpClientPolicyRepository repository = new McpClientPolicyRepository(fake);
+
+        // when
+        RegisteredClient found = repository.findByClientId("dcr-jwt");
+
+        // then
+        assertThat(found.getClientAuthenticationMethods()).containsExactly(ClientAuthenticationMethod.NONE);
+    }
+
     private static RegisteredClient client(String id, String clientId) {
         return RegisteredClient.withId(id)
                 .clientId(clientId)

@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * 내 보유 종목과 현재가 (Claude 응답용). *Krw 금액은 원 단위다.
  *
- * @param priceMissingCount 현재가를 가져오지 못해 평가액이 빈 종목 수
+ * @param priceMissingCount 현재가 또는 원화 원금을 알 수 없어 평가액·손익이 빈 종목 수(priceNote가 있는 종목)
  */
 public record McpHoldings(String currency, List<Holding> items, int priceMissingCount) {
 

@@ -65,7 +65,7 @@ blocked_paths:
 - [x] U4 포트폴리오·배당 일정·경제지표·뉴스 도구 → 체크포인트 CP4 (2026-10-20, 아래 CP4 결과)
 - [x] U5 설정·연결 안내 문서 (2026-10-20, `docs/mcp/claude-mcp-connection-guide.md`)
 - [ ] 리뷰 (태형님이 고른 이슈만 반영) — 2026-10-20 지시("결정사항들 다 권장으로 처리해")로 권장안(P1·P2 전부 + 작은 P3) 반영, 아래 리뷰 결과
-  - [x] R1 리뷰 반영(A1·A2·A7·A9, S1·S2·S3·S5·S6) + 테스트 P1~P3·M3·T1~T2 → CP5 (2026-10-20, 아래 CP5 결과)
+  - [x] R1 리뷰 반영(A1·A2·A7·A9, S1·S2·S3·S5·S6·S7) + 테스트 P1~P4·M3·T1~T2 → CP5 (2026-10-20, 아래 CP5 결과)
 - [ ] 검증 (태형님 선택 방식)
 
 ## 배경 / 현재 상태
@@ -258,6 +258,7 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 | S3 | P2 | CIMD 문서 조회 SSRF(사설 IP 차단 없음) | 공통 보안 기준 | `McpAuthorizationServerSecurityConfig.java:92-94` | 반영: URL 형태 client_id는 `claude.ai`·`claude.com`·`anthropic.com`(하위 도메인 포함) https만 조회한다 |
 | S4 | P3 | 열린 DCR·CIMD 캐시 상한 없음 | 공통 보안 기준 | `McpAuthorizationServerSecurityConfig.java:55-56` | 보류: rate limit은 인프라 작업. S3로 CIMD 대상이 제한된다 |
 | S5 | P3 | 리소스 서버가 `iss`를 검증하지 않음 | REQ-16 | `McpJwkConfig.java:43` | 반영: issuer 검증 추가 |
+| S7 | P3 | DCR 클라이언트가 `private_key_jwt`와 임의 `jwks_uri`를 고르면 토큰 엔드포인트 인증 때 서버가 그 주소로 요청(CP5 가드 발견) | 공통 보안 기준 | `McpClientPolicyRepository.applyPolicy` | 반영: 정책에서 `private_key_jwt`·`client_secret_jwt`를 뺀다. 토큰 오류 설명은 RFC 6749대로 ASCII로 바꾼다 |
 | S6 | P2(리뷰는 P3) | CIMD 클라이언트가 캐시 만료(기본 300초) 뒤 `findById`에서 사라져 refresh가 실패 | REQ-12 | `McpClientPolicyRepository.findById` | 반영: id가 CIMD URL이면 `findByClientId`로 다시 조회 |
 
 추가 테스트(R1, 상태 기반)
@@ -277,6 +278,8 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
   - 토큰을 발급할 때마다 활성 사용자인지 본다(`McpTokenCustomizer`, aud 고정도 이 클래스로 옮김)
   - URL 형태 client_id는 `claude.ai`·`claude.com`·`anthropic.com`(하위 도메인 포함) https만 조회한다. CIMD 클라이언트가 id 조회 캐시에서 빠지면 문서 URL로 다시 찾는다
   - 리소스 서버가 `iss`를 검증한다
+  - (가드 후속) 클라이언트 인증에서 `private_key_jwt`·`client_secret_jwt`를 빼고, 토큰 오류 설명을 ASCII로 바꿨다. 보유 종목 `priceMissingCount`는 현재가 또는 원화 원금이 없어 평가액·손익이 빈 종목 수다
+  - 연결 안내 문서에 연결마다 카카오 로그인, 탈퇴 시 다음 갱신부터 끊김을 적었다
   - 보유 종목: 해외 종목 원화 원금이 없으면 현재 환율로 환산하고, 환율도 없으면 원금·손익을 비우고 사유를 쓴다
   - `McpOAuthProperties`·`McpPaths`를 계층 중립 `mcp/config`로 옮겼다(presentation → infrastructure 참조 제거). 상수·Lombok 정리, 로그인 콜백의 로그인 처리를 메서드로 나눴다
 - 확인(dev `bootRun`):
@@ -285,7 +288,8 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
   - DCR 등록 → 인가 요청 302 로그인 화면 → 클라이언트 이름 표시, 카카오 콜백 주소 그대로. 토큰 엔드포인트 가짜 코드 `invalid_grant`
   - 기존 `/api/economics/indicators/categories` 200, `/login.html` `Set-Cookie` 없음
   - 세션 종료(1회용 로그인)·활성 사용자 재확인·CIMD 캐시 만료 뒤 refresh는 실제 카카오 로그인이 필요해 배포 후 확인한다(단위 테스트 P2·T1·T2로 판단 로직은 확인)
-- 테스트: 전체 293건 통과(P1~P3·T1~T2·M3 6건 추가)
+- 테스트: 전체 294건 통과(P1~P4·T1~T2·M3 7건 추가)
+- 가드: 경로 검사 통과(18개 파일). 의미 검사 PASS. 후속 권장 3건(ASCII 오류 설명, JWT 클라이언트 인증 제거, 필드 설명) 반영
 
 ### CP4 결과 (2026-10-20)
 - 바뀐 흐름: 도구 5개(`get_my_holdings`, `get_my_portfolio_summary`, `get_dividend_schedule`, `get_economic_indicators`, `search_news`)를 더해 도구가 10개가 됐다. 모두 조회 전용이고, 보유 종목·포트폴리오 요약·뉴스는 토큰의 userId 범위만 조회한다.

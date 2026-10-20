@@ -30,7 +30,7 @@ public class McpTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingCont
     public void customize(JwtEncodingContext context) {
         if (!isActiveUser(context.getPrincipal().getName())) {
             throw new OAuth2AuthenticationException(new OAuth2Error(OAuth2ErrorCodes.INVALID_GRANT,
-                    "연결할 수 없는 사용자입니다. 앱에서 계정 상태를 확인한 뒤 다시 연결해 주세요.", null));
+                    "The user is not active. Check the account in the app and connect again.", null));
         }
         if (OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
             context.getClaims().audience(List.of(resourceUri));

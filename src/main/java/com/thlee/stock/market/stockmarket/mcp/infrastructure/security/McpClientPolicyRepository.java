@@ -1,6 +1,7 @@
 package com.thlee.stock.market.stockmarket.mcp.infrastructure.security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
@@ -16,6 +17,8 @@ import java.util.Set;
  *   <li>토큰: access token 1시간, refresh token 30일, refresh token은 쓸 때마다 교체</li>
  *   <li>PKCE 필수, 승인 확인은 카카오 로그인 화면에서 한다(인가 서버 기본 승인 화면은 쓰지 않는다)</li>
  *   <li>리다이렉트: claude.ai 콜백과 loopback(Claude Code)만 남긴다</li>
+ *   <li>클라이언트 인증: 서버가 외부 키 주소(jwks_uri)를 받아 오게 되는 private_key_jwt·client_secret_jwt는 뺀다
+ *       (Claude는 PKCE 공개 클라이언트 none을 쓴다)</li>
  *   <li>CIMD(URL 형태 client_id): Claude 도메인의 https 문서만 조회한다(서버가 임의 주소로 요청을 보내지 않게)</li>
  *   <li>CIMD 클라이언트는 id가 문서 URL이고 id 조회는 캐시만 본다. 캐시가 만료돼도 토큰 조회·refresh가 되도록
  *       id 조회가 비면 문서 URL로 다시 찾는다</li>
@@ -28,6 +31,8 @@ public class McpClientPolicyRepository implements RegisteredClientRepository {
     private static final Set<String> LOOPBACK_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]");
     /** CIMD 문서를 받아 올 수 있는 도메인(하위 도메인 포함) */
     private static final Set<String> CIMD_ALLOWED_DOMAINS = Set.of("claude.ai", "claude.com", "anthropic.com");
+    private static final Set<ClientAuthenticationMethod> JWT_AUTH_METHODS = Set.of(
+            ClientAuthenticationMethod.PRIVATE_KEY_JWT, ClientAuthenticationMethod.CLIENT_SECRET_JWT);
     private static final String HTTPS = "https";
     private static final String URL_PREFIX = "http";
 
@@ -94,6 +99,7 @@ public class McpClientPolicyRepository implements RegisteredClientRepository {
         }
         return RegisteredClient.from(client)
                 .redirectUris(uris -> uris.removeIf(uri -> !isAllowedRedirect(uri)))
+                .clientAuthenticationMethods(methods -> methods.removeAll(JWT_AUTH_METHODS))
                 .tokenSettings(TOKEN_SETTINGS)
                 .clientSettings(ClientSettings.withSettings(client.getClientSettings().getSettings())
                         .requireProofKey(true)

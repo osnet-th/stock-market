@@ -3,16 +3,17 @@ title: "feat: Claude MCP 연결 — 기업 리포트·S-RIM·포트폴리오 조
 type: feat
 issue: 144
 issue_url: https://github.com/osnet-th/stock-market/issues/144
-status: draft
+status: active
 date: 2026-10-20
+approved: "2026-10-20 태형님 승인('진행해'): plan, DB 스키마(테이블 3개), 확인 1~5 권장안, 단위 테스트 시나리오"
 workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning·briefing·review 게이트 절차를 수동 적용한다 (#113·#136·#138·#140·#142와 동일)"
 branch: claude/inspiring-wright-rljbsn
 branch_exception: "클라우드 세션은 지정 브랜치에만 push할 수 있어 issue/144-{slug} 대신 세션 브랜치를 쓴다 (#136~#142와 동일). validate-plan.sh의 branch 형식 검사 1건은 이 예외로 실패한다."
 worktree: /home/user/stock-market-issue-144
 worktree_note: "/home/user/stock-market을 가리키는 심볼릭 링크. checkpoint-guard.sh가 경로에서 이슈 번호를 읽기 때문에 둔다."
 brainstorm: docs/brainstorms/2026-10-17-claude-mcp-server-brainstorm.md
-test_plan_status: pending
-schema_plan_status: pending
+test_plan_status: approved
+schema_plan_status: approved
 allowed_paths:
   - build.gradle
   - src/main/java/com/thlee/stock/market/stockmarket/mcp/**
@@ -147,7 +148,7 @@ blocked_paths:
   - `get_economic_indicators(category?)` (없으면 최근 갱신 지표), `search_news(query?, page?, size?)`
 - 에러: 도구 안의 예외(종목 없음, 리포트 없음/다른 사용자, 외부 API 실패)는 MCP 도구 오류로 돌려주고 메시지에 이유를 담는다.
 
-## DB 스키마 리뷰 (승인 대기)
+## DB 스키마 리뷰 (2026-10-20 승인)
 Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.sql`, `oauth2-authorization-schema.sql`, `oauth2-authorization-consent-schema.sql`)를 PostgreSQL 안내대로 바꿔 쓴다(`blob`→`text`, `timestamp`→`timestamptz`). CIMD 클라이언트 ID가 URL이라 ID 열 길이를 늘린다.
 
 | 항목 | 설계 |
@@ -205,15 +206,32 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 - **응답 크기·지연:** 기업 리포트 미리보기는 DART·KIS를 여러 번 부른다. 요약 DTO로 크기를 줄이고, 지연은 화면과 같다.
 - **실제 claude.ai 연결:** 운영 배포와 카카오 Redirect URI 등록 후에만 확인할 수 있다.
 
-## 태형님 확인 필요
+## 태형님 확인 결과 (2026-10-20, "진행해" — 1~5 모두 권장안)
 1. **DB 스키마:** 위 표 3개 신규 생성(기동 시 자동 생성 + 백업 SQL). 권장: 승인. 대안: 메모리 저장(테이블 없음, 대신 배포마다 Claude 재연결 필요)
 2. **승인 화면:** 권장: 켠다(연결 때 "어떤 클라이언트가 접근하는지" 한 번 확인). 대안: 끈다(카카오 로그인 후 바로 연결)
 3. **S-RIM 기본값:** 권장: 요구수익률 = 회사채 BBB- 5년, ROE = 리포트 최근 연도 ROE, 연도 행 = 올해 1개 `DIRECT`. 대안: 둘 다 필수 인자로 받는다
 4. **만료 토큰 정리:** 권장: 1단계는 정리하지 않는다. 대안: 매일 만료 행 삭제 배치 추가
 5. **카카오 MCP 전용 Redirect URI:** 권장: `https://hubth.com/oauth/kakao/mcp`를 새로 등록(기존 `/oauth/kakao` 흐름 불변). 대안: 기존 콜백을 `state`로 나눠 함께 쓴다(기존 컨트롤러 수정 필요)
 
-## 단위 테스트 계획
-- 상태: 승인 대기(`test_plan_status: pending`). 테스트 시나리오는 승인 요청 메시지에서 설명하고, 승인된 내용만 이 절에 반영한다.
+## 단위 테스트 계획 (2026-10-20 승인)
+상태 기반 검증만 한다. 외부 의존(서비스·포트)은 Mock으로 대체한다. 검증 명령: `./gradlew test`
+- **T-S S-RIM 입력 조립** (U3)
+  - S1: srimBasis가 있고 요구수익률·ROE를 주면 자기자본·주식수·기준일·기준 주가가 채워지고, 요구수익률은 소수, 연도 행은 올해 1개 `DIRECT`다
+  - S2: 요구수익률이 없으면 회사채 BBB- 5년 금리를 쓰고 쓴 항목·기준일을 담는다
+  - S3: ROE가 없으면 리포트 최근 연도 ROE를 쓴다
+  - S4: srimBasis가 없으면 계산 불가와 사유를 돌려준다
+  - S5: BBB- 5년 금리가 없으면 요구수익률 입력을 요구하는 사유를 돌려준다
+  - S6: ROE 자료가 없으면 ROE 입력을 요구하는 사유를 돌려준다
+- **T-M 요약 변환** (U3·U4)
+  - M1: 기업 리포트 요약은 최근 5년 비율만 담고 기준연도·주가 기준일·통화·단위를 담는다
+  - M2: 보유 종목은 수량×현재가로 평가액을 만들고, 현재가가 없으면 평가액이 비고 사유가 표시된다
+- **T-U 토큰 사용자 확인** (U1)
+  - U1: `sub`가 숫자면 그 userId를 쓴다
+  - U2: 토큰이 없거나 `sub`가 숫자가 아니면 인증 오류다
+- **T-L 카카오 MCP 로그인 사용자 확인** (U2, `OAuthLoginService` 조회 메서드)
+  - L1: 가입을 마친 활성 사용자면 userId를 돌려준다
+  - L2: 계정이 없거나 가입 미완료면 "가입 필요"를 돌려주고 사용자를 만들지 않는다
+- 제외: 보안 체인·OAuth 전체 흐름(→ bootRun + curl 검증), 실제 카카오·claude.ai 연결(→ 배포 후 확인)
 
 ## 작업 진행 방식 (워크플로우 예외)
 - `/ce:plan`·`/ce:work`·`/ce:review`가 없어 게이트 절차를 수동으로 적용한다(#142와 동일).

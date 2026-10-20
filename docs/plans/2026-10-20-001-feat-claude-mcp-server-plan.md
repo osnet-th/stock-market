@@ -5,7 +5,7 @@ issue: 144
 issue_url: https://github.com/osnet-th/stock-market/issues/144
 status: active
 date: 2026-10-20
-approved: "2026-10-20 태형님 승인('진행해'): plan, DB 스키마(테이블 3개), 확인 1~5 권장안, 단위 테스트 시나리오"
+approved: "2026-10-20 태형님 승인('진행해'): plan, DB 스키마(테이블 3개), 확인 1~5 권장안, 단위 테스트 시나리오. 2026-10-20 재승인('권장으로 하고 끝까지 다 구현해 결정사항들 다 권장으로 처리해'): KTD1을 Spring Security 7.1.0 지정(선택지 A)으로 갱신. 이후 체크포인트·리뷰 선택·GAP·검증 결정은 권장안으로 진행. PR 생성·병합은 별도 지시"
 workflow_exception: "클라우드 세션에 compound-engineering(/ce:plan·/ce:work·/ce:review)이 없어 planning·briefing·review 게이트 절차를 수동 적용한다 (#113·#136·#138·#140·#142와 동일)"
 branch: claude/inspiring-wright-rljbsn
 branch_exception: "클라우드 세션은 지정 브랜치에만 push할 수 있어 issue/144-{slug} 대신 세션 브랜치를 쓴다 (#136~#142와 동일). validate-plan.sh의 branch 형식 검사 1건은 이 예외로 실패한다."
@@ -111,6 +111,7 @@ blocked_paths:
 
 ## 핵심 기술 결정
 - **KTD1 라이브러리:** Spring AI BOM 2.0.0의 `spring-ai-starter-mcp-server-webmvc`(protocol `STREAMABLE`, 엔드포인트 `/mcp`), `org.springaicommunity:mcp-server-security`·`mcp-authorization-server` 0.1.13. 문서상 Spring AI 2.0.x는 Boot 4.0.x를, MCP Security는 Spring Security 7·Spring AI 2.0.x를 지원한다. U1 빌드에서 의존성 충돌이 나면 멈추고 보고한다.
+  - **2026-10-20 갱신(재승인):** MCP Security 0.1.13·0.1.14의 `mcp-authorization-server`는 Spring Security 7.1.0을 요구한다. Boot 4.0.1은 7.0.2를 관리해, 7.0.2로 내려가면 참조 클래스 103개 중 `OAuth2ClientRegistrationAuthenticationValidator`(DCR용) 1개가 없다. 그래서 `build.gradle`에서 `spring-security.version`을 7.1.0으로 지정한다(선택지 A). 기존 로그인·API 회귀는 U1에서 전체 테스트와 `bootRun`으로 먼저 확인하고, 깨지면 멈춘다(대안 B: Boot 4.1.x).
 - **KTD2 보안 체인 분리:** 새 체인 2개를 `@Order`와 `securityMatcher`로 앞에 둔다. 기존 체인(`ProdSecurityConfig`, `DevSecurityConfig`)은 손대지 않고 나머지 경로를 그대로 받는다.
   - 인가 서버 체인: `/oauth2/**`, `/.well-known/oauth-authorization-server`, `/.well-known/openid-configuration`(필요 시), `/mcp-auth/**`, `/oauth/kakao/mcp`. 로그인 유지를 위해 이 체인만 세션을 쓴다(IF_REQUIRED).
   - 리소스 서버 체인: `/mcp`, `/.well-known/oauth-protected-resource/**`. STATELESS. 토큰 없으면 `401` + `WWW-Authenticate: Bearer resource_metadata=...`. dev도 같다(REQ-16).
@@ -198,7 +199,7 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 - 배포: 운영 `.env`에 새 환경변수(issuer, JWK PEM, 카카오 MCP redirect URI)가 필요하다. Nginx·Cloudflare 설정은 바꾸지 않는다(이미 전체 경로 프록시).
 
 ## 위험과 완화
-- **라이브러리 호환(높음):** Spring AI 2.0 + MCP Security 0.1.13 + Boot 4.0.1. U1에서 빌드·기동부터 확인하고 실패하면 멈춘다.
+- **라이브러리 호환(높음):** Spring AI 2.0 + MCP Security 0.1.13 + Boot 4.0.1 + Spring Security 7.1.0 지정. U1에서 빌드·기동과 기존 로그인·API 회귀부터 확인하고 실패하면 멈춘다.
 - **CIMD 클라이언트와 JDBC 인가 저장:** 인가 저장소가 클라이언트를 다시 찾을 때 CIMD 클라이언트가 조회되는지 U2에서 확인한다. 안 되면 보고하고 대안(DCR만 사용 등)을 제안한다.
 - **issuer·https:** 프록시 뒤라 메타데이터 URL이 http로 나오면 Claude가 거절한다. issuer를 설정값으로 고정하고 CP2에서 메타데이터의 모든 URL이 https인지 본다.
 - **세션과 STATELESS 혼재:** 체인별 세션 정책이 섞이지 않도록 `securityMatcher`를 좁게 둔다. CP1·CP2에서 기존 API 응답에 `Set-Cookie`가 없는지 본다.

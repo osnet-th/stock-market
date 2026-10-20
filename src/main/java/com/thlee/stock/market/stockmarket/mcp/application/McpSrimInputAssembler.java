@@ -28,6 +28,8 @@ import org.springframework.stereotype.Component;
 public class McpSrimInputAssembler {
 
     static final int DEFAULT_RATE_MATURITY_MONTHS = 60;
+    static final String SOURCE_INPUT = "입력값";
+    private static final String ROE_RATIO_KEY = "roe";
 
     /**
      * 조립 결과. input이 null이면 failureReason에 이유가 있다.
@@ -49,7 +51,7 @@ public class McpSrimInputAssembler {
         }
 
         BigDecimal rate = requiredReturnPercent;
-        String rateSource = "입력값";
+        String rateSource = SOURCE_INPUT;
         if (rate == null) {
             Optional<BondYield> bbbMinus5y = defaultRate(bondYields);
             if (bbbMinus5y.isEmpty()) {
@@ -60,7 +62,7 @@ public class McpSrimInputAssembler {
         }
 
         BigDecimal roe = roePercent;
-        String roeSource = "입력값";
+        String roeSource = SOURCE_INPUT;
         if (roe == null) {
             Optional<Map.Entry<String, BigDecimal>> latest = latestAnnualRoe(snapshot);
             if (latest.isEmpty()) {
@@ -101,7 +103,7 @@ public class McpSrimInputAssembler {
             return Optional.empty();
         }
         Optional<ReportSnapshot.RatioRow> roeRow = snapshot.ratios().stream()
-                .filter(row -> "roe".equals(row.key()))
+                .filter(row -> ROE_RATIO_KEY.equals(row.key()))
                 .findFirst();
         if (roeRow.isEmpty() || roeRow.get().values() == null) {
             return Optional.empty();

@@ -1,4 +1,4 @@
-package com.thlee.stock.market.stockmarket.mcp.infrastructure.config;
+package com.thlee.stock.market.stockmarket.mcp.config;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

@@ -1,6 +1,6 @@
 package com.thlee.stock.market.stockmarket.mcp.infrastructure.security;
 
-import com.thlee.stock.market.stockmarket.mcp.infrastructure.config.McpPaths;
+import com.thlee.stock.market.stockmarket.mcp.config.McpPaths;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,7 +1,7 @@
 package com.thlee.stock.market.stockmarket.mcp.infrastructure.security;
 
-import com.thlee.stock.market.stockmarket.mcp.infrastructure.config.McpOAuthProperties;
-import com.thlee.stock.market.stockmarket.mcp.infrastructure.config.McpPaths;
+import com.thlee.stock.market.stockmarket.mcp.config.McpOAuthProperties;
+import com.thlee.stock.market.stockmarket.mcp.config.McpPaths;
 import org.springaicommunity.mcp.security.server.oauth2.authentication.BearerResourceMetadataTokenAuthenticationEntryPoint;
 import org.springaicommunity.mcp.security.server.oauth2.metadata.ResourceIdentifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

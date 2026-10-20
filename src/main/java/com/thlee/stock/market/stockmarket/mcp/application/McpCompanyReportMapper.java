@@ -3,6 +3,8 @@ package com.thlee.stock.market.stockmarket.mcp.application;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportSnapshot;
 import com.thlee.stock.market.stockmarket.companyreport.application.dto.ReportValuation;
 import com.thlee.stock.market.stockmarket.mcp.application.dto.McpCompanyReportSummary;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -14,12 +16,11 @@ import java.util.stream.Collectors;
 /**
  * 기업 리포트 스냅샷 → Claude 응답용 요약. 최근 5개 연도만 남긴다.
  */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class McpCompanyReportMapper {
 
     static final int RECENT_YEARS = 5;
-
-    private McpCompanyReportMapper() {
-    }
+    static final String RATIO_UNIT = "%";
 
     public static McpCompanyReportSummary toSummary(ReportSnapshot snapshot, ReportValuation valuation) {
         List<ReportSnapshot.ColumnMeta> columns = recentColumns(snapshot.columns());
@@ -30,7 +31,7 @@ public final class McpCompanyReportMapper {
                 snapshot.country(),
                 snapshot.currency(),
                 baseYear(snapshot.columns()),
-                "%",
+                RATIO_UNIT,
                 columns.stream().map(c -> new McpCompanyReportSummary.Column(c.year(), c.reportLabel(), c.partial())).toList(),
                 priceMetrics(snapshot.priceMetrics()),
                 snapshot.ratios() == null ? List.of() : snapshot.ratios().stream()

@@ -64,7 +64,8 @@ blocked_paths:
 - [x] U3 기업 리포트·S-RIM·채권 금리 도구(+S-RIM 입력 조립) → 체크포인트 CP3 (2026-10-20, 아래 CP3 결과)
 - [x] U4 포트폴리오·배당 일정·경제지표·뉴스 도구 → 체크포인트 CP4 (2026-10-20, 아래 CP4 결과)
 - [x] U5 설정·연결 안내 문서 (2026-10-20, `docs/mcp/claude-mcp-connection-guide.md`)
-- [ ] 리뷰 (태형님이 고른 이슈만 반영)
+- [ ] 리뷰 (태형님이 고른 이슈만 반영) — 2026-10-20 지시("결정사항들 다 권장으로 처리해")로 권장안(P1·P2 전부 + 작은 P3) 반영, 아래 리뷰 결과
+  - [x] R1 리뷰 반영(A1·A2·A7·A9, S1·S2·S3·S5·S6) + 테스트 P1~P3·M3·T1~T2 → CP5 (2026-10-20, 아래 CP5 결과)
 - [ ] 검증 (태형님 선택 방식)
 
 ## 배경 / 현재 상태
@@ -238,8 +239,53 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 - `/ce:plan`·`/ce:work`·`/ce:review`가 없어 게이트 절차를 수동으로 적용한다(#142와 동일).
 - 각 CP에서 `scripts/checkpoint-guard.sh /home/user/stock-market-issue-144`로 경로를 검사하고, read-only 가드 서브에이전트로 의미 검사를 한다.
 
+## 리뷰 결과 (2026-10-20)
+리뷰어 2명(아키텍처·정확성 / OAuth·로그인 보안)이 브랜치 전체 변경(45개 파일)을 읽기 전용으로 검토했다.
+
+| No | Severity | Issue | 관련 요구사항 | 위치 | 처리 |
+|---|---|---|---|---|---|
+| A1 | P1 | presentation이 infrastructure 설정(`McpOAuthProperties`·`McpPaths`)을 import | 공통 아키텍처 기준 | `McpLoginController.java:3-4` | 반영: 두 클래스를 계층 중립 `mcp/config`로 옮긴다 |
+| A2 | P2 | 해외 종목에 원화 원금이 없으면 외화 원금을 원화로 씀 | REQ-6, REQ-14 | `McpHoldingsMapper.java:35` | 반영: 시세의 환율로 환산, 환율도 없으면 원금·손익을 비우고 사유 표시 |
+| A3 | P3 | application이 infrastructure 설정(`KakaoOAuthProperties`) import | 공통 아키텍처 기준 | `KakaoOAuthService.java:7` | 보류: 같은 클래스에 `KakaoTokenClient` import 선례가 있다. 구조 변경이라 별도 작업으로 둔다 |
+| A4 | P3 | 보유 종목 현재가를 종목마다 따로 조회 | REQ-6 / 성능 | `McpPortfolioQueryService.java:39-44` | 보류: 기존 시세 캐시를 쓰고 보유 종목 수가 적다. 일괄 조회는 기존 DTO 변경이 필요하다 |
+| A5 | P3 | S-RIM이 미리보기 전체를 다시 계산 | REQ-4 / 성능 | `McpCompanyReportQueryService.java:57` | 보류: 화면과 같은 비용. 위험으로 기록 |
+| A6 | P3 | 긴 메서드 | 공통 기준 | `McpLoginController`·`McpSrimInputAssembler`·`EconomicsMcpTools` | 일부 반영: 로그인 콜백은 S1 수정과 함께 나눈다. 나머지 보류 |
+| A7 | P3 | 상수·Lombok 미사용 | 공통 기준 | `McpClientPolicyRepository` 수동 생성자, `"KRW"`·`"%"`·`"입력값"`·`"ROLE_USER"` 리터럴 | 반영 |
+| A8 | P3 | 화면 HTML을 Java 문자열로 만듦 | U2 | `McpLoginController.java:123-132` | 보류: 화면 2개뿐이고 값은 모두 escape한다 |
+| A9 | P3 | 원화 현재가 `0` 분기 테스트 없음 | T-M M2 | `McpHoldingsMapperTest` | 반영: M3 추가 |
+| S1 | P2 | 로그인 세션이 살아 있으면 화면 확인 없이 코드가 발급됨(인가 요청 위조: 공격자가 만든 인가 URL을 피해자가 열면 공격자의 claude.ai가 피해자 토큰을 받음) | REQ-11 | `McpClientPolicyRepository.java:66`, `McpLoginController.java:97-102` | 반영: 코드를 발급한 직후 세션을 끝낸다(1회용 로그인). 매 연결마다 연결 확인 화면과 카카오 로그인을 거친다 |
+| S2 | P2 | 탈퇴·비활성 사용자의 refresh가 계속 동작 | REQ-11 | `McpAuthorizationServerSecurityConfig` 토큰 발급 | 반영: 토큰 정책 클래스(`McpTokenCustomizer`)가 토큰을 발급할 때마다(코드 교환·refresh) 활성 사용자인지 다시 보고 아니면 `invalid_grant`. 사용자 확인은 기존 보안 설정 선례대로 user 도메인(`UserRepository`, `User.canAccessResource`)을 쓴다. 이미 발급된 access token은 최대 1시간 남는다 |
+| S3 | P2 | CIMD 문서 조회 SSRF(사설 IP 차단 없음) | 공통 보안 기준 | `McpAuthorizationServerSecurityConfig.java:92-94` | 반영: URL 형태 client_id는 `claude.ai`·`claude.com`·`anthropic.com`(하위 도메인 포함) https만 조회한다 |
+| S4 | P3 | 열린 DCR·CIMD 캐시 상한 없음 | 공통 보안 기준 | `McpAuthorizationServerSecurityConfig.java:55-56` | 보류: rate limit은 인프라 작업. S3로 CIMD 대상이 제한된다 |
+| S5 | P3 | 리소스 서버가 `iss`를 검증하지 않음 | REQ-16 | `McpJwkConfig.java:43` | 반영: issuer 검증 추가 |
+| S6 | P2(리뷰는 P3) | CIMD 클라이언트가 캐시 만료(기본 300초) 뒤 `findById`에서 사라져 refresh가 실패 | REQ-12 | `McpClientPolicyRepository.findById` | 반영: id가 CIMD URL이면 `findByClientId`로 다시 조회 |
+
+추가 테스트(R1, 상태 기반)
+- P1: URL 형태 client_id는 허용 호스트(https)만 조회하고, 다른 호스트·http·사설 주소 형태는 없는 클라이언트로 본다
+- P2: CIMD 클라이언트가 캐시에서 빠져도 `findById`가 문서 URL로 다시 찾는다
+- P3: DCR 클라이언트(UUID id)는 그대로 조회된다
+- M3: 원화 현재가 `0`이면 현재가 없음, 해외 종목 원화 원금이 없으면 환율로 환산하고 환율도 없으면 원금·손익을 비운다
+- T1: 활성 사용자면 access token aud를 MCP 리소스로 고정한다
+- T2: 탈퇴·가입 미완료·없는 사용자·숫자가 아닌 sub면 `invalid_grant`로 발급하지 않는다
+
 ## 체크포인트
 - CP1~CP4는 구현 단위 끝에서 수행한다. 2026-10-20 지시("끝까지 다 구현해 결정사항들 다 권장으로 처리해")로 체크포인트마다 멈추지 않고 결과를 기록한 뒤 다음 단위로 간다.
+
+### CP5 결과 (2026-10-20, 리뷰 반영 R1)
+- 바뀐 흐름
+  - 인가 코드를 보낸 직후 로그인 세션을 끝낸다(`McpOneTimeAuthorizationResponseHandler`, 응답 형식은 기본과 같은 code·state). 연결마다 연결 확인 화면과 카카오 로그인을 거친다
+  - 토큰을 발급할 때마다 활성 사용자인지 본다(`McpTokenCustomizer`, aud 고정도 이 클래스로 옮김)
+  - URL 형태 client_id는 `claude.ai`·`claude.com`·`anthropic.com`(하위 도메인 포함) https만 조회한다. CIMD 클라이언트가 id 조회 캐시에서 빠지면 문서 URL로 다시 찾는다
+  - 리소스 서버가 `iss`를 검증한다
+  - 보유 종목: 해외 종목 원화 원금이 없으면 현재 환율로 환산하고, 환율도 없으면 원금·손익을 비우고 사유를 쓴다
+  - `McpOAuthProperties`·`McpPaths`를 계층 중립 `mcp/config`로 옮겼다(presentation → infrastructure 참조 제거). 상수·Lombok 정리, 로그인 콜백의 로그인 처리를 메서드로 나눴다
+- 확인(dev `bootRun`):
+  - 정상 토큰 `initialize` 200. `iss`가 다른 토큰 401(`The iss claim is not valid`)
+  - `client_id=https://evil.example/meta` 인가 요청 400, 서버가 그 주소로 요청하지 않음(로그에 호스트 없음)
+  - DCR 등록 → 인가 요청 302 로그인 화면 → 클라이언트 이름 표시, 카카오 콜백 주소 그대로. 토큰 엔드포인트 가짜 코드 `invalid_grant`
+  - 기존 `/api/economics/indicators/categories` 200, `/login.html` `Set-Cookie` 없음
+  - 세션 종료(1회용 로그인)·활성 사용자 재확인·CIMD 캐시 만료 뒤 refresh는 실제 카카오 로그인이 필요해 배포 후 확인한다(단위 테스트 P2·T1·T2로 판단 로직은 확인)
+- 테스트: 전체 293건 통과(P1~P3·T1~T2·M3 6건 추가)
 
 ### CP4 결과 (2026-10-20)
 - 바뀐 흐름: 도구 5개(`get_my_holdings`, `get_my_portfolio_summary`, `get_dividend_schedule`, `get_economic_indicators`, `search_news`)를 더해 도구가 10개가 됐다. 모두 조회 전용이고, 보유 종목·포트폴리오 요약·뉴스는 토큰의 userId 범위만 조회한다.

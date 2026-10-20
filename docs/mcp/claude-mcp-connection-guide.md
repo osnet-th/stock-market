@@ -89,6 +89,8 @@ claude mcp add --transport http --scope user hubth https://hubth.com/mcp
 ## 4. 연결 동작과 제한
 
 - 연결할 때 카카오 로그인 전 화면에 연결을 요청한 클라이언트 이름과 조회 범위가 나온다. 카카오 로그인까지 마쳐야 연결된다.
+- 로그인은 연결 1번에만 쓰인다. 다시 연결하거나 다른 Claude를 연결할 때마다 이 화면과 카카오 로그인을 다시 거친다(다른 사람이 만든 연결 주소를 열어도 확인 없이 연결되지 않게).
+- 탈퇴하거나 계정을 쓸 수 없게 되면 다음 토큰 갱신부터 연결이 끊긴다(이미 받은 access token은 최대 1시간).
 - 계정이 없거나 가입을 마치지 않은 카카오 계정은 연결되지 않고 안내 화면만 보인다. 앱에서 가입을 먼저 마친다.
 - 허용하는 콜백 주소는 claude.ai(`https://claude.ai/api/mcp/auth_callback`)와 내 컴퓨터(loopback, Claude Code)뿐이다.
 - access token은 1시간, refresh token은 30일이며 쓸 때마다 새로 바뀐다. 30일 동안 쓰지 않으면 다시 연결한다.

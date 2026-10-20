@@ -5,11 +5,12 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
-import com.thlee.stock.market.stockmarket.mcp.infrastructure.config.McpOAuthProperties;
+import com.thlee.stock.market.stockmarket.mcp.config.McpOAuthProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.util.StringUtils;
 
@@ -39,8 +40,11 @@ public class McpJwkConfig {
     }
 
     @Bean
-    public JwtDecoder mcpJwtDecoder(JWKSource<SecurityContext> mcpJwkSource) {
-        return NimbusJwtDecoder.withJwkSource(mcpJwkSource).build();
+    public JwtDecoder mcpJwtDecoder(JWKSource<SecurityContext> mcpJwkSource, McpOAuthProperties properties) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSource(mcpJwkSource).build();
+        // 만료 시간에 더해 발급자(iss)가 이 인가 서버인지 본다. aud 검증은 리소스 서버 설정이 덧씌운다
+        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(properties.getIssuer()));
+        return decoder;
     }
 
     private RSAKey rsaKey(McpOAuthProperties properties) {

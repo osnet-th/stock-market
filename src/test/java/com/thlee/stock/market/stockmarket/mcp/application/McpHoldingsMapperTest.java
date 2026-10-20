@@ -25,7 +25,7 @@ class McpHoldingsMapperTest {
         PortfolioItemResponse samsung = stock("삼성전자", "005930", 10, "70000");
         PortfolioItemResponse hynix = stock("SK하이닉스", "000660", 3, "150000");
         Map<String, McpHoldingsMapper.Quote> quotes = Map.of(
-                "005930", new McpHoldingsMapper.Quote("72000", "KRW", "72000", "1.5", "2026-10-20T03:00:00Z"));
+                "005930", new McpHoldingsMapper.Quote("72000", "KRW", "72000", BigDecimal.ONE, "1.5", "2026-10-20T03:00:00Z"));
 
         // when
         McpHoldings result = McpHoldingsMapper.toHoldings(List.of(samsung, hynix), quotes);
@@ -46,9 +46,47 @@ class McpHoldingsMapperTest {
         assertThat(result.priceMissingCount()).isEqualTo(1);
     }
 
+    @Test
+    @DisplayName("M3: 원화 현재가가 0이면 현재가 없음, 해외 종목 원화 원금이 없으면 환율로 환산하고 환율도 없으면 원금·손익을 비운다")
+    void zeroPriceAndForeignPrincipal() {
+        // given
+        PortfolioItemResponse zero = stock("거래정지", "123456", 5, "10000");
+        PortfolioItemResponse apple = foreign("애플", "AAPL", 2, "150");
+        PortfolioItemResponse msft = foreign("마이크로소프트", "MSFT", 1, "400");
+        Map<String, McpHoldingsMapper.Quote> quotes = Map.of(
+                "123456", new McpHoldingsMapper.Quote("0", "KRW", "0", BigDecimal.ONE, "0", "t"),
+                "AAPL", new McpHoldingsMapper.Quote("200", "USD", "280000", new BigDecimal("1400"), "0.5", "t"));
+
+        // when
+        McpHoldings result = McpHoldingsMapper.toHoldings(List.of(zero, apple, msft), quotes);
+
+        // then
+        McpHoldings.Holding zeroHolding = result.items().get(0);
+        assertThat(zeroHolding.evaluatedAmountKrw()).isNull();
+        assertThat(zeroHolding.priceNote()).contains("현재가");
+
+        McpHoldings.Holding appleHolding = result.items().get(1);
+        assertThat(appleHolding.investedAmountKrw()).isEqualByComparingTo("420000");
+        assertThat(appleHolding.evaluatedAmountKrw()).isEqualByComparingTo("560000");
+        assertThat(appleHolding.profitKrw()).isEqualByComparingTo("140000");
+        assertThat(appleHolding.priceNote()).isNull();
+
+        McpHoldings.Holding msftHolding = result.items().get(2);
+        assertThat(msftHolding.investedAmountKrw()).isNull();
+        assertThat(msftHolding.profitKrw()).isNull();
+        assertThat(msftHolding.priceNote()).contains("원화 원금");
+        assertThat(result.priceMissingCount()).isEqualTo(2);
+    }
+
     private static PortfolioItemResponse stock(String name, String code, int quantity, String avgPrice) {
         return PortfolioItemResponse.from(PortfolioItem.createWithStock(1L, name, Region.DOMESTIC,
                 new StockDetail(StockSubType.INDIVIDUAL, code, "KOSPI", "KRX", "KR",
                         quantity, new BigDecimal(avgPrice), null, PriceCurrency.KRW, null)));
+    }
+
+    private static PortfolioItemResponse foreign(String name, String code, int quantity, String avgPrice) {
+        return PortfolioItemResponse.from(PortfolioItem.createWithStock(1L, name, Region.INTERNATIONAL,
+                new StockDetail(StockSubType.INDIVIDUAL, code, "NASDAQ", "NAS", "US",
+                        quantity, new BigDecimal(avgPrice), null, PriceCurrency.USD, null)));
     }
 }

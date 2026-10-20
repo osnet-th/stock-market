@@ -50,7 +50,7 @@ public class McpPortfolioQueryService {
             StockPriceResponse p = stockPriceService.getPrice(d.getStockCode(),
                     MarketType.valueOf(d.getMarket()), ExchangeCode.valueOf(d.getExchangeCode()));
             return new McpHoldingsMapper.Quote(p.getCurrentPrice(), p.getCurrency(), p.getCurrentPriceKrw(),
-                    p.getChangeRate(), p.getCachedAt());
+                    p.getExchangeRateValue(), p.getChangeRate(), p.getCachedAt());
         } catch (RuntimeException e) {
             log.warn("MCP 보유 종목 현재가 조회 실패 [{}]: {}", d.getStockCode(), e.getMessage());
             return null;

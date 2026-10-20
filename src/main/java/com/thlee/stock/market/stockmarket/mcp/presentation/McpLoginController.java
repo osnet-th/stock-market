@@ -1,7 +1,7 @@
 package com.thlee.stock.market.stockmarket.mcp.presentation;
 
-import com.thlee.stock.market.stockmarket.mcp.infrastructure.config.McpOAuthProperties;
-import com.thlee.stock.market.stockmarket.mcp.infrastructure.config.McpPaths;
+import com.thlee.stock.market.stockmarket.mcp.config.McpOAuthProperties;
+import com.thlee.stock.market.stockmarket.mcp.config.McpPaths;
 import com.thlee.stock.market.stockmarket.user.application.KakaoOAuthService;
 import com.thlee.stock.market.stockmarket.user.application.OAuthLoginService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,6 +43,7 @@ import java.util.UUID;
 public class McpLoginController {
 
     static final String STATE_ATTRIBUTE = McpLoginController.class.getName() + ".STATE";
+    private static final String USER_AUTHORITY = "ROLE_USER";
 
     private final KakaoOAuthService kakaoOAuthService;
     private final OAuthLoginService oauthLoginService;
@@ -94,16 +95,20 @@ public class McpLoginController {
                     "<p>stock-market에 가입한 계정만 연결할 수 있습니다. 앱에서 카카오 로그인과 가입을 마친 뒤 다시 연결해 주세요.</p>");
         }
 
-        request.changeSessionId();
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(
-                String.valueOf(userId.get()), null, List.of(new SimpleGrantedAuthority("ROLE_USER"))));
-        SecurityContextHolder.setContext(context);
-        securityContextRepository.saveContext(context, request, response);
-
+        signIn(userId.get(), request, response);
         SavedRequest saved = requestCache.getRequest(request, response);
         String target = saved != null ? saved.getRedirectUrl() : properties.getIssuer();
         return ResponseEntity.status(302).header("Location", target).build();
+    }
+
+    /** 세션 고정을 막고 principal=userId로 로그인시킨다. 인가 코드를 발급하면 이 세션은 끝난다 */
+    private void signIn(Long userId, HttpServletRequest request, HttpServletResponse response) {
+        request.changeSessionId();
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(
+                String.valueOf(userId), null, List.of(new SimpleGrantedAuthority(USER_AUTHORITY))));
+        SecurityContextHolder.setContext(context);
+        securityContextRepository.saveContext(context, request, response);
     }
 
     private String clientName(SavedRequest saved) {

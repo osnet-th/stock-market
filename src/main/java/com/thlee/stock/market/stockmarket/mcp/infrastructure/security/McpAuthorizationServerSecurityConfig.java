@@ -1,7 +1,8 @@
 package com.thlee.stock.market.stockmarket.mcp.infrastructure.security;
 
-import com.thlee.stock.market.stockmarket.mcp.infrastructure.config.McpOAuthProperties;
-import com.thlee.stock.market.stockmarket.mcp.infrastructure.config.McpPaths;
+import com.thlee.stock.market.stockmarket.mcp.config.McpOAuthProperties;
+import com.thlee.stock.market.stockmarket.mcp.config.McpPaths;
+import com.thlee.stock.market.stockmarket.user.domain.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -18,7 +19,6 @@ import org.springframework.security.oauth2.server.authorization.JdbcOAuth2Author
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
-import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
@@ -40,6 +40,7 @@ import static org.springaicommunity.mcp.security.authorizationserver.config.McpA
 public class McpAuthorizationServerSecurityConfig {
 
     public static final int ORDER = 2;
+    private static final String TOKEN_AUTH_METHOD_NONE = "none";
 
     @Bean
     @Order(ORDER)
@@ -54,10 +55,14 @@ public class McpAuthorizationServerSecurityConfig {
                 .with(mcpAuthorizationServer(), mcp -> mcp
                         .dynamicClientRegistration(true)
                         .cimd(true)
-                        // PKCE 공개 클라이언트(claude.ai CIMD)가 쓰는 "none"을 메타데이터에 알린다
-                        .authorizationServer(server -> server.authorizationServerMetadataEndpoint(metadata -> metadata
-                                .authorizationServerMetadataCustomizer(builder -> builder
-                                        .tokenEndpointAuthenticationMethod("none")))))
+                        .authorizationServer(server -> server
+                                // PKCE 공개 클라이언트(claude.ai CIMD)가 쓰는 "none"을 메타데이터에 알린다
+                                .authorizationServerMetadataEndpoint(metadata -> metadata
+                                        .authorizationServerMetadataCustomizer(builder -> builder
+                                                .tokenEndpointAuthenticationMethod(TOKEN_AUTH_METHOD_NONE)))
+                                // 인가 코드를 보내면서 로그인 세션을 끝낸다(연결마다 확인 화면·카카오 로그인)
+                                .authorizationEndpoint(endpoint -> endpoint
+                                        .authorizationResponseHandler(new McpOneTimeAuthorizationResponseHandler()))))
                 // 톰캣이 상대 경로 리다이렉트를 내부 주소(http)로 바꾸지 않게 공개 주소로 보낸다
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(
                         new LoginUrlAuthenticationEntryPoint(properties.getIssuer() + McpPaths.MCP_AUTH + "/login")));
@@ -107,16 +112,10 @@ public class McpAuthorizationServerSecurityConfig {
         return new JdbcOAuth2AuthorizationConsentService(jdbcOperations, mcpRegisteredClientRepository);
     }
 
-    /**
-     * access token의 aud를 MCP 리소스(/mcp)로 고정한다. 클라이언트가 resource 파라미터를 보내지 않아도
-     * 리소스 서버의 aud 검증을 통과하게 하기 위해서다. sub는 로그인 시 넣은 userId 그대로다.
-     */
+    /** 토큰 발급 정책: 활성 사용자만 발급(refresh 포함), access token aud 고정 */
     @Bean
-    public OAuth2TokenCustomizer<JwtEncodingContext> mcpAudienceTokenCustomizer(McpOAuthProperties properties) {
-        return context -> {
-            if (OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
-                context.getClaims().audience(List.of(properties.resourceUri()));
-            }
-        };
+    public OAuth2TokenCustomizer<JwtEncodingContext> mcpTokenCustomizer(
+            UserRepository userRepository, McpOAuthProperties properties) {
+        return new McpTokenCustomizer(userRepository, properties.resourceUri());
     }
 }

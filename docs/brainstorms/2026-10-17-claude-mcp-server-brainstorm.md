@@ -1,8 +1,9 @@
 # Claude MCP 서버 (기업 리포트·S-RIM·포트폴리오 조회) Harness Brainstorm
 
 ## 입력
-- issue: 없음 (비 이슈로 시작, brainstorm 확인 후 이슈 등록 Gate 진행)
-- worktree: 클라우드 세션 브랜치 `claude/inspiring-wright-rljbsn` (최신 main 기준)
+- issue: #144 [enhancement] Claude MCP 연결 — 기업 리포트·S-RIM·포트폴리오 조회 도구
+  - 비 이슈로 시작해 이슈 등록 Gate에서 태형님 승인("진행해", 2026-10-20)을 받아 등록했다.
+- worktree: 클라우드 세션 브랜치 `claude/inspiring-wright-rljbsn` (최신 main 기준). `/home/user/stock-market-issue-144`는 이 저장소를 가리키는 심볼릭 링크다(#142와 같은 방식).
 - source: 태형님 요청(2026-10-17)
   - "stocks 에다가 기업 리포트나 적정주가 계산 이런거 정보 mcp 서버로 등록해서 클로드로 요청하면 가져오도록 하고싶은데"
   - "MCP 로 넣었을때 어떤식으로 활용할 수 있을지 알려줘" → 활용 예시 5가지 제시

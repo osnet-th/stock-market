@@ -62,7 +62,7 @@ blocked_paths:
 - [x] U1 의존성·MCP 서버 뼈대·`/mcp` 리소스 서버 보안 체인 → 체크포인트 CP1 (2026-10-20, 아래 CP1 결과)
 - [x] U2 인가 서버·저장 테이블·카카오 로그인 연결·토큰 userId → 체크포인트 CP2 (2026-10-20, 아래 CP2 결과)
 - [x] U3 기업 리포트·S-RIM·채권 금리 도구(+S-RIM 입력 조립) → 체크포인트 CP3 (2026-10-20, 아래 CP3 결과)
-- [ ] U4 포트폴리오·배당 일정·경제지표·뉴스 도구 → 체크포인트 CP4
+- [x] U4 포트폴리오·배당 일정·경제지표·뉴스 도구 → 체크포인트 CP4 (2026-10-20, 아래 CP4 결과)
 - [ ] U5 설정·연결 안내 문서
 - [ ] 리뷰 (태형님이 고른 이슈만 반영)
 - [ ] 검증 (태형님 선택 방식)
@@ -240,6 +240,26 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 
 ## 체크포인트
 - CP1~CP4는 구현 단위 끝에서 수행한다. 2026-10-20 지시("끝까지 다 구현해 결정사항들 다 권장으로 처리해")로 체크포인트마다 멈추지 않고 결과를 기록한 뒤 다음 단위로 간다.
+
+### CP4 결과 (2026-10-20)
+- 바뀐 흐름: 도구 5개(`get_my_holdings`, `get_my_portfolio_summary`, `get_dividend_schedule`, `get_economic_indicators`, `search_news`)를 더해 도구가 10개가 됐다. 모두 조회 전용이고, 보유 종목·포트폴리오 요약·뉴스는 토큰의 userId 범위만 조회한다.
+- 주요 파일: `mcp/application/{McpPortfolioQueryService, McpHoldingsMapper}`, `mcp/application/dto/McpHoldings`, `mcp/presentation/tool/{PortfolioMcpTools, NewsMcpTools, EconomicsMcpTools}`, `mcp/presentation/dto/{McpPortfolioSummary, McpDividendSchedule, McpEconomicIndicators, McpNewsPage}`
+- plan 대비 조정(권장안으로 처리, 2026-10-20 지시)
+  - KTD8의 `McpQueryService`는 `McpPortfolioQueryService`로 두었다(이름만 다름). 여러 도메인을 묶는 보유 종목+현재가만 application에 두고, 한 도메인만 쓰는 도구(요약·배당·경제지표·뉴스)는 기존 서비스를 바로 부른다
+  - 보유 종목은 주식 항목 중 전량 매도(`CLOSED`)를 뺀다. 현재가는 종목마다 `StockPriceService.getPrice`(캐시)로 가져온다. `getPrices`는 요청 DTO가 presentation에 있고 생성자가 없어 쓰지 않았다. 조회 실패나 원화 현재가 `0`은 현재가 없음으로 보고 평가액·손익을 비운 뒤 `priceNote`에 이유를 쓴다. 주식 외 자산과 합계는 포트폴리오 요약 도구가 맡는다
+  - 배당 일정 기본 기간은 화면과 같은 6개월 전 ~ 3개월 후다. 기간 길이 제한은 두지 않는다
+  - 경제지표 `category`는 ECOS·해외 카테고리 코드나 이름을 받는다. 없으면 최근 7일 갱신 지표(ECOS+해외)를 준다. 최근 갱신 목록의 ECOS 항목은 저장값에 단위가 없어 `unit`이 비어 있다
+  - 뉴스는 화면과 같이 구독 키워드 전체를 범위로, 최신순, 본문 앞 300자, 검색어 200자 이내, `size` 1~30으로 맞춘다
+- 확인(dev `bootRun`, 테스트 토큰, 사용자 1·2 검증 데이터는 확인 후 지웠다):
+  - `tools/list` 10개, 모두 `readOnlyHint=true`
+  - 보유 종목: 사용자마다 자기 종목만 나오고 매도 완료 항목은 빠진다. dev에 KIS 키가 없어 현재가 없음 안내가 나온다
+  - 포트폴리오 요약: 사용자 1은 700,000원, 사용자 2는 450,000원으로 각자 값이 나온다. `currency=KRW`, `rateUnit=%`
+  - 뉴스: 사용자 1은 키워드 A 기사만, 사용자 2는 키워드 B 기사만 보인다. 본문은 300자로 잘린다
+  - 배당 일정: KIS 키가 없어 도구 오류. 6자리가 아닌 코드는 거절된다
+  - 경제지표: 최근 갱신·해외 카테고리는 값이 나온다. ECOS 카테고리는 키가 dev용 값이라 비어 있다. 모르는 카테고리는 사용 가능한 코드 목록과 함께 도구 오류가 난다
+- 테스트: 전체 287건 통과(M2 1건 추가)
+- 가드: 경로 검사 통과(11개 파일). 의미 검사 PASS. 선택 권장 중 현재가 `0` 처리는 반영했고, 나머지는 위 기록으로 처리
+- 남은 위험: 배당 일정·ECOS·현재가의 실제 응답은 운영 키가 필요해 배포 후 확인한다
 
 ### CP3 결과 (2026-10-20)
 - 바뀐 흐름: 도구 4개(`get_company_report_summary`, `list_my_company_reports`, `get_my_company_report`, `calculate_srim`)를 더해 도구가 5개가 됐다. 모두 조회 전용(`readOnlyHint=true`)이고 토큰의 userId로 사용자를 확인한다. 목록·상세는 그 userId로만 조회한다.

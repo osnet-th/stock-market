@@ -60,7 +60,7 @@ blocked_paths:
 
 ## 작업 리스트
 - [x] U1 의존성·MCP 서버 뼈대·`/mcp` 리소스 서버 보안 체인 → 체크포인트 CP1 (2026-10-20, 아래 CP1 결과)
-- [ ] U2 인가 서버·저장 테이블·카카오 로그인 연결·토큰 userId → 체크포인트 CP2
+- [x] U2 인가 서버·저장 테이블·카카오 로그인 연결·토큰 userId → 체크포인트 CP2 (2026-10-20, 아래 CP2 결과)
 - [ ] U3 기업 리포트·S-RIM·채권 금리 도구(+S-RIM 입력 조립) → 체크포인트 CP3
 - [ ] U4 포트폴리오·배당 일정·경제지표·뉴스 도구 → 체크포인트 CP4
 - [ ] U5 설정·연결 안내 문서
@@ -121,9 +121,9 @@ blocked_paths:
   - 기존 OAuth 계정이 있고 `USER`·`ACTIVE`인 사용자만 로그인시킨다. 계정이 없거나 가입 미완료(`SIGNING_USER`)면 사용자를 만들지 않고 "앱에서 먼저 가입하세요" 화면을 보인다. 이를 위해 `OAuthLoginService`에 조회 전용 메서드를 추가한다(기존 `login` 동작 불변).
   - 로그인 성공 시 세션에 인증(principal 이름 = userId)을 저장하고 원래 `/oauth2/authorize` 요청으로 돌아간다.
   - 카카오 개발자 콘솔에 `https://hubth.com/oauth/kakao/mcp` Redirect URI 등록이 필요하다(태형님 작업).
-- **KTD4 클라이언트 등록·승인:** CIMD와 DCR을 켠다(claude.ai는 CIMD를 우선 쓰고 없으면 DCR). 승인(consent) 화면을 켜서 어떤 클라이언트가 접근하는지 보인다(확인 2). 허용 리다이렉트는 `https://claude.ai/api/mcp/auth_callback`과 loopback(`localhost`/`127.0.0.1`, Claude Code)로 제한한다. 라이브러리가 제한을 지원하지 않으면 CP2에서 보고한다.
+- **KTD4 클라이언트 등록·승인:** CIMD와 DCR을 켠다(claude.ai는 CIMD를 우선 쓰고 없으면 DCR). 어떤 클라이언트가 접근하는지 보이는 승인 확인을 둔다(확인 2). CP2에서 MCP 로그인 화면이 이 역할을 하도록 조정했다(CP2 결과 참고). 허용 리다이렉트는 `https://claude.ai/api/mcp/auth_callback`과 loopback(`localhost`/`127.0.0.1`, Claude Code)로 제한한다. 라이브러리가 제한을 지원하지 않으면 CP2에서 보고한다.
 - **KTD5 토큰:** access token은 JWT(RS256), 1시간. `sub`=userId. refresh token은 30일이고 쓸 때마다 교체한다(Claude 요구: 공개 클라이언트 교체). 서명 키는 환경변수(PEM)로 받아 재배포 후에도 토큰이 유지된다. dev에서 키가 없으면 기동 시 생성한다.
-- **KTD6 issuer:** 터널 구간이 http라 요청에서 issuer를 추론하지 않고 환경변수 `MCP_OAUTH_ISSUER`(운영 `https://hubth.com`)로 고정한다. 리소스 식별자는 `{issuer}/mcp`다.
+- **KTD6 issuer:** 터널 구간이 http라 요청에서 issuer를 추론하지 않고 환경변수 `MCP_OAUTH_ISSUER`(운영 `https://hubth.com`)로 고정한다. 리소스 식별자는 `{issuer}/mcp`다. MCP 라이브러리가 메타데이터·`WWW-Authenticate` 주소를 요청 주소로 만들기 때문에, MCP·OAuth 경로에서만 요청의 scheme·host·port를 issuer로 바꾸는 필터(`McpPublicOriginFilter`)를 보안 필터 앞에 둔다(CP1에서 추가).
 - **KTD7 저장:** 등록 클라이언트·인가(코드·토큰)·승인을 DB에 저장한다(Spring Security 제공 JDBC 구현). 재배포 때마다 다시 연결하지 않게 하기 위해서다(main 병합마다 자동 배포). 표는 아래 DB 스키마 리뷰를 따른다.
 - **KTD8 도구 구조:** 새 `mcp` 패키지.
   - presentation: `@McpTool` 클래스(도메인별 3~4개)와 응답 DTO. 토큰의 `sub`에서 userId를 꺼내는 헬퍼.
@@ -241,6 +241,26 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 ## 체크포인트
 - CP1~CP4는 구현 단위 끝에서 수행한다. 2026-10-20 지시("끝까지 다 구현해 결정사항들 다 권장으로 처리해")로 체크포인트마다 멈추지 않고 결과를 기록한 뒤 다음 단위로 간다.
 
+### CP2 결과 (2026-10-20)
+- 바뀐 흐름: `/oauth2/authorize`에 로그인이 없으면 `{issuer}/mcp-auth/login`으로 보낸다. 이 화면이 연결을 요청한 클라이언트 이름과 조회 범위를 보이고 카카오 로그인으로 보낸다(`state` 저장). `/oauth/kakao/mcp`가 `state`를 확인하고 코드를 교환한 뒤, 가입을 마친 활성 사용자만 세션에 로그인(principal=userId)시키고 원래 인가 요청으로 돌려보낸다. 계정 없음·가입 미완료·카카오 실패는 안내 화면만 보이고 사용자를 만들지 않는다.
+- 주요 파일: `mcp/infrastructure/security/{McpAuthorizationServerSecurityConfig, McpClientPolicyRepository, McpOAuthSchemaInitializer}`, `mcp/presentation/McpLoginController`, `user/application/{OAuthLoginService.findActiveUserId, KakaoOAuthService.authorizeUrl·loginWithKakao(code, redirectUri)}`, `KakaoTokenClient.issueToken(code, redirectUri)`, 스키마 SQL 2개
+- plan 대비 조정(권장안으로 처리, 2026-10-20 지시)
+  - **승인 화면(KTD4·확인 2):** 인가 서버 기본 승인 화면은 scope를 요청할 때만 뜨고, MCP 라이브러리는 scope가 없으면 승인을 건너뛴다(`McpNoScopeClientConsentNotRequired`). 그래서 MCP 로그인 화면에 "어떤 클라이언트가 무엇을 조회하려 하는지"를 보이고 "카카오로 로그인하고 연결 허용"을 눌러야 진행하게 해 승인 확인을 대신했다. 기본 승인 화면은 끈다(`requireAuthorizationConsent(false)`). 승인 테이블은 표준 구현이 쓰도록 그대로 둔다
+  - **로그인 경로 체인:** 인가 서버 설정이 경로를 좁혀도 `/mcp-auth/**`·`/oauth/kakao/mcp`가 기존 체인(운영은 인증 필요)으로 넘어가지 않게 로그인 전용 체인(`@Order(3)`)을 더 두었다
+  - **공개 주소 리다이렉트:** 톰캣이 상대 리다이렉트를 내부 주소로 바꿔서 로그인 이동 주소를 issuer 기준 절대 주소로 만든다
+  - **메타데이터:** PKCE 공개 클라이언트용 `none`을 토큰 엔드포인트 인증 방식에 추가했다(claude.ai CIMD 조건)
+  - **토큰 aud:** 클라이언트가 `resource`를 보내지 않아도 리소스 서버 aud 검증을 통과하도록 access token의 aud를 `{issuer}/mcp`로 고정했다
+- 확인(dev `bootRun`, issuer `https://hubth.test`):
+  - 인가 서버 메타데이터의 모든 주소가 https issuer 기준, `registration_endpoint`, `client_id_metadata_document_supported=true`, 인증 방식에 `none`
+  - DCR: claude.ai 콜백·loopback(`http://localhost:53100/callback`) 등록 성공, 다른 주소(`https://evil.example/cb`) 400
+  - 인가 요청 → 302 `https://hubth.test/mcp-auth/login`(세션 쿠키 발급) → 로그인 화면에 클라이언트 이름("Claude")과 카카오 인가 주소(`redirect_uri=https://hubth.test/oauth/kakao/mcp`, `state`)
+  - 콜백: `state` 불일치 → 연결 실패 화면, 맞는 `state`+가짜 코드 → 카카오 교환 실패 → 연결 실패 화면(500 아님)
+  - 토큰 엔드포인트 form 요청 → `{"error":"invalid_grant"}`
+  - 테이블 3개 기동 시 생성, 등록 클라이언트 2건 저장. 기존 API 응답에 `Set-Cookie` 없음
+  - 카카오 실제 로그인 이후 단계(토큰 발급·refresh·CIMD 문서 조회)는 실제 카카오 계정이 필요해 운영 배포 후 확인한다
+- 테스트: 전체 279건 통과(L1·L2 4건 추가)
+- 가드: 경로 검사 통과(12개 파일)
+
 ### CP1 결과 (2026-10-20)
 - 바뀐 흐름: `/mcp`·보호 리소스 메타데이터를 받는 리소스 서버 체인(`@Order(1)`)이 기존 체인보다 먼저 MCP 경로만 받는다. 공개 주소 필터가 MCP·OAuth 경로의 요청 주소를 issuer 기준으로 바꾼다. 서명 키(JWK)와 JWT 검증기를 둔다.
 - 주요 파일: `build.gradle`(Spring AI BOM 2.0.0, MCP 서버 스타터, MCP Security 0.1.13, 리소스 서버·JDBC 스타터, Spring Security 7.1.0 지정), `application.yml`(`spring.ai.mcp.server.*`, `mcp.oauth.*`), `mcp/infrastructure/{config,security}`, `mcp/presentation/{McpUserContext, tool/EconomicsMcpTools, dto/McpBondYields}`
@@ -251,7 +271,9 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
   - aud가 다른 토큰 → 401 `invalid_token`
   - 기존 `/api/economics/indicators/categories`·`/login.html` 200, `Set-Cookie` 없음
 - 테스트: 전체 `./gradlew test` 275건 통과(기존 272 + U1·U2 3건). Spring Security 7.1.0 지정 후 기존 272건 회귀 통과
-- 가드: 경로 검사 통과(11개 파일)
+- 가드: 경로 검사 통과(11개 파일). 의미 검사 SCOPE_CREEP(경미) 2건 → 권장안대로 처리(2026-10-20 지시)
+  - 공개 주소 필터(`McpPublicOriginFilter`)가 plan 항목에 이름이 없었다. KTD6(issuer 고정)을 지키려면 필요하다(메타데이터·`WWW-Authenticate` 주소가 요청 주소로 만들어진다). KTD6에 포함해 유지하고, 필터 대상 경로를 MCP 메타데이터 3종으로 좁혔다(`/.well-known/` 전체 → 3개)
+  - U2 설정 일부(JDBC 스타터, 인가 서버 경로 목록, 카카오 MCP 콜백 설정)가 U1에 먼저 들어갔다. U2에서 쓴다
 
 ## 검증
 - `./gradlew test` 전체

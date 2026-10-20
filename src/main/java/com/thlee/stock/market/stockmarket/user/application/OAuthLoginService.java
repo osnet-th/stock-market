@@ -80,6 +80,18 @@ public class OAuthLoginService {
     }
 
     /**
+     * 가입을 마친 활성 사용자의 userId를 조회한다. 계정이 없거나 가입 미완료면 비어 있다.
+     * 사용자를 새로 만들지 않는다 (MCP 연결 로그인용).
+     */
+    public Optional<Long> findActiveUserId(OAuthLoginRequest request) {
+        return oauthAccountRepository
+                .findByProviderAndIssuerAndSubject(request.provider(), request.issuer(), request.subject())
+                .flatMap(account -> userRepository.findById(account.getUserId()))
+                .filter(User::canAccessResource)
+                .map(User::getId);
+    }
+
+    /**
      * 카카오 인가 코드로 로그인 처리
      *
      * @param authorizationCode 카카오 인가 코드

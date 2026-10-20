@@ -28,7 +28,9 @@ public final class McpPaths {
     /** 공개 주소 기준으로 요청 주소를 바꿀 경로 접두어 */
     public static boolean isMcpRelated(String path) {
         return path.equals(MCP) || path.startsWith(MCP + "/")
-                || path.startsWith("/.well-known/")
+                || path.startsWith(PROTECTED_RESOURCE_METADATA)
+                || path.startsWith(AUTHORIZATION_SERVER_METADATA)
+                || path.startsWith(OPENID_CONFIGURATION)
                 || path.startsWith(OAUTH2 + "/")
                 || path.startsWith(MCP_AUTH + "/")
                 || path.equals(KAKAO_CALLBACK);

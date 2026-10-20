@@ -61,7 +61,7 @@ blocked_paths:
 ## 작업 리스트
 - [x] U1 의존성·MCP 서버 뼈대·`/mcp` 리소스 서버 보안 체인 → 체크포인트 CP1 (2026-10-20, 아래 CP1 결과)
 - [x] U2 인가 서버·저장 테이블·카카오 로그인 연결·토큰 userId → 체크포인트 CP2 (2026-10-20, 아래 CP2 결과)
-- [ ] U3 기업 리포트·S-RIM·채권 금리 도구(+S-RIM 입력 조립) → 체크포인트 CP3
+- [x] U3 기업 리포트·S-RIM·채권 금리 도구(+S-RIM 입력 조립) → 체크포인트 CP3 (2026-10-20, 아래 CP3 결과)
 - [ ] U4 포트폴리오·배당 일정·경제지표·뉴스 도구 → 체크포인트 CP4
 - [ ] U5 설정·연결 안내 문서
 - [ ] 리뷰 (태형님이 고른 이슈만 반영)
@@ -112,7 +112,7 @@ blocked_paths:
 ## 핵심 기술 결정
 - **KTD1 라이브러리:** Spring AI BOM 2.0.0의 `spring-ai-starter-mcp-server-webmvc`(protocol `STREAMABLE`, 엔드포인트 `/mcp`), `org.springaicommunity:mcp-server-security`·`mcp-authorization-server` 0.1.13. 문서상 Spring AI 2.0.x는 Boot 4.0.x를, MCP Security는 Spring Security 7·Spring AI 2.0.x를 지원한다. U1 빌드에서 의존성 충돌이 나면 멈추고 보고한다.
   - **2026-10-20 갱신(재승인):** MCP Security 0.1.13·0.1.14의 `mcp-authorization-server`는 Spring Security 7.1.0을 요구한다. Boot 4.0.1은 7.0.2를 관리해, 7.0.2로 내려가면 참조 클래스 103개 중 `OAuth2ClientRegistrationAuthenticationValidator`(DCR용) 1개가 없다. 그래서 `build.gradle`에서 `spring-security.version`을 7.1.0으로 지정한다(선택지 A). 기존 로그인·API 회귀는 U1에서 전체 테스트와 `bootRun`으로 먼저 확인하고, 깨지면 멈춘다(대안 B: Boot 4.1.x).
-- **KTD2 보안 체인 분리:** 새 체인 2개를 `@Order`와 `securityMatcher`로 앞에 둔다. 기존 체인(`ProdSecurityConfig`, `DevSecurityConfig`)은 손대지 않고 나머지 경로를 그대로 받는다.
+- **KTD2 보안 체인 분리:** 새 체인 3개(리소스 서버, 인가 서버, 로그인 — 로그인 체인은 CP2에서 추가)를 `@Order`와 `securityMatcher`로 앞에 둔다. 기존 체인(`ProdSecurityConfig`, `DevSecurityConfig`)은 손대지 않고 나머지 경로를 그대로 받는다.
   - 인가 서버 체인: `/oauth2/**`, `/.well-known/oauth-authorization-server`, `/.well-known/openid-configuration`(필요 시), `/mcp-auth/**`, `/oauth/kakao/mcp`. 로그인 유지를 위해 이 체인만 세션을 쓴다(IF_REQUIRED).
   - 리소스 서버 체인: `/mcp`, `/.well-known/oauth-protected-resource/**`. STATELESS. 토큰 없으면 `401` + `WWW-Authenticate: Bearer resource_metadata=...`. dev도 같다(REQ-16).
 - **KTD3 카카오 로그인 연결:** 인가 서버의 로그인 페이지를 카카오 로그인으로 바꾼다.
@@ -174,7 +174,7 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 - CP1: `/mcp` 무토큰 401 + `WWW-Authenticate`, 보호 리소스 메타데이터 응답, 기존 `/api/**`·화면·`/oauth/kakao` 응답 불변, 전체 `./gradlew test`
 
 ### U2 인가 서버·저장·카카오 로그인 연결 (KTD3~KTD7, 선행 U1)
-- 인가 서버 체인(`McpAuthorizationServerConfigurer`, CIMD·DCR, consent, 리다이렉트 제한), JWK(환경변수 PEM), 토큰 설정·`sub`=userId
+- 인가 서버 체인(`McpAuthorizationServerConfigurer`, CIMD·DCR, 승인 확인(CP2에서 로그인 화면으로 조정), 리다이렉트 제한), JWK(환경변수 PEM), 토큰 설정·`sub`=userId
 - 저장 테이블 SQL과 기동 시 초기화, JDBC 저장소 3종
 - `KakaoTokenClient`·`KakaoOAuthService`에 `redirect_uri` 인자 메서드, `OAuthLoginService`에 조회 전용 메서드
 - `/mcp-auth/login`, `/oauth/kakao/mcp` 컨트롤러와 가입 안내 화면
@@ -241,6 +241,25 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 ## 체크포인트
 - CP1~CP4는 구현 단위 끝에서 수행한다. 2026-10-20 지시("끝까지 다 구현해 결정사항들 다 권장으로 처리해")로 체크포인트마다 멈추지 않고 결과를 기록한 뒤 다음 단위로 간다.
 
+### CP3 결과 (2026-10-20)
+- 바뀐 흐름: 도구 4개(`get_company_report_summary`, `list_my_company_reports`, `get_my_company_report`, `calculate_srim`)를 더해 도구가 5개가 됐다. 모두 조회 전용(`readOnlyHint=true`)이고 토큰의 userId로 사용자를 확인한다. 목록·상세는 그 userId로만 조회한다.
+- 주요 파일: `mcp/application/{McpCompanyReportQueryService, McpSrimInputAssembler, McpCompanyReportMapper}`, `mcp/application/dto/{McpCompanyReportSummary, McpCompanyReportDetail, McpSrimResult}`, `mcp/presentation/tool/CompanyReportMcpTools`
+- plan 대비 조정(권장안으로 처리, 2026-10-20 지시)
+  - KTD8의 `McpQueryService`는 도메인별로 나눠 기업 리포트 쪽을 `McpCompanyReportQueryService`로 두었다(이름만 다름)
+  - 요약의 "최근 5년"은 최근 5개 연도 열이다. 올해 분기·반기 열이 들어갈 수 있고 열마다 `partial`로 표시한다. 기준연도(`baseYear`)는 부분 연도를 뺀 최근 연도다
+  - S-RIM 결과에 자기자본·주식수 근거 보고서 이름(`equityReport`, `sharesReport`)을 넣었다(REQ-14, 가드 권장)
+  - 금리 출처 통신 실패는 계산 불가로 돌리고 `requiredReturnPercent` 입력을 요청한다
+  - 목록 `size`는 1~50, `page`는 0 이상으로 맞춘다
+- 확인(dev `bootRun`, 테스트 토큰):
+  - `tools/list` 5개, 모두 `readOnlyHint=true`, 필수 인자가 API 계약과 같다
+  - 사용자 2의 리포트: 사용자 1 목록 0건, 상세는 도구 오류("찾을 수 없습니다"). 사용자 2 목록 1건, 상세 성공(검증 행은 확인 후 지웠다)
+  - 요약·S-RIM 도구는 dev에 DART 키가 없어 DART 조회에서 도구 오류로 끝난다(예상 범위). `stockCode`가 비면 도구 오류
+  - 조립한 입력으로 `SrimService.preview`를 부른 결과(BPS 20,000, ROE 15%, 요구수익률 8%)가 손계산과 같다: 영구 37,500 / 10% 감소 27,000 / 20% 감소 24,000
+  - 실시간 채권 금리에 회사채 BBB- 60개월 금리가 있다. 무토큰 `/mcp` 401
+- 테스트: 전체 286건 통과(S1~S6·M1 7건 추가)
+- 가드: 경로 검사 통과(10개 파일). 의미 검사 PASS. 선택 권장 2건 중 근거 보고서 이름은 반영, 열 수는 위 기록으로 처리
+- 남은 위험: 요약·S-RIM의 실제 DART·KIS 응답은 운영 키가 필요해 배포 후 확인한다
+
 ### CP2 결과 (2026-10-20)
 - 바뀐 흐름: `/oauth2/authorize`에 로그인이 없으면 `{issuer}/mcp-auth/login`으로 보낸다. 이 화면이 연결을 요청한 클라이언트 이름과 조회 범위를 보이고 카카오 로그인으로 보낸다(`state` 저장). `/oauth/kakao/mcp`가 `state`를 확인하고 코드를 교환한 뒤, 가입을 마친 활성 사용자만 세션에 로그인(principal=userId)시키고 원래 인가 요청으로 돌려보낸다. 계정 없음·가입 미완료·카카오 실패는 안내 화면만 보이고 사용자를 만들지 않는다.
 - 주요 파일: `mcp/infrastructure/security/{McpAuthorizationServerSecurityConfig, McpClientPolicyRepository, McpOAuthSchemaInitializer}`, `mcp/presentation/McpLoginController`, `user/application/{OAuthLoginService.findActiveUserId, KakaoOAuthService.authorizeUrl·loginWithKakao(code, redirectUri)}`, `KakaoTokenClient.issueToken(code, redirectUri)`, 스키마 SQL 2개
@@ -259,7 +278,8 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
   - 테이블 3개 기동 시 생성, 등록 클라이언트 2건 저장. 기존 API 응답에 `Set-Cookie` 없음
   - 카카오 실제 로그인 이후 단계(토큰 발급·refresh·CIMD 문서 조회)는 실제 카카오 계정이 필요해 운영 배포 후 확인한다
 - 테스트: 전체 279건 통과(L1·L2 4건 추가)
-- 가드: 경로 검사 통과(12개 파일)
+- 가드: 경로 검사 통과(12개 파일). 의미 검사 PLAN_UPDATE_NEEDED(문구) → KTD2 체인 수·U2 승인 문구를 고쳤다. 보안 점검(오픈 리다이렉트·state·세션 고정·사용자 미생성·기존 로그인 불변) 이상 없음
+- 남은 위험(기록, 진행 막지 않음): ①로그인 세션이 살아 있는 동안 다른 DCR 클라이언트도 화면 확인 없이 코드를 받을 수 있다(리다이렉트가 claude.ai·loopback뿐이고 PKCE 필수라 영향 작음) ②DCR 클라이언트 이름은 클라이언트가 정한다 ③CIMD 문서 조회의 SSRF 방어는 라이브러리 검증기에 맡긴다
 
 ### CP1 결과 (2026-10-20)
 - 바뀐 흐름: `/mcp`·보호 리소스 메타데이터를 받는 리소스 서버 체인(`@Order(1)`)이 기존 체인보다 먼저 MCP 경로만 받는다. 공개 주소 필터가 MCP·OAuth 경로의 요청 주소를 issuer 기준으로 바꾼다. 서명 키(JWK)와 JWT 검증기를 둔다.

@@ -25,6 +25,10 @@ repositories {
     mavenCentral()
 }
 
+// MCP Security(mcp-authorization-server)가 Spring Security 7.1 API(동적 클라이언트 등록 검증)를 쓴다.
+// Boot 4.0.1 관리 버전(7.0.x) 대신 7.1.0을 쓴다.
+ext['spring-security.version'] = '7.1.0'
+
 dependencies {
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     implementation 'org.springframework.boot:spring-boot-starter'
@@ -75,6 +79,14 @@ dependencies {
 
     // Swagger (SpringDoc OpenAPI)
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1'
+
+    // MCP 서버 (Claude 연결) — Spring AI 2.0 MCP Server + MCP Security(OAuth 인가 서버·리소스 서버)
+    implementation platform('org.springframework.ai:spring-ai-bom:2.0.0')
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
+    implementation 'org.springaicommunity:mcp-server-security:0.1.13'
+    implementation 'org.springaicommunity:mcp-authorization-server:0.1.13'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 
     // Test Security
     testImplementation 'org.springframework.security:spring-security-test'

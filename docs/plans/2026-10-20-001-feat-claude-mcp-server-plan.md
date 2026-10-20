@@ -59,7 +59,7 @@ blocked_paths:
 - 바뀌지 않는 것: 기존 화면 로그인(카카오 → 앱 JWT), 기존 REST API와 보안 체인, 기존 도메인 로직, 화면
 
 ## 작업 리스트
-- [ ] U1 의존성·MCP 서버 뼈대·`/mcp` 리소스 서버 보안 체인 → 체크포인트 CP1
+- [x] U1 의존성·MCP 서버 뼈대·`/mcp` 리소스 서버 보안 체인 → 체크포인트 CP1 (2026-10-20, 아래 CP1 결과)
 - [ ] U2 인가 서버·저장 테이블·카카오 로그인 연결·토큰 userId → 체크포인트 CP2
 - [ ] U3 기업 리포트·S-RIM·채권 금리 도구(+S-RIM 입력 조립) → 체크포인트 CP3
 - [ ] U4 포트폴리오·배당 일정·경제지표·뉴스 도구 → 체크포인트 CP4
@@ -239,7 +239,19 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 - 각 CP에서 `scripts/checkpoint-guard.sh /home/user/stock-market-issue-144`로 경로를 검사하고, read-only 가드 서브에이전트로 의미 검사를 한다.
 
 ## 체크포인트
-- CP1~CP4는 구현 단위 끝에서 수행하고 태형님 확인을 받는다.
+- CP1~CP4는 구현 단위 끝에서 수행한다. 2026-10-20 지시("끝까지 다 구현해 결정사항들 다 권장으로 처리해")로 체크포인트마다 멈추지 않고 결과를 기록한 뒤 다음 단위로 간다.
+
+### CP1 결과 (2026-10-20)
+- 바뀐 흐름: `/mcp`·보호 리소스 메타데이터를 받는 리소스 서버 체인(`@Order(1)`)이 기존 체인보다 먼저 MCP 경로만 받는다. 공개 주소 필터가 MCP·OAuth 경로의 요청 주소를 issuer 기준으로 바꾼다. 서명 키(JWK)와 JWT 검증기를 둔다.
+- 주요 파일: `build.gradle`(Spring AI BOM 2.0.0, MCP 서버 스타터, MCP Security 0.1.13, 리소스 서버·JDBC 스타터, Spring Security 7.1.0 지정), `application.yml`(`spring.ai.mcp.server.*`, `mcp.oauth.*`), `mcp/infrastructure/{config,security}`, `mcp/presentation/{McpUserContext, tool/EconomicsMcpTools, dto/McpBondYields}`
+- 확인(dev `bootRun`, issuer `https://hubth.test`, 테스트 키):
+  - 무토큰 `POST /mcp` → 401 + `WWW-Authenticate: Bearer resource_metadata=https://hubth.test/.well-known/oauth-protected-resource/mcp`
+  - 메타데이터: `resource=https://hubth.test/mcp`, `authorization_servers=[https://hubth.test]`
+  - 테스트 토큰(sub=1, aud=리소스): `initialize`·`tools/list`(1개)·`get_bond_yields` 호출 성공. 도구 안에서 인증 정보를 읽는다
+  - aud가 다른 토큰 → 401 `invalid_token`
+  - 기존 `/api/economics/indicators/categories`·`/login.html` 200, `Set-Cookie` 없음
+- 테스트: 전체 `./gradlew test` 275건 통과(기존 272 + U1·U2 3건). Spring Security 7.1.0 지정 후 기존 272건 회귀 통과
+- 가드: 경로 검사 통과(11개 파일)
 
 ## 검증
 - `./gradlew test` 전체

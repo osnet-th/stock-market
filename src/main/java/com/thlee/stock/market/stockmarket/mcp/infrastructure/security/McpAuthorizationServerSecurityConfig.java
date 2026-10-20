@@ -41,6 +41,7 @@ public class McpAuthorizationServerSecurityConfig {
 
     public static final int ORDER = 2;
     private static final String TOKEN_AUTH_METHOD_NONE = "none";
+    private static final String CIMD_SUPPORTED_CLAIM = "client_id_metadata_document_supported";
 
     @Bean
     @Order(ORDER)
@@ -56,10 +57,12 @@ public class McpAuthorizationServerSecurityConfig {
                         .dynamicClientRegistration(true)
                         .cimd(true)
                         .authorizationServer(server -> server
-                                // PKCE 공개 클라이언트(claude.ai CIMD)가 쓰는 "none"을 메타데이터에 알린다
+                                // PKCE 공개 클라이언트(claude.ai CIMD)가 쓰는 "none"을 메타데이터에 알린다.
+                                // 메타데이터 설정은 하나만 남으므로 MCP 라이브러리가 넣던 CIMD 지원 표시도 함께 넣는다
                                 .authorizationServerMetadataEndpoint(metadata -> metadata
                                         .authorizationServerMetadataCustomizer(builder -> builder
-                                                .tokenEndpointAuthenticationMethod(TOKEN_AUTH_METHOD_NONE)))
+                                                .tokenEndpointAuthenticationMethod(TOKEN_AUTH_METHOD_NONE)
+                                                .claim(CIMD_SUPPORTED_CLAIM, true)))
                                 // 인가 코드를 보내면서 로그인 세션을 끝낸다(연결마다 확인 화면·카카오 로그인)
                                 .authorizationEndpoint(endpoint -> endpoint
                                         .authorizationResponseHandler(new McpOneTimeAuthorizationResponseHandler()))))

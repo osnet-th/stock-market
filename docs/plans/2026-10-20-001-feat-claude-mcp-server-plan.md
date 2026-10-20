@@ -64,9 +64,9 @@ blocked_paths:
 - [x] U3 기업 리포트·S-RIM·채권 금리 도구(+S-RIM 입력 조립) → 체크포인트 CP3 (2026-10-20, 아래 CP3 결과)
 - [x] U4 포트폴리오·배당 일정·경제지표·뉴스 도구 → 체크포인트 CP4 (2026-10-20, 아래 CP4 결과)
 - [x] U5 설정·연결 안내 문서 (2026-10-20, `docs/mcp/claude-mcp-connection-guide.md`)
-- [ ] 리뷰 (태형님이 고른 이슈만 반영) — 2026-10-20 지시("결정사항들 다 권장으로 처리해")로 권장안(P1·P2 전부 + 작은 P3) 반영, 아래 리뷰 결과
+- [x] 리뷰 (태형님이 고른 이슈만 반영) — 2026-10-20 지시("결정사항들 다 권장으로 처리해")로 권장안(P1·P2 전부 + 작은 P3) 반영, 아래 리뷰 결과
   - [x] R1 리뷰 반영(A1·A2·A7·A9, S1·S2·S3·S5·S6·S7) + 테스트 P1~P4·M3·T1~T2 → CP5 (2026-10-20, 아래 CP5 결과)
-- [ ] 검증 (태형님 선택 방식)
+- [x] 검증 (태형님 선택 방식) — 권장안 `./gradlew test` + `bootRun`·curl (2026-10-20, 아래 검증 결과)
 
 ## 배경 / 현재 상태
 - **보안:** 프로필마다 `SecurityFilterChain`이 하나뿐이다(`ProdSecurityConfig`, `DevSecurityConfig`). `@Order`·`securityMatcher` 없이 모든 경로를 받는다. 둘 다 STATELESS, CSRF 비활성, 세션·쿠키를 쓰지 않는다. dev는 전부 permitAll이다.
@@ -239,6 +239,12 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 - `/ce:plan`·`/ce:work`·`/ce:review`가 없어 게이트 절차를 수동으로 적용한다(#142와 동일).
 - 각 CP에서 `scripts/checkpoint-guard.sh /home/user/stock-market-issue-144`로 경로를 검사하고, read-only 가드 서브에이전트로 의미 검사를 한다.
 
+## 구현 이해 확인 결과 (2026-10-20)
+- 요구사항 커버리지: 충족 17(REQ-1~11, REQ-13~17, REQ-21), 부분 충족 1(REQ-12), 범위 제외 3(REQ-18~20), 미충족 0
+- GAP 결정(2026-10-20 지시 "결정사항들 다 권장으로 처리해"에 따라 권장안)
+  - REQ-12 부분 충족: 수용. 실제 claude.ai 연결은 운영 배포·카카오 Redirect URI 등록 후 태형님 확인(검증 절 "운영")
+  - REQ-18~20 범위 제외: 수용(쓰기 도구는 2단계, 해외 S-RIM은 근거 자료 없음)
+
 ## 리뷰 결과 (2026-10-20)
 리뷰어 2명(아키텍처·정확성 / OAuth·로그인 보안)이 브랜치 전체 변경(45개 파일)을 읽기 전용으로 검토했다.
 
@@ -271,6 +277,16 @@ Spring Security 7.0.2 jar의 표준 스키마(`oauth2-registered-client-schema.s
 
 ## 체크포인트
 - CP1~CP4는 구현 단위 끝에서 수행한다. 2026-10-20 지시("끝까지 다 구현해 결정사항들 다 권장으로 처리해")로 체크포인트마다 멈추지 않고 결과를 기록한 뒤 다음 단위로 간다.
+
+### 검증 결과 (2026-10-20, 최종 코드)
+- `./gradlew clean test`: 294건 통과(실패·건너뜀 0)
+- `bootRun`(dev, issuer `https://hubth.test`) + curl
+  - 무토큰 `POST /mcp` 401 + `WWW-Authenticate: Bearer resource_metadata=https://hubth.test/...`
+  - 보호 리소스 메타데이터 `resource=https://hubth.test/mcp`. 인가 서버 메타데이터의 모든 엔드포인트가 https issuer 기준, `registration_endpoint` 있음, 인증 방식에 `none`
+  - 테스트 토큰으로 `tools/list` 10개(모두 조회 전용), `get_bond_yields`·`get_my_holdings`·`list_my_company_reports`·`get_economic_indicators`·`search_news` 정상 응답
+  - 기존 `/api/economics/indicators/categories`·`/login.html` 200, `Set-Cookie` 없음
+- 검증 중 발견·수정: 인가 서버 메타데이터에 `client_id_metadata_document_supported`가 빠져 있었다. MCP 라이브러리가 넣는 메타데이터 설정을 `none` 추가 설정이 덮어써서다(설정이 하나만 남는다). `none` 설정에서 이 표시도 함께 넣도록 고쳤고 재기동 후 `true`를 확인했다. CP2 기록의 `true`는 이 설정을 넣기 전 확인값이다
+- 미실행: 실제 카카오 로그인 이후(토큰 발급·refresh·1회용 로그인·CIMD 문서 조회)와 DART·KIS·ECOS 실제 응답은 운영 배포 후 태형님 확인
 
 ### CP5 결과 (2026-10-20, 리뷰 반영 R1)
 - 바뀐 흐름
